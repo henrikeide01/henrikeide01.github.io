@@ -2,70 +2,161 @@
 <html lang="no">
 <head>
 <meta charset="UTF-8">
-<title>Middag‑randomizer 🍽️</title>
+<title>Middag‑randomizer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{margin:0;font-family:system-ui,Arial;background:#f4f6fa}
-.app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
-
-/* ===== SIDEMENY ===== */
-aside{
-  background:#fff;
-  border-right:1px solid #ddd;
-  padding:15px;
+:root {
+  --bg:#f5f7fb;
+  --panel:#ffffff;
+  --border:#e5e7eb;
+  --primary:#2563eb;
+  --primary-dark:#1e40af;
+  --text:#111827;
+  --muted:#6b7280;
+  --radius:12px;
 }
-.menu-item{
+
+* { box-sizing:border-box }
+
+body {
+  margin:0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.app {
+  display:grid;
+  grid-template-columns:300px 1fr;
+  min-height:100vh;
+}
+
+/* ===== SIDEBAR ===== */
+aside {
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  padding:20px;
+}
+
+aside h2 {
+  font-size:18px;
+  margin-bottom:16px;
+}
+
+.menu-item {
   display:flex;
   align-items:center;
-  gap:8px;
-  margin-bottom:6px;
-}
-.menu-name{cursor:pointer}
-.menu-name:hover{text-decoration:underline}
-.star{cursor:pointer;color:#ccc}
-.star.fav{color:gold}
-
-/* ===== HOVED ===== */
-main{padding:20px}
-button{
-  border:none;border-radius:8px;padding:8px 14px;cursor:pointer
-}
-.spin{background:#007bff;color:#fff;font-size:22px}
-.lock{background:#dc3545;color:white}
-
-.card{
-  background:white;
-  padding:20px;
-  border-radius:10px;
-  box-shadow:0 4px 10px rgba(0,0,0,.15);
-  margin-top:20px;
-}
-
-input,select{
-  width:100%;
-  padding:6px;
-  margin-bottom:6px;
-}
-
-ul{padding-left:18px}
-li{margin-bottom:6px}
-.remove{color:red;cursor:pointer;margin-left:6px}
-
-.week{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
   gap:10px;
+  padding:8px;
+  border-radius:8px;
 }
-.day{
-  border:1px solid #ddd;
+
+.menu-item:hover {
+  background:#f3f4f6;
+}
+
+.menu-name {
+  flex:1;
+  cursor:pointer;
+}
+
+.star {
+  cursor:pointer;
+  color:#d1d5db;
+}
+.star.fav {
+  color:#facc15;
+}
+
+/* ===== MAIN ===== */
+main {
+  padding:32px;
+}
+
+h1 {
+  font-size:32px;
+  margin:0 0 20px;
+}
+
+button {
+  appearance:none;
+  border:none;
+  border-radius:10px;
+  padding:10px 18px;
+  font-size:15px;
+  cursor:pointer;
+}
+
+.primary {
+  background:var(--primary);
+  color:white;
+}
+.primary:hover {
+  background:var(--primary-dark);
+}
+
+.card {
+  background:var(--panel);
+  border-radius:var(--radius);
+  padding:24px;
+  border:1px solid var(--border);
+  box-shadow:0 10px 20px rgba(0,0,0,0.04);
+  margin-top:24px;
+}
+
+.card h2 {
+  margin-top:0;
+  font-size:22px;
+}
+
+/* ===== FORM ===== */
+input, select {
+  width:100%;
   padding:10px;
   border-radius:8px;
-  background:#fafafa;
+  border:1px solid var(--border);
+  font-size:14px;
+  margin-bottom:10px;
 }
 
-@media(max-width:900px){
-  .app{grid-template-columns:1fr}
+ul {
+  padding-left:18px;
+}
+
+li {
+  margin-bottom:6px;
+}
+
+.remove {
+  color:#dc2626;
+  cursor:pointer;
+  margin-left:6px;
+}
+
+/* ===== WEEK ===== */
+.week {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:14px;
+}
+
+.day {
+  background:#f9fafb;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width:900px) {
+  .app {
+    grid-template-columns:1fr;
+  }
+  aside {
+    border-right:none;
+    border-bottom:1px solid var(--border);
+  }
 }
 </style>
 </head>
@@ -73,203 +164,183 @@ li{margin-bottom:6px}
 <body>
 <div class="app">
 
-<!-- ===== MENY ===== -->
+<!-- ===== SIDEBAR ===== -->
 <aside>
-<h2>🍽️ Retter</h2>
-<div id="menu"></div>
+  <h2>🍽️ Retter</h2>
+  <div id="menu"></div>
 </aside>
 
 <!-- ===== MAIN ===== -->
 <main>
-<h1>Middag‑randomizer</h1>
+  <h1>Middag‑randomizer</h1>
 
-<div id="spinner" style="font-size:36px;margin:10px">🎲</div>
-<button class="spin" onclick="spin()">SPIN</button>
+  <div id="spinner" style="font-size:36px;margin-bottom:12px">🎲</div>
+  <button class="primary" onclick="spin()">SPIN</button>
 
-<!-- ===== REDIGERING ===== -->
-<div class="card" id="editor" style="display:none">
-<h2 id="dishName"></h2>
+  <!-- ===== REDIGERING ===== -->
+  <div class="card" id="editor" style="display:none">
+    <h2 id="dishName"></h2>
 
-<label>Antall personer</label>
-<input type="number" id="people" value="2" min="1" onchange="renderIngredients()">
+    <label>Antall personer</label>
+    <input type="number" id="people" value="2" min="1" onchange="renderIngredients()">
 
-<h3>Ingredienser</h3>
-<ul id="ingredients"></ul>
+    <h3>Ingredienser</h3>
+    <ul id="ingredients"></ul>
 
-<input id="iName" placeholder="Ingrediens">
-<input id="iAmount" type="number" placeholder="Mengde per person">
-<select id="iUnit">
-  <option value="g">gram</option>
-  <option value="stk">stk</option>
-</select>
-<button onclick="addIngredient()">Legg til ingrediens</button>
-</div>
+    <input id="iName" placeholder="Ingrediens">
+    <input id="iAmount" type="number" placeholder="Mengde per person">
+    <select id="iUnit">
+      <option value="g">gram</option>
+      <option value="stk">stk</option>
+    </select>
 
-<!-- ===== UKEPLAN ===== -->
-<div class="card">
-<h2>📅 Ukeplan</h2>
-<button class="lock" onclick="toggleLock()">🔒 Lås / lås opp uke</button>
-<div class="week" id="week"></div>
-</div>
+    <button class="primary" onclick="addIngredient()">Legg til ingrediens</button>
+  </div>
 
-<!-- ===== HANDLELISTE ===== -->
-<div class="card">
-<h2>🛒 Handleliste</h2>
-<ul id="shopping"></ul>
-</div>
+  <!-- ===== UKEPLAN ===== -->
+  <div class="card">
+    <h2>📅 Ukeplan</h2>
+    <div class="week" id="week"></div>
+  </div>
+
+  <!-- ===== HANDLELISTE ===== -->
+  <div class="card">
+    <h2>🛒 Handleliste</h2>
+    <ul id="shopping"></ul>
+  </div>
 
 </main>
 </div>
 
 <script>
-/* ===== DATA ===== */
-const defaultData={
-"Taco":{on:true,fav:true,ing:[
-{n:"Kjøttdeig",a:150,u:"g"},
-{n:"Lefser",a:2,u:"stk"},
-{n:"Ost",a:50,u:"g"}]},
-"Pizza":{on:true,fav:false,ing:[
-{n:"Pizzabunn",a:1,u:"stk"},
-{n:"Ost",a:100,u:"g"}]},
-"Burrito":{on:true,fav:false,ing:[
-{n:"Tortilla",a:2,u:"stk"},
-{n:"Kylling",a:150,u:"g"}]},
-"Hamburger":{on:true,fav:false,ing:[
-{n:"Burgerbrød",a:1,u:"stk"},
-{n:"Kjøtt",a:150,u:"g"}]},
-"Spaghetti Bolognese":{on:true,fav:false,ing:[
-{n:"Pasta",a:100,u:"g"},
-{n:"Kjøttdeig",a:150,u:"g"}]}
-};
-
+/* DATA */
 const days=["Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag","Søndag"];
+const defaultData={
+  Taco:{on:true,fav:true,ing:[
+    {n:"Kjøttdeig",a:150,u:"g"},
+    {n:"Lefser",a:2,u:"stk"},
+    {n:"Ost",a:50,u:"g"}]},
+  Pizza:{on:true,fav:false,ing:[
+    {n:"Pizzabunn",a:1,u:"stk"},
+    {n:"Ost",a:100,u:"g"}]},
+  Burrito:{on:true,fav:false,ing:[
+    {n:"Tortilla",a:2,u:"stk"},
+    {n:"Kylling",a:150,u:"g"}]}
+};
 
 let data=JSON.parse(localStorage.getItem("data"))||defaultData;
 let week=JSON.parse(localStorage.getItem("week"))||{};
-let locked=JSON.parse(localStorage.getItem("locked"))||false;
 let current=null;
 
-/* ===== HELPERS ===== */
+/* STORAGE */
 function save(){
-localStorage.setItem("data",JSON.stringify(data));
-localStorage.setItem("week",JSON.stringify(week));
-localStorage.setItem("locked",JSON.stringify(locked));
+  localStorage.setItem("data",JSON.stringify(data));
+  localStorage.setItem("week",JSON.stringify(week));
 }
 
-/* ===== MENU ===== */
+/* MENU */
 function buildMenu(){
-menu.innerHTML="";
-Object.keys(data)
-.sort((a,b)=>data[b].fav-data[a].fav)
-.forEach(d=>{
-menu.innerHTML+=`
-<div class="menu-item">
-<input type="checkbox" ${data[d].on?"checked":""}
- onchange="data['${d}'].on=this.checked;save()">
-<span class="star ${data[d].fav?"fav":""}"
- onclick="data['${d}'].fav=!data['${d}'].fav;save();buildMenu()">★</span>
-<span class="menu-name" onclick="openDish('${d}')">${d}</span>
-</div>`;
-});
+  menu.innerHTML="";
+  Object.keys(data)
+    .sort((a,b)=>data[b].fav-data[a].fav)
+    .forEach(d=>{
+      menu.innerHTML+=`
+      <div class="menu-item">
+        <input type="checkbox" ${data[d].on?"checked":""}
+          onchange="data['${d}'].on=this.checked;save()">
+        <span class="star ${data[d].fav?'fav':''}"
+          onclick="data['${d}'].fav=!data['${d}'].fav;save();buildMenu()">★</span>
+        <span class="menu-name" onclick="openDish('${d}')">${d}</span>
+      </div>`;
+    });
 }
 buildMenu();
 
-/* ===== SPIN ===== */
+/* SPIN */
 function spin(){
-const choices=Object.keys(data).filter(d=>data[d].on);
-if(!choices.length)return alert("Velg minst én rett");
-let i=0;
-const int=setInterval(()=>{
-spinner.textContent=choices[i++%choices.length];
-},120);
-setTimeout(()=>{
-clearInterval(int);
-openDish(spinner.textContent);
-},2000);
+  const list=Object.keys(data).filter(d=>data[d].on);
+  if(!list.length) return alert("Velg minst én rett");
+  let i=0;
+  const int=setInterval(()=>{
+    spinner.textContent=list[i++%list.length];
+  },120);
+  setTimeout(()=>{
+    clearInterval(int);
+    openDish(spinner.textContent);
+  },2000);
 }
 
-/* ===== REDIGERING ===== */
+/* EDIT */
 function openDish(name){
-current=name;
-editor.style.display="block";
-dishName.textContent=name;
-renderIngredients();
+  current=name;
+  editor.style.display="block";
+  dishName.textContent=name;
+  renderIngredients();
 }
 function renderIngredients(){
-ingredients.innerHTML="";
-if(!current)return;
-data[current].ing.forEach((i,idx)=>{
-ingredients.innerHTML+=`
-<li>${i.n}: ${i.a*people.value} ${i.u}
-<span class="remove" onclick="removeIngredient(${idx})">✕</span>
-</li>`;
-});
-save();
+  ingredients.innerHTML="";
+  data[current].ing.forEach((i,idx)=>{
+    ingredients.innerHTML+=`
+      <li>${i.n}: ${i.a*people.value} ${i.u}
+      <span class="remove" onclick="removeIngredient(${idx})">✕</span></li>`;
+  });
+  save();
 }
 function addIngredient(){
-if(!iName.value||!iAmount.value)return;
-data[current].ing.push({n:iName.value,a:+iAmount.value,u:iUnit.value});
-iName.value=iAmount.value="";
-renderIngredients();
+  if(!iName.value||!iAmount.value) return;
+  data[current].ing.push({n:iName.value,a:+iAmount.value,u:iUnit.value});
+  iName.value=iAmount.value="";
+  renderIngredients();
 }
 function removeIngredient(i){
-data[current].ing.splice(i,1);
-renderIngredients();
+  data[current].ing.splice(i,1);
+  renderIngredients();
 }
 
-/* ===== UKEPLAN ===== */
+/* WEEK */
 function buildWeek(){
-weekEl.innerHTML="";
-days.forEach(d=>{
-const w=week[d]||{};
-weekEl.innerHTML+=`
-<div class="day">
-<strong>${d}</strong>
-<select ${locked?"disabled":""}
- onchange="setDay('${d}',this.value)">
-<option value="">–</option>
-${Object.keys(data).map(r=>
-`<option ${w.dish===r?"selected":""}>${r}</option>`).join("")}
-</select>
-<input type="number" min="1" value="${w.p||2}"
- ${locked?"disabled":""}
- onchange="setPeople('${d}',this.value)">
-</div>`;
-});
-updateShopping();
+  week.innerHTML="";
+  days.forEach(d=>{
+    const w=week[d]||{};
+    week.innerHTML+=`
+    <div class="day">
+      <strong>${d}</strong>
+      <select onchange="setDay('${d}',this.value)">
+        <option value="">–</option>
+        ${Object.keys(data).map(r=>`
+          <option ${w.dish===r?"selected":""}>${r}</option>`).join("")}
+      </select>
+      <input type="number" min="1" value="${w.p||2}"
+        onchange="setPeople('${d}',this.value)">
+    </div>`;
+  });
+  updateShopping();
 }
 function setDay(d,val){
-week[d]={dish:val,p:week[d]?.p||2};
-save();updateShopping();
+  week[d]={dish:val,p:week[d]?.p||2};
+  save();updateShopping();
 }
 function setPeople(d,val){
-if(week[d])week[d].p=+val;
-save();updateShopping();
-}
-function toggleLock(){
-locked=!locked;
-save();buildWeek();
+  if(week[d]) week[d].p=+val;
+  save();updateShopping();
 }
 
-/* ===== HANDLELISTE ===== */
+/* SHOPPING */
 function updateShopping(){
-shopping.innerHTML="";
-let map={};
-Object.values(week).forEach(w=>{
-if(!w?.dish)return;
-data[w.dish].ing.forEach(i=>{
-const key=i.n+"_"+i.u;
-map[key]=map[key]||{n:i.n,u:i.u,a:0};
-map[key].a+=i.a*w.p;
-});
-});
-Object.values(map).forEach(i=>{
-shopping.innerHTML+=`<li>${i.n}: ${i.a} ${i.u}</li>`;
-});
+  shopping.innerHTML="";
+  let map={};
+  Object.values(week).forEach(w=>{
+    if(!w.dish) return;
+    data[w.dish].ing.forEach(i=>{
+      const k=i.n+i.u;
+      map[k]=map[k]||{n:i.n,u:i.u,a:0};
+      map[k].a+=i.a*w.p;
+    });
+  });
+  Object.values(map).forEach(i=>{
+    shopping.innerHTML+=`<li>${i.n}: ${i.a} ${i.u}</li>`;
+  });
 }
-
-/* ===== INIT ===== */
-const weekEl=document.getElementById("week");
 buildWeek();
 </script>
 
