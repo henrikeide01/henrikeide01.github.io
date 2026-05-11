@@ -6,55 +6,102 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{margin:0;font-family:Arial;background:#f4f6fa}
-.app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
-aside{background:#fff;padding:15px;border-right:1px solid #ddd}
-main{padding:20px}
-
-h1,h2{margin-top:0}
-button{border:none;border-radius:6px;padding:8px 14px;cursor:pointer}
-.spin{background:#007bff;color:#fff;font-size:22px}
-
-.menu-item{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:8px;
+body {
+  margin:0;
+  font-family: system-ui, Arial;
+  background:#f4f6fa;
 }
 
-.menu-left{
-  display:flex;
-  align-items:center;
-  gap:8px;
+.app {
+  display:grid;
+  grid-template-columns:280px 1fr;
+  min-height:100vh;
 }
 
-.menu-name{
+/* ===== MENY ===== */
+aside {
+  background:#fff;
+  border-right:1px solid #ddd;
+  padding:15px;
+}
+
+.menu-item {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.menu-item input {
+  transform: scale(1.1);
+}
+
+.menu-name {
+  cursor:pointer;
+  font-weight:500;
+}
+
+.menu-name:hover {
+  text-decoration:underline;
+}
+
+/* ===== HOVED ===== */
+main {
+  padding:20px;
+}
+
+button {
+  border:none;
+  border-radius:8px;
+  padding:10px 16px;
   cursor:pointer;
 }
-.menu-name:hover{text-decoration:underline}
 
-.card{
-  background:#fff;
-  padding:20px;
-  border-radius:10px;
-  box-shadow:0 4px 10px rgba(0,0,0,.15);
-  margin-top:20px;
+.spin {
+  background:#007bff;
+  color:white;
+  font-size:24px;
 }
 
-img{width:100%;border-radius:8px}
+.card {
+  background:white;
+  border-radius:12px;
+  padding:20px;
+  margin-top:20px;
+  box-shadow:0 4px 10px rgba(0,0,0,.15);
+}
 
-input,select{
+img {
+  width:100%;
+  border-radius:10px;
+  margin-bottom:10px;
+}
+
+input, select {
   width:100%;
   padding:6px;
   margin-bottom:6px;
 }
 
-ul{padding-left:18px}
-li{margin-bottom:6px}
-.remove{color:red;cursor:pointer;margin-left:8px}
+ul {
+  padding-left:20px;
+}
 
-@media(max-width:900px){
-  .app{grid-template-columns:1fr}
+li {
+  margin-bottom:6px;
+}
+
+.remove {
+  color:red;
+  cursor:pointer;
+  margin-left:8px;
+}
+
+/* ===== MOBIL ===== */
+@media (max-width:900px) {
+  .app {
+    grid-template-columns:1fr;
+  }
 }
 </style>
 </head>
@@ -63,122 +110,193 @@ li{margin-bottom:6px}
 <div class="app">
 
 <aside>
-<h2>🍽️ Retter</h2>
-<div id="menu"></div>
+  <h2>🍽️ Retter</h2>
+  <div id="menu"></div>
 </aside>
 
 <main>
-<h1>Middag‑randomizer</h1>
+  <h1>Middag-randomizer</h1>
 
-<div id="spinner" style="font-size:36px;margin:10px">🎲</div>
-<button class="spin" onclick="spin()">SPIN</button>
+  <div id="spinner" style="font-size:36px;margin:10px">🎲</div>
+  <button class="spin" onclick="spin()">SPIN</button>
 
-<div id="editor" class="card" style="display:none">
-<h2 id="dishName"></h2>
-<img id="dishImg">
+  <div id="editor" class="card" style="display:none">
+    <h2 id="dishName"></h2>
+    <img id="dishImg">
 
-<label>Antall personer</label>
-<input type="number" id="people" value="2" min="1" onchange="renderIngredients()">
+    <label>Antall personer</label>
+    <input type="number" id="people" value="2" min="1" onchange="renderIngredients()">
 
-<h3>Ingredienser</h3>
-<ul id="ingredients"></ul>
+    <h3>Ingredienser</h3>
+    <ul id="ingredients"></ul>
 
-<input id="iName" placeholder="Ingrediens">
-<input id="iAmount" type="number" placeholder="Mengde per person">
-<select id="iUnit">
-  <option value="g">gram</option>
-  <option value="stk">stk</option>
-</select>
-<button onclick="addIngredient()">Legg til ingrediens</button>
-</div>
+    <input id="iName" placeholder="Ingrediens">
+    <input id="iAmount" type="number" placeholder="Mengde per person">
+    <select id="iUnit">
+      <option value="g">gram</option>
+      <option value="stk">stk</option>
+    </select>
 
+    <button onclick="addIngredient()">Legg til ingrediens</button>
+  </div>
 </main>
+
 </div>
 
 <script>
-const defaultData={
-"Taco":{on:true,img:"https://images.unsplash.com/photo-1617196035153-d96464ecf1c2",ing:[
-{n:"Kjøttdeig",a:150,u:"g"},{n:"Lefser",a:2,u:"stk"}]},
-"Burrito":{on:true,img:"https://images.unsplash.com/photo-1604908554166-37a68bc2d927",ing:[
-{n:"Tortilla",a:2,u:"stk"},{n:"Kylling",a:150,u:"g"}]},
-"Pizza":{on:true,img:"https://images.unsplash.com/photo-1548365328-8b849e6d7b8b",ing:[
-{n:"Pizzabunn",a:1,u:"stk"}]},
-"Hamburger":{on:true,img:"https://images.unsplash.com/photo-1550547660-d9450f859349",ing:[
-{n:"Burgerbrød",a:1,u:"stk"},{n:"Kjøtt",a:150,u:"g"}]},
-"Spaghetti Bolognese":{on:true,img:"https://images.unsplash.com/photo-1603133872878-684f7d7e8f8b",ing:[
-{n:"Pasta",a:100,u:"g"}]},
-"Lasagne":{on:true,img:"https://images.unsplash.com/photo-1617191518000-6db6f1e0ad43",ing:[
-{n:"Lasagneplater",a:3,u:"stk"}]},
-"Tikka Masala":{on:true,img:"https://images.unsplash.com/photo-1625944525587-f1eaa91b36a8",ing:[]},
-"Wok med kylling":{on:true,img:"https://images.unsplash.com/photo-1604908177522-432c5b7f9b5a",ing:[]},
-"Kylling og ris":{on:true,img:"https://images.unsplash.com/photo-1589308078053-f56de1c3c8d0",ing:[]},
-"Laks med poteter":{on:true,img:"https://images.unsplash.com/photo-1604908177080-3b57f4b2c91e",ing:[]}
+const defaultData = {
+  "Taco": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=800&q=80",
+    ing:[
+      {n:"Kjøttdeig",a:150,u:"g"},
+      {n:"Lefser",a:2,u:"stk"}
+    ]
+  },
+  "Burrito": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1604908554166-37a68bc2d927?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Pizza": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1548365328-8b849e6d7b8b?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Hamburger": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Spaghetti Bolognese": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1603133872878-684f7d7e8f8b?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Lasagne": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1617191518000-6db6f1e0ad43?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Tikka Masala": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1625944525587-f1eaa91b36a8?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Tandoori Chicken": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1604020321166-8aa22c8b6c53?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Wok med kylling": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1604908177522-432c5b7f9b5a?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Kylling og ris": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1589308078053-f56de1c3c8d0?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Laks med poteter": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1604908177080-3b57f4b2c91e?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Wraps": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1626078298759-42473992c37c?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  },
+  "Fiskekaker": {
+    on:true,
+    img:"https://images.unsplash.com/photo-1604908177092-b7c6ff157c84?auto=format&fit=crop&w=800&q=80",
+    ing:[]
+  }
 };
 
-let data=JSON.parse(localStorage.getItem("data"))||defaultData;
-let current=null;
+let data = JSON.parse(localStorage.getItem("data")) || defaultData;
+let current = null;
 
-function save(){localStorage.setItem("data",JSON.stringify(data))}
+function save() {
+  localStorage.setItem("data", JSON.stringify(data));
+}
 
-function buildMenu(){
-menu.innerHTML="";
-Object.keys(data).forEach(d=>{
-menu.innerHTML+=`
-<div class="menu-item">
-  <div class="menu-left">
-    <input type="checkbox" ${data[d].on?"checked":""}
-      onchange="data['${d}'].on=this.checked;save()">
-    <span class="menu-name" onclick="openDish('${d}')">${d}</span>
-  </div>
-</div>`;
-});
+function buildMenu() {
+  menu.innerHTML = "";
+  Object.keys(data).forEach(d => {
+    menu.innerHTML += `
+      <div class="menu-item">
+        <input type="checkbox" ${data[d].on ? "checked" : ""}
+          onchange="data['${d}'].on=this.checked;save()">
+        <span class="menu-name" onclick="openDish('${d}')">${d}</span>
+      </div>
+    `;
+  });
 }
 buildMenu();
 
-function spin(){
-const choices=Object.keys(data).filter(d=>data[d].on);
-if(!choices.length)return alert("Velg minst én rett");
-let i=0;
-const int=setInterval(()=>{
-spinner.textContent=choices[i++%choices.length];
-},120);
-setTimeout(()=>{
-clearInterval(int);
-openDish(spinner.textContent);
-},2000);
+function spin() {
+  const choices = Object.keys(data).filter(d => data[d].on);
+  if (!choices.length) {
+    alert("Velg minst én rett");
+    return;
+  }
+
+  let i = 0;
+  const interval = setInterval(() => {
+    spinner.textContent = choices[i++ % choices.length];
+  }, 120);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    openDish(spinner.textContent);
+  }, 2000);
 }
 
-function openDish(name){
-current=name;
-editor.style.display="block";
-dishName.textContent=name;
-dishImg.src=data[name].img;
-renderIngredients();
+function openDish(name) {
+  current = name;
+  editor.style.display = "block";
+  dishName.textContent = name;
+  dishImg.src = data[name].img;
+  renderIngredients();
 }
 
-function renderIngredients(){
-ingredients.innerHTML="";
-const p=people.value;
-data[current].ing.forEach((i,idx)=>{
-ingredients.innerHTML+=`
-<li>${i.n}: ${i.a*p} ${i.u}
-<span class="remove" onclick="del(${idx})">✕</span></li>`;
-});
-save();
+function renderIngredients() {
+  ingredients.innerHTML = "";
+  const p = people.value;
+
+  data[current].ing.forEach((i, idx) => {
+    ingredients.innerHTML += `
+      <li>
+        ${i.n}: ${i.a * p} ${i.u}
+        <span class="remove" onclick="del(${idx})">✕</span>
+      </li>
+    `;
+  });
+
+  save();
 }
 
-function addIngredient(){
-data[current].ing.push({
-n:iName.value,a:+iAmount.value,u:iUnit.value
-});
-iName.value=iAmount.value="";
-renderIngredients();
+function addIngredient() {
+  if (!iName.value || !iAmount.value) return;
+
+  data[current].ing.push({
+    n: iName.value,
+    a: Number(iAmount.value),
+    u: iUnit.value
+  });
+
+  iName.value = "";
+  iAmount.value = "";
+  renderIngredients();
 }
 
-function del(i){
-data[current].ing.splice(i,1);
-renderIngredients();
+function del(i) {
+  data[current].ing.splice(i, 1);
+  renderIngredients();
 }
 </script>
+
 </body>
 </html>
