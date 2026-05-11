@@ -1,12 +1,170 @@
+<!DOCTYPE html>
 <html lang="no">
 <head>
   <meta charset="UTF-8">
-  <title>Eidert.no</title>
+  <title>Middagspinner 🍽️</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6fa;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .spinner {
+      font-size: 32px;
+      font-weight: bold;
+      height: 50px;
+      margin: 20px 0;
+    }
+
+    .spin-btn {
+      background: #007bff;
+      color: white;
+      font-size: 24px;
+      padding: 15px 40px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .spin-btn:hover {
+      background: #0056b3;
+    }
+
+    .section {
+      background: white;
+      padding: 20px;
+      margin: 30px auto;
+      max-width: 500px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      display: none;
+      text-align: left;
+    }
+
+    .section h2 {
+      text-align: center;
+    }
+
+    input, button {
+      padding: 8px;
+      margin: 5px 0;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 5px;
+    }
+
+    .remove {
+      color: red;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Heia Snuppi</h1>
-  <p></p>
+
+<h1>Middag‑randomizer 🍽️</h1>
+<p>Trykk spin og finn ut hva dere skal spise i dag</p>
+
+<div class="spinner" id="spinner">🎲</div>
+<button class="spin-btn" onclick="spin()">SPIN</button>
+
+<div class="section" id="ingredientsSection">
+  <h2 id="dishTitle"></h2>
+
+  <label>
+    Antall personer:
+    <input type="number" id="people" value="2" min="1" onchange="updateIngredients()">
+  </label>
+
+  <ul id="ingredientsList"></ul>
+
+  <input type="text" id="newIngredient" placeholder="Ny ingrediens">
+  <button onclick="addIngredient()">Legg til</button>
+</div>
+
+<script>
+const dishes = {
+  "Taco": ["Kjøttdeig", "Tacolefser", "Ost", "Salat", "Tomat"],
+  "Pizza": ["Pizzabunn", "Tomatsaus", "Ost", "Skinke"],
+  "Burrito": ["Tortilla", "Kylling", "Ris", "Bønner"],
+  "Tandoori Chicken": ["Kylling", "Yoghurt", "Tandoori-krydder", "Ris"],
+  "Kylling og ris": ["Kyllingfilet", "Ris", "Brokkoli"]
+};
+
+let currentDish = null;
+let currentIngredients = [];
+
+function spin() {
+  const names = Object.keys(dishes);
+  let i = 0;
+
+  document.getElementById("ingredientsSection").style.display = "none";
+
+  const interval = setInterval(() => {
+    document.getElementById("spinner").textContent = names[i % names.length];
+    i++;
+  }, 100);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    currentDish = names[Math.floor(Math.random() * names.length)];
+    currentIngredients = [...dishes[currentDish]];
+    document.getElementById("spinner").textContent = currentDish;
+    showIngredients();
+  }, 2000);
+}
+
+function showIngredients() {
+  document.getElementById("dishTitle").textContent = currentDish;
+  document.getElementById("people").value = 2;
+  document.getElementById("ingredientsSection").style.display = "block";
+  renderIngredients();
+}
+
+function updateIngredients() {
+  renderIngredients();
+}
+
+function renderIngredients() {
+  const ul = document.getElementById("ingredientsList");
+  ul.innerHTML = "";
+  const people = document.getElementById("people").value;
+
+  currentIngredients.forEach((ing, index) => {
+    const li = document.createElement("li");
+    li.innerHTML = `${ing} (for ${people}) <span class="remove" onclick="removeIngredient(${index})">✕</span>`;
+    ul.appendChild(li);
+  });
+}
+
+function addIngredient() {
+  const input = document.getElementById("newIngredient");
+  if (input.value.trim() !== "") {
+    currentIngredients.push(input.value.trim());
+    input.value = "";
+    renderIngredients();
+  }
+}
+
+function removeIngredient(index) {
+  currentIngredients.splice(index, 1);
+  renderIngredients();
+}
+</script>
+
 </body>
 </html>
 ``
