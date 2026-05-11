@@ -176,6 +176,7 @@
             transition: var(--transition);
             margin-bottom: 8px;
             border: 1px solid transparent;
+            flex-shrink: 0;
         }
 
         .dish-item:hover {
@@ -191,7 +192,7 @@
 
         .dish-name {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 16px;
         }
 
         .dish-price-small {
@@ -563,8 +564,8 @@
                 const data = await response.json();
                 let content = data.choices[0].message.content.trim();
                 
-                if (content.startsWith('\`\`\`json')) {
-                    content = content.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+                if (content.startsWith('```json')) {
+                    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
                 }
 
                 const dishObj = JSON.parse(content);
@@ -701,7 +702,7 @@
                         ${ingredientsHtml}
                         <div class="dish-meta">
                             <span class="dish-price">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
                                 ${dishObj.price > 0 ? dishObj.price + ' kr' : '-'}
                             </span>
                             ${hasIngredients ? `<span class="dish-ingredients-toggle" onclick="toggleIngredients(${i})">Se ingredienser</span>` : ''}
