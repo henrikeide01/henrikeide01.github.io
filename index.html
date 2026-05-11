@@ -1,277 +1,226 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-  <meta charset="UTF-8">
-  <title>Middagspinner 🍽️</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  /favicon.ico
+<meta charset="UTF-8">
+<title>Middagspinner 🍽️</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6fa;
-      padding: 20px;
-      margin: 0;
-    }
+<style>
+:root {
+  --bg:#f4f6fa;
+  --card:#fff;
+  --text:#000;
+  --blue:#007bff;
+  --green:#28a745;
+}
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 900px;
-      margin: auto;
-    }
+body {
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
 
-    h1 {
-      margin: 10px 0;
-    }
+header {
+  max-width:1200px;
+  margin:auto;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
 
-    .add-dish-btn {
-      background: #28a745;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
+button {
+  border:none;
+  border-radius:8px;
+  padding:8px 14px;
+  cursor:pointer;
+}
 
-    .container {
-      max-width: 900px;
-      margin: auto;
-      text-align: center;
-    }
+.spin-btn {
+  background:var(--blue);
+  color:#fff;
+  font-size:26px;
+  padding:16px 60px;
+}
 
-    .spinner {
-      font-size: 36px;
-      font-weight: bold;
-      height: 50px;
-      margin: 20px 0;
-    }
+.add-btn {
+  background:var(--green);
+  color:#fff;
+}
 
-    .spin-btn {
-      background: #007bff;
-      color: white;
-      font-size: 24px;
-      padding: 15px 50px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
+.container {
+  max-width:1200px;
+  margin:auto;
+  padding:20px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+}
 
-    .spin-btn:hover {
-      background: #0056b3;
-    }
+.full { grid-column:1/-1;text-align:center }
 
-    .card {
-      display: none;
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      margin-top: 30px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: left;
-    }
+.card {
+  background:var(--card);
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,.15);
+}
 
-    .card img {
-      width: 100%;
-      border-radius: 10px;
-      margin-bottom: 15px;
-    }
+.card img {
+  width:100%;
+  border-radius:10px;
+}
 
-    label {
-      font-weight: bold;
-    }
+input,select {
+  padding:6px;
+  width:100%;
+  margin-bottom:6px;
+}
 
-    ul {
-      padding-left: 20px;
-    }
+ul { padding-left:20px }
+li { margin-bottom:6px }
 
-    li {
-      margin-bottom: 6px;
-    }
+.remove { color:red;cursor:pointer;margin-left:10px }
 
-    .remove {
-      color: red;
-      cursor: pointer;
-      margin-left: 10px;
-    }
-
-    .controls {
-      margin-top: 15px;
-    }
-
-    input, button {
-      padding: 8px;
-      margin-top: 5px;
-    }
-
-    .save-btn {
-      background: #ffc107;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-  </style>
+@media(max-width:800px){
+  .container{grid-template-columns:1fr}
+}
+</style>
 </head>
+
 <body>
 
 <header>
   <h1>Middag‑randomizer 🍽️</h1>
-  <button class="add-dish-btn" onclick="addDish()">➕ Ny rett</button>
+  <button class="add-btn" onclick="addDish()">➕ Ny rett</button>
 </header>
 
 <div class="container">
 
-  <p>Trykk spin og se hva dere skal spise i dag</p>
+  <div class="full">
+    <div id="spinner" style="font-size:38px;margin:15px">🎲</div>
+    <button class="spin-btn" onclick="spin()">SPIN</button>
+  </div>
 
-  <div class="spinner" id="spinner">🎲</div>
-  <button class="spin-btn" onclick="spin()">SPIN</button>
+  <div class="card" id="dishCard" style="display:none">
+    <h2 id="dishName"></h2>
+    <img id="dishImg">
 
-  <div class="card" id="card">
-    <h2 id="dishTitle"></h2>
-    <img id="dishImage" src="" alt="">
+    <label>Antall personer</label>
+    <input type="number" id="people" value="2" min="1" onchange="render()">
 
-    <label>
-      Antall personer:
-      <input type="number" id="people" min="1" value="2" onchange="renderIngredients()">
-    </label>
-
+    <h3>Ingredienser</h3>
     <ul id="ingredients"></ul>
 
-    <div class="controls">
-      <input type="text" id="newIngredientName" placeholder="Ingrediens">
-      <input type="number" id="newIngredientAmount" placeholder="Gram/stk">
-      <button onclick="addIngredient()">Legg til</button>
-    </div>
+    <input id="inName" placeholder="Ingrediens">
+    <input id="inAmount" type="number" placeholder="Mengde per person">
+    <select id="inUnit">
+      <option value="g">gram</option>
+      <option value="stk">stk</option>
+    </select>
+    <input id="inPrice" type="number" placeholder="Pris per enhet">
+    <button onclick="addIngredient()">Legg til ingrediens</button>
 
-    <button class="save-btn" onclick="saveData()">💾 Lagre endringer</button>
+    <button onclick="save()" style="margin-top:10px;background:#ffc107">💾 Lagre</button>
+  </div>
+
+  <div class="card" id="shopCard" style="display:none">
+    <h2>🛒 Handleliste</h2>
+    <ul id="shopping"></ul>
+    <h3 id="total"></h3>
   </div>
 
 </div>
 
 <script>
-let dishes = JSON.parse(localStorage.getItem("dishes")) || {
-  "Taco": {
-    image: "https://images.unsplash.com/photo-1617196035153-d96464ecf1c2",
-    ingredients: [
-      { name: "Kjøttdeig", amount: 150, unit: "g" },
-      { name: "Tacolefser", amount: 2, unit: "stk" },
-      { name: "Ost", amount: 50, unit: "g" }
+let data = JSON.parse(localStorage.getItem("data")) || {
+  Taco:{
+    img:"https://images.unsplash.com/photo-1617196035153-d96464ecf1c2",
+    ing:[
+      {n:"Kjøttdeig",a:150,u:"g",p:0.12},
+      {n:"Lefser",a:2,u:"stk",p:5},
+      {n:"Ost",a:50,u:"g",p:0.15}
     ]
   },
-  "Pizza": {
-    image: "https://images.unsplash.com/photo-1548365328-8b849e6d7b8b",
-    ingredients: [
-      { name: "Pizzabunn", amount: 1, unit: "stk" },
-      { name: "Ost", amount: 100, unit: "g" },
-      { name: "Tomatsaus", amount: 100, unit: "g" }
-    ]
-  },
-  "Burrito": {
-    image: "https://images.unsplash.com/photo-1604908554166-37a68bc2d927",
-    ingredients: [
-      { name: "Tortilla", amount: 2, unit: "stk" },
-      { name: "Kylling", amount: 150, unit: "g" },
-      { name: "Ris", amount: 100, unit: "g" }
-    ]
-  },
-  "Tandoori Chicken": {
-    image: "https://images.unsplash.com/photo-1625944525587-f1eaa91b36a8",
-    ingredients: [
-      { name: "Kylling", amount: 200, unit: "g" },
-      { name: "Yoghurt", amount: 100, unit: "g" },
-      { name: "Ris", amount: 100, unit: "g" }
-    ]
-  },
-  "Kylling og ris": {
-    image: "https://images.unsplash.com/photo-1589308078053-f56de1c3c8d0",
-    ingredients: [
-      { name: "Kyllingfilet", amount: 200, unit: "g" },
-      { name: "Ris", amount: 100, unit: "g" },
-      { name: "Brokkoli", amount: 100, unit: "g" }
+  Pizza:{
+    img:"https://images.unsplash.com/photo-1548365328-8b849e6d7b8b",
+    ing:[
+      {n:"Pizzabunn",a:1,u:"stk",p:20},
+      {n:"Ost",a:100,u:"g",p:0.15}
     ]
   }
 };
 
-let currentDish = null;
+let current=null;
 
-function spin() {
-  const names = Object.keys(dishes);
-  let i = 0;
-  document.getElementById("card").style.display = "none";
-
-  const interval = setInterval(() => {
-    document.getElementById("spinner").textContent = names[i % names.length];
-    i++;
-  }, 120);
-
-  setTimeout(() => {
-    clearInterval(interval);
-    currentDish = names[Math.floor(Math.random() * names.length)];
-    document.getElementById("spinner").textContent = currentDish;
-    showDish();
-  }, 2000);
+function spin(){
+  const keys=Object.keys(data);
+  let i=0;
+  const int=setInterval(()=>{
+    spinner.textContent=keys[i++%keys.length];
+  },120);
+  setTimeout(()=>{
+    clearInterval(int);
+    current=keys[Math.floor(Math.random()*keys.length)];
+    show();
+  },2000);
 }
 
-function showDish() {
-  const dish = dishes[currentDish];
-  document.getElementById("dishTitle").textContent = currentDish;
-  document.getElementById("dishImage").src = dish.image;
-  document.getElementById("card").style.display = "block";
-  renderIngredients();
+function show(){
+  dishCard.style.display=shopCard.style.display="block";
+  dishName.textContent=current;
+  dishImg.src=data[current].img;
+  render();
 }
 
-function renderIngredients() {
-  const ul = document.getElementById("ingredients");
-  ul.innerHTML = "";
-  const people = document.getElementById("people").value;
+function render(){
+  ingredients.innerHTML=shopping.innerHTML="";
+  let ppl=people.value;
+  let sum=0;
 
-  dishes[currentDish].ingredients.forEach((ing, index) => {
-    const li = document.createElement("li");
-    li.innerHTML = `${ing.name}: ${ing.amount * people} ${ing.unit}
-      <span class="remove" onclick="removeIngredient(${index})">✕</span>`;
-    ul.appendChild(li);
-  });
-}
+  data[current].ing.forEach((i,idx)=>{
+    let qty=i.a*ppl;
+    sum+=qty*i.p;
 
-function addIngredient() {
-  const name = document.getElementById("newIngredientName").value;
-  const amount = document.getElementById("newIngredientAmount").value;
+    ingredients.innerHTML+=
+      `<li>${i.n}: ${qty} ${i.u}
+       <span class="remove" onclick="del(${idx})">✕</span></li>`;
 
-  if (!name || !amount) return;
-
-  dishes[currentDish].ingredients.push({
-    name,
-    amount: Number(amount),
-    unit: "g"
+    shopping.innerHTML+=
+      `<li>${i.n}: ${qty} ${i.u}</li>`;
   });
 
-  document.getElementById("newIngredientName").value = "";
-  document.getElementById("newIngredientAmount").value = "";
-
-  renderIngredients();
+  total.textContent=`💰 Totalpris ca: ${sum.toFixed(0)} kr`;
 }
 
-function removeIngredient(index) {
-  dishes[currentDish].ingredients.splice(index, 1);
-  renderIngredients();
+function addIngredient(){
+  data[current].ing.push({
+    n:inName.value,
+    a:Number(inAmount.value),
+    u:inUnit.value,
+    p:Number(inPrice.value)
+  });
+  inName.value=inAmount.value=inPrice.value="";
+  render();
 }
 
-function saveData() {
-  localStorage.setItem("dishes", JSON.stringify(dishes));
-  alert("✅ Lagret!");
+function del(i){
+  data[current].ing.splice(i,1);
+  render();
 }
 
-function addDish() {
-  const name = prompt("Navn på rett:");
-  if (!name) return;
+function save(){
+  localStorage.setItem("data",JSON.stringify(data));
+  alert("Lagret ✅");
+}
 
-  const image = prompt("Bilde‑URL:");
-  dishes[name] = { image, ingredients: [] };
-  saveData();
-  alert("Rett lagt til! 🎉");
+function addDish(){
+  let n=prompt("Navn på retten");
+  let img=prompt("Bilde‑URL");
+  if(!n||!img) return;
+  data[n]={img,ing:[]};
+  save();
 }
 </script>
 
