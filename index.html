@@ -1,349 +1,768 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-<meta charset="UTF-8">
-<title>Middag‑randomizer</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eidert mattips | Ukeplanlegger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10b981; 
+            --primary-hover: #059669;
+            --ai-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            --ai-gradient-hover: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-<style>
-:root {
-  --bg:#f5f7fb;
-  --panel:#ffffff;
-  --border:#e5e7eb;
-  --primary:#2563eb;
-  --primary-dark:#1e40af;
-  --text:#111827;
-  --muted:#6b7280;
-  --radius:12px;
-}
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
 
-* { box-sizing:border-box }
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+        }
 
-body {
-  margin:0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-  background:var(--bg);
-  color:var(--text);
-}
+        .app-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            width: 100%;
+            min-height: 100vh;
+        }
 
-.app {
-  display:grid;
-  grid-template-columns:300px 1fr;
-  min-height:100vh;
-}
+        /* Sidebar Styling */
+        aside {
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 40px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
 
-/* ===== SIDEBAR ===== */
-aside {
-  background:var(--panel);
-  border-right:1px solid var(--border);
-  padding:20px;
-}
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            letter-spacing: -0.03em;
+        }
 
-aside h2 {
-  font-size:18px;
-  margin-bottom:16px;
-}
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
 
-.menu-item {
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:8px;
-  border-radius:8px;
-}
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f1f5f9;
+            padding: 16px;
+            border-radius: var(--radius-md);
+        }
 
-.menu-item:hover {
-  background:#f3f4f6;
-}
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: var(--transition);
+            background: #fff;
+        }
 
-.menu-name {
-  flex:1;
-  cursor:pointer;
-}
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
 
-.star {
-  cursor:pointer;
-  color:#d1d5db;
-}
-.star.fav {
-  color:#facc15;
-}
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+        }
 
-/* ===== MAIN ===== */
-main {
-  padding:32px;
-}
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+        }
 
-h1 {
-  font-size:32px;
-  margin:0 0 20px;
-}
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
 
-button {
-  appearance:none;
-  border:none;
-  border-radius:10px;
-  padding:10px 18px;
-  font-size:15px;
-  cursor:pointer;
-}
+        .btn-ai {
+            background: var(--ai-gradient);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.2);
+        }
 
-.primary {
-  background:var(--primary);
-  color:white;
-}
-.primary:hover {
-  background:var(--primary-dark);
-}
+        .btn-ai:hover:not(:disabled) {
+            background: var(--ai-gradient-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.3);
+        }
+        
+        .btn-ai:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
 
-.card {
-  background:var(--panel);
-  border-radius:var(--radius);
-  padding:24px;
-  border:1px solid var(--border);
-  box-shadow:0 10px 20px rgba(0,0,0,0.04);
-  margin-top:24px;
-}
+        .btn-secondary {
+            background: white;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
 
-.card h2 {
-  margin-top:0;
-  font-size:22px;
-}
+        .btn-secondary:hover {
+            background: #f1f5f9;
+        }
 
-/* ===== FORM ===== */
-input, select {
-  width:100%;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid var(--border);
-  font-size:14px;
-  margin-bottom:10px;
-}
+        .dish-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 8px;
+            padding-right: 8px;
+        }
 
-ul {
-  padding-left:18px;
-}
+        /* Custom scrollbar */
+        .dish-list::-webkit-scrollbar { width: 6px; }
+        .dish-list::-webkit-scrollbar-track { background: transparent; }
+        .dish-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-li {
-  margin-bottom:6px;
-}
+        .dish-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+        }
 
-.remove {
-  color:#dc2626;
-  cursor:pointer;
-  margin-left:6px;
-}
+        .dish-item:hover {
+            background: #f8fafc;
+            border-color: var(--border);
+        }
 
-/* ===== WEEK ===== */
-.week {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:14px;
-}
+        .dish-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
 
-.day {
-  background:#f9fafb;
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:12px;
-}
+        .dish-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
 
-/* ===== MOBILE ===== */
-@media (max-width:900px) {
-  .app {
-    grid-template-columns:1fr;
-  }
-  aside {
-    border-right:none;
-    border-bottom:1px solid var(--border);
-  }
-}
-</style>
+        .dish-price-small {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .star {
+            color: #cbd5e1;
+            cursor: pointer;
+            font-size: 18px;
+            margin-right: 12px;
+            transition: var(--transition);
+        }
+
+        .star.active { color: #fbbf24; }
+
+        .remove-btn {
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 18px;
+            opacity: 0;
+            transition: var(--transition);
+            padding: 4px;
+        }
+
+        .dish-item:hover .remove-btn { opacity: 1; }
+        .remove-btn:hover { color: #ef4444; }
+
+        /* Main Content Styling */
+        main {
+            padding: 60px 80px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        header {
+            margin-bottom: 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        h1 {
+            font-size: 40px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+
+        .day-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .day-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .day-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+
+        .day-dish {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.3;
+            margin-bottom: 12px;
+        }
+
+        .no-dish {
+            color: var(--text-muted);
+            font-style: italic;
+            font-weight: 400;
+        }
+
+        .dish-meta {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .dish-price {
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dish-ingredients-toggle {
+            font-size: 13px;
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .ingredients-list {
+            display: none;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .ingredients-list.show {
+            display: block;
+        }
+
+        /* Modal Styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            font-size: 24px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .close-modal:hover { color: var(--text-main); }
+
+        .shopping-list-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .shopping-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .shopping-item-name { font-weight: 500; }
+        .shopping-item-count { 
+            background: var(--primary); 
+            color: white; 
+            padding: 2px 8px; 
+            border-radius: 12px; 
+            font-size: 12px; 
+            font-weight: 700;
+        }
+
+        .total-price-banner {
+            margin-top: 32px;
+            padding: 24px;
+            background: var(--text-main);
+            color: white;
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .total-price-banner .label { font-size: 16px; color: #cbd5e1; }
+        .total-price-banner .amount { font-size: 32px; font-weight: 800; color: #10b981; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spinner { display: inline-block; animation: spin 1s linear infinite; }
+
+        /* Mobile Adjustments */
+        @media (max-width: 1100px) {
+            .app-container { grid-template-columns: 1fr; }
+            aside { height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+            main { padding: 40px 24px; }
+            .header-actions { flex-wrap: wrap; }
+        }
+    </style>
 </head>
-
 <body>
-<div class="app">
+    <div class="app-container">
+        <aside>
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Eidert mattips
+            </div>
 
-<!-- ===== SIDEBAR ===== -->
-<aside>
-  <h2>🍽️ Retter</h2>
-  <div id="menu"></div>
-</aside>
+            <div>
+                <h3 class="section-title">Legg til ny rett</h3>
+                <div class="input-group">
+                    <input type="text" id="dishInput" placeholder="Navn (la stå tom for tilfeldig)">
+                    
+                    <button id="aiBtn" class="btn btn-ai" onclick="generateWithAI()" style="margin-bottom: 8px;">
+                        ✨ Skap med AI
+                    </button>
+                    
+                    <input type="number" id="priceInput" placeholder="Est. pris (kr)">
+                    <input type="text" id="ingredientsInput" placeholder="Ingredienser (kommaseparert)">
+                    
+                    <button class="btn btn-primary" onclick="addDish()" style="margin-top: 4px;">
+                        Lagre i menyen
+                    </button>
+                </div>
+            </div>
 
-<!-- ===== MAIN ===== -->
-<main>
-  <h1>Middag‑randomizer</h1>
+            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <h3 class="section-title">Din Meny (<span id="countTotal">0</span>)</h3>
+                <div id="dishList" class="dish-list">
+                    <!-- Dishes will be injected here -->
+                </div>
+            </div>
+        </aside>
 
-  <div id="spinner" style="font-size:36px;margin-bottom:12px">🎲</div>
-  <button class="primary" onclick="spin()">SPIN</button>
+        <main>
+            <header>
+                <div>
+                    <h1>Ukeplanlegger</h1>
+                    <p class="header-subtitle">Planlegg uken, unngå repetisjon og spar penger.</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" style="padding: 16px 24px; font-size: 16px;" onclick="openShoppingList()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                        Vis handleliste
+                    </button>
+                    <button class="btn btn-primary" style="padding: 16px 28px; font-size: 16px;" onclick="generateWeek()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"></path></svg>
+                        Generer ny plan
+                    </button>
+                </div>
+            </header>
 
-  <!-- ===== REDIGERING ===== -->
-  <div class="card" id="editor" style="display:none">
-    <h2 id="dishName"></h2>
+            <div id="weekGrid" class="week-grid">
+                <!-- Week plan will be injected here -->
+            </div>
+        </main>
+    </div>
 
-    <label>Antall personer</label>
-    <input type="number" id="people" value="2" min="1" onchange="renderIngredients()">
+    <!-- Shopping List Modal -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOutsideClick(event)">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeShoppingList()">&times;</span>
+            <h2 style="font-size: 28px; margin-bottom: 8px;">Handleliste</h2>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">Basert på din nåværende ukeplan.</p>
+            
+            <div class="shopping-list-grid" id="shoppingListGrid">
+                <!-- Shopping items -->
+            </div>
 
-    <h3>Ingredienser</h3>
-    <ul id="ingredients"></ul>
+            <div class="total-price-banner">
+                <div class="label">Estimert Totalpris</div>
+                <div class="amount" id="modalTotalPrice">0 kr</div>
+            </div>
+        </div>
+    </div>
 
-    <input id="iName" placeholder="Ingrediens">
-    <input id="iAmount" type="number" placeholder="Mengde per person">
-    <select id="iUnit">
-      <option value="g">gram</option>
-      <option value="stk">stk</option>
-    </select>
+    <script>
+        const days = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
 
-    <button class="primary" onclick="addIngredient()">Legg til ingrediens</button>
-  </div>
+        // Default advanced dishes
+        const defaultDishes = [
+            { name: 'Taco', fav: true, price: 250, ingredients: ['Kjøttdeig', 'Taco-krydder', 'Tortillas', 'Mais', 'Ost', 'Salat', 'Salsa', 'Rømme'] },
+            { name: 'Laks med poteter', fav: false, price: 180, ingredients: ['Laksefilet', 'Poteter', 'Agurk', 'Lettrømme', 'Sitron'] },
+            { name: 'Pasta Bolognese', fav: true, price: 160, ingredients: ['Spaghetti', 'Kjøttdeig', 'Hakkede tomater', 'Løk', 'Hvitløk', 'Parmesan'] },
+            { name: 'Kyllingsalat', fav: false, price: 140, ingredients: ['Kyllingfilet', 'Crispisalat', 'Cherrytomater', 'Agurk', 'Rødløk', 'Dressing'] },
+            { name: 'Hjemmelaget Pizza', fav: true, price: 220, ingredients: ['Pizzadeig', 'Pizzasaus', 'Ost', 'Pepperoni', 'Skinke', 'Champignon'] }
+        ];
 
-  <!-- ===== UKEPLAN ===== -->
-  <div class="card">
-    <h2>📅 Ukeplan</h2>
-    <div class="week" id="week"></div>
-  </div>
+        let dishes = JSON.parse(localStorage.getItem('eidert_dishes'));
+        if (!dishes || dishes.length === 0) {
+            dishes = defaultDishes;
+            localStorage.setItem('eidert_dishes', JSON.stringify(dishes));
+        }
 
-  <!-- ===== HANDLELISTE ===== -->
-  <div class="card">
-    <h2>🛒 Handleliste</h2>
-    <ul id="shopping"></ul>
-  </div>
+        let currentWeek = JSON.parse(localStorage.getItem('eidert_week')) || Array(7).fill(null);
 
-</main>
-</div>
+        async function generateWithAI() {
+            const nameInput = document.getElementById('dishInput');
+            const priceInput = document.getElementById('priceInput');
+            const ingInput = document.getElementById('ingredientsInput');
+            const aiBtn = document.getElementById('aiBtn');
 
-<script>
-/* DATA */
-const days=["Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag","Søndag"];
-const defaultData={
-  Taco:{on:true,fav:true,ing:[
-    {n:"Kjøttdeig",a:150,u:"g"},
-    {n:"Lefser",a:2,u:"stk"},
-    {n:"Ost",a:50,u:"g"}]},
-  Pizza:{on:true,fav:false,ing:[
-    {n:"Pizzabunn",a:1,u:"stk"},
-    {n:"Ost",a:100,u:"g"}]},
-  Burrito:{on:true,fav:false,ing:[
-    {n:"Tortilla",a:2,u:"stk"},
-    {n:"Kylling",a:150,u:"g"}]}
-};
+            const query = nameInput.value.trim() 
+                ? "Gi meg en realistisk pris og ingrediensliste for middagsretten: " + nameInput.value.trim()
+                : "Finn på en spennende og populær norsk eller internasjonal middagsrett.";
 
-let data=JSON.parse(localStorage.getItem("data"))||defaultData;
-let week=JSON.parse(localStorage.getItem("week"))||{};
-let current=null;
+            aiBtn.innerHTML = '<span class="spinner">⏳</span> Tenker...';
+            aiBtn.disabled = true;
 
-/* STORAGE */
-function save(){
-  localStorage.setItem("data",JSON.stringify(data));
-  localStorage.setItem("week",JSON.stringify(week));
-}
+            try {
+                // Calls the Vercel backend function
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
 
-/* MENU */
-function buildMenu(){
-  menu.innerHTML="";
-  Object.keys(data)
-    .sort((a,b)=>data[b].fav-data[a].fav)
-    .forEach(d=>{
-      menu.innerHTML+=`
-      <div class="menu-item">
-        <input type="checkbox" ${data[d].on?"checked":""}
-          onchange="data['${d}'].on=this.checked;save()">
-        <span class="star ${data[d].fav?'fav':''}"
-          onclick="data['${d}'].fav=!data['${d}'].fav;save();buildMenu()">★</span>
-        <span class="menu-name" onclick="openDish('${d}')">${d}</span>
-      </div>`;
-    });
-}
-buildMenu();
+                if (!response.ok) {
+                    const errObj = await response.json().catch(() => ({}));
+                    throw new Error(errObj.error || response.statusText);
+                }
 
-/* SPIN */
-function spin(){
-  const list=Object.keys(data).filter(d=>data[d].on);
-  if(!list.length) return alert("Velg minst én rett");
-  let i=0;
-  const int=setInterval(()=>{
-    spinner.textContent=list[i++%list.length];
-  },120);
-  setTimeout(()=>{
-    clearInterval(int);
-    openDish(spinner.textContent);
-  },2000);
-}
+                const data = await response.json();
+                let content = data.choices[0].message.content.trim();
+                
+                if (content.startsWith('\`\`\`json')) {
+                    content = content.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+                }
 
-/* EDIT */
-function openDish(name){
-  current=name;
-  editor.style.display="block";
-  dishName.textContent=name;
-  renderIngredients();
-}
-function renderIngredients(){
-  ingredients.innerHTML="";
-  data[current].ing.forEach((i,idx)=>{
-    ingredients.innerHTML+=`
-      <li>${i.n}: ${i.a*people.value} ${i.u}
-      <span class="remove" onclick="removeIngredient(${idx})">✕</span></li>`;
-  });
-  save();
-}
-function addIngredient(){
-  if(!iName.value||!iAmount.value) return;
-  data[current].ing.push({n:iName.value,a:+iAmount.value,u:iUnit.value});
-  iName.value=iAmount.value="";
-  renderIngredients();
-}
-function removeIngredient(i){
-  data[current].ing.splice(i,1);
-  renderIngredients();
-}
+                const dishObj = JSON.parse(content);
+                
+                nameInput.value = dishObj.name;
+                priceInput.value = dishObj.price;
+                ingInput.value = dishObj.ingredients.join(', ');
 
-/* WEEK */
-function buildWeek(){
-  week.innerHTML="";
-  days.forEach(d=>{
-    const w=week[d]||{};
-    week.innerHTML+=`
-    <div class="day">
-      <strong>${d}</strong>
-      <select onchange="setDay('${d}',this.value)">
-        <option value="">–</option>
-        ${Object.keys(data).map(r=>`
-          <option ${w.dish===r?"selected":""}>${r}</option>`).join("")}
-      </select>
-      <input type="number" min="1" value="${w.p||2}"
-        onchange="setPeople('${d}',this.value)">
-    </div>`;
-  });
-  updateShopping();
-}
-function setDay(d,val){
-  week[d]={dish:val,p:week[d]?.p||2};
-  save();updateShopping();
-}
-function setPeople(d,val){
-  if(week[d]) week[d].p=+val;
-  save();updateShopping();
-}
+            } catch (error) {
+                console.error(error);
+                alert("Klarte ikke generere med AI. Sjekk at backend er satt opp riktig og at API-nøkkelen er lagt til som environment variable på Vercel.\nDetaljer: " + error.message);
+            } finally {
+                aiBtn.innerHTML = '✨ Skap med AI';
+                aiBtn.disabled = false;
+            }
+        }
 
-/* SHOPPING */
-function updateShopping(){
-  shopping.innerHTML="";
-  let map={};
-  Object.values(week).forEach(w=>{
-    if(!w.dish) return;
-    data[w.dish].ing.forEach(i=>{
-      const k=i.n+i.u;
-      map[k]=map[k]||{n:i.n,u:i.u,a:0};
-      map[k].a+=i.a*w.p;
-    });
-  });
-  Object.values(map).forEach(i=>{
-    shopping.innerHTML+=`<li>${i.n}: ${i.a} ${i.u}</li>`;
-  });
-}
-buildWeek();
-</script>
+        function save() {
+            localStorage.setItem('eidert_dishes', JSON.stringify(dishes));
+            localStorage.setItem('eidert_week', JSON.stringify(currentWeek));
+            renderDishes();
+            renderWeek();
+            document.getElementById('countTotal').innerText = dishes.length;
+        }
 
+        function addDish() {
+            const nameInput = document.getElementById('dishInput');
+            const priceInput = document.getElementById('priceInput');
+            const ingInput = document.getElementById('ingredientsInput');
+            
+            const name = nameInput.value.trim();
+            const price = parseInt(priceInput.value) || 0;
+            const ingredientsStr = ingInput.value.trim();
+            
+            if (name) {
+                const ingredients = ingredientsStr ? ingredientsStr.split(',').map(i => i.trim()).filter(i => i) : [];
+                dishes.unshift({ name, fav: false, price, ingredients });
+                
+                nameInput.value = '';
+                priceInput.value = '';
+                ingInput.value = '';
+                save();
+            }
+        }
+
+        function toggleFav(index) {
+            dishes[index].fav = !dishes[index].fav;
+            save();
+        }
+
+        function removeDish(index) {
+            if(confirm('Er du sikker på at du vil slette denne retten?')) {
+                dishes.splice(index, 1);
+                save();
+            }
+        }
+
+        function toggleIngredients(dayIndex) {
+            const el = document.getElementById(`ing-${dayIndex}`);
+            if (el) {
+                el.classList.toggle('show');
+            }
+        }
+
+        function generateWeek() {
+            if (dishes.length === 0) return alert('Legg til noen retter først!');
+            
+            let result = [];
+            let pool = [...dishes];
+            let lastDishName = null;
+
+            for (let i = 0; i < 7; i++) {
+                let available = pool.filter(d => d.name !== lastDishName);
+                
+                if (available.length === 0) {
+                    available = dishes.filter(d => d.name !== lastDishName);
+                    if (available.length === 0) available = dishes;
+                }
+
+                let randomIndex = Math.floor(Math.random() * available.length);
+                let selectedDish = available[randomIndex];
+                
+                result.push(selectedDish);
+                lastDishName = selectedDish.name;
+
+                const poolIndex = pool.findIndex(d => d.name === selectedDish.name);
+                if (poolIndex > -1) {
+                    pool.splice(poolIndex, 1);
+                }
+            }
+            currentWeek = result;
+            save();
+        }
+
+        function renderDishes() {
+            const list = document.getElementById('dishList');
+            list.innerHTML = dishes.map((dish, i) => `
+                <div class="dish-item">
+                    <span class="star ${dish.fav ? 'active' : ''}" onclick="toggleFav(${i})">★</span>
+                    <div class="dish-info">
+                        <span class="dish-name">${dish.name}</span>
+                        <span class="dish-price-small">${dish.price > 0 ? dish.price + ' kr' : 'Pris ikke satt'}</span>
+                    </div>
+                    <span class="remove-btn" onclick="removeDish(${i})">×</span>
+                </div>
+            `).join('');
+        }
+
+        function renderWeek() {
+            const grid = document.getElementById('weekGrid');
+            grid.innerHTML = days.map((day, i) => {
+                const dishObj = currentWeek[i];
+                if (!dishObj) {
+                    return `
+                        <div class="day-card">
+                            <span class="day-name">${day}</span>
+                            <div class="day-dish no-dish">Ikke planlagt</div>
+                        </div>
+                    `;
+                }
+
+                const hasIngredients = dishObj.ingredients && dishObj.ingredients.length > 0;
+                const ingredientsHtml = hasIngredients 
+                    ? `<div class="ingredients-list" id="ing-${i}">
+                        <strong>Du trenger:</strong><br>
+                        ${dishObj.ingredients.join(', ')}
+                       </div>` 
+                    : '';
+
+                return `
+                    <div class="day-card">
+                        <span class="day-name">${day}</span>
+                        <div class="day-dish">${dishObj.name}</div>
+                        ${ingredientsHtml}
+                        <div class="dish-meta">
+                            <span class="dish-price">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                ${dishObj.price > 0 ? dishObj.price + ' kr' : '-'}
+                            </span>
+                            ${hasIngredients ? `<span class="dish-ingredients-toggle" onclick="toggleIngredients(${i})">Se ingredienser</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openShoppingList() {
+            if (!currentWeek || !currentWeek[0]) {
+                alert('Generer en ukeplan først for å se handlelisten!');
+                return;
+            }
+
+            const ingredientsCount = {};
+            let totalPrice = 0;
+
+            currentWeek.forEach(dish => {
+                if (!dish) return;
+                totalPrice += (dish.price || 0);
+                if (dish.ingredients && Array.isArray(dish.ingredients)) {
+                    dish.ingredients.forEach(ing => {
+                        const name = ing.trim().toLowerCase();
+                        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+                        ingredientsCount[formattedName] = (ingredientsCount[formattedName] || 0) + 1;
+                    });
+                }
+            });
+
+            const grid = document.getElementById('shoppingListGrid');
+            const items = Object.keys(ingredientsCount).sort();
+            
+            if (items.length === 0) {
+                grid.innerHTML = '<p style="color: var(--text-muted);">Ingen ingredienser funnet for denne uken. Legg til ingredienser på rettene dine.</p>';
+            } else {
+                grid.innerHTML = items.map(item => `
+                    <div class="shopping-item">
+                        <span class="shopping-item-name">${item}</span>
+                        <span class="shopping-item-count">${ingredientsCount[item]}x</span>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('modalTotalPrice').innerText = totalPrice + ' kr';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeShoppingList() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        function closeModalOnOutsideClick(e) {
+            if (e.target === document.getElementById('modalOverlay')) {
+                closeShoppingList();
+            }
+        }
+
+        document.getElementById('countTotal').innerText = dishes.length;
+        renderDishes();
+        renderWeek();
+    </script>
 </body>
 </html>
-``
