@@ -4,21 +4,45 @@
   <meta charset="UTF-8">
   <title>Middagspinner 🍽️</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="/favicon.ico">
+  /favicon.ico
+
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f4f6fa;
-      text-align: center;
       padding: 20px;
+      margin: 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 900px;
+      margin: auto;
     }
 
     h1 {
-      margin-bottom: 10px;
+      margin: 10px 0;
+    }
+
+    .add-dish-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      text-align: center;
     }
 
     .spinner {
-      font-size: 32px;
+      font-size: 36px;
       font-weight: bold;
       height: 50px;
       margin: 20px 0;
@@ -28,9 +52,9 @@
       background: #007bff;
       color: white;
       font-size: 24px;
-      padding: 15px 40px;
+      padding: 15px 50px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
     }
 
@@ -38,24 +62,24 @@
       background: #0056b3;
     }
 
-    .section {
-      background: white;
-      padding: 20px;
-      margin: 30px auto;
-      max-width: 500px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    .card {
       display: none;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 30px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       text-align: left;
     }
 
-    .section h2 {
-      text-align: center;
+    .card img {
+      width: 100%;
+      border-radius: 10px;
+      margin-bottom: 15px;
     }
 
-    input, button {
-      padding: 8px;
-      margin: 5px 0;
+    label {
+      font-weight: bold;
     }
 
     ul {
@@ -63,7 +87,7 @@
     }
 
     li {
-      margin-bottom: 5px;
+      margin-bottom: 6px;
     }
 
     .remove {
@@ -71,100 +95,185 @@
       cursor: pointer;
       margin-left: 10px;
     }
+
+    .controls {
+      margin-top: 15px;
+    }
+
+    input, button {
+      padding: 8px;
+      margin-top: 5px;
+    }
+
+    .save-btn {
+      background: #ffc107;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
 
-<h1>Middag‑randomizer 🍽️</h1>
-<p>Trykk spin og finn ut hva dere skal spise i dag</p>
+<header>
+  <h1>Middag‑randomizer 🍽️</h1>
+  <button class="add-dish-btn" onclick="addDish()">➕ Ny rett</button>
+</header>
 
-<div class="spinner" id="spinner">🎲</div>
-<button class="spin-btn" onclick="spin()">SPIN</button>
+<div class="container">
 
-<div class="section" id="ingredientsSection">
-  <h2 id="dishTitle"></h2>
+  <p>Trykk spin og se hva dere skal spise i dag</p>
 
-  <label>
-    Antall personer:
-    <input type="number" id="people" value="2" min="1" onchange="updateIngredients()">
-  </label>
+  <div class="spinner" id="spinner">🎲</div>
+  <button class="spin-btn" onclick="spin()">SPIN</button>
 
-  <ul id="ingredientsList"></ul>
+  <div class="card" id="card">
+    <h2 id="dishTitle"></h2>
+    <img id="dishImage" src="" alt="">
 
-  <input type="text" id="newIngredient" placeholder="Ny ingrediens">
-  <button onclick="addIngredient()">Legg til</button>
+    <label>
+      Antall personer:
+      <input type="number" id="people" min="1" value="2" onchange="renderIngredients()">
+    </label>
+
+    <ul id="ingredients"></ul>
+
+    <div class="controls">
+      <input type="text" id="newIngredientName" placeholder="Ingrediens">
+      <input type="number" id="newIngredientAmount" placeholder="Gram/stk">
+      <button onclick="addIngredient()">Legg til</button>
+    </div>
+
+    <button class="save-btn" onclick="saveData()">💾 Lagre endringer</button>
+  </div>
+
 </div>
 
 <script>
-const dishes = {
-  "Taco": ["Kjøttdeig", "Tacolefser", "Ost", "Salat", "Tomat"],
-  "Pizza": ["Pizzabunn", "Tomatsaus", "Ost", "Skinke"],
-  "Burrito": ["Tortilla", "Kylling", "Ris", "Bønner"],
-  "Tandoori Chicken": ["Kylling", "Yoghurt", "Tandoori-krydder", "Ris"],
-  "Kylling og ris": ["Kyllingfilet", "Ris", "Brokkoli"]
+let dishes = JSON.parse(localStorage.getItem("dishes")) || {
+  "Taco": {
+    image: "https://images.unsplash.com/photo-1617196035153-d96464ecf1c2",
+    ingredients: [
+      { name: "Kjøttdeig", amount: 150, unit: "g" },
+      { name: "Tacolefser", amount: 2, unit: "stk" },
+      { name: "Ost", amount: 50, unit: "g" }
+    ]
+  },
+  "Pizza": {
+    image: "https://images.unsplash.com/photo-1548365328-8b849e6d7b8b",
+    ingredients: [
+      { name: "Pizzabunn", amount: 1, unit: "stk" },
+      { name: "Ost", amount: 100, unit: "g" },
+      { name: "Tomatsaus", amount: 100, unit: "g" }
+    ]
+  },
+  "Burrito": {
+    image: "https://images.unsplash.com/photo-1604908554166-37a68bc2d927",
+    ingredients: [
+      { name: "Tortilla", amount: 2, unit: "stk" },
+      { name: "Kylling", amount: 150, unit: "g" },
+      { name: "Ris", amount: 100, unit: "g" }
+    ]
+  },
+  "Tandoori Chicken": {
+    image: "https://images.unsplash.com/photo-1625944525587-f1eaa91b36a8",
+    ingredients: [
+      { name: "Kylling", amount: 200, unit: "g" },
+      { name: "Yoghurt", amount: 100, unit: "g" },
+      { name: "Ris", amount: 100, unit: "g" }
+    ]
+  },
+  "Kylling og ris": {
+    image: "https://images.unsplash.com/photo-1589308078053-f56de1c3c8d0",
+    ingredients: [
+      { name: "Kyllingfilet", amount: 200, unit: "g" },
+      { name: "Ris", amount: 100, unit: "g" },
+      { name: "Brokkoli", amount: 100, unit: "g" }
+    ]
+  }
 };
 
 let currentDish = null;
-let currentIngredients = [];
 
 function spin() {
   const names = Object.keys(dishes);
   let i = 0;
-
-  document.getElementById("ingredientsSection").style.display = "none";
+  document.getElementById("card").style.display = "none";
 
   const interval = setInterval(() => {
     document.getElementById("spinner").textContent = names[i % names.length];
     i++;
-  }, 100);
+  }, 120);
 
   setTimeout(() => {
     clearInterval(interval);
     currentDish = names[Math.floor(Math.random() * names.length)];
-    currentIngredients = [...dishes[currentDish]];
     document.getElementById("spinner").textContent = currentDish;
-    showIngredients();
+    showDish();
   }, 2000);
 }
 
-function showIngredients() {
+function showDish() {
+  const dish = dishes[currentDish];
   document.getElementById("dishTitle").textContent = currentDish;
-  document.getElementById("people").value = 2;
-  document.getElementById("ingredientsSection").style.display = "block";
-  renderIngredients();
-}
-
-function updateIngredients() {
+  document.getElementById("dishImage").src = dish.image;
+  document.getElementById("card").style.display = "block";
   renderIngredients();
 }
 
 function renderIngredients() {
-  const ul = document.getElementById("ingredientsList");
+  const ul = document.getElementById("ingredients");
   ul.innerHTML = "";
   const people = document.getElementById("people").value;
 
-  currentIngredients.forEach((ing, index) => {
+  dishes[currentDish].ingredients.forEach((ing, index) => {
     const li = document.createElement("li");
-    li.innerHTML = `${ing} (for ${people}) <span class="remove" onclick="removeIngredient(${index})">✕</span>`;
+    li.innerHTML = `${ing.name}: ${ing.amount * people} ${ing.unit}
+      <span class="remove" onclick="removeIngredient(${index})">✕</span>`;
     ul.appendChild(li);
   });
 }
 
 function addIngredient() {
-  const input = document.getElementById("newIngredient");
-  if (input.value.trim() !== "") {
-    currentIngredients.push(input.value.trim());
-    input.value = "";
-    renderIngredients();
-  }
+  const name = document.getElementById("newIngredientName").value;
+  const amount = document.getElementById("newIngredientAmount").value;
+
+  if (!name || !amount) return;
+
+  dishes[currentDish].ingredients.push({
+    name,
+    amount: Number(amount),
+    unit: "g"
+  });
+
+  document.getElementById("newIngredientName").value = "";
+  document.getElementById("newIngredientAmount").value = "";
+
+  renderIngredients();
 }
 
 function removeIngredient(index) {
-  currentIngredients.splice(index, 1);
+  dishes[currentDish].ingredients.splice(index, 1);
   renderIngredients();
+}
+
+function saveData() {
+  localStorage.setItem("dishes", JSON.stringify(dishes));
+  alert("✅ Lagret!");
+}
+
+function addDish() {
+  const name = prompt("Navn på rett:");
+  if (!name) return;
+
+  const image = prompt("Bilde‑URL:");
+  dishes[name] = { image, ingredients: [] };
+  saveData();
+  alert("Rett lagt til! 🎉");
 }
 </script>
 
 </body>
 </html>
-``
