@@ -52,10 +52,11 @@
             padding: 40px 24px;
             display: flex;
             flex-direction: column;
-            gap: 32px;
+            gap: 24px;
             position: sticky;
             top: 0;
             height: 100vh;
+            overflow-y: auto; /* HELE menyen kan nå bles i */
         }
 
         .logo {
@@ -120,68 +121,31 @@
         .btn-primary {
             background: var(--primary);
             color: white;
-            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
         }
 
         .btn-ai {
             background: var(--ai-gradient);
             color: white;
-            box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.2);
         }
 
         .btn-ai:hover:not(:disabled) {
             background: var(--ai-gradient-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.3);
-        }
-        
-        .btn-ai:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-
-        .btn-secondary {
-            background: white;
-            color: var(--text-main);
-            border: 1px solid var(--border);
-        }
-
-        .btn-secondary:hover {
-            background: #f1f5f9;
         }
 
         .dish-list {
-            flex: 1;
-            overflow-y: auto;
-            margin-top: 8px;
-            padding-right: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-
-        /* Custom scrollbar */
-        .dish-list::-webkit-scrollbar { width: 6px; }
-        .dish-list::-webkit-scrollbar-track { background: transparent; }
-        .dish-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
         .dish-item {
             display: flex;
             align-items: center;
             padding: 12px;
             border-radius: var(--radius-md);
-            transition: var(--transition);
-            margin-bottom: 8px;
-            border: 1px solid transparent;
-            flex-shrink: 0;
-        }
-
-        .dish-item:hover {
             background: #f8fafc;
-            border-color: var(--border);
+            border: 1px solid var(--border);
+            flex-shrink: 0;
         }
 
         .dish-info {
@@ -198,7 +162,6 @@
         .dish-price-small {
             font-size: 12px;
             color: var(--text-muted);
-            margin-top: 2px;
         }
 
         .star {
@@ -206,7 +169,6 @@
             cursor: pointer;
             font-size: 18px;
             margin-right: 12px;
-            transition: var(--transition);
         }
 
         .star.active { color: #fbbf24; }
@@ -215,18 +177,14 @@
             color: #94a3b8;
             cursor: pointer;
             font-size: 18px;
-            opacity: 0;
-            transition: var(--transition);
             padding: 4px;
         }
 
-        .dish-item:hover .remove-btn { opacity: 1; }
         .remove-btn:hover { color: #ef4444; }
 
-        /* Main Content Styling */
+        /* Main Content */
         main {
             padding: 60px 80px;
-            max-width: 1400px;
             width: 100%;
         }
 
@@ -234,49 +192,24 @@
             margin-bottom: 48px;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
         }
 
-        h1 {
-            font-size: 40px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 8px;
-        }
-
-        .header-subtitle {
-            color: var(--text-muted);
-            font-size: 18px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 12px;
-        }
+        h1 { font-size: 40px; font-weight: 800; }
 
         .week-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 24px;
-            margin-bottom: 48px;
         }
 
         .day-card {
-            background: var(--bg-card);
+            background: white;
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
             padding: 24px;
             box-shadow: var(--shadow);
-            transition: var(--transition);
-            position: relative;
             display: flex;
             flex-direction: column;
-        }
-
-        .day-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--primary);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
 
         .day-name {
@@ -284,158 +217,36 @@
             font-weight: 700;
             color: var(--primary);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
             margin-bottom: 12px;
         }
 
         .day-dish {
             font-size: 22px;
             font-weight: 700;
-            color: var(--text-main);
-            line-height: 1.3;
             margin-bottom: 12px;
-        }
-
-        .no-dish {
-            color: var(--text-muted);
-            font-style: italic;
-            font-weight: 400;
         }
 
         .dish-meta {
             margin-top: auto;
             display: flex;
             justify-content: space-between;
-            align-items: center;
             padding-top: 16px;
             border-top: 1px dashed var(--border);
         }
 
         .dish-price {
             font-weight: 600;
-            color: var(--text-main);
             display: flex;
             align-items: center;
             gap: 4px;
         }
 
-        .dish-ingredients-toggle {
-            font-size: 13px;
-            color: var(--primary);
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .ingredients-list {
-            display: none;
-            margin-top: 12px;
-            font-size: 13px;
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-
-        .ingredients-list.show {
-            display: block;
-        }
-
-        /* Modal Styling */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-            opacity: 1;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 40px;
-            width: 100%;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            position: relative;
-            transform: translateY(20px);
-            transition: transform 0.3s ease;
-        }
-
-        .modal-overlay.active .modal-content {
-            transform: translateY(0);
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 24px;
-            right: 24px;
-            font-size: 24px;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .close-modal:hover { color: var(--text-main); }
-
-        .shopping-list-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            margin-top: 24px;
-        }
-
-        .shopping-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 16px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        .shopping-item-name { font-weight: 500; }
-        .shopping-item-count { 
-            background: var(--primary); 
-            color: white; 
-            padding: 2px 8px; 
-            border-radius: 12px; 
-            font-size: 12px; 
-            font-weight: 700;
-        }
-
-        .total-price-banner {
-            margin-top: 32px;
-            padding: 24px;
-            background: var(--text-main);
-            color: white;
-            border-radius: var(--radius-md);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .total-price-banner .label { font-size: 16px; color: #cbd5e1; }
-        .total-price-banner .amount { font-size: 32px; font-weight: 800; color: #10b981; }
-
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .spinner { display: inline-block; animation: spin 1s linear infinite; }
 
-        /* Mobile Adjustments */
         @media (max-width: 1100px) {
             .app-container { grid-template-columns: 1fr; }
-            aside { height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
-            main { padding: 40px 24px; }
-            .header-actions { flex-wrap: wrap; }
+            aside { height: auto; position: static; }
         }
     </style>
 </head>
@@ -450,26 +261,17 @@
             <div>
                 <h3 class="section-title">Legg til ny rett</h3>
                 <div class="input-group">
-                    <input type="text" id="dishInput" placeholder="Navn (la stå tom for tilfeldig)">
-                    
-                    <button id="aiBtn" class="btn btn-ai" onclick="generateWithAI()" style="margin-bottom: 8px;">
-                        ✨ Skap med AI
-                    </button>
-                    
+                    <input type="text" id="dishInput" placeholder="Navn på rett">
+                    <button id="aiBtn" class="btn btn-ai" onclick="generateWithAI()">✨ Skap med AI</button>
                     <input type="number" id="priceInput" placeholder="Est. pris (kr)">
                     <input type="text" id="ingredientsInput" placeholder="Ingredienser (kommaseparert)">
-                    
-                    <button class="btn btn-primary" onclick="addDish()" style="margin-top: 4px;">
-                        Lagre i menyen
-                    </button>
+                    <button class="btn btn-primary" onclick="addDish()">Lagre i menyen</button>
                 </div>
             </div>
 
-            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="display: flex; flex-direction: column;">
                 <h3 class="section-title">Din Meny (<span id="countTotal">0</span>)</h3>
-                <div id="dishList" class="dish-list">
-                    <!-- Dishes will be injected here -->
-                </div>
+                <div id="dishList" class="dish-list"></div>
             </div>
         </aside>
 
@@ -477,62 +279,20 @@
             <header>
                 <div>
                     <h1>Ukeplanlegger</h1>
-                    <p class="header-subtitle">Planlegg uken, unngå repetisjon og spar penger.</p>
+                    <p style="color: var(--text-muted);">Automatisk ukeplan for Eidert</p>
                 </div>
-                <div class="header-actions">
-                    <button class="btn btn-secondary" style="padding: 16px 24px; font-size: 16px;" onclick="openShoppingList()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-                        Vis handleliste
-                    </button>
-                    <button class="btn btn-primary" style="padding: 16px 28px; font-size: 16px;" onclick="generateWeek()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"></path></svg>
-                        Generer ny plan
-                    </button>
-                </div>
+                <button class="btn btn-primary" onclick="generateWeek()">Generer ny plan</button>
             </header>
-
-            <div id="weekGrid" class="week-grid">
-                <!-- Week plan will be injected here -->
-            </div>
+            <div id="weekGrid" class="week-grid"></div>
         </main>
-    </div>
-
-    <!-- Shopping List Modal -->
-    <div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOutsideClick(event)">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeShoppingList()">&times;</span>
-            <h2 style="font-size: 28px; margin-bottom: 8px;">Handleliste</h2>
-            <p style="color: var(--text-muted); margin-bottom: 24px;">Basert på din nåværende ukeplan.</p>
-            
-            <div class="shopping-list-grid" id="shoppingListGrid">
-                <!-- Shopping items -->
-            </div>
-
-            <div class="total-price-banner">
-                <div class="label">Estimert Totalpris</div>
-                <div class="amount" id="modalTotalPrice">0 kr</div>
-            </div>
-        </div>
     </div>
 
     <script>
         const days = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
-
-        // Default advanced dishes
-        const defaultDishes = [
-            { name: 'Taco', fav: true, price: 250, ingredients: ['Kjøttdeig', 'Taco-krydder', 'Tortillas', 'Mais', 'Ost', 'Salat', 'Salsa', 'Rømme'] },
-            { name: 'Laks med poteter', fav: false, price: 180, ingredients: ['Laksefilet', 'Poteter', 'Agurk', 'Lettrømme', 'Sitron'] },
-            { name: 'Pasta Bolognese', fav: true, price: 160, ingredients: ['Spaghetti', 'Kjøttdeig', 'Hakkede tomater', 'Løk', 'Hvitløk', 'Parmesan'] },
-            { name: 'Kyllingsalat', fav: false, price: 140, ingredients: ['Kyllingfilet', 'Crispisalat', 'Cherrytomater', 'Agurk', 'Rødløk', 'Dressing'] },
-            { name: 'Hjemmelaget Pizza', fav: true, price: 220, ingredients: ['Pizzadeig', 'Pizzasaus', 'Ost', 'Pepperoni', 'Skinke', 'Champignon'] }
+        let dishes = JSON.parse(localStorage.getItem('eidert_dishes')) || [
+            { name: 'Taco', fav: true, price: 250, ingredients: ['Kjøttdeig', 'Taco-sett'] },
+            { name: 'Laks', fav: false, price: 180, ingredients: ['Laks', 'Poteter'] }
         ];
-
-        let dishes = JSON.parse(localStorage.getItem('eidert_dishes'));
-        if (!dishes || dishes.length === 0) {
-            dishes = defaultDishes;
-            localStorage.setItem('eidert_dishes', JSON.stringify(dishes));
-        }
-
         let currentWeek = JSON.parse(localStorage.getItem('eidert_week')) || Array(7).fill(null);
 
         async function generateWithAI() {
@@ -541,42 +301,28 @@
             const ingInput = document.getElementById('ingredientsInput');
             const aiBtn = document.getElementById('aiBtn');
 
-            const query = nameInput.value.trim() 
-                ? "Gi meg en realistisk pris og ingrediensliste for middagsretten: " + nameInput.value.trim()
-                : "Finn på en spennende og populær norsk eller internasjonal middagsrett.";
-
+            const query = nameInput.value.trim() || "Finn på en spennende middagsrett.";
             aiBtn.innerHTML = '<span class="spinner">⏳</span> Tenker...';
             aiBtn.disabled = true;
 
             try {
-                // Calls the Vercel backend function
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query })
                 });
 
-                if (!response.ok) {
-                    const errObj = await response.json().catch(() => ({}));
-                    throw new Error(errObj.error || response.statusText);
-                }
+                if (!response.ok) throw new Error("Backend feil");
 
                 const data = await response.json();
                 let content = data.choices[0].message.content.trim();
-                
-                if (content.startsWith('```json')) {
-                    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-                }
-
                 const dishObj = JSON.parse(content);
                 
                 nameInput.value = dishObj.name;
                 priceInput.value = dishObj.price;
                 ingInput.value = dishObj.ingredients.join(', ');
-
             } catch (error) {
-                console.error(error);
-                alert("Klarte ikke generere med AI. Sjekk at backend er satt opp riktig og at API-nøkkelen er lagt til som environment variable på Vercel.\nDetaljer: " + error.message);
+                alert("AI Feil: Sjekk at Ollama kjører og at Vercel har riktig URL.");
             } finally {
                 aiBtn.innerHTML = '✨ Skap med AI';
                 aiBtn.disabled = false;
@@ -586,184 +332,63 @@
         function save() {
             localStorage.setItem('eidert_dishes', JSON.stringify(dishes));
             localStorage.setItem('eidert_week', JSON.stringify(currentWeek));
-            renderDishes();
-            renderWeek();
-            document.getElementById('countTotal').innerText = dishes.length;
+            render();
         }
 
         function addDish() {
-            const nameInput = document.getElementById('dishInput');
-            const priceInput = document.getElementById('priceInput');
-            const ingInput = document.getElementById('ingredientsInput');
-            
-            const name = nameInput.value.trim();
-            const price = parseInt(priceInput.value) || 0;
-            const ingredientsStr = ingInput.value.trim();
-            
-            if (name) {
-                const ingredients = ingredientsStr ? ingredientsStr.split(',').map(i => i.trim()).filter(i => i) : [];
-                dishes.unshift({ name, fav: false, price, ingredients });
-                
-                nameInput.value = '';
-                priceInput.value = '';
-                ingInput.value = '';
+            const n = document.getElementById('dishInput');
+            const p = document.getElementById('priceInput');
+            const i = document.getElementById('ingredientsInput');
+            if (n.value) {
+                dishes.unshift({ name: n.value, price: parseInt(p.value)||0, ingredients: i.value.split(',').map(x=>x.trim()) });
+                n.value=''; p.value=''; i.value='';
                 save();
             }
-        }
-
-        function toggleFav(index) {
-            dishes[index].fav = !dishes[index].fav;
-            save();
         }
 
         function removeDish(index) {
-            if(confirm('Er du sikker på at du vil slette denne retten?')) {
-                dishes.splice(index, 1);
-                save();
-            }
-        }
-
-        function toggleIngredients(dayIndex) {
-            const el = document.getElementById(`ing-${dayIndex}`);
-            if (el) {
-                el.classList.toggle('show');
-            }
+            dishes.splice(index, 1);
+            save();
         }
 
         function generateWeek() {
-            if (dishes.length === 0) return alert('Legg til noen retter først!');
-            
-            let result = [];
             let pool = [...dishes];
-            let lastDishName = null;
-
+            let result = [];
             for (let i = 0; i < 7; i++) {
-                let available = pool.filter(d => d.name !== lastDishName);
-                
-                if (available.length === 0) {
-                    available = dishes.filter(d => d.name !== lastDishName);
-                    if (available.length === 0) available = dishes;
-                }
-
-                let randomIndex = Math.floor(Math.random() * available.length);
-                let selectedDish = available[randomIndex];
-                
-                result.push(selectedDish);
-                lastDishName = selectedDish.name;
-
-                const poolIndex = pool.findIndex(d => d.name === selectedDish.name);
-                if (poolIndex > -1) {
-                    pool.splice(poolIndex, 1);
-                }
+                let idx = Math.floor(Math.random() * pool.length);
+                result.push(pool[idx] || dishes[0]);
             }
             currentWeek = result;
             save();
         }
 
-        function renderDishes() {
-            const list = document.getElementById('dishList');
-            list.innerHTML = dishes.map((dish, i) => `
+        function render() {
+            document.getElementById('countTotal').innerText = dishes.length;
+            document.getElementById('dishList').innerHTML = dishes.map((d, i) => `
                 <div class="dish-item">
-                    <span class="star ${dish.fav ? 'active' : ''}" onclick="toggleFav(${i})">★</span>
                     <div class="dish-info">
-                        <span class="dish-name">${dish.name}</span>
-                        <span class="dish-price-small">${dish.price > 0 ? dish.price + ' kr' : 'Pris ikke satt'}</span>
+                        <span class="dish-name">${d.name}</span>
+                        <span class="dish-price-small">${d.price} kr</span>
                     </div>
                     <span class="remove-btn" onclick="removeDish(${i})">×</span>
                 </div>
             `).join('');
-        }
 
-        function renderWeek() {
-            const grid = document.getElementById('weekGrid');
-            grid.innerHTML = days.map((day, i) => {
-                const dishObj = currentWeek[i];
-                if (!dishObj) {
-                    return `
-                        <div class="day-card">
-                            <span class="day-name">${day}</span>
-                            <div class="day-dish no-dish">Ikke planlagt</div>
-                        </div>
-                    `;
-                }
-
-                const hasIngredients = dishObj.ingredients && dishObj.ingredients.length > 0;
-                const ingredientsHtml = hasIngredients 
-                    ? `<div class="ingredients-list" id="ing-${i}">
-                        <strong>Du trenger:</strong><br>
-                        ${dishObj.ingredients.join(', ')}
-                       </div>` 
-                    : '';
-
+            document.getElementById('weekGrid').innerHTML = days.map((day, i) => {
+                const d = currentWeek[i];
                 return `
                     <div class="day-card">
                         <span class="day-name">${day}</span>
-                        <div class="day-dish">${dishObj.name}</div>
-                        ${ingredientsHtml}
+                        <div class="day-dish">${d ? d.name : '---'}</div>
                         <div class="dish-meta">
-                            <span class="dish-price">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                                ${dishObj.price > 0 ? dishObj.price + ' kr' : '-'}
-                            </span>
-                            ${hasIngredients ? `<span class="dish-ingredients-toggle" onclick="toggleIngredients(${i})">Se ingredienser</span>` : ''}
+                            <span class="dish-price">🏷️ ${d ? d.price : 0} kr</span>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        function openShoppingList() {
-            if (!currentWeek || !currentWeek[0]) {
-                alert('Generer en ukeplan først for å se handlelisten!');
-                return;
-            }
-
-            const ingredientsCount = {};
-            let totalPrice = 0;
-
-            currentWeek.forEach(dish => {
-                if (!dish) return;
-                totalPrice += (dish.price || 0);
-                if (dish.ingredients && Array.isArray(dish.ingredients)) {
-                    dish.ingredients.forEach(ing => {
-                        const name = ing.trim().toLowerCase();
-                        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-                        ingredientsCount[formattedName] = (ingredientsCount[formattedName] || 0) + 1;
-                    });
-                }
-            });
-
-            const grid = document.getElementById('shoppingListGrid');
-            const items = Object.keys(ingredientsCount).sort();
-            
-            if (items.length === 0) {
-                grid.innerHTML = '<p style="color: var(--text-muted);">Ingen ingredienser funnet for denne uken. Legg til ingredienser på rettene dine.</p>';
-            } else {
-                grid.innerHTML = items.map(item => `
-                    <div class="shopping-item">
-                        <span class="shopping-item-name">${item}</span>
-                        <span class="shopping-item-count">${ingredientsCount[item]}x</span>
-                    </div>
-                `).join('');
-            }
-
-            document.getElementById('modalTotalPrice').innerText = totalPrice + ' kr';
-            document.getElementById('modalOverlay').classList.add('active');
-        }
-
-        function closeShoppingList() {
-            document.getElementById('modalOverlay').classList.remove('active');
-        }
-
-        function closeModalOnOutsideClick(e) {
-            if (e.target === document.getElementById('modalOverlay')) {
-                closeShoppingList();
-            }
-        }
-
-        document.getElementById('countTotal').innerText = dishes.length;
-        renderDishes();
-        renderWeek();
+        render();
     </script>
 </body>
 </html>
