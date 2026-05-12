@@ -376,19 +376,20 @@
         <section id="planlegger" class="section">
             <div id="authView">
                 <div class="main-card" style="max-width: 500px; margin: 40px auto;">
-                    <h2>Dine gjenger 🍻</h2>
-                    <p style="margin-bottom: 24px;">Skriv inn koden til vennegjengen din.</p>
-                    <input type="text" id="userNameInput" placeholder="Ditt navn..." style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
-                    <div class="input-group" style="margin-bottom: 20px;">
-                        <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="padding: 20px; font-size: 18px; text-transform: uppercase;">
-                        <button class="nav-btn" onclick="addRoomCode()" style="padding: 0 25px;">Legg til</button>
-                    </div>
+                    <h2>Din Profil 👤</h2>
+                    <p style="margin-bottom: 24px;">Logg inn eller opprett bruker for å lagre dine gjenger.</p>
+                    <input type="text" id="userNameInput" placeholder="Brukernavn" style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
+                    <input type="password" id="userPassInput" placeholder="Passord" style="width: 100%; margin-bottom: 24px; padding: 20px; font-size: 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 12px;">
+                    <button class="btn-large btn-next" style="width: 100%; margin-bottom: 20px;" onclick="handleFestAuth()">Start Festplanlegging</button>
                     
-                    <div id="myRoomsList" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
-                        <!-- Lagrede koder her -->
+                    <div id="roomSection" style="display: none; border-top: 1px solid rgba(255,255,255,0.1); pt: 20px;">
+                        <h3 style="margin: 20px 0 10px;">Dine gjenger 🍻</h3>
+                        <div class="input-group" style="margin-bottom: 20px;">
+                            <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="padding: 20px; font-size: 18px; text-transform: uppercase;">
+                            <button class="nav-btn" onclick="addRoomCode()" style="padding: 0 25px;">Legg til</button>
+                        </div>
+                        <div id="myRoomsList" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;"></div>
                     </div>
-
-                    <p style="margin-top: 20px; font-size: 14px; color: #94a3b8;">Logg inn med en kode for å se aktive vors i den gjengen.</p>
                 </div>
             </div>
 
@@ -430,15 +431,17 @@
 
             <div id="vorsView" style="display: none;">
                 <div class="planner-header">
-                    <h2 id="vorsStatusTitle">Velg et vors</h2>
+                    <h2 id="vorsStatusTitle">Oversikt over vors i gjengen</h2>
                     <button class="nav-btn" onclick="resetRole()">Bytt rolle / vors</button>
                 </div>
 
-                <div id="activeVorsList" class="game-grid" style="margin-bottom: 40px;">
-                    <!-- Vorser listes her -->
+                <!-- ALLTID VIS OVERSIKT OVER VORS -->
+                <div style="margin-bottom: 40px;">
+                    <h3 style="margin-bottom: 20px; color: var(--accent);">🔥 Aktive vors i denne gjengen:</h3>
+                    <div id="activeVorsList" class="game-grid"></div>
                 </div>
 
-                <div id="activeVorsDetail" style="display: none; grid-template-columns: 1fr 350px; gap: 30px;">
+                <div id="activeVorsDetail" style="display: none; grid-template-columns: 1fr 350px; gap: 30px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 40px;">
                     <!-- Venstre side: Info og Handleliste -->
                     <div style="display: flex; flex-direction: column; gap: 30px;">
                         <div style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
@@ -597,53 +600,65 @@
         let currentUser = localStorage.getItem('fest_user') || null;
         let currentRoom = localStorage.getItem('fest_room') || null;
         let dbRef = null;
+        let globalUserRef = null;
+
+        window.handleFestAuth = async function() {
+            const user = document.getElementById('userNameInput').value.trim();
+            const pass = document.getElementById('userPassInput').value.trim();
+            if(!user || !pass) return alert("Fyll inn både brukernavn og passord!");
+
+            const userRef = ref(db, 'fest_accounts/' + user);
+            const snapshot = await get(userRef);
+            const data = snapshot.val();
+
+            if (data) {
+                if (data.password === pass) {
+                    currentUser = user;
+                    localStorage.setItem('fest_user', user);
+                    savedRooms = data.rooms || [];
+                    localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+                    document.getElementById('roomSection').style.display = 'block';
+                    renderPlanner();
+                } else {
+                    alert("Feil passord!");
+                }
+            } else {
+                if(confirm("Bruker finnes ikke. Vil du opprette en ny med dette passordet?")) {
+                    await set(userRef, { password: pass, rooms: [] });
+                    currentUser = user;
+                    localStorage.setItem('fest_user', user);
+                    savedRooms = [];
+                    document.getElementById('roomSection').style.display = 'block';
+                    renderPlanner();
+                }
+            }
+        }
+
+        async function syncAccountRooms() {
+            if (currentUser) await update(ref(db, 'fest_accounts/' + currentUser), { rooms: savedRooms });
+        }
 
         function connectToRoom(roomCode) {
-            if (dbRef) {
-                // Rydd opp forrige lytter hvis vi bytter rom
-                dbRef = null;
-            }
+            if (dbRef) dbRef = null;
             dbRef = ref(db, 'fest_rooms/' + roomCode);
             onValue(dbRef, (snapshot) => {
                 const data = snapshot.val();
-                if (data) {
-                    state = data;
-                    checkReset();
-                } else {
-                    resetDatabase();
-                }
+                if (data) { state = data; } else { resetDatabase(); }
                 renderPlanner();
             });
         }
 
-        let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || "[]");
         if (currentRoom) connectToRoom(currentRoom);
 
-        function resetDatabase() {
-            if (!dbRef) return;
-            set(dbRef, { users: {}, vorser: [], lastReset: new Date().getTime() });
-        }
+        function resetDatabase() { if (dbRef) set(dbRef, { users: {}, vorser: [], lastReset: new Date().getTime() }); }
 
-        function checkReset() {
-            const now = new Date();
-            const lastResetDate = new Date(state.lastReset);
-            if (now.getHours() >= 5 && (lastResetDate.getDate() !== now.getDate() || lastResetDate.getMonth() !== now.getMonth())) {
-                resetDatabase();
-            }
-        }
-
-        window.addRoomCode = function() {
-            const name = document.getElementById('userNameInput').value.trim();
+        window.addRoomCode = async function() {
             const room = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            if (!name) { alert("Skriv navnet ditt først!"); return; }
             if (!room) { alert("Skriv inn en vennekode!"); return; }
-
-            currentUser = name;
-            localStorage.setItem('fest_user', name);
-
             if (!savedRooms.includes(room)) {
                 savedRooms.push(room);
                 localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+                await syncAccountRooms();
             }
             document.getElementById('roomCodeInput').value = '';
             renderPlanner();
@@ -653,43 +668,22 @@
             currentRoom = roomCode;
             localStorage.setItem('fest_room', roomCode);
             connectToRoom(roomCode);
-            
-            // Registrer bruker i rommet hvis ikke finnes
-            setTimeout(() => {
-                if (!state.users) state.users = {};
-                if (!state.users[currentUser]) {
-                    state.users[currentUser] = { name: currentUser, role: null, joinedVors: null };
-                    update(ref(db, `fest_rooms/${currentRoom}/users`), state.users);
-                }
-            }, 500);
         }
 
-        window.removeRoomCode = function(roomCode) {
+        window.removeRoomCode = async function(roomCode) {
             savedRooms = savedRooms.filter(r => r !== roomCode);
             localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
-            if (currentRoom === roomCode) {
-                currentRoom = null;
-                localStorage.removeItem('fest_room');
-            }
+            await syncAccountRooms();
+            if (currentRoom === roomCode) { currentRoom = null; localStorage.removeItem('fest_room'); }
             renderPlanner();
         }
 
-        window.logout = function() {
-            localStorage.removeItem('fest_user');
-            localStorage.removeItem('fest_room');
-            currentUser = null;
-            currentRoom = null;
-            location.reload();
-        }
+        window.logout = function() { localStorage.clear(); location.reload(); }
 
         window.openHostSetup = function() {
             document.getElementById('roleView').style.display = 'none';
             document.getElementById('vorsView').style.display = 'none';
             document.getElementById('hostSetupView').style.display = 'block';
-            
-            // Hvis vi allerede er host, fyll inn eksisterende beskrivelse
-            const v = (state.vorser || []).find(v => v.host === currentUser);
-            if (v) document.getElementById('hostDescInput').value = v.description || "";
         }
 
         window.becomeHost = function() {
@@ -697,37 +691,15 @@
             const updates = {};
             updates[`fest_rooms/${currentRoom}/users/${currentUser}/role`] = 'host';
             updates[`fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`] = currentUser;
-            
             let newVorser = (state.vorser || []).filter(v => v.host !== currentUser);
-            newVorser.push({ 
-                id: currentUser, 
-                host: currentUser, 
-                description: desc || "Velkommen til vors! 🎉",
-                items: [] 
-            });
+            newVorser.push({ id: currentUser, host: currentUser, description: desc || "Velkommen!", items: [] });
             updates[`fest_rooms/${currentRoom}/vorser`] = newVorser;
-            
             update(ref(db), updates);
             document.getElementById('hostSetupView').style.display = 'none';
-        }
-
-        window.becomeParticipant = function() {
-            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: 'participant' });
         }
 
         window.joinVors = function(hostId) {
-            const updates = {};
-            if (state.users[currentUser].role === 'host') {
-                updates[`fest_rooms/${currentRoom}/vorser`] = (state.vorser || []).filter(v => v.host !== currentUser);
-                updates[`fest_rooms/${currentRoom}/users/${currentUser}/role`] = 'participant';
-            }
-            updates[`fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`] = hostId;
-            update(ref(db), updates);
-        }
-
-        window.resetRole = function() {
-            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: null, joinedVors: null });
-            document.getElementById('hostSetupView').style.display = 'none';
+            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`), hostId);
         }
 
         window.addItem = function() {
@@ -739,160 +711,31 @@
                 if (vorsIndex !== -1) {
                     if (!state.vorser[vorsIndex].items) state.vorser[vorsIndex].items = [];
                     state.vorser[vorsIndex].items.push({ name, qty, takenBy: null });
-                    update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}`), state.vorser[vorsIndex]);
+                    update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items`), state.vorser[vorsIndex].items);
                     document.getElementById('itemName').value = '';
-                    document.getElementById('itemQty').value = '';
                 }
-            }
-        }
-
-        window.removeItem = function(index) {
-            const user = state.users[currentUser];
-            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
-            if (vorsIndex !== -1 && user.role === 'host') {
-                state.vorser[vorsIndex].items.splice(index, 1);
-                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}`), state.vorser[vorsIndex]);
-            }
-        }
-
-        window.toggleTakeItem = function(index) {
-            const user = state.users[currentUser];
-            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
-            if (vorsIndex !== -1) {
-                const item = state.vorser[vorsIndex].items[index];
-                item.takenBy = (item.takenBy === currentUser) ? null : currentUser;
-                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items/${index}`), item);
             }
         }
 
         function renderPlanner() {
             const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
-            const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
-
             document.getElementById('authView').style.display = currentRoom ? 'none' : 'block';
-            document.getElementById('roleView').style.display = (currentRoom && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
-            document.getElementById('vorsView').style.display = (currentRoom && user && user.role && !isEditingHost) ? 'block' : 'none';
-
-            // Oppdater navnet i input hvis lagret
-            if (currentUser && document.getElementById('userNameInput')) {
-                document.getElementById('userNameInput').value = currentUser;
-            }
-
-            // Render liste over lagrede rom
-            const myRoomsList = document.getElementById('myRoomsList');
-            if (myRoomsList) {
-                myRoomsList.innerHTML = savedRooms.map(r => `
-                    <div class="guest-item" style="background: rgba(255,255,255,0.08);">
-                        <strong style="color: var(--accent); cursor: pointer;" onclick="loginToRoom('${r}')">${r}</strong>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="nav-btn" style="padding: 5px 15px; font-size: 12px;" onclick="loginToRoom('${r}')">Gå inn</button>
-                            <button class="remove-btn" onclick="removeRoomCode('${r}')">×</button>
-                        </div>
+            if (currentUser && currentRoom) {
+                const vorsList = document.getElementById('activeVorsList');
+                const availableVorser = state.vorser || [];
+                vorsList.innerHTML = availableVorser.map(v => `
+                    <div class="main-card" onclick="joinVors('${v.id}')">
+                        <h3>${v.host}'s Vors</h3>
+                        <p>${v.description}</p>
+                        <button class="btn-play">Bli med</button>
                     </div>
                 `).join('');
-                if (savedRooms.length === 0) {
-                    myRoomsList.innerHTML = `<p style="text-align: center; color: #64748b; font-size: 14px;">Ingen koder lagret enda.</p>`;
+                if (user && user.joinedVors) {
+                    document.getElementById('activeVorsDetail').style.display = 'grid';
+                    const v = state.vorser.find(v => v.id === user.joinedVors);
+                    if(v) document.getElementById('vorsDescriptionText').innerText = v.description;
                 }
             }
-
-            if (currentUser && currentRoom) {
-                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋 (Gjeng: ${currentRoom})`;
-            }
-
-            if (user && user.role) {
-                const vorsList = document.getElementById('activeVorsList');
-                const vorsDetail = document.getElementById('activeVorsDetail');
-
-                if (!user.joinedVors) {
-                    document.getElementById('vorsStatusTitle').innerText = "Hvor er festen? 🍻";
-                    vorsDetail.style.display = 'none';
-                    vorsList.style.display = 'grid';
-                    
-                    const availableVorser = state.vorser || [];
-                    if (availableVorser.length === 0) {
-                        vorsList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Ingen har meldt seg som host enda...</div>`;
-                    } else {
-                        vorsList.innerHTML = availableVorser.map(v => {
-                            // Finn antall gjester
-                            const guests = Object.values(state.users).filter(u => u.joinedVors === v.id).length;
-                            return `
-                                <div class="main-card" onclick="joinVors('${v.id}')">
-                                    <span class="card-icon">🏠</span>
-                                    <h2>${v.host}'s Vors</h2>
-                                    <p style="margin-bottom: 10px;">${v.description.substring(0, 60)}${v.description.length > 60 ? '...' : ''}</p>
-                                    <div style="display: flex; justify-content: center; gap: 10px; font-size: 14px; color: var(--accent);">
-                                        <span>👥 ${guests} gjester</span>
-                                        <span>🛒 ${(v.items || []).length} ting trengs</span>
-                                    </div>
-                                    <button class="btn-play" style="margin-top: 15px;">Bli med her</button>
-                                </div>
-                            `;
-                        }).join('');
-                    }
-                } else {
-                    const currentVors = (state.vorser || []).find(v => v.id === user.joinedVors);
-                    if (!currentVors) {
-                        update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { joinedVors: null });
-                        return;
-                    }
-
-                    document.getElementById('vorsStatusTitle').innerText = `Du er på ${currentVors.host}'s vors! ✨`;
-                    vorsList.style.display = 'none';
-                    vorsDetail.style.display = 'grid';
-                    
-                    document.getElementById('vorsDescriptionText').innerText = currentVors.description;
-                    document.getElementById('hostControls').style.display = (user.role === 'host') ? 'block' : 'none';
-
-                    // Oppdater handleliste
-                    const items = currentVors.items || [];
-                    document.getElementById('shoppingList').innerHTML = items.map((item, i) => `
-                        <div class="guest-item" style="${item.takenBy ? 'opacity: 0.6; border-left: 4px solid var(--primary);' : ''}">
-                            <div style="flex: 1;">
-                                <strong style="font-size: 18px;">${item.name}</strong> 
-                                <span style="color: var(--accent); margin-left: 10px;">(${item.qty})</span>
-                                ${item.takenBy ? `<br><small style="color: var(--primary);">✓ Tas med av ${item.takenBy}</small>` : ''}
-                            </div>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <button class="nav-btn" style="padding: 6px 12px; font-size: 12px; background: ${item.takenBy === currentUser ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}" onclick="toggleTakeItem(${i})">
-                                    ${item.takenBy === currentUser ? 'Angre' : 'Jeg tar med'}
-                                </button>
-                                ${user.role === 'host' ? `<button class="remove-btn" onclick="removeItem(${i})">×</button>` : ''}
-                            </div>
-                        </div>
-                    `).join('');
-
-                    // Oppdater gjesteliste
-                    const participants = Object.values(state.users).filter(u => u.joinedVors === currentVors.id);
-                    document.getElementById('participantCount').innerText = participants.length;
-                    document.getElementById('participantList').innerHTML = participants.map(p => `
-                        <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; border-left: 3px solid ${p.role === 'host' ? 'var(--accent)' : 'transparent'}">
-                            <span>${p.role === 'host' ? '👑' : '👤'}</span>
-                            <span style="font-weight: 600;">${p.name}</span>
-                            ${p.role === 'host' ? '<span style="font-size: 10px; color: var(--accent); margin-left: auto;">HOST</span>' : ''}
-                        </div>
-                    `).join('');
-                }
-            }
-        }
-
-        window.showSection = function(id) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            
-            const target = document.getElementById(id);
-            if (target) target.classList.add('active');
-            
-            // Finn knappen som ble trykket
-            const navButtons = document.querySelectorAll('.nav-btn');
-            navButtons.forEach(btn => {
-                if(btn.innerText.toLowerCase().includes(id.toLowerCase()) || 
-                   (id === 'home' && btn.innerText.includes('🏠'))) {
-                    btn.classList.add('active');
-                }
-            });
-
-            if (id === 'planlegger') renderPlanner();
-            if (id === 'leker') window.renderGames();
         }
 
         window.renderGames = function() {
@@ -900,8 +743,8 @@
             if(grid) grid.innerHTML = games.map(game => `
                 <div class="game-card">
                     <span style="font-size: 40px;">${game.icon}</span>
-                    <h3 style="margin: 10px 0;">${game.title}</h3>
-                    <p style="color: #94a3b8; font-size: 14px;">${game.desc}</p>
+                    <h3>${game.title}</h3>
+                    <p>${game.desc}</p>
                     <button class="btn-play" onclick="startGame('${game.id}')">Start spill</button>
                 </div>
             `).join('');
@@ -909,241 +752,25 @@
 
         window.startGame = function(id) {
             activeGame = games.find(g => g.id === id);
-            cardIndex = -1;
-            document.getElementById('activeGameTitle').innerText = activeGame.title;
-            document.getElementById('gameOverlay').style.display = 'flex';
-            nextCard();
+            const overlay = document.getElementById('gameOverlay');
+            overlay.style.display = 'flex';
+            if (id === 'lykkehjul') { window.renderLykkehjul(); } 
+            else if (id === 'chug') { window.renderChugGame(); }
+            else {
+                cardIndex = -1;
+                window.nextCard();
+            }
         }
 
         window.nextCard = function() {
+            if (!activeGame || !activeGame.cards) return;
             cardIndex++;
             if (cardIndex >= activeGame.cards.length) { cardIndex = 0; shuffle(activeGame.cards); }
             document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
         }
 
         window.closeGame = function() { document.getElementById('gameOverlay').style.display = 'none'; }
-        window.startQuickGame = function() { 
-            const randomGame = games[Math.floor(Math.random() * games.length)];
-            window.startGame(randomGame.id); 
-        }
-
-        window.renderLykkehjul = function() {
-            const container = document.getElementById('gameOverlay');
-            container.innerHTML = `
-                <h2 style="margin-bottom: 20px;">🎡 Lykkehjul</h2>
-                <div style="position: relative; width: 350px; height: 350px; margin: 0 auto 40px; display: flex; align-items: center; justify-content: center;">
-                    <canvas id="wheelCanvas" width="350" height="350" style="border: 8px solid white; border-radius: 50%; box-shadow: 0 0 30px rgba(255, 0, 122, 0.4); transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);"></canvas>
-                    <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid var(--accent); z-index: 10;"></div>
-                </div>
-                <div style="min-height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
-                    <h2 id="wheelResult" style="font-size: 32px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);"></h2>
-                </div>
-                <div class="game-controls">
-                    <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
-                    <button class="btn-large btn-next" id="spinBtn" onclick="spinWheel()">SNURR!</button>
-                </div>
-            `;
-            drawWheel();
-        }
-
-        function drawWheel() {
-            const canvas = document.getElementById('wheelCanvas');
-            if(!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = canvas.width / 2;
-            const slices = activeGame.cards.length;
-            const sliceAngle = (2 * Math.PI) / slices;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            activeGame.cards.forEach((text, i) => {
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY);
-                ctx.arc(centerX, centerY, radius, i * sliceAngle, (i + 1) * sliceAngle);
-                ctx.fillStyle = i % 2 === 0 ? '#ff007a' : '#7000ff';
-                ctx.fill();
-                ctx.stroke();
-
-                // Tekst
-                ctx.save();
-                ctx.translate(centerX, centerY);
-                ctx.rotate(i * sliceAngle + sliceAngle / 2);
-                ctx.textAlign = "right";
-                ctx.fillStyle = "white";
-                ctx.font = "bold 14px 'Outfit', sans-serif";
-                
-                // Tilpass tekstlengde
-                let displayText = text;
-                if(displayText.length > 18) displayText = displayText.substring(0, 16) + "..";
-                
-                ctx.fillText(displayText, radius - 30, 5);
-                ctx.restore();
-            });
-        }
-
-        window.spinWheel = function() {
-            const canvas = document.getElementById('wheelCanvas');
-            const btn = document.getElementById('spinBtn');
-            const resultText = document.getElementById('wheelResult');
-            if(!canvas || btn.disabled) return;
-            
-            btn.disabled = true;
-            resultText.innerText = "Snurrer...";
-            
-            let rotation = 0;
-            const totalRotation = 1800 + Math.random() * 1800;
-            const start = performance.now();
-            const duration = 4000;
-
-            function animate(now) {
-                const elapsed = now - start;
-                const progress = Math.min(elapsed / duration, 1);
-                const easeOut = 1 - Math.pow(1 - progress, 4); // Sterkere ease-out
-                const currentRotation = easeOut * totalRotation;
-                
-                canvas.style.transform = `rotate(${currentRotation}deg)`;
-
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    // Kalkuler vinner basert på pilen på toppen (-90 grader)
-                    const netRotation = (currentRotation % 360);
-                    const sliceSize = 360 / activeGame.cards.length;
-                    
-                    // Pilen er på toppen (270 grader i canvas-koordinater, eller -90)
-                    // Siden hjulet roterer med klokken, må vi finne ut hvilken slice som er på 270 grader
-                    const winningIndex = Math.floor((360 - (netRotation % 360) + 270) % 360 / sliceSize) % activeGame.cards.length;
-                    
-                    resultText.innerText = activeGame.cards[winningIndex];
-                    btn.disabled = false;
-                    
-                    // Legg til en liten glow-effekt på resultatet
-                    resultText.style.animation = "pulse 1s infinite alternate";
-                }
-            }
-            requestAnimationFrame(animate);
-        }
-
-        window.startGame = function(id) {
-            activeGame = games.find(g => g.id === id);
-            const overlay = document.getElementById('gameOverlay');
-            overlay.style.display = 'flex';
-
-            if (id === 'lykkehjul') {
-                window.renderLykkehjul();
-            } else if (id === 'chug') {
-                window.renderChugGame();
-            } else {
-                overlay.innerHTML = `
-                    <h2 id="activeGameTitle">${activeGame.title}</h2>
-                    <div class="game-text" id="gameText">Trykk på start for å begynne!</div>
-                    <div class="game-controls">
-                        <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
-                        <button class="btn-large btn-next" onclick="nextCard()">Neste kort →</button>
-                    </div>
-                `;
-                cardIndex = -1;
-                nextCard();
-            }
-        }
-
-        window.renderChugGame = function() {
-            const container = document.getElementById('gameOverlay');
-            container.innerHTML = `
-                <h2 style="margin-bottom: 20px;">🍺 Chug-Battle!</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; max-width: 800px; margin-bottom: 40px;">
-                    <div class="main-card" style="padding: 30px;">
-                        <h3>Spiller 1</h3>
-                        <div id="timer1" style="font-size: 48px; font-weight: 800; margin: 20px 0; font-family: monospace;">00.00</div>
-                        <button class="btn-play" id="btn1" onclick="toggleTimer(1)" style="background: var(--primary);">START / STOPP</button>
-                        <div id="score1" style="margin-top: 20px; font-size: 20px;">Seiere: 0</div>
-                    </div>
-                    <div class="main-card" style="padding: 30px;">
-                        <h3>Spiller 2</h3>
-                        <div id="timer2" style="font-size: 48px; font-weight: 800; margin: 20px 0; font-family: monospace;">00.00</div>
-                        <button class="btn-play" id="btn2" onclick="toggleTimer(2)" style="background: var(--secondary);">START / STOPP</button>
-                        <div id="score2" style="margin-top: 20px; font-size: 20px;">Seiere: 0</div>
-                    </div>
-                </div>
-                <div class="game-controls">
-                    <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
-                    <button class="btn-large btn-next" onclick="resetChug()">Nullstill Tid</button>
-                </div>
-            `;
-            window.chugData = {
-                t1: 0, t2: 0, running1: false, running2: false, interval1: null, interval2: null,
-                s1: parseInt(localStorage.getItem('chug_s1') || 0),
-                s2: parseInt(localStorage.getItem('chug_s2') || 0)
-            };
-            updateChugUI();
-        }
-
-        window.toggleTimer = function(id) {
-            const d = window.chugData;
-            if (id === 1) {
-                if (d.running1) {
-                    clearInterval(d.interval1);
-                    d.running1 = false;
-                    checkChugWinner();
-                } else {
-                    d.t1 = 0;
-                    d.running1 = true;
-                    const start = Date.now();
-                    d.interval1 = setInterval(() => {
-                        d.t1 = (Date.now() - start) / 1000;
-                        document.getElementById('timer1').innerText = d.t1.toFixed(2);
-                    }, 10);
-                }
-            } else {
-                if (d.running2) {
-                    clearInterval(d.interval2);
-                    d.running2 = false;
-                    checkChugWinner();
-                } else {
-                    d.t2 = 0;
-                    d.running2 = true;
-                    const start = Date.now();
-                    d.interval2 = setInterval(() => {
-                        d.t2 = (Date.now() - start) / 1000;
-                        document.getElementById('timer2').innerText = d.t2.toFixed(2);
-                    }, 10);
-                }
-            }
-        }
-
-        function checkChugWinner() {
-            const d = window.chugData;
-            if (!d.running1 && !d.running2 && d.t1 > 0 && d.t2 > 0) {
-                if (d.t1 < d.t2) {
-                    d.s1++;
-                    alert("Spiller 1 vant!");
-                } else {
-                    d.s2++;
-                    alert("Spiller 2 vant!");
-                }
-                localStorage.setItem('chug_s1', d.s1);
-                localStorage.setItem('chug_s2', d.s2);
-                updateChugUI();
-            }
-        }
-
-        function updateChugUI() {
-            const d = window.chugData;
-            document.getElementById('score1').innerText = `Seiere: ${d.s1}`;
-            document.getElementById('score2').innerText = `Seiere: ${d.s2}`;
-        }
-
-        window.resetChug = function() {
-            const d = window.chugData;
-            clearInterval(d.interval1);
-            clearInterval(d.interval2);
-            d.t1 = 0; d.t2 = 0; d.running1 = false; d.running2 = false;
-            document.getElementById('timer1').innerText = "00.00";
-            document.getElementById('timer2').innerText = "00.00";
-        }
-        function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
+        window.shuffle = function(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
 
         window.renderGames();
     </script>
