@@ -798,8 +798,16 @@
                         currentPlan = data.plan || [];
                         likedIngs = data.likedIngredients || [];
                         if (data.budget) localStorage.setItem('eidert_budget', data.budget);
+                        
+                        // Kun rendr hvis vi faktisk er inne i en plan-visning
+                        if (document.getElementById('appContainer').classList.contains('active')) {
+                            render();
+                        }
+                    } else {
+                        // Hvis ingen data finnes, sett standardverdier
+                        dishes = [...initialDishes];
+                        render();
                     }
-                    render();
                 });
 
                 document.getElementById('authPage').style.display = 'none';
@@ -1117,6 +1125,7 @@
 
             currentPlan = bestPlan; 
             save();
+            render(); // Sørg for at vi tegner opp den nye planen med en gang
         }
 
         window.swapDay = function(index) {
