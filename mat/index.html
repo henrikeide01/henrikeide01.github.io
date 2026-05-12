@@ -246,7 +246,7 @@
 </head>
 <body>
     <!-- LOGIN / REGISTER -->
-    <div id="authPage" style="display: none;">
+    <div id="authPage">
         <div class="auth-card">
             <h1 style="text-align: center; margin-bottom: 12px; font-size: 42px;">🥘 Eidert</h1>
             <p style="text-align: center; color: #94a3b8; margin-bottom: 48px; font-size: 18px;">Logg inn for å lagre din plan</p>
@@ -781,6 +781,8 @@
         let currentPlan = [];
         let likedIngs = [];
 
+        let editingIndex = -1;
+
         window.init = function() {
             if (!currentUser) {
                 document.getElementById('authPage').style.display = 'flex';
@@ -855,45 +857,16 @@
             location.reload();
         }
 
-        window.save = function() {
-            if (!currentUser) return;
-            update(ref(db, 'meal_users/' + currentUser), {
-                dishes: dishes,
-                plan: currentPlan,
-                likedIngredients: likedIngs,
-                budget: localStorage.getItem('eidert_budget') || 0
-            });
-        }
-
-        window.startApp = function(mode) {
-            currentMode = mode;
-            document.getElementById('landingPage').style.display = 'none';
-            document.getElementById('appContainer').classList.add('active');
-            
-            const titles = { 1: "Dagsplan", 7: "Ukeplan", 30: "Månedsplan" };
-            if (document.getElementById('planTitleText')) document.getElementById('planTitleText').innerText = titles[mode];
-            document.getElementById('printTitle').innerText = titles[mode] + " for " + currentUser;
-            
-            if (currentPlan.length !== mode) generateWeek(); 
-            else render();
-        }
-
-        window.goHome = function() {
-            document.getElementById('landingPage').style.display = 'flex';
-            document.getElementById('appContainer').classList.remove('active');
-        }
-
-        init();
-
-        function openBudgetModal() {
+        // Eksporter funksjoner til globalt scope for knappene i modalene
+        window.openBudgetModal = function() {
             let currentBudget = localStorage.getItem('eidert_budget') || '';
             document.getElementById('budgetInput').value = currentBudget;
             document.getElementById('budgetModal').classList.add('active');
         }
 
-        function closeBudgetModal() { document.getElementById('budgetModal').classList.remove('active'); }
+        window.closeBudgetModal = function() { document.getElementById('budgetModal').classList.remove('active'); }
 
-        function saveBudget() {
+        window.saveBudget = function() {
             let val = parseInt(document.getElementById('budgetInput').value) || 0;
             if (val > 0) localStorage.setItem('eidert_budget', val);
             else localStorage.removeItem('eidert_budget');
@@ -901,15 +874,14 @@
             generateWeek();
         }
 
-        function openAddModal() { document.getElementById('addModal').classList.add('active'); }
-        function closeAddModal() { document.getElementById('addModal').classList.remove('active'); }
+        window.openAddModal = function() { document.getElementById('addModal').classList.add('active'); }
+        window.closeAddModal = function() { document.getElementById('addModal').classList.remove('active'); }
 
-        function addNewDish() {
+        window.addNewDish = function() {
             const name = document.getElementById('addDishName').value.trim();
             const price = parseInt(document.getElementById('addDishPrice').value) || 0;
             const ings = document.getElementById('addDishIngs').value.split(',').map(i => i.trim()).filter(i => i);
             
-            // Prøv å gjette proteinet basert på navnet
             let guessedProtein = "";
             const lowerName = name.toLowerCase();
             prefCategories["Proteiner"].forEach(p => {
@@ -923,19 +895,20 @@
                 document.getElementById('addDishIngs').value = '';
                 save();
                 closeAddModal();
+                if (document.getElementById('dbModal').classList.contains('active')) renderDatabase();
             }
         }
 
-        function openDatabase() { renderDatabase(); document.getElementById('dbModal').classList.add('active'); }
-        function closeDatabase() { document.getElementById('dbModal').classList.remove('active'); }
+        window.openDatabase = function() { renderDatabase(); document.getElementById('dbModal').classList.add('active'); }
+        window.closeDatabase = function() { document.getElementById('dbModal').classList.remove('active'); }
 
-        function renderDatabase() {
+        window.renderDatabase = function() {
             document.getElementById('dbList').innerHTML = dishes.map((d, i) => `
                 <div class="db-item">
                     <div class="db-item-info">
                         <div style="font-size: 18px; font-weight: 700;">${d.name} <span style="font-size: 14px; font-weight: 400; color: var(--text-muted);">(${d.price} kr for 2 pers)</span></div>
                         <div style="margin-top: 8px;">
-                            ${d.ingredients.length > 0 ? d.ingredients.map(ing => `<span class="ing-tag">${ing}</span>`).join('') : '<span style="color: var(--text-muted); font-style: italic;">Ingen ingredienser lagt til.</span>'}
+                            ${(d.ingredients || []).length > 0 ? d.ingredients.map(ing => `<span class="ing-tag">${ing}</span>`).join('') : '<span style="color: var(--text-muted); font-style: italic;">Ingen ingredienser lagt til.</span>'}
                         </div>
                     </div>
                     <div class="db-item-actions">
@@ -946,9 +919,9 @@
             `).join('');
         }
 
-        function deleteDish(index) { if(confirm("Er du sikker på at du vil slette denne retten?")) { dishes.splice(index, 1); save(); } }
+        window.deleteDish = function(index) { if(confirm("Er du sikker på at du vil slette denne retten?")) { dishes.splice(index, 1); save(); renderDatabase(); } }
 
-        function openEdit(index) {
+        window.openEdit = function(index) {
             editingIndex = index;
             document.getElementById('editName').value = dishes[index].name;
             document.getElementById('editPrice').value = dishes[index].price;
@@ -956,28 +929,40 @@
             document.getElementById('editModal').classList.add('active');
         }
 
-        function renderEditIngs() {
-            document.getElementById('editIngList').innerHTML = dishes[editingIndex].ingredients.map((ing, i) => `
+        window.renderEditIngs = function() {
+            document.getElementById('editIngList').innerHTML = (dishes[editingIndex].ingredients || []).map((ing, i) => `
                 <span class="ing-tag">${ing} <span class="remove-ing" onclick="removeIngFromEdit(${i})">×</span></span>
             `).join('');
         }
 
-        function addIngToEdit() {
+        window.addIngToEdit = function() {
             const val = document.getElementById('newIngInput').value.trim();
-            if (val) { dishes[editingIndex].ingredients.push(val); document.getElementById('newIngInput').value = ''; renderEditIngs(); }
+            if (val) { 
+                if(!dishes[editingIndex].ingredients) dishes[editingIndex].ingredients = [];
+                dishes[editingIndex].ingredients.push(val); 
+                document.getElementById('newIngInput').value = ''; 
+                renderEditIngs(); 
+            }
         }
 
-        function removeIngFromEdit(idx) { dishes[editingIndex].ingredients.splice(idx, 1); renderEditIngs(); }
+        window.removeIngFromEdit = function(idx) { dishes[editingIndex].ingredients.splice(idx, 1); renderEditIngs(); }
 
-        function saveEdit() {
+        window.saveEdit = function() {
             dishes[editingIndex].name = document.getElementById('editName').value;
             dishes[editingIndex].price = parseInt(document.getElementById('editPrice').value) || 0;
-            save(); closeEditModal();
+            save(); closeEditModal(); renderDatabase();
         }
 
-        function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
+        window.closeEditModal = function() { document.getElementById('editModal').classList.remove('active'); }
+        
+        window.openPrefModal = function() {
+            setPrefTab("Proteiner");
+            document.getElementById('prefModal').classList.add('active');
+        }
 
-        function generateWeek(isRetry = false) {
+        window.closePrefModal = function() { document.getElementById('prefModal').classList.remove('active'); }
+
+        window.generateWeek = function(isRetry = false) {
             if (dishes.length < 7) return alert(`Legg til minst 7 retter i menyen for å generere planer!`);
             
             const servings = parseInt(document.getElementById('servingsInput').value) || 2;
@@ -1362,12 +1347,35 @@
             else likedIngs.push(base);
         }
 
-        function savePrefs() {
-            save();
-            closePrefModal();
-            alert("Preferanser lagret! Vi vil nå prøve å tilpasse alle retter til dine valg.");
-            generateWeek();
+        window.save = function() {
+            if (!currentUser) return;
+            update(ref(db, 'meal_users/' + currentUser), {
+                dishes: dishes,
+                plan: currentPlan,
+                likedIngredients: likedIngs,
+                budget: localStorage.getItem('eidert_budget') || 0
+            });
         }
+
+        window.startApp = function(mode) {
+            currentMode = mode;
+            document.getElementById('landingPage').style.display = 'none';
+            document.getElementById('appContainer').classList.add('active');
+            
+            const titles = { 1: "Dagsplan", 7: "Ukeplan", 30: "Månedsplan" };
+            if (document.getElementById('planTitleText')) document.getElementById('planTitleText').innerText = titles[mode];
+            document.getElementById('printTitle').innerText = titles[mode] + " for " + currentUser;
+            
+            if (currentPlan.length !== mode) generateWeek(); 
+            else render();
+        }
+
+        window.goHome = function() {
+            document.getElementById('landingPage').style.display = 'flex';
+            document.getElementById('appContainer').classList.remove('active');
+        }
+
+        init();
     </script>
 </body>
 </html>
