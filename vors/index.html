@@ -9,386 +9,49 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #ff007a; /* Neon Rosa */
-            --secondary: #7000ff; /* Neon Lilla */
-            --accent: #00f2ff; /* Neon Cyan */
+            --primary: #ff007a;
+            --secondary: #7000ff;
+            --accent: #00f2ff;
             --bg: #050505;
             --card-bg: rgba(255, 255, 255, 0.05);
             --text: #ffffff;
             --radius: 20px;
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Outfit', sans-serif;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
         body {
             background-color: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            overflow-x: hidden;
             background: radial-gradient(circle at 0% 0%, #1a0b2e 0%, #050505 50%),
                         radial-gradient(circle at 100% 100%, #2e0b1a 0%, #050505 50%);
         }
-
-        /* Glassmorphism Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* Navigation */
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 30px 0;
-            margin-bottom: 40px;
-        }
-
-        .logo {
-            font-size: 32px;
-            font-weight: 800;
-            background: linear-gradient(to right, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -1px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 20px;
-        }
-
-        .nav-btn {
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: var(--transition);
-            text-decoration: none;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
-        }
-
-        .nav-btn:hover, .nav-btn.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(255, 0, 122, 0.4);
-        }
-
-        /* Hero Section */
-        .hero {
-            text-align: center;
-            padding: 60px 0;
-            animation: fadeIn 1s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .hero h1 {
-            font-size: 72px;
-            font-weight: 800;
-            margin-bottom: 20px;
-            line-height: 1;
-        }
-
-        .hero p {
-            font-size: 20px;
-            color: #94a3b8;
-            margin-bottom: 40px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        /* Main Menu Grid */
-        .main-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
-        }
-
-        .main-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: var(--radius);
-            padding: 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
-            backdrop-filter: blur(20px);
-        }
-
-        .main-card:hover {
-            transform: scale(1.03);
-            border-color: var(--accent);
-            box-shadow: 0 20px 40px -10px rgba(0, 242, 255, 0.2);
-        }
-
-        .main-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 5px;
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-        }
-
-        .card-icon {
-            font-size: 64px;
-            margin-bottom: 24px;
-            display: block;
-        }
-
-        .main-card h2 {
-            font-size: 28px;
-            margin-bottom: 12px;
-        }
-
-        .main-card p {
-            color: #94a3b8;
-            font-size: 16px;
-        }
-
-        /* Sections */
-        .section {
-            display: none;
-            padding-top: 40px;
-            animation: slideIn 0.5s ease-out;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .section.active {
-            display: block;
-        }
-
-        /* Game Cards */
-        .game-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            align-items: stretch;
-        }
-
-        .game-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 16px;
-            padding: 24px;
-            transition: var(--transition);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 100%;
-        }
-
-        .game-card:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: var(--primary);
-        }
-
-        /* Lykkehjul Canvas */
-        #wheel {
-            max-width: 400px;
-            width: 100%;
-            height: auto;
-            border-radius: 50%;
-            box-shadow: 0 0 30px var(--primary);
-            border: 10px solid var(--card-bg);
-            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
-        }
-
-        /* Scoreboard Styling */
-        .scoreboard {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 30px;
-            margin-top: 40px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .score-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .score-table th, .score-table td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .score-table th { color: var(--accent); font-size: 14px; text-transform: uppercase; }
-
-        .btn-small {
-            padding: 5px 10px;
-            font-size: 12px;
-            border-radius: 6px;
-            background: var(--secondary);
-            border: none;
-            color: white;
-            cursor: pointer;
-        }
-
-        /* Planner Styles */
-        .planner-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        input {
-            flex: 1;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            padding: 15px;
-            border-radius: 12px;
-            outline: none;
-        }
-
-        input:focus {
-            border-color: var(--accent);
-        }
-
-        .guest-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .guest-item {
-            background: rgba(255,255,255,0.05);
-            padding: 15px 20px;
-            border-radius: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .remove-btn {
-            background: none;
-            border: none;
-            color: #ef4444;
-            cursor: pointer;
-            font-size: 20px;
-        }
-
-        /* Modal / Game View */
-        .game-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--bg);
-            z-index: 1000;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            text-align: center;
-        }
-
-        .game-content h2 { font-size: 48px; margin-bottom: 40px; }
-        .game-text { font-size: 32px; font-weight: 600; margin-bottom: 60px; max-width: 800px; }
-        
-        .game-controls {
-            display: flex;
-            gap: 20px;
-        }
-
-        .btn-large {
-            padding: 20px 40px;
-            font-size: 20px;
-            font-weight: 800;
-            border-radius: 50px;
-            border: none;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .btn-next { background: var(--primary); color: white; }
-        .btn-back { background: var(--card-bg); color: white; border: 1px solid rgba(255,255,255,0.1); }
-
-        .btn-play {
-            margin-top: 20px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 14px;
-            width: 100%;
-            border-radius: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: var(--transition);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(255, 0, 122, 0.3);
-            display: block;
-        }
-
-        .btn-play:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(255, 0, 122, 0.5);
-            background: #ff1a8c;
-        }
-
-        @keyframes pulse {
-            from { transform: scale(1); text-shadow: 0 0 10px rgba(0, 242, 255, 0.5); }
-            to { transform: scale(1.05); text-shadow: 0 0 25px rgba(0, 242, 255, 0.8); }
-        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .logo { font-size: 32px; font-weight: 800; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 30px 0; }
+        .nav-links { display: flex; gap: 15px; }
+        .nav-btn { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px 20px; border-radius: 50px; cursor: pointer; transition: var(--transition); text-decoration: none; font-weight: 600; }
+        .nav-btn:hover, .nav-btn.active { background: var(--primary); border-color: var(--primary); transform: translateY(-2px); }
+        .main-card { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); padding: 40px; text-align: center; backdrop-filter: blur(20px); margin-bottom: 20px; }
+        input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; outline: none; }
+        .btn-play { background: var(--primary); color: white; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
     </style>
 </head>
 <body>
-
     <div id="mainAuthView" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;">
-        <div class="main-card" style="max-width: 500px; width: 100%; padding: 40px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <div class="logo" style="font-size: 48px; margin-bottom: 10px;">FESTPLAN</div>
-                <p style="color: var(--text-muted);">Logg inn eller lag en bruker for å starte festen!</p>
+        <div class="main-card" style="max-width: 450px; width: 100%;">
+            <div class="logo" style="font-size: 48px; margin-bottom: 10px;">FESTPLAN</div>
+            <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+                <button id="mainLoginTab" class="nav-btn active" style="flex: 1;" onclick="window.setFestAuthMode('login')">Logg inn</button>
+                <button id="mainRegTab" class="nav-btn" style="flex: 1;" onclick="window.setFestAuthMode('reg')">Ny bruker</button>
             </div>
-
-            <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 30px;">
-                <button id="mainLoginTab" class="nav-btn active" onclick="window.setFestAuthMode('login')" style="flex: 1; border-radius: 0; border: none; background: none; border-bottom: 2px solid var(--primary);">Logg inn</button>
-                <button id="mainRegTab" class="nav-btn" onclick="window.setFestAuthMode('reg')" style="flex: 1; border-radius: 0; border: none; background: none;">Ny bruker</button>
-            </div>
-            
-            <h2 id="mainAuthTitle">Velkommen tilbake! 👤</h2>
-            <p id="mainAuthDesc" style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px;">Logg inn for å se dine gjenger og venner.</p>
-            
-            <input type="text" id="mainUserNameInput" placeholder="Brukernavn" style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
-            <input type="password" id="mainUserPassInput" placeholder="Passord" style="width: 100%; margin-bottom: 24px; padding: 20px; font-size: 18px;">
-            
-            <button id="mainAuthBtn" class="btn-play" style="width: 100%;" onclick="window.handleFestAuth()">Start Festplanlegging</button>
+            <h2 id="mainAuthTitle" style="margin-bottom: 10px;">Velkommen!</h2>
+            <input type="text" id="mainUserNameInput" placeholder="Brukernavn">
+            <input type="password" id="mainUserPassInput" placeholder="Passord">
+            <button id="mainAuthBtn" class="btn-play" onclick="window.handleFestAuth()">Start Festplanlegging</button>
         </div>
     </div>
 
@@ -397,263 +60,88 @@
             <nav>
                 <div class="logo">FESTPLAN</div>
                 <div class="nav-links">
-                    <a href="#" class="nav-btn active" onclick="window.showSection('home')">🏠 Hjem</a>
-                    <a href="#" class="nav-btn" onclick="window.showSection('gjenger')">🍻 Gjenger</a>
-                    <a href="#" class="nav-btn" onclick="window.showSection('leker')">🎮 Leker & Spill</a>
-                    <a href="#" class="nav-btn" onclick="window.showSection('planlegger')">📅 Planlegger</a>
-                    <a href="#" class="nav-btn" onclick="window.logout()" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">Logg ut</a>
+                    <button class="nav-btn active" onclick="window.showSection('home')">🏠 Hjem</button>
+                    <button class="nav-btn" onclick="window.showSection('leker')">🎮 Leker</button>
+                    <button class="nav-btn" onclick="window.showSection('planlegger')">📅 Planlegger</button>
+                    <button class="nav-btn" onclick="window.logout()" style="color: #ff4444;">Logg ut</button>
                 </div>
             </nav>
-
-        <section id="home" class="section active">
-            <div class="hero">
-                <h1>Gjør festen <span style="color: var(--accent);">legendarisk.</span></h1>
-                <p>Alt du trenger for det perfekte vorspielet på ett sted. Spill, gjestelister og god stemning.</p>
-                <div class="main-grid">
-                    <div class="main-card" onclick="window.showSection('leker')">
-                        <span class="card-icon">🃏</span>
-                        <h2>Drikkeleker</h2>
-                        <p>Klassikere som \"Jeg har aldri\", \"Pekeleken\" og mer.</p>
-                    </div>
-                    <div class="main-card" onclick="window.showSection('planlegger')">
-                        <span class="card-icon">📝</span>
-                        <h2>Festplanlegger</h2>
-                        <p>Hold styr på gjester, drikke og hvem som tar med hva.</p>
-                    </div>
-                    <div class="main-card" onclick="window.startQuickGame()">
-                        <span class="card-icon">🎲</span>
-                        <h2>Quick Play</h2>
-                        <p>Start en tilfeldig utfordring med en gang!</p>
-                    </div>
+            <section id="home" class="section active">
+                <div class="main-card">
+                    <h1>Velkommen til festen! 🍻</h1>
+                    <p>Velg en fane over for å starte.</p>
                 </div>
-            </div>
-        </section>
-
-        <section id="gjenger" class="section">
-            <div class="planner-header">
-                <h2>🍻 Dine Gjenger & Koder</h2>
-            </div>
-            <div id="gjengerAuthWarning" style="text-align: center; padding: 40px; background: var(--card-bg); border-radius: var(--radius);">
-                <p>Du må logge inn i Planleggeren først for å administrere gjengene dine.</p>
-                <button class="btn-play" style="max-width: 200px; margin-top: 20px;" onclick="window.showSection('planlegger')">Gå til innlogging</button>
-            </div>
-            <div id="gjengerManager" style="display: none;">
-                <div class="main-card" style="max-width: 600px; margin: 0 auto 30px;">
-                    <h3>Legg til ny gjeng</h3>
-                    <p style="margin-bottom: 20px;">Skriv inn koden til vennegjengen din.</p>
-                    <div class="input-group">
-                        <input type="text" id="manageRoomInput" placeholder="F.eks: VENNER2024" style="text-transform: uppercase;">
-                        <button class="nav-btn" onclick="window.addRoomFromManager()">Legg til</button>
-                    </div>
-                </div>
-                <div id="manageRoomsList" class="game-grid"></div>
-            </div>
-        </section>
-
-        <section id="leker" class="section">
-            <div class="planner-header">
-                <h2>🎮 Finn din favorittlek</h2>
-            </div>
-            <div id="gameGrid" class="game-grid"></div>
-        </section>
-
-        <section id="planlegger" class="section">
-            <div id="roleView">
-                <div class="planner-header">
-                    <h2 id="welcomeText">Velg din rolle 👋</h2>
-                </div>
-                <div id="roomSection" style="margin-bottom: 30px; background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
-                    <h3 style="margin-bottom: 15px;">Mine gjenger 🍻</h3>
-                    <div class="input-group" style="margin-bottom: 20px;">
-                        <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="text-transform: uppercase;">
+            </section>
+            <section id="leker" class="section">
+                <h2>🎮 Spill & Leker</h2>
+                <div id="gameGrid" class="game-grid" style="margin-top: 20px;"></div>
+            </section>
+            <section id="planlegger" class="section">
+                <h2>📅 Planlegger</h2>
+                <div class="main-card" style="text-align: left; margin-top: 20px;">
+                    <h3>Dine Gjenger</h3>
+                    <div style="display: flex; gap: 10px; margin: 15px 0;">
+                        <input type="text" id="roomCodeInput" placeholder="Vennekode..." style="margin-bottom: 0;">
                         <button class="nav-btn" onclick="window.addRoomCode()">Legg til</button>
                     </div>
-                    <div id="myRoomsList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
+                    <div id="roleRoomsList" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
                 </div>
-                <div id="roomSelectionForRole" style="margin-bottom: 30px;">
-                    <h3 style="margin-bottom: 15px; color: var(--accent);">Hvilken gjeng vil du planlegge for?</h3>
-                    <div id="roleRoomsList" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
-                </div>
-                <div id="roleActions" style="display: none;">
-                    <div class="main-grid">
-                        <div class="main-card" onclick="window.openHostSetup()">
-                            <span class="card-icon">🏠</span>
-                            <h2>Være Host</h2>
-                            <p>Jeg vil holde vorset i <span class="active-room-text" style="color: var(--accent);"></span>.</p>
-                        </div>
-                        <div class="main-card" onclick="window.becomeParticipant()">
-                            <span class="card-icon">🍺</span>
-                            <h2>Bare bli med</h2>
-                            <p>Se aktive vors i <span class="active-room-text" style="color: var(--accent);"></span>.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="hostSetupView" style="display: none;">
-                <div class="main-card" style="max-width: 600px; margin: 40px auto; text-align: left;">
-                    <h2>Sett opp ditt vors 🏠</h2>
-                    <p style="margin-bottom: 20px; color: var(--text-muted);">Gi gjestene dine litt info om hva som skjer.</p>
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Beskrivelse / Beskjed til gjester:</label>
-                    <textarea id="hostDescInput" placeholder="Beskjed..." style="width: 100%; height: 120px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-family: inherit; resize: none;"></textarea>
-                    <div style="display: flex; gap: 15px;">
-                        <button class="nav-btn" style="flex: 1; padding: 15px;" onclick="window.resetRole()">Avbryt</button>
-                        <button class="btn-large btn-next" style="flex: 2;" onclick="window.becomeHost()">Start mitt vors! 🎉</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="vorsView" style="display: none;">
-                <div class="planner-header">
-                    <h2 id="vorsStatusTitle">Oversikt over vors i gjengen</h2>
-                    <button class="nav-btn" onclick="window.resetRole()">Bytt rolle / vors</button>
-                </div>
-                <div style="margin-bottom: 40px;">
-                    <h3 style="margin-bottom: 20px; color: var(--accent);">🔥 Aktive vors i denne gjengen:</h3>
+                <div id="vorsView" style="margin-top: 20px;">
                     <div id="activeVorsList" class="game-grid"></div>
                 </div>
-                <div id="activeVorsDetail" style="display: none; grid-template-columns: 1fr 350px; gap: 30px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 40px;">
-                    <div style="display: flex; flex-direction: column; gap: 30px;">
-                        <div style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                                <h3 style="font-size: 28px;">ℹ️ Info fra host</h3>
-                                <div id="hostControls" style="display: none;">
-                                    <button class="nav-btn" style="font-size: 12px; padding: 5px 10px;" onclick="window.openHostSetup()">Rediger info</button>
-                                </div>
-                            </div>
-                            <p id="vorsDescriptionText" style="color: #cbd5e1; line-height: 1.6; font-size: 18px; white-space: pre-wrap;"></p>
-                        </div>
-                        <div id="shoppingSection" style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
-                            <h3 style="margin-bottom: 20px;">🛒 Hva trengs?</h3>
-                            <div class="input-group">
-                                <input type="text" id="itemName" placeholder="Ting">
-                                <input type="text" id="itemQty" placeholder="Antall" style="max-width: 120px;">
-                                <button class="nav-btn" onclick="window.addItem()">Legg til</button>
-                            </div>
-                            <div class="guest-list" id="shoppingList" style="margin-top: 20px;"></div>
-                        </div>
-                    </div>
-                    <div style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1); align-self: start;">
-                        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">👥 Gjester <span id="participantCount" style="background: var(--primary); padding: 2px 10px; border-radius: 10px; font-size: 14px;">0</span></h3>
-                        <div id="participantList" style="display: flex; flex-direction: column; gap: 10px;"></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <div id="gameOverlay" class="game-overlay">
-        <h2 id="activeGameTitle">Leker</h2>
-        <div id="standardGameView"><div class="game-text" id="gameText">Trykk på start!</div></div>
-        <div id="wheelView" style="display: none; position: relative;">
-            <div id="wheelIndicator" style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid var(--accent); z-index: 10;"></div>
-            <canvas id="wheelCanvas" width="500" height="500" style="max-width: 400px; width: 100%;"></canvas>
-            <div id="wheelResult" class="game-text" style="margin-top: 20px; color: var(--accent);">Snurr hjulet!</div>
-        </div>
-        <div id="chugView" style="display: none; width: 100%; max-width: 800px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
-                <div class="main-card"><h3>Spiller 1</h3><div id="timer1" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div><button class="btn-play" onclick="window.toggleTimer(1)" id="btnTimer1">START</button></div>
-                <div class="main-card"><h3>Spiller 2</h3><div id="timer2" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div><button class="btn-play" onclick="window.toggleTimer(2)" id="btnTimer2">START</button></div>
-            </div>
-            <p id="chugStatus" style="font-size: 18px; color: var(--accent);">Førstemann!</p>
-        </div>
-        <div class="game-controls" style="margin-top: 40px;">
-            <button class="btn-large btn-back" onclick="window.closeGame()">Avslutt</button>
-            <button id="btnNext" class="btn-large btn-next" onclick="window.nextCard()">Neste kort →</button>
-            <button id="btnSpin" class="btn-large btn-next" onclick="window.spinWheel()" style="display: none;">Snurr! 🎡</button>
-            <button id="btnResetChug" class="btn-large btn-next" onclick="window.resetChug()" style="display: none;">Ny runde</button>
-        </div>
-    </div>
-
-    <div id="scoreboardSection" class="container" style="display: none; margin-bottom: 100px;">
-        <div style="display: grid; grid-template-columns: 1fr 350px; gap: 30px;">
-            <div class="scoreboard">
-                <h2>🏆 Hall of Fame</h2>
-                <table class="score-table">
-                    <thead><tr><th>Spiller</th><th>Enheter</th><th>Handlinger</th></tr></thead>
-                    <tbody id="scoreTableBody"></tbody>
-                </table>
-            </div>
-            <div class="scoreboard">
-                <h2>👥 Venner</h2>
-                <div id="myFriendCode" style="margin: 15px 0; padding: 10px; background: rgba(0,242,255,0.1); border-radius: 10px; border: 1px dashed var(--accent); text-align: center;"><small>Din kode:</small><br><strong id="displayMyCode" style="color: var(--accent); font-size: 20px;">----</strong></div>
-                <div class="input-group">
-                    <input type="text" id="friendCodeInput" placeholder="Vennens kode...">
-                    <button class="nav-btn" onclick="window.addFriendByCode()">Legg til</button>
-                </div>
-                <div id="friendsList" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;"></div>
-            </div>
+            </section>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from \"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js\";
-        import { getDatabase, ref, onValue, set, update, get } from \"https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js\";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
-            apiKey: \"AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA\",
-            authDomain: \"eidert.firebaseapp.com\",
-            projectId: \"eidert\",
-            storageBucket: \"eidert.firebasestorage.app\",
-            messagingSenderId: \"404554280464\",
-            appId: \"1:404554280464:web:b454e6b567e1897eab6495\",
-            measurementId: \"G-WS907SPPDR\",
-            databaseURL: \"https://eidert-default-rtdb.europe-west1.firebasedatabase.app/\" 
+            apiKey: "AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA",
+            authDomain: "eidert.firebaseapp.com",
+            projectId: "eidert",
+            storageBucket: "eidert.firebasestorage.app",
+            messagingSenderId: "404554280464",
+            appId: "1:404554280464:web:b454e6b567e1897eab6495",
+            measurementId: "G-WS907SPPDR",
+            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app/" 
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // State
-        let activeGame = null;
-        let cardIndex = 0;
-        let state = { users: {}, vorser: [] };
         let currentUser = localStorage.getItem('fest_user');
         let currentRoom = localStorage.getItem('fest_room');
-        let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || \"[]\");
+        let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || "[]");
         let festAuthMode = 'login';
-        let dbRef = null;
+        let state = { users: {}, vorser: [] };
 
-        const games = [
-            { id: 'jeg-har-aldri', title: 'Jeg har aldri', icon: '🤫', cards: [\"Jeg har aldri løyet på sannhet eller konsekvens.\", \"Jeg har aldri sendt melding til feil person.\", \"Jeg har aldri sneket meg ut.\", \"Jeg har aldri badet naken.\"] },
-            { id: 'pekeleken', title: 'Pekeleken', icon: '👉', cards: [\"Hvem blir kjendis?\", \"Hvem sovner først?\", \"Hvem ender i fengsel?\"] },
-            { id: 'sannhet', title: 'Sannhet eller Straff', icon: '🔥', cards: [\"Sannhet: Hemmelig crush?\", \"Straff: Ta en shot.\", \"Sannhet: Flaueste fyllehistorie?\"] },
-            { id: 'lykkehjul', title: 'Lykkehjul', icon: '🎡', cards: [\"TA EN SHOT!\", \"GI BORT 2 SLURKER\", \"ALLE DRIKKER!\", \"DU ER TRYGG\"] },
-            { id: 'chug', title: 'Chug-konkurranse', icon: '🍺', isSpecial: true }
-        ];
-
-        // Global functions for HTML
         window.setFestAuthMode = (mode) => {
             festAuthMode = mode;
-            document.getElementById('mainLoginTab').classList.toggle('active', mode === 'login');
-            document.getElementById('mainRegTab').classList.toggle('active', mode === 'reg');
-            document.getElementById('mainAuthTitle').innerText = mode === 'login' ? 'Velkommen tilbake! 👤' : 'Bli en festdeltaker! ✨';
+            document.getElementById('mainLoginTab').className = mode === 'login' ? 'nav-btn active' : 'nav-btn';
+            document.getElementById('mainRegTab').className = mode === 'reg' ? 'nav-btn active' : 'nav-btn';
+            document.getElementById('mainAuthTitle').innerText = mode === 'login' ? 'Velkommen tilbake!' : 'Lag ny bruker!';
             document.getElementById('mainAuthBtn').innerText = mode === 'login' ? 'Start Festplanlegging' : 'Opprett bruker';
         };
 
         window.handleFestAuth = async () => {
             const user = document.getElementById('mainUserNameInput').value.trim();
             const pass = document.getElementById('mainUserPassInput').value.trim();
-            if(!user || !pass) return alert(\"Fyll inn alt!\");
-            
+            if(!user || !pass) return alert("Fyll ut alt!");
             const userRef = ref(db, 'fest_accounts/' + user);
             const snap = await get(userRef);
-            const data = snap.val();
-
             if (festAuthMode === 'reg') {
-                if (data) return alert(\"Navnet er tatt!\");
-                const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-                await set(userRef, { password: pass, rooms: [], friendCode: code, friends: [], units: 0 });
-                alert(\"Bruker laget!\");
-                window.setFestAuthMode('login');
+                if (snap.exists()) return alert("Navnet er tatt!");
+                await set(userRef, { password: pass, rooms: [], friendCode: Math.random().toString(36).substring(2,8).toUpperCase(), friends: [], units: 0 });
+                alert("Bruker opprettet!"); window.setFestAuthMode('login');
             } else {
+                const data = snap.val();
                 if (data && data.password === pass) {
-                    currentUser = user;
-                    localStorage.setItem('fest_user', user);
-                    savedRooms = data.rooms || [];
-                    localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+                    currentUser = user; localStorage.setItem('fest_user', user);
+                    savedRooms = data.rooms || []; localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
                     window.checkLoginState();
-                } else alert(\"Feil login!\");
+                } else alert("Feil brukernavn/passord!");
             }
         };
 
@@ -670,13 +158,9 @@
         };
 
         window.connectToRoom = (roomCode) => {
-            if (dbRef) dbRef = null;
-            dbRef = ref(db, 'fest_rooms/' + roomCode);
-            onValue(dbRef, (snap) => {
-                const data = snap.val();
-                if (data) state = data;
+            onValue(ref(db, 'fest_rooms/' + roomCode), (snap) => {
+                state = snap.val() || { users: {}, vorser: [] };
                 window.renderPlanner();
-                window.renderScoreboard();
             });
         };
 
@@ -686,104 +170,36 @@
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav-links .nav-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            document.getElementById('scoreboardSection').style.display = (id === 'leker') ? 'block' : 'none';
             if (id === 'leker') window.renderGames();
-            if (id === 'gjenger') window.renderGjenger();
         };
 
         window.renderGames = () => {
-            document.getElementById('gameGrid').innerHTML = games.map(g => `
-                <div class=\"game-card\">
-                    <span style=\"font-size: 40px;\">${g.icon}</span>
-                    <h3>${g.title}</h3>
-                    <button class=\"btn-play\" onclick=\"window.startGame('${g.id}')\">Spill</button>
-                </div>
-            `).join('');
+            const games = [
+                { id: 'aldri', title: 'Jeg har aldri', icon: '🤫' },
+                { id: 'peke', title: 'Pekeleken', icon: '👉' },
+                { id: 'chug', title: 'Chug-konkurranse', icon: '🍺' }
+            ];
+            document.getElementById('gameGrid').innerHTML = games.map(g => `<div class="main-card"><span>${g.icon}</span><h3>${g.title}</h3></div>`).join('');
         };
-
-        window.startGame = (id) => {
-            activeGame = games.find(g => g.id === id);
-            document.getElementById('gameOverlay').style.display = 'flex';
-            document.getElementById('wheelView').style.display = id === 'lykkehjul' ? 'block' : 'none';
-            document.getElementById('btnSpin').style.display = id === 'lykkehjul' ? 'block' : 'none';
-            document.getElementById('chugView').style.display = id === 'chug' ? 'block' : 'none';
-            document.getElementById('btnNext').style.display = (!activeGame.isSpecial && id !== 'lykkehjul') ? 'block' : 'none';
-            if (id === 'lykkehjul') window.drawWheel();
-            if (!activeGame.isSpecial) { cardIndex = -1; window.nextCard(); }
-        };
-
-        window.nextCard = () => {
-            cardIndex++;
-            if (cardIndex >= activeGame.cards.length) cardIndex = 0;
-            document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
-        };
-
-        window.closeGame = () => { document.getElementById('gameOverlay').style.display = 'none'; };
 
         window.renderPlanner = () => {
-            const user = state.users?.[currentUser];
-            document.getElementById('roleView').style.display = (!user || !user.role) ? 'block' : 'none';
-            document.getElementById('vorsView').style.display = (user && user.role) ? 'block' : 'none';
-            
-            document.getElementById('roleRoomsList').innerHTML = savedRooms.map(r => `
-                <button class=\"nav-btn ${currentRoom === r ? 'active' : ''}\" onclick=\"window.loginToRoom('${r}')\">${r}</button>
-            `).join('');
-            
+            document.getElementById('roleRoomsList').innerHTML = savedRooms.map(r => `<button class="nav-btn ${currentRoom === r ? 'active' : ''}" onclick="window.loginToRoom('${r}')">${r}</button>`).join('');
             if (currentRoom) {
-                document.getElementById('roleActions').style.display = 'block';
-                document.querySelectorAll('.active-room-text').forEach(el => el.innerText = currentRoom);
-                
                 const vorser = state.vorser || [];
-                document.getElementById('activeVorsList').innerHTML = vorser.map(v => `
-                    <div class=\"main-card\">
-                        <h3>${v.host}'s Vors</h3>
-                        <button class=\"btn-play\" onclick=\"window.joinVors('${v.id}')\">Bli med</button>
-                    </div>
-                `).join('') || \"Ingen aktive vors.\";
+                document.getElementById('activeVorsList').innerHTML = vorser.map(v => `<div class="main-card"><h3>${v.host}'s Vors</h3></div>`).join('') || "Ingen vors her enda.";
             }
         };
 
         window.loginToRoom = (r) => { currentRoom = r; localStorage.setItem('fest_room', r); window.connectToRoom(r); };
-        window.joinVors = (id) => update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { joinedVors: id, role: 'participant' });
-        window.openHostSetup = () => { document.getElementById('roleView').style.display = 'none'; document.getElementById('hostSetupView').style.display = 'block'; };
-        window.becomeHost = () => {
-            const desc = document.getElementById('hostDescInput').value;
-            const newVors = { id: currentUser, host: currentUser, description: desc, items: [] };
-            const updates = {};
-            updates[`fest_rooms/${currentRoom}/users/${currentUser}/role`] = 'host';
-            updates[`fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`] = currentUser;
-            updates[`fest_rooms/${currentRoom}/vorser`] = [...(state.vorser || []), newVors];
-            update(ref(db), updates);
-            document.getElementById('hostSetupView').style.display = 'none';
-        };
-
         window.addRoomCode = async () => {
             const r = document.getElementById('roomCodeInput').value.toUpperCase();
-            if (!savedRooms.includes(r)) {
-                savedRooms.push(r);
-                localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+            if (r && !savedRooms.includes(r)) {
+                savedRooms.push(r); localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
                 await update(ref(db, 'fest_accounts/' + currentUser), { rooms: savedRooms });
             }
             window.renderPlanner();
         };
 
-        window.renderScoreboard = async () => {
-            const snap = await get(ref(db, 'fest_accounts/' + currentUser));
-            const data = snap.val();
-            if (data) {
-                document.getElementById('displayMyCode').innerText = data.friendCode;
-                document.getElementById('scoreTableBody').innerHTML = Object.values(state.users || {}).map(u => `
-                    <tr><td>${u.name}</td><td>${u.units || 0}</td><td><button onclick=\"window.addUnit('${u.name}')\">+1</button></td></tr>
-                `).join('');
-            }
-        };
-
-        window.addUnit = (name) => {
-            const u = (state.users[name].units || 0) + 1;
-            update(ref(db, `fest_rooms/${currentRoom}/users/${name}`), { units: u });
-        };
-
-        // Init
         window.checkLoginState();
     </script>
 </body>
