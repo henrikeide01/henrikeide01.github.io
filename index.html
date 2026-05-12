@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eidert mattips | Ukeplanlegger</title>
+    <title>Eidert mattips | Profesjonell Ukeplanlegger</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -12,265 +12,148 @@
             --primary: #10b981; 
             --primary-hover: #059669;
             --ai-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-            --ai-gradient-hover: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
             --bg-main: #f8fafc;
             --bg-card: #ffffff;
             --text-main: #1e293b;
             --text-muted: #64748b;
             --border: #e2e8f0;
-            --radius-lg: 20px;
-            --radius-md: 12px;
-            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --transition: all 0.2s ease;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Outfit', sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; display: flex; overflow: hidden; }
 
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-        }
+        .app-container { display: grid; grid-template-columns: 400px 1fr; width: 100%; height: 100vh; }
 
-        .app-container {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            width: 100%;
-            min-height: 100vh;
-        }
-
-        /* Sidebar Styling */
+        /* Sidebar */
         aside {
             background: var(--bg-card);
             border-right: 1px solid var(--border);
-            padding: 40px 24px;
+            padding: 32px;
             display: flex;
             flex-direction: column;
             gap: 24px;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto; /* HELE menyen kan nå bles i */
+            overflow-y: auto;
         }
 
-        .logo {
-            font-size: 28px;
-            font-weight: 800;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 8px;
-            letter-spacing: -0.03em;
-        }
+        .logo { font-size: 24px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 10px; }
 
-        .section-title {
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-        }
-
-        .input-group {
+        .section-card {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: var(--radius-md);
             display: flex;
             flex-direction: column;
             gap: 12px;
-            background: #f1f5f9;
-            padding: 16px;
-            border-radius: var(--radius-md);
         }
 
-        input {
+        input, select {
             width: 100%;
-            padding: 12px 14px;
+            padding: 12px;
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 14px;
-            transition: var(--transition);
-            background: #fff;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+            background: white;
         }
 
         .btn {
-            padding: 12px 20px;
+            padding: 12px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
-            display: inline-flex;
+            display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            font-size: 14px;
         }
 
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-ai { background: var(--ai-gradient); color: white; }
 
-        .btn-ai {
-            background: var(--ai-gradient);
-            color: white;
-        }
-
-        .btn-ai:hover:not(:disabled) {
-            background: var(--ai-gradient-hover);
-        }
-
-        .dish-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
+        .dish-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .dish-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-radius: var(--radius-md);
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-
-        .dish-info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .dish-name {
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .dish-price-small {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .star {
-            color: #cbd5e1;
-            cursor: pointer;
-            font-size: 18px;
-            margin-right: 12px;
-        }
-
-        .star.active { color: #fbbf24; }
-
-        .remove-btn {
-            color: #94a3b8;
-            cursor: pointer;
-            font-size: 18px;
-            padding: 4px;
-        }
-
-        .remove-btn:hover { color: #ef4444; }
-
-        /* Main Content */
-        main {
-            padding: 60px 80px;
-            width: 100%;
-        }
-
-        header {
-            margin-bottom: 48px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        h1 { font-size: 40px; font-weight: 800; }
-
-        .week-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 24px;
-        }
-
-        .day-card {
             background: white;
             border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 24px;
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .day-name {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--primary);
-            text-transform: uppercase;
-            margin-bottom: 12px;
-        }
-
-        .day-dish {
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-
-        .dish-meta {
-            margin-top: auto;
+            padding: 14px;
+            border-radius: 12px;
             display: flex;
             justify-content: space-between;
-            padding-top: 16px;
-            border-top: 1px dashed var(--border);
-        }
-
-        .dish-price {
-            font-weight: 600;
-            display: flex;
             align-items: center;
-            gap: 4px;
+            cursor: pointer;
         }
+        .dish-item:hover { border-color: var(--primary); transform: translateX(4px); }
 
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        .spinner { display: inline-block; animation: spin 1s linear infinite; }
+        /* Main Content */
+        main { padding: 48px; overflow-y: auto; width: 100%; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .servings-control { display: flex; align-items: center; gap: 12px; background: white; padding: 8px 16px; border-radius: 50px; border: 1px solid var(--border); }
 
-        @media (max-width: 1100px) {
-            .app-container { grid-template-columns: 1fr; }
-            aside { height: auto; position: static; }
+        .week-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .day-card {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
         }
+        .day-name { color: var(--primary); font-weight: 700; text-transform: uppercase; font-size: 12px; margin-bottom: 8px; display: block; }
+        .day-dish { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+        
+        .ingredients-editor {
+            font-size: 13px;
+            color: var(--text-muted);
+            border-top: 1px dashed var(--border);
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+        .ing-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin: 2px;
+        }
+        .remove-ing { cursor: pointer; color: #ef4444; margin-left: 6px; font-weight: bold; }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 32px; border-radius: var(--radius-lg); max-width: 500px; width: 90%; }
+
+        @media (max-width: 1000px) { .app-container { grid-template-columns: 1fr; height: auto; } body { overflow: auto; } }
     </style>
 </head>
 <body>
     <div class="app-container">
         <aside>
-            <div class="logo">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                Eidert mattips
+            <div class="logo">🥘 Eidert mattips</div>
+            
+            <div class="section-card">
+                <h3 style="font-size: 14px; color: var(--text-muted);">LEGG TIL RETT</h3>
+                <input type="text" id="dishInput" placeholder="Navn på middag...">
+                <button class="btn btn-ai" onclick="generateWithAI()" id="aiBtn">✨ Finn på noe med AI</button>
+                <input type="number" id="priceInput" placeholder="Pris (for 2 pers)">
+                <input type="text" id="ingInput" placeholder="Ingredienser (kommaseparert)">
+                <button class="btn btn-primary" onclick="addDish()">Lagre i menyen</button>
             </div>
 
             <div>
-                <h3 class="section-title">Legg til ny rett</h3>
-                <div class="input-group">
-                    <input type="text" id="dishInput" placeholder="Navn på rett">
-                    <button id="aiBtn" class="btn btn-ai" onclick="generateWithAI()">✨ Skap med AI</button>
-                    <input type="number" id="priceInput" placeholder="Est. pris (kr)">
-                    <input type="text" id="ingredientsInput" placeholder="Ingredienser (kommaseparert)">
-                    <button class="btn btn-primary" onclick="addDish()">Lagre i menyen</button>
-                </div>
-            </div>
-
-            <div style="display: flex; flex-direction: column;">
-                <h3 class="section-title">Din Meny (<span id="countTotal">0</span>)</h3>
+                <h3 style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">DIN MENY (<span id="totalCount">0</span>)</h3>
                 <div id="dishList" class="dish-list"></div>
             </div>
         </aside>
@@ -278,110 +161,226 @@
         <main>
             <header>
                 <div>
-                    <h1>Ukeplanlegger</h1>
-                    <p style="color: var(--text-muted);">Automatisk ukeplan for Eidert</p>
+                    <h1 style="font-size: 32px;">Ukeplanlegger</h1>
+                    <p style="color: var(--text-muted);">Planlegg uken for hele familien</p>
                 </div>
-                <button class="btn btn-primary" onclick="generateWeek()">Generer ny plan</button>
+                <div style="display: flex; gap: 16px;">
+                    <div class="servings-control">
+                        <span>👥 Porsjoner:</span>
+                        <input type="number" id="servingsInput" value="2" min="1" max="20" style="width: 60px; padding: 4px; border: none; text-align: center; font-weight: 700;" onchange="render()">
+                    </div>
+                    <button class="btn btn-primary" onclick="generateWeek()">🔄 Generer ukeplan</button>
+                </div>
             </header>
+
             <div id="weekGrid" class="week-grid"></div>
         </main>
     </div>
 
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <h2 id="editTitle" style="margin-bottom: 20px;">Rediger rett</h2>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <input type="text" id="editName" placeholder="Navn">
+                <input type="number" id="editPrice" placeholder="Pris (2 pers)">
+                <div>
+                    <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Ingredienser:</p>
+                    <div id="editIngList" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;"></div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="newIngInput" placeholder="Ny ingrediens..." style="flex: 1;">
+                        <button class="btn btn-primary" onclick="addIngToEdit()" style="padding: 0 12px;">+</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px; margin-top: 12px;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="saveEdit()">Lagre endringer</button>
+                    <button class="btn" style="background: #f1f5f9;" onclick="closeModal()">Avbryt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const days = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
-        let dishes = JSON.parse(localStorage.getItem('eidert_dishes')) || [
-            { name: 'Taco', fav: true, price: 250, ingredients: ['Kjøttdeig', 'Taco-sett'] },
-            { name: 'Laks', fav: false, price: 180, ingredients: ['Laks', 'Poteter'] }
+        
+        // 50 detaljerte matretter
+        const initialDishes = [
+            { name: "Kjøttkaker i brun saus", price: 150, ingredients: ["Kjøttdeig", "Løk", "Poteter", "Ertstuing", "Tyttebærsyltetøy", "Brun saus"] },
+            { name: "Laks med agurksalat", price: 180, ingredients: ["Laksefilet", "Agurk", "Rømme", "Poteter", "Sitron", "Dill"] },
+            { name: "Taco", price: 200, ingredients: ["Kjøttdeig", "Tortilla", "Mais", "Ost", "Salat", "Salsa", "Rømme", "Agurk"] },
+            { name: "Spaghetti Bolognese", price: 120, ingredients: ["Spaghetti", "Kjøttdeig", "Tomatsaus", "Løk", "Hvitløk", "Parmesan"] },
+            { name: "Kylling Curry", price: 160, ingredients: ["Kylling", "Kokosmelk", "Curry-paste", "Ris", "Paprika", "Bambusskudd"] },
+            { name: "Fårikål", price: 250, ingredients: ["Fårekjøtt", "Hodekål", "Hel pepper", "Poteter"] },
+            { name: "Finnbiff", price: 280, ingredients: ["Reinsdyrskav", "Sopp", "Løk", "Fløte", "Enebær", "Tyttebær", "Potetmos"] },
+            { name: "Lasagne", price: 170, ingredients: ["Lasagneplater", "Kjøttdeig", "Ost", "Bechamelsaus", "Tomater"] },
+            { name: "Plukkfisk", price: 140, ingredients: ["Torsk", "Potetmos", "Hvit saus", "Purre", "Bacon"] },
+            { name: "Pinnekjøtt", price: 400, ingredients: ["Pinnekjøtt", "Kålrotstappe", "Poteter", "Sjy"] },
+            { name: "Pølse og potetmos", price: 100, ingredients: ["Kjøttpølser", "Poteter", "Smør", "Melk", "Ketchup"] },
+            { name: "Biff med fløtepoteter", price: 350, ingredients: ["Indrefilet", "Fløte", "Poteter", "Soppsaus", "Asparges"] },
+            { name: "Tomatsuppe", price: 80, ingredients: ["Tomater", "Løk", "Buljong", "Egg", "Makaroni", "Brød"] },
+            { name: "Pannekaker", price: 60, ingredients: ["Mel", "Melk", "Egg", "Bacon", "Blåbærsyltetøy"] },
+            { name: "Wok med scampi", price: 220, ingredients: ["Scampi", "Nudler", "Wok-grønnsaker", "Soyasaus", "Ingefær"] },
+            { name: "Lutefisk", price: 300, ingredients: ["Lutefisk", "Bacon", "Ertestuing", "Lefse", "Sennep", "Poteter"] },
+            { name: "Kyllingsalat", price: 130, ingredients: ["Kylling", "Salatmix", "Tomat", "Fetaost", "Dressing", "Brødkrutonger"] },
+            { name: "Hjemmelaget Pizza", price: 190, ingredients: ["Pizzadeig", "Skinke", "Pepperoni", "Ost", "Pizzasaus", "Paprika"] },
+            { name: "Torsk med smørsaus", price: 190, ingredients: ["Torskefilet", "Eggesmør", "Gulerøtter", "Poteter", "Persille"] },
+            { name: "Bacalao", price: 240, ingredients: ["Klippfisk", "Tomat", "Løk", "Hvitløk", "Chili", "Poteter", "Olivenolje"] },
+            { name: "Svinestek", price: 210, ingredients: ["Svinestek", "Surkål", "Poteter", "Saus", "Gulerøtter"] },
+            { name: "Chili con Carne", price: 150, ingredients: ["Kjøttdeig", "Bønner", "Chili", "Tomat", "Ris", "Nachos"] },
+            { name: "Fiskeboller i hvit saus", price: 110, ingredients: ["Fiskeboller", "Hvit saus", "Karri", "Poteter", "Gulerøtter", "Bacon"] },
+            { name: "Reker og loff", price: 250, ingredients: ["Reker", "Loff", "Majones", "Sitron", "Dill"] },
+            { name: "Kylling overlår", price: 160, ingredients: ["Kyllinglår", "Søtpotet", "Brokkoli", "Aioli"] },
+            { name: "Biff Lindstrøm", price: 170, ingredients: ["Karbonadedeig", "Rødbeter", "Kapers", "Løk", "Speilegg", "Poteter"] },
+            { name: "Bouillabaisse", price: 260, ingredients: ["Diverse fisk", "Blåskjell", "Safran", "Tomat", "Hvitløk", "Fennikel"] },
+            { name: "Moussaka", price: 180, ingredients: ["Aubergine", "Kjøttdeig", "Poteter", "Ost", "Tomat"] },
+            { name: "Thai Rød Curry", price: 170, ingredients: ["Kylling", "Bambusskudd", "Rød curry", "Kokosmelk", "Ris", "Lime"] },
+            { name: "Sushi (hjemmelaget)", price: 300, ingredients: ["Sushiris", "Salmalaks", "Avokado", "Nori-ark", "Soyasaus", "Wasabi"] },
+            { name: "Ribbe", price: 350, ingredients: ["Tynnribbe", "Medisterkaker", "Rødkål", "Poteter", "Saus"] },
+            { name: "Pai med skinke", price: 140, ingredients: ["Paideig", "Skinke", "Purre", "Egg", "Melk", "Ost"] },
+            { name: "Kremet pastasalat", price: 110, ingredients: ["Pasta", "Majones", "Rømme", "Skinke", "Erter", "Mais"] },
+            { name: "Fiskesuppe", price: 160, ingredients: ["Laks", "Torsk", "Fløte", "Gulerot", "Purre", "Selleri"] },
+            { name: "Shepherd's Pie", price: 160, ingredients: ["Lammedeig", "Potetmos", "Erter", "Gulerøtter", "Løk"] },
+            { name: "Cæsar-salat", price: 150, ingredients: ["Romanosalat", "Kylling", "Bacon", "Parmesan", "Cæsar-dressing", "Krutonger"] },
+            { name: "Brennende kjærlighet", price: 130, ingredients: ["Potetmos", "Bacon", "Løk", "Purre", "Sylteagurk"] },
+            { name: "Indisk Butter Chicken", price: 190, ingredients: ["Kylling", "Smør", "Tomatpuré", "Fløte", "Garam Masala", "Naanbrød"] },
+            { name: "Reinsdyrstek", price: 450, ingredients: ["Reinsdyrstek", "Rosenkål", "Viltsaus", "Fløtepoteter", "Tyttebær"] },
+            { name: "Stekt sild", price: 100, ingredients: ["Sild", "Rugmel", "Løk", "Rømme", "Poteter"] },
+            { name: "Kalkunbryst", price: 280, ingredients: ["Kalkunbryst", "Waldorfsalat", "Poteter", "Saus"] },
+            { name: "Vegetar lasagne", price: 140, ingredients: ["Spinat", "Ricotta", "Tomat", "Lasagneplater", "Ost"] },
+            { name: "Ratatouille", price: 120, ingredients: ["Squash", "Aubergine", "Paprika", "Tomat", "Hvitløk", "Timian"] },
+            { name: "Biff stroganoff", price: 220, ingredients: ["Biffkjøtt", "Sopp", "Løk", "Tomatpuré", "Rømme", "Ris"] },
+            { name: "Kyllingvinger", price: 150, ingredients: ["Kyllingvinger", "Hot sauce", "Selleristenger", "Blue cheese dressing"] },
+            { name: "Pulled Pork", price: 180, ingredients: ["Svinekjøtt", "BBQ-saus", "Coleslaw", "Hamburgerbrød"] },
+            { name: "Quesadilla", price: 140, ingredients: ["Tortilla", "Kylling", "Ost", "Paprika", "Vårløk", "Guacamole"] },
+            { name: "Fish & Chips", price: 170, ingredients: ["Hvit fisk", "Frityrrøre", "Pommes frites", "Ertestuing", "Remulade"] },
+            { name: "Karbonader", price: 130, ingredients: ["Karbonader", "Stekt løk", "Speilegg", "Brød", "Salat"] },
+            { name: "Gulasj", price: 190, ingredients: ["Høyrygg av storfe", "Paprika", "Poteter", "Løk", "Karve"] }
         ];
-        let currentWeek = JSON.parse(localStorage.getItem('eidert_week')) || Array(7).fill(null);
 
-        async function generateWithAI() {
-            const nameInput = document.getElementById('dishInput');
-            const priceInput = document.getElementById('priceInput');
-            const ingInput = document.getElementById('ingredientsInput');
-            const aiBtn = document.getElementById('aiBtn');
-
-            const query = nameInput.value.trim() || "Finn på en spennende middagsrett.";
-            aiBtn.innerHTML = '<span class="spinner">⏳</span> Tenker...';
-            aiBtn.disabled = true;
-
-            try {
-                const response = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
-
-                if (!response.ok) throw new Error("Backend feil");
-
-                const data = await response.json();
-                let content = data.choices[0].message.content.trim();
-                const dishObj = JSON.parse(content);
-                
-                nameInput.value = dishObj.name;
-                priceInput.value = dishObj.price;
-                ingInput.value = dishObj.ingredients.join(', ');
-            } catch (error) {
-                alert("AI Feil: Sjekk at Ollama kjører og at Vercel har riktig URL.");
-            } finally {
-                aiBtn.innerHTML = '✨ Skap med AI';
-                aiBtn.disabled = false;
-            }
-        }
+        let dishes = JSON.parse(localStorage.getItem('eidert_pro_dishes')) || initialDishes;
+        let currentWeek = JSON.parse(localStorage.getItem('eidert_pro_week')) || Array(7).fill(null);
+        let editingIndex = -1;
 
         function save() {
-            localStorage.setItem('eidert_dishes', JSON.stringify(dishes));
-            localStorage.setItem('eidert_week', JSON.stringify(currentWeek));
+            localStorage.setItem('eidert_pro_dishes', JSON.stringify(dishes));
+            localStorage.setItem('eidert_pro_week', JSON.stringify(currentWeek));
             render();
         }
 
         function addDish() {
-            const n = document.getElementById('dishInput');
-            const p = document.getElementById('priceInput');
-            const i = document.getElementById('ingredientsInput');
-            if (n.value) {
-                dishes.unshift({ name: n.value, price: parseInt(p.value)||0, ingredients: i.value.split(',').map(x=>x.trim()) });
-                n.value=''; p.value=''; i.value='';
+            const name = document.getElementById('dishInput').value.trim();
+            const price = parseInt(document.getElementById('priceInput').value) || 0;
+            const ings = document.getElementById('ingInput').value.split(',').map(i => i.trim()).filter(i => i);
+            if (name) {
+                dishes.unshift({ name, price, ingredients: ings });
+                document.getElementById('dishInput').value = '';
+                document.getElementById('priceInput').value = '';
+                document.getElementById('ingInput').value = '';
                 save();
             }
         }
 
-        function removeDish(index) {
-            dishes.splice(index, 1);
+        function openEdit(index) {
+            editingIndex = index;
+            const d = dishes[index];
+            document.getElementById('editName').value = d.name;
+            document.getElementById('editPrice').value = d.price;
+            renderEditIngs();
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function renderEditIngs() {
+            const list = document.getElementById('editIngList');
+            list.innerHTML = dishes[editingIndex].ingredients.map((ing, i) => `
+                <span class="ing-tag">${ing} <span class="remove-ing" onclick="removeIngFromEdit(${i})">×</span></span>
+            `).join('');
+        }
+
+        function addIngToEdit() {
+            const val = document.getElementById('newIngInput').value.trim();
+            if (val) {
+                dishes[editingIndex].ingredients.push(val);
+                document.getElementById('newIngInput').value = '';
+                renderEditIngs();
+            }
+        }
+
+        function removeIngFromEdit(idx) {
+            dishes[editingIndex].ingredients.splice(idx, 1);
+            renderEditIngs();
+        }
+
+        function saveEdit() {
+            dishes[editingIndex].name = document.getElementById('editName').value;
+            dishes[editingIndex].price = parseInt(document.getElementById('editPrice').value) || 0;
             save();
+            closeModal();
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
         }
 
         function generateWeek() {
+            if (dishes.length < 7) return alert("Legg til minst 7 retter!");
             let pool = [...dishes];
             let result = [];
             for (let i = 0; i < 7; i++) {
                 let idx = Math.floor(Math.random() * pool.length);
-                result.push(pool[idx] || dishes[0]);
+                result.push(pool.splice(idx, 1)[0]);
             }
             currentWeek = result;
             save();
         }
 
+        async function generateWithAI() {
+            const btn = document.getElementById('aiBtn');
+            const query = document.getElementById('dishInput').value.trim() || "Finn på en spennende norsk middag.";
+            btn.innerHTML = "⏳ Tenker...";
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await res.json();
+                const dish = JSON.parse(data.choices[0].message.content);
+                document.getElementById('dishInput').value = dish.name;
+                document.getElementById('priceInput').value = dish.price;
+                document.getElementById('ingInput').value = dish.ingredients.join(', ');
+            } catch (e) { alert("AI feilet. Sjekk Ollama."); }
+            btn.innerHTML = "✨ Finn på noe med AI";
+        }
+
         function render() {
-            document.getElementById('countTotal').innerText = dishes.length;
+            const servings = parseInt(document.getElementById('servingsInput').value) || 2;
+            const factor = servings / 2; // Basert på 2 pers default
+
+            document.getElementById('totalCount').innerText = dishes.length;
             document.getElementById('dishList').innerHTML = dishes.map((d, i) => `
-                <div class="dish-item">
-                    <div class="dish-info">
-                        <span class="dish-name">${d.name}</span>
-                        <span class="dish-price-small">${d.price} kr</span>
+                <div class="dish-item" onclick="openEdit(${i})">
+                    <div>
+                        <div class="dish-name">${d.name}</div>
+                        <div class="dish-price-small">${Math.round(d.price * factor)} kr (for ${servings})</div>
                     </div>
-                    <span class="remove-btn" onclick="removeDish(${i})">×</span>
+                    <span style="color: var(--primary);">✎</span>
                 </div>
             `).join('');
 
             document.getElementById('weekGrid').innerHTML = days.map((day, i) => {
                 const d = currentWeek[i];
+                if (!d) return `<div class="day-card"><span class="day-name">${day}</span><div class="day-dish">Ingen valgt</div></div>`;
                 return `
                     <div class="day-card">
                         <span class="day-name">${day}</span>
-                        <div class="day-dish">${d ? d.name : '---'}</div>
+                        <div class="day-dish">${d.name}</div>
                         <div class="dish-meta">
-                            <span class="dish-price">🏷️ ${d ? d.price : 0} kr</span>
+                            <span class="dish-price">💰 ${Math.round(d.price * factor)} kr</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">${servings} pers</span>
+                        </div>
+                        <div class="ingredients-editor">
+                            <strong>Ingredienser:</strong><br>
+                            ${d.ingredients.map(ing => `<span class="ing-tag">${ing}</span>`).join('')}
                         </div>
                     </div>
                 `;
