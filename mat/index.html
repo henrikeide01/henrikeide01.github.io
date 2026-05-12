@@ -26,7 +26,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
-        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; display: flex; overflow: hidden; flex-direction: column; }
+        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
 
         /* Landing Page Styling */
         #landingPage {
@@ -241,6 +241,33 @@
             .header-right { align-items: flex-start; }
             .choice-container { grid-template-columns: 1fr; }
             .pdf-row { flex-direction: column; }
+        }
+        @media (max-width: 768px) {
+            .landing-title { font-size: 32px; }
+            .landing-subtitle { font-size: 16px; margin-bottom: 24px; }
+            #landingPage { padding: 20px; }
+            main { padding: 20px; }
+            .header-main { flex-direction: column; }
+            .header-actions { align-items: stretch; width: 100%; }
+            .action-group { justify-content: stretch; width: 100%; }
+            .action-group button { flex: 1; }
+            .top-nav { flex-direction: column; align-items: stretch; gap: 12px; }
+            .top-nav > div { flex-direction: column; gap: 8px; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
+            .db-modal-content { width: 100%; padding: 20px; margin: 10px; }
+            .db-item { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .db-item-actions { width: 100%; justify-content: space-between; }
+            .modal-content { padding: 20px; }
+            .day-card [id^='qr-'] { display: none !important; }
+        }
+        @media (max-width: 480px) {
+            .landing-title { font-size: 28px; }
+            .choice-card { padding: 24px; }
+            .auth-card { padding: 30px 20px; }
+            .btn { font-size: 14px; padding: 12px; }
+            .pref-chip { padding: 6px 12px; font-size: 13px; }
+            .day-dish { font-size: 18px; }
+            .header-title-area h1 { font-size: 28px; }
         }
     </style>
 </head>
@@ -781,6 +808,8 @@
         let dishes = [...initialDishes];
         let currentPlan = [];
         let likedIngs = [];
+        let favorites = [];
+        let removedShoppingItems = [];
 
         let editingIndex = -1;
 
@@ -803,6 +832,8 @@
                         dishes = data.dishes || [...initialDishes];
                         currentPlan = data.plan || [];
                         likedIngs = data.likedIngredients || [];
+                        favorites = data.favorites || [];
+                        removedShoppingItems = data.removedShoppingItems || [];
                         if (data.budget) localStorage.setItem('eidert_budget', data.budget);
                         
                         // Kun rendr hvis vi faktisk er inne i en plan-visning
@@ -991,7 +1022,8 @@
 
             let bestPlan = [];
             let bestCost = Infinity;
-            let iterations = maxBudget > 0 ? 500 : 1;
+            // Øk antall forsøk for å finne en variert plan
+            let iterations = maxBudget > 0 ? 500 : 50; 
 
             const getBaseIngs = (dish) => {
                 return dish.ingredients.map(ing => {
@@ -1000,7 +1032,6 @@
                 });
             };
 
-            // Funksjon for å gjette protein hvis tag mangler (for eldre/egne retter)
             const guessProtein = (dish) => {
                 if (dish.protein) return dish.protein;
                 const lowerName = dish.name.toLowerCase();
@@ -1012,72 +1043,51 @@
                 return null;
             };
 
-            // Smart Substitusjon: Bytt ut proteiner man ikke liker
             const processSwaps = (dish) => {
                 if (likedIngs.length === 0) return dish;
-                
                 let protein = guessProtein(dish);
-                
-                // Hvis retten ikke har et gjenkjennbart protein (f.eks "Grøt"), behold den som nøytral
                 if (!protein) return dish;
-                
-                // Hvis man liker proteinet, behold retten
                 if (likedIngs.includes(protein)) return dish;
-                
-                // Hvis man IKKE liker det, prøv å finne en erstatning man liker
-                let subs = proteinSubs[protein] || [];
+                let subs = substitutionRules[protein] || [];
                 let bestSub = subs.find(s => likedIngs.includes(s));
-                
                 if (bestSub) {
                     let newD = JSON.parse(JSON.stringify(dish));
                     let newP = bestSub.charAt(0).toUpperCase() + bestSub.slice(1);
-                    
-                    if (newD.name.toLowerCase().includes(protein)) {
-                        newD.name = newD.name.replace(new RegExp(protein, 'gi'), newP);
-                    } else {
-                        newD.name += ` (med ${newP.toLowerCase()})`;
-                    }
-                    
-                    newD.ingredients = newD.ingredients.map(ing => {
-                        return ing.replace(new RegExp(protein, 'gi'), newP);
-                    });
+                    newD.name = newD.name.replace(new RegExp(protein, 'gi'), newP);
+                    newD.ingredients = newD.ingredients.map(ing => ing.replace(new RegExp(protein, 'gi'), newP));
                     newD.protein = bestSub;
                     return newD;
                 }
-                
-                // Hvis man ikke liker det og ingen erstatning finnes: FJERN retten helt
                 return null;
             };
 
-            // Generer pool av mulige retter
             let pool = dishes.map(d => processSwaps(d)).filter(d => d !== null);
-            
-            // Ekstremt viktig: Hvis poolen er for liten, må vi IKKE bare gå tilbake til alle dishes.
-            // Vi må beholde de få vi har, og kanskje fylle på med de mest nøytrale rettene (uten protein).
-            if (pool.length < 7) {
+            if (pool.length < currentMode) {
                 const neutralDishes = dishes.filter(d => !guessProtein(d));
                 pool = [...new Set([...pool, ...neutralDishes])];
-                
-                if (pool.length < 7) {
-                    alert("⚠️ Du har valgt så få ingredienser at jeg ikke klarer å lage en full matplan uten å bruke ting du ikke har krysset av for. Prøv å velge litt flere proteiner eller grønnsaker!");
-                    pool = dishes; // Siste utvei
-                }
+                if (pool.length < currentMode) pool = dishes;
             }
+
+            // FAVORITE BOOST: Add favorite dishes to the pool 3 extra times to increase probability!
+            let favBoosts = pool.filter(d => favorites.includes(d.name));
+            pool = pool.concat(favBoosts, favBoosts, favBoosts); 
 
             for (let iter = 0; iter < iterations; iter++) {
                 let result = [];
                 let recentDishes = [];
                 let leftovers = {}; 
                 let currentCost = 0;
+                
+                // Shuffle pool for better randomness in each iteration
+                let currentPool = [...pool].sort(() => Math.random() - 0.5);
 
                 for (let i = 0; i < currentMode; i++) {
-                    let available = pool.filter(d => !recentDishes.includes(d.name));
-                    if (available.length === 0) available = pool;
+                    let available = currentPool.filter(d => !recentDishes.includes(d.name));
+                    if (available.length === 0) available = currentPool;
 
                     let neededLeftovers = Object.keys(leftovers).filter(k => leftovers[k] > 0.01);
                     let chosen = null;
 
-                    // Prøv å finne en rett som bruker opp restene vi har i kjøleskapet!
                     if (neededLeftovers.length > 0) {
                         let goodCandidates = available.filter(d => {
                             let bases = getBaseIngs(d);
@@ -1094,9 +1104,8 @@
 
                     result.push(chosen);
                     recentDishes.push(chosen.name);
-                    if (recentDishes.length >= 7) recentDishes.shift(); 
+                    if (recentDishes.length >= 5) recentDishes.shift(); 
                     
-                    // Oppdater kjøleskapet (leftovers) basert på hva vi akkurat brukte
                     let bases = getBaseIngs(chosen);
                     bases.forEach(base => {
                         let existing = leftovers[base] || 0;
@@ -1104,35 +1113,33 @@
                             leftovers[base] = existing - factor;
                         } else {
                             let needed = factor - existing;
-                            let packagesToOpen = Math.ceil(needed); // Må åpne hele pakker
-                            leftovers[base] = (packagesToOpen - needed); // Dette er hva som blir igjen!
+                            let packagesToOpen = Math.ceil(needed);
+                            leftovers[base] = (packagesToOpen - needed);
                         }
                     });
-                    
                     currentCost += Math.round(chosen.price * factor);
                 }
                 
-                // Har vi funnet en plan under budsjettet? Stopp her!
-                if (maxBudget > 0 && currentCost <= maxBudget) {
+                if (maxBudget > 0) {
+                    if (currentCost <= maxBudget && currentCost < bestCost) {
+                        bestPlan = result;
+                        bestCost = currentCost;
+                    }
+                } else {
+                    // Hvis ingen budsjett, bare ta den første (eller en tilfeldig fra iterert pool)
                     bestPlan = result;
-                    bestCost = currentCost;
-                    break;
+                    break; 
                 }
-                
-                // Hvis ikke, ta vare på den billigste vi har sett til nå
-                if (currentCost < bestCost) {
-                    bestPlan = result;
-                    bestCost = currentCost;
-                }
-            }
 
-            if (maxBudget > 0 && bestCost > maxBudget && !isRetry) {
-                alert(`Klarte dessverre ikke å finne en matplan til under ${maxBudget} kr (selv etter 500 simuleringer). Her er den billigste kombinasjonen vi fant til ${bestCost} kr!`);
+                if (bestPlan.length === 0) {
+                    bestPlan = result;
+                    bestCost = currentCost;
+                }
             }
 
             currentPlan = bestPlan; 
             save();
-            render(); // Sørg for at vi tegner opp den nye planen med en gang
+            render();
         }
 
         window.swapDay = function(index) {
@@ -1183,7 +1190,8 @@
                             </div>
                         </div>
                         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                            <button class="no-print" onclick="swapDay(${i})" style="background: #f1f5f9; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: 600;" title="Bytt ut denne retten">🔄 Bytt rett</button>
+                            <button class="no-print" onclick="toggleFavorite('${d.name.replace(/'/g, "\\'")}')" style="background:none; border:none; font-size:20px; cursor:pointer;" title="Merk som favoritt">${favorites.includes(d.name) ? '❤️' : '🤍'}</button>
+                            <button class="no-print" onclick="swapDay(${i})" style="background: #f1f5f9; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: 600;" title="Bytt ut denne retten">🔄 Bytt</button>
                             <div id="qr-${i}" style="border: 4px solid white; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); background: white;"></div>
                         </div>
                     </div>
@@ -1279,6 +1287,7 @@
             let ingItems = [];
             
             for (let ing in ingredientFractions) {
+                if (removedShoppingItems.includes(ing)) continue;
                 let fraction = ingredientFractions[ing];
                 let packagesToBuy = Math.ceil(fraction); 
                 
@@ -1291,7 +1300,12 @@
                     displayStr = `<strong>${packagesToBuy}x</strong> ${displayStr}`;
                 }
                 
-                ingItems.push(`<div style="flex: 1; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px;">${displayStr}</div>`);
+                ingItems.push(`
+                    <div style="flex: 1; display:flex; justify-content:space-between; align-items:center; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px;">
+                        <span>${displayStr}</span>
+                        <button class="no-print" onclick="removeShoppingItem('${ing.replace(/'/g, "\\'")}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;font-weight:bold;" title="Fjern fra handleliste">&times;</button>
+                    </div>
+                `);
             }
 
             let shoppingHtml = `<div style="page-break-before: always; padding-top: 20px;"></div>`;
@@ -1376,8 +1390,28 @@
                 dishes: dishes,
                 plan: currentPlan,
                 likedIngredients: likedIngs,
+                favorites: favorites,
+                removedShoppingItems: removedShoppingItems,
                 budget: localStorage.getItem('eidert_budget') || 0
             });
+        }
+
+        window.toggleFavorite = function(name) {
+            if (favorites.includes(name)) {
+                favorites = favorites.filter(f => f !== name);
+            } else {
+                favorites.push(name);
+            }
+            save();
+            render();
+        }
+
+        window.removeShoppingItem = function(ing) {
+            if (!removedShoppingItems.includes(ing)) {
+                removedShoppingItems.push(ing);
+                save();
+                render();
+            }
         }
 
         window.startApp = function(mode) {
