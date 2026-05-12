@@ -159,7 +159,7 @@
             messagingSenderId: "404554280464",
             appId: "1:404554280464:web:b454e6b567e1897eab6495",
             measurementId: "G-WS907SPPDR",
-            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app/" 
+            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app" 
         };
 
         const app = initializeApp(firebaseConfig);
@@ -210,8 +210,8 @@
                     }
                 }
             } catch (err) {
-                console.error("Firebase feil:", err);
-                alert("Kunne ikke koble til databasen. Sjekk nettet ditt.");
+                console.error("DETALJERT FIREBASE FEIL:", err);
+                alert("Kunne ikke koble til databasen. Sjekk nettet ditt eller kontakt admin. (Feil: " + err.message + ")");
             }
         };
 
@@ -219,6 +219,7 @@
             if (currentUser) {
                 document.getElementById('mainAuthView').style.display = 'none';
                 document.getElementById('appContent').style.display = 'block';
+                if (authMode === 'login' || currentUser) window.showSection('home');
             } else {
                 document.getElementById('mainAuthView').style.display = 'flex';
                 document.getElementById('appContent').style.display = 'none';
