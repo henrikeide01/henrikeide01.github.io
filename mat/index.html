@@ -1114,7 +1114,7 @@
             save();
         }
 
-        function swapDay(index) {
+        window.swapDay = function(index) {
             let recentDishes = [];
             for (let i = Math.max(0, index - 3); i <= Math.min(currentPlan.length - 1, index + 3); i++) {
                 if (i !== index && currentPlan[i]) recentDishes.push(currentPlan[i].name);
@@ -1126,7 +1126,7 @@
             save();
         }
 
-        function scaleIngredient(ing, factor) {
+        window.scaleIngredient = function(ing, factor) {
             if (factor === 1) return ing;
             
             // Skalerer pris (f.eks "- 65kr")
@@ -1147,7 +1147,7 @@
             return scaledIng;
         }
 
-        function generateCardHtml(d, i, factor, servings) {
+        window.generateCardHtml = function(d, i, factor, servings) {
             let label = "Dag " + (i + 1);
             if (currentMode === 7) label = days[i];
 
@@ -1174,11 +1174,10 @@
             `;
         }
 
-        function downloadPDF() {
+        window.downloadPDF = function() {
             document.body.classList.add('pdf-export-mode');
             const element = document.getElementById('printArea');
             
-            // Fikser 1px bleed pga html2canvas feilberegninger ved page-breaks
             const opt = {
                 margin:       [20, 15, 20, 15],
                 filename:     'Matplan_Eidert.pdf',
@@ -1196,7 +1195,7 @@
             });
         }
 
-        function render() {
+        window.render = function() {
             const servings = parseInt(document.getElementById('servingsInput').value) || 2;
             const factor = servings / 2;
 
@@ -1241,9 +1240,9 @@
             }
             document.getElementById('weekGrid').innerHTML = weekHtml;
 
-            // Generer QR-koder etter at HTML er satt inn i DOM
             currentPlan.forEach((d, i) => {
-                if (d) {
+                if (d && document.getElementById(`qr-${i}`)) {
+                    document.getElementById(`qr-${i}`).innerHTML = '';
                     new QRCode(document.getElementById(`qr-${i}`), {
                         text: `https://www.google.com/search?q=oppskrift+${encodeURIComponent(d.name)}`,
                         width: 80,
@@ -1255,15 +1254,13 @@
                 }
             });
 
-            // Handleliste med ekte butikk-matematikk (Kjøp hele pakker)
             let totalCost = 0;
             let ingItems = [];
             
             for (let ing in ingredientFractions) {
                 let fraction = ingredientFractions[ing];
-                let packagesToBuy = Math.ceil(fraction); // Runde OPPOVER til hele pakker
+                let packagesToBuy = Math.ceil(fraction); 
                 
-                // Regn ut totalpris for de faktiske pakkene vi må kjøpe
                 let priceMatch = ing.match(/-\s*(\d+)\s*kr/i);
                 let basePrice = priceMatch ? parseInt(priceMatch[1]) : 0;
                 totalCost += basePrice * packagesToBuy;
@@ -1341,13 +1338,17 @@
 
         function closePrefModal() { document.getElementById('prefModal').classList.remove('active'); }
 
-        function togglePref(el, base) {
+        window.togglePref = function(el, base) {
             el.classList.toggle('active');
             if (likedIngs.includes(base)) likedIngs = likedIngs.filter(i => i !== base);
             else likedIngs.push(base);
         }
 
-        window.save = function() {
+        window.savePrefs = function() {
+            save();
+            closePrefModal();
+            generateWeek();
+        }
             if (!currentUser) return;
             update(ref(db, 'meal_users/' + currentUser), {
                 dishes: dishes,
