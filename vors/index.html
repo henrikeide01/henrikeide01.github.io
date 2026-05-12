@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FestPlan | Den ultimate vors-appen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff007a; /* Neon Rosa */
+            --secondary: #7000ff; /* Neon Lilla */
+            --accent: #00f2ff; /* Neon Cyan */
+            --bg: #050505;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text: #ffffff;
+            --radius: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background: radial-gradient(circle at 0% 0%, #1a0b2e 0%, #050505 50%),
+                        radial-gradient(circle at 100% 100%, #2e0b1a 0%, #050505 50%);
+        }
+
+        /* Glassmorphism Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 0;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-btn {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(255, 0, 122, 0.4);
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 60px 0;
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero h1 {
+            font-size: 72px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            line-height: 1;
+        }
+
+        .hero p {
+            font-size: 20px;
+            color: #94a3b8;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Main Menu Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .main-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--radius);
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+        }
+
+        .main-card:hover {
+            transform: scale(1.03);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px -10px rgba(0, 242, 255, 0.2);
+        }
+
+        .main-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+        }
+
+        .card-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            display: block;
+        }
+
+        .main-card h2 {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .main-card p {
+            color: #94a3b8;
+            font-size: 16px;
+        }
+
+        /* Sections */
+        .section {
+            display: none;
+            padding-top: 40px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Game Cards */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .game-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px;
+            transition: var(--transition);
+        }
+
+        .game-card:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--primary);
+        }
+
+        .btn-play {
+            margin-top: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* Planner Styles */
+        .planner-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        .guest-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .guest-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        /* Modal / Game View */
+        .game-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .game-content h2 { font-size: 48px; margin-bottom: 40px; }
+        .game-text { font-size: 32px; font-weight: 600; margin-bottom: 60px; max-width: 800px; }
+        
+        .game-controls {
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn-large {
+            padding: 20px 40px;
+            font-size: 20px;
+            font-weight: 800;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-next { background: var(--primary); color: white; }
+        .btn-back { background: var(--card-bg); color: white; border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <nav>
+            <div class="logo">FESTPLAN</div>
+            <div class="nav-links">
+                <a href="#" class="nav-btn active" onclick="showSection('home')">🏠 Hjem</a>
+                <a href="#" class="nav-btn" onclick="showSection('leker')">🎮 Leker & Spill</a>
+                <a href="#" class="nav-btn" onclick="showSection('planlegger')">📅 Planlegger</a>
+            </div>
+        </nav>
+
+        <!-- HOME SECTION -->
+        <section id="home" class="section active">
+            <div class="hero">
+                <h1>Gjør festen <span style="color: var(--accent);">legendarisk.</span></h1>
+                <p>Alt du trenger for det perfekte vorspielet på ett sted. Spill, gjestelister og god stemning.</p>
+                <div class="main-grid">
+                    <div class="main-card" onclick="showSection('leker')">
+                        <span class="card-icon">🃏</span>
+                        <h2>Drikkeleker</h2>
+                        <p>Klassikere som "Jeg har aldri", "Pekeleken" og mer.</p>
+                    </div>
+                    <div class="main-card" onclick="showSection('planlegger')">
+                        <span class="card-icon">📝</span>
+                        <h2>Festplanlegger</h2>
+                        <p>Hold styr på gjester, drikke og hvem som tar med hva.</p>
+                    </div>
+                    <div class="main-card" onclick="startQuickGame()">
+                        <span class="card-icon">🎲</span>
+                        <h2>Quick Play</h2>
+                        <p>Start en tilfeldig utfordring med en gang!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LEKER SECTION -->
+        <section id="leker" class="section">
+            <div class="planner-header">
+                <h2>🎮 Finn din favorittlek</h2>
+            </div>
+            <div class="game-grid" id="gameGrid">
+                <!-- Leker legges inn her via JS -->
+            </div>
+        </section>
+
+        <!-- PLANLEGGER SECTION -->
+        <section id="planlegger" class="section">
+            <div id="authView">
+                <div class="main-card" style="max-width: 500px; margin: 40px auto;">
+                    <h2>Hvem er du?</h2>
+                    <p style="margin-bottom: 24px;">Skriv navnet ditt for å starte planleggingen.</p>
+                    <input type="text" id="userNameInput" placeholder="Ditt navn..." style="width: 100%; margin-bottom: 20px; padding: 20px; font-size: 18px;">
+                    <button class="btn-large btn-next" style="width: 100%;" onclick="login()">Bli med</button>
+                </div>
+            </div>
+
+            <div id="roleView" style="display: none;">
+                <div class="planner-header">
+                    <h2 id="welcomeText">Hei, Henrik! 👋</h2>
+                    <button class="nav-btn" onclick="logout()">Logg ut</button>
+                </div>
+                <div class="main-grid">
+                    <div class="main-card" onclick="becomeHost()">
+                        <span class="card-icon">🏠</span>
+                        <h2>Være Host</h2>
+                        <p>Jeg vil holde vorset og styre listen.</p>
+                    </div>
+                    <div class="main-card" onclick="becomeParticipant()">
+                        <span class="card-icon">🍺</span>
+                        <h2>Bare bli med</h2>
+                        <p>Jeg vil se hvem som har vors og melde meg på.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="vorsView" style="display: none;">
+                <div class="planner-header">
+                    <h2 id="vorsStatusTitle">Velg et vors</h2>
+                    <button class="nav-btn" onclick="resetRole()">Bytt rolle / vors</button>
+                </div>
+
+                <div id="activeVorsList" class="game-grid" style="margin-bottom: 40px;">
+                    <!-- Vorser listes her -->
+                </div>
+
+                <div id="shoppingSection" style="display: none; background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <h3>🛒 Handleliste for <span id="currentVorsName">Vors</span></h3>
+                        <div id="hostControls" style="display: none;">
+                            <span style="font-size: 12px; color: var(--accent);">Du er host</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <input type="text" id="itemName" placeholder="Hva trengs?">
+                        <input type="text" id="itemQty" placeholder="Antall/Mengde" style="max-width: 150px;">
+                        <button class="nav-btn" onclick="addItem()">Legg til</button>
+                    </div>
+
+                    <div class="guest-list" id="shoppingList">
+                        <!-- Ting listes her -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- GAME OVERLAY (Fullscreen) -->
+    <div id="gameOverlay" class="game-overlay">
+        <h2 id="activeGameTitle">Jeg har aldri</h2>
+        <div class="game-text" id="gameText">Trykk på start for å begynne!</div>
+        <div class="game-controls">
+            <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
+            <button class="btn-large btn-next" onclick="nextCard()">Neste kort →</button>
+        </div>
+    </div>
+
+    <script>
+        // Spilldata
+        const games = [
+            { id: 'jeg-har-aldri', title: 'Jeg har aldri', icon: '🤫', desc: 'Den ultimate klassikeren.', cards: ["Jeg har aldri løyet på sannhet eller konsekvens.", "Jeg har aldri sendt melding til feil person.", "Jeg har aldri sneket meg ut.", "Jeg har aldri blitt kastet ut.", "Jeg har aldri hatt en walk of shame."] },
+            { id: 'pekeleken', title: 'Pekeleken', icon: '👉', desc: 'Hvem i rommet...?', cards: ["Hvem blir kjendis?", "Hvem bruker opp alle pengene?", "Hvem sovner først?", "Hvem ender i fengsel?", "Hvem gifter seg først?"] },
+            { id: 'sannhet', title: 'Sannhet eller Konsekvens', icon: '🔥', desc: 'Tør du?', cards: ["Sannhet: Hemmelig crush?", "Konsekvens: Ta en shot.", "Sannhet: Flaueste fyllehistorie?", "Konsekvens: Ring eksen."] }
+        ];
+
+        let activeGame = null;
+        let cardIndex = 0;
+
+        // --- FEST KOORDINATOR LOGIKK ---
+        let state = JSON.parse(localStorage.getItem('fest_state')) || {
+            users: {},
+            vorser: [],
+            lastReset: new Date().getTime()
+        };
+
+        let currentUser = localStorage.getItem('fest_user') || null;
+
+        function checkReset() {
+            const now = new Date();
+            const lastResetDate = new Date(state.lastReset);
+            
+            // Hvis det har gått forbi 05:00 og vi er på en ny dag siden sist reset
+            if (now.getHours() >= 5) {
+                if (lastResetDate.getDate() !== now.getDate() || lastResetDate.getMonth() !== now.getMonth()) {
+                    console.log("Resetter data for ny dag...");
+                    state = { users: {}, vorser: [], lastReset: now.getTime() };
+                    saveState();
+                }
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('fest_state', JSON.stringify(state));
+            renderPlanner();
+        }
+
+        function login() {
+            const name = document.getElementById('userNameInput').value.trim();
+            if (name) {
+                currentUser = name;
+                localStorage.setItem('fest_user', name);
+                if (!state.users[name]) state.users[name] = { name: name, role: null, joinedVors: null };
+                saveState();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('fest_user');
+            currentUser = null;
+            renderPlanner();
+        }
+
+        function becomeHost() {
+            state.users[currentUser].role = 'host';
+            state.users[currentUser].joinedVors = currentUser;
+            
+            // Slett gammelt vors hvis det fantes
+            state.vorser = state.vorser.filter(v => v.host !== currentUser);
+            
+            // Opprett nytt
+            state.vorser.push({
+                id: currentUser,
+                host: currentUser,
+                items: []
+            });
+            saveState();
+        }
+
+        function becomeParticipant() {
+            state.users[currentUser].role = 'participant';
+            saveState();
+        }
+
+        function joinVors(hostId) {
+            // Hvis vi var host selv, slett vårt eget vors
+            if (state.users[currentUser].role === 'host') {
+                state.vorser = state.vorser.filter(v => v.host !== currentUser);
+                state.users[currentUser].role = 'participant';
+            }
+            
+            state.users[currentUser].joinedVors = hostId;
+            saveState();
+        }
+
+        function resetRole() {
+            state.users[currentUser].role = null;
+            state.users[currentUser].joinedVors = null;
+            saveState();
+        }
+
+        function addItem() {
+            const name = document.getElementById('itemName').value.trim();
+            const qty = document.getElementById('itemQty').value.trim();
+            const vorsId = state.users[currentUser].joinedVors;
+            const vors = state.vorser.find(v => v.id === vorsId);
+
+            if (name && vors) {
+                vors.items.push({ name, qty, takenBy: null });
+                document.getElementById('itemName').value = '';
+                document.getElementById('itemQty').value = '';
+                saveState();
+            }
+        }
+
+        function removeItem(index) {
+            const vorsId = state.users[currentUser].joinedVors;
+            const vors = state.vorser.find(v => v.id === vorsId);
+            if (vors && (state.users[currentUser].role === 'host')) {
+                vors.items.splice(index, 1);
+                saveState();
+            }
+        }
+
+        function toggleTakeItem(index) {
+            const vorsId = state.users[currentUser].joinedVors;
+            const vors = state.vorser.find(v => v.id === vorsId);
+            if (vors) {
+                if (vors.items[index].takenBy === currentUser) {
+                    vors.items[index].takenBy = null;
+                } else {
+                    vors.items[index].takenBy = currentUser;
+                }
+                saveState();
+            }
+        }
+
+        function renderPlanner() {
+            checkReset();
+            const user = currentUser ? state.users[currentUser] : null;
+
+            document.getElementById('authView').style.display = currentUser ? 'none' : 'block';
+            document.getElementById('roleView').style.display = (currentUser && !user.role) ? 'block' : 'none';
+            document.getElementById('vorsView').style.display = (currentUser && user.role) ? 'block' : 'none';
+
+            if (currentUser) {
+                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋`;
+            }
+
+            if (user && user.role) {
+                const vorsList = document.getElementById('activeVorsList');
+                if (!user.joinedVors) {
+                    document.getElementById('vorsStatusTitle').innerText = "Hvor er festen? 🍻";
+                    document.getElementById('shoppingSection').style.display = 'none';
+                    vorsList.style.display = 'grid';
+                    
+                    if (state.vorser.length === 0) {
+                        vorsList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Ingen har meldt seg som host enda...</div>`;
+                    } else {
+                        vorsList.innerHTML = state.vorser.map(v => `
+                            <div class="main-card" onclick="joinVors('${v.id}')">
+                                <span class="card-icon">🏠</span>
+                                <h2>${v.host}'s Vors</h2>
+                                <p>${v.items.length} ting på listen</p>
+                                <button class="btn-play" style="margin-top: 15px;">Bli med her</button>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    const currentVors = state.vorser.find(v => v.id === user.joinedVors);
+                    if (!currentVors) {
+                        // Vorset ble slettet
+                        user.joinedVors = null;
+                        saveState();
+                        return;
+                    }
+
+                    document.getElementById('vorsStatusTitle').innerText = `Du er på ${currentVors.host}'s vors! ✨`;
+                    document.getElementById('currentVorsName').innerText = `${currentVors.host}'s vors`;
+                    vorsList.style.display = 'none';
+                    document.getElementById('shoppingSection').style.display = 'block';
+                    document.getElementById('hostControls').style.display = (user.role === 'host') ? 'block' : 'none';
+
+                    document.getElementById('shoppingList').innerHTML = currentVors.items.map((item, i) => `
+                        <div class="guest-item" style="${item.takenBy ? 'opacity: 0.6; border-left: 4px solid var(--primary);' : ''}">
+                            <div style="flex: 1;">
+                                <strong style="font-size: 18px;">${item.name}</strong> 
+                                <span style="color: var(--accent); margin-left: 10px;">(${item.qty})</span>
+                                ${item.takenBy ? `<br><small style="color: var(--primary);">✓ Tas med av ${item.takenBy}</small>` : ''}
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button class="nav-btn" style="padding: 6px 12px; font-size: 12px; background: ${item.takenBy === currentUser ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}" onclick="toggleTakeItem(${i})">
+                                    ${item.takenBy === currentUser ? 'Angre' : 'Jeg tar med'}
+                                </button>
+                                ${user.role === 'host' ? `<button class="remove-btn" onclick="removeItem(${i})">×</button>` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        // --- SPILL LOGIKK (uendret) ---
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (event && event.target.tagName === 'A') event.target.classList.add('active');
+            if (id === 'planlegger') renderPlanner();
+        }
+
+        function renderGames() {
+            const grid = document.getElementById('gameGrid');
+            grid.innerHTML = games.map(game => `
+                <div class="game-card">
+                    <span style="font-size: 40px;">${game.icon}</span>
+                    <h3 style="margin: 10px 0;">${game.title}</h3>
+                    <p style="color: #94a3b8; font-size: 14px;">${game.desc}</p>
+                    <button class="btn-play" onclick="startGame('${game.id}')">Start spill</button>
+                </div>
+            `).join('');
+        }
+
+        function startGame(id) {
+            activeGame = games.find(g => g.id === id);
+            cardIndex = -1;
+            document.getElementById('activeGameTitle').innerText = activeGame.title;
+            document.getElementById('gameOverlay').style.display = 'flex';
+            nextCard();
+        }
+
+        function nextCard() {
+            cardIndex++;
+            if (cardIndex >= activeGame.cards.length) { cardIndex = 0; shuffle(activeGame.cards); }
+            document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
+        }
+
+        function closeGame() { document.getElementById('gameOverlay').style.display = 'none'; }
+        function startQuickGame() { startGame(games[Math.floor(Math.random() * games.length)].id); }
+        function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
+
+        renderGames();
+        renderPlanner();
+    </script>
+</body>
+</html>
