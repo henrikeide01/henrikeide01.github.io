@@ -785,10 +785,15 @@
         let editingIndex = -1;
 
         window.init = function() {
+            const authPage = document.getElementById('authPage');
+            const landingPage = document.getElementById('landingPage');
+            const appContainer = document.getElementById('appContainer');
+
             if (!currentUser) {
-                document.getElementById('authPage').style.display = 'flex';
-                document.getElementById('landingPage').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'none';
+                if (authPage) authPage.style.display = 'flex';
+                if (landingPage) landingPage.style.display = 'none';
+                if (appContainer) appContainer.style.display = 'none';
+                if (appContainer) appContainer.classList.remove('active');
             } else {
                 // Koble til Firebase for denne brukeren
                 const userRef = ref(db, 'meal_users/' + currentUser);
@@ -801,7 +806,7 @@
                         if (data.budget) localStorage.setItem('eidert_budget', data.budget);
                         
                         // Kun rendr hvis vi faktisk er inne i en plan-visning
-                        if (document.getElementById('appContainer').classList.contains('active')) {
+                        if (appContainer && appContainer.classList.contains('active')) {
                             render();
                         }
                     } else {
@@ -811,8 +816,9 @@
                     }
                 });
 
-                document.getElementById('authPage').style.display = 'none';
-                document.getElementById('landingPage').style.display = 'flex';
+                if (authPage) authPage.style.display = 'none';
+                if (landingPage) landingPage.style.display = 'flex';
+                if (appContainer) appContainer.style.display = 'none'; // Sørg for at appen er skjult til man velger plan
             }
         }
 
