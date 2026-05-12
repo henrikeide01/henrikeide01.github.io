@@ -334,6 +334,7 @@
             <div class="logo">FESTPLAN</div>
             <div class="nav-links">
                 <a href="#" class="nav-btn active" onclick="showSection('home')">🏠 Hjem</a>
+                <a href="#" class="nav-btn" onclick="showSection('gjenger')">🍻 Gjenger</a>
                 <a href="#" class="nav-btn" onclick="showSection('leker')">🎮 Leker & Spill</a>
                 <a href="#" class="nav-btn" onclick="showSection('planlegger')">📅 Planlegger</a>
             </div>
@@ -364,12 +365,39 @@
             </div>
         </section>
 
+        <!-- GJENGER SECTION -->
+        <section id="gjenger" class="section">
+            <div class="planner-header">
+                <h2>🍻 Dine Gjenger & Koder</h2>
+            </div>
+            
+            <div id="gjengerAuthWarning" style="text-align: center; padding: 40px; background: var(--card-bg); border-radius: var(--radius);">
+                <p>Du må logge inn i Planleggeren først for å administrere gjengene dine.</p>
+                <button class="btn-play" style="max-width: 200px; margin-top: 20px;" onclick="showSection('planlegger')">Gå til innlogging</button>
+            </div>
+
+            <div id="gjengerManager" style="display: none;">
+                <div class="main-card" style="max-width: 600px; margin: 0 auto 30px;">
+                    <h3>Legg til ny gjeng</h3>
+                    <p style="margin-bottom: 20px;">Skriv inn koden til vennegjengen din.</p>
+                    <div class="input-group">
+                        <input type="text" id="manageRoomInput" placeholder="F.eks: VENNER2024" style="text-transform: uppercase;">
+                        <button class="nav-btn" onclick="addRoomFromManager()">Legg til</button>
+                    </div>
+                </div>
+
+                <div id="manageRoomsList" class="game-grid">
+                    <!-- Fylles med JS -->
+                </div>
+            </div>
+        </section>
+
         <!-- LEKER SECTION -->
         <section id="leker" class="section">
             <div class="planner-header">
                 <h2>🎮 Finn din favorittlek</h2>
             </div>
-            </div>
+            <div id="gameGrid" class="game-grid"></div>
         </section>
 
         <!-- PLANLEGGER SECTION -->
@@ -395,19 +423,28 @@
 
             <div id="roleView" style="display: none;">
                 <div class="planner-header">
-                    <h2 id="welcomeText">Hei, Henrik! 👋</h2>
-                    <button class="nav-btn" onclick="logout()">Logg ut</button>
+                    <h2 id="welcomeText">Velg din rolle 👋</h2>
+                    <button class="nav-btn" onclick="logout()">Bytt bruker</button>
                 </div>
-                <div class="main-grid">
-                    <div class="main-card" onclick="openHostSetup()">
-                        <span class="card-icon">🏠</span>
-                        <h2>Være Host</h2>
-                        <p>Jeg vil holde vorset og styre listen.</p>
-                    </div>
-                    <div class="main-card" onclick="becomeParticipant()">
-                        <span class="card-icon">🍺</span>
-                        <h2>Bare bli med</h2>
-                        <p>Jeg vil se hvem som har vors og melde meg på.</p>
+                
+                <!-- VELG ROM FØRST -->
+                <div id="roomSelectionForRole" style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px; color: var(--accent);">Hvilken gjeng vil du planlegge for?</h3>
+                    <div id="roleRoomsList" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                </div>
+
+                <div id="roleActions" style="display: none;">
+                    <div class="main-grid">
+                        <div class="main-card" onclick="openHostSetup()">
+                            <span class="card-icon">🏠</span>
+                            <h2>Være Host</h2>
+                            <p>Jeg vil holde vorset i <span class="active-room-text" style="color: var(--accent);"></span>.</p>
+                        </div>
+                        <div class="main-card" onclick="becomeParticipant()">
+                            <span class="card-icon">🍺</span>
+                            <h2>Bare bli med</h2>
+                            <p>Se aktive vors i <span class="active-room-text" style="color: var(--accent);"></span>.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -600,7 +637,7 @@
         let currentUser = localStorage.getItem('fest_user') || null;
         let currentRoom = localStorage.getItem('fest_room') || null;
         let dbRef = null;
-        let globalUserRef = null;
+        let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || "[]");
 
         window.handleFestAuth = async function() {
             const user = document.getElementById('userNameInput').value.trim();
@@ -662,6 +699,20 @@
             }
             document.getElementById('roomCodeInput').value = '';
             renderPlanner();
+            renderGjenger();
+        }
+
+        window.addRoomFromManager = async function() {
+            const room = document.getElementById('manageRoomInput').value.trim().toUpperCase();
+            if (!room) return;
+            if (!savedRooms.includes(room)) {
+                savedRooms.push(room);
+                localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+                await syncAccountRooms();
+            }
+            document.getElementById('manageRoomInput').value = '';
+            renderGjenger();
+            renderPlanner();
         }
 
         window.loginToRoom = function(roomCode) {
@@ -671,10 +722,15 @@
         }
 
         window.removeRoomCode = async function(roomCode) {
+            if(!confirm(`Er du sikker på at du vil fjerne koden "${roomCode}"?`)) return;
             savedRooms = savedRooms.filter(r => r !== roomCode);
             localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
             await syncAccountRooms();
-            if (currentRoom === roomCode) { currentRoom = null; localStorage.removeItem('fest_room'); }
+            if (currentRoom === roomCode) { 
+                currentRoom = null; 
+                localStorage.removeItem('fest_room'); 
+            }
+            renderGjenger();
             renderPlanner();
         }
 
@@ -763,22 +819,65 @@
 
             if (id === 'planlegger') renderPlanner();
             if (id === 'leker') window.renderGames();
+            if (id === 'gjenger') renderGjenger();
+        }
+
+        function renderGjenger() {
+            const isLogged = !!currentUser;
+            document.getElementById('gjengerAuthWarning').style.display = isLogged ? 'none' : 'block';
+            document.getElementById('gjengerManager').style.display = isLogged ? 'block' : 'none';
+
+            if (isLogged) {
+                const list = document.getElementById('manageRoomsList');
+                list.innerHTML = savedRooms.map(r => `
+                    <div class="main-card" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; text-align: left;">
+                        <div>
+                            <h3 style="margin: 0; color: var(--accent);">${r}</h3>
+                            <small style="color: var(--text-muted);">Aktiv gjeng</small>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="nav-btn" style="padding: 8px 15px; font-size: 12px;" onclick="showSection('planlegger'); loginToRoom('${r}')">Velg</button>
+                            <button class="remove-btn" onclick="removeRoomCode('${r}')">Fjern</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                if (savedRooms.length === 0) {
+                    list.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Du har ingen lagrede gjenger enda.</div>`;
+                }
+            }
         }
 
         function renderPlanner() {
             const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
             const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
 
+            // Auth View: Skjul hvis logget inn
             document.getElementById('authView').style.display = (currentUser) ? 'none' : 'block';
-            document.getElementById('roomSection').style.display = (currentUser) ? 'block' : 'none';
             
-            // Vis rolle-valg hvis man har valgt rom, men ikke rolle
-            document.getElementById('roleView').style.display = (currentRoom && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
+            // Role View: Vis hvis logget inn, men ingen aktiv rolle valgt
+            document.getElementById('roleView').style.display = (currentUser && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
+            
+            // Vors View: Vis hvis man har en rolle i et valgt rom
             document.getElementById('vorsView').style.display = (currentRoom && user && user.role && !isEditingHost) ? 'block' : 'none';
 
-            if (currentUser && currentRoom) {
-                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋 (Gjeng: ${currentRoom})`;
+            if (currentUser) {
+                // Oppdater rom-valg for roller
+                const roleRoomsList = document.getElementById('roleRoomsList');
+                if (roleRoomsList) {
+                    roleRoomsList.innerHTML = savedRooms.map(r => `
+                        <button class="nav-btn ${currentRoom === r ? 'active' : ''}" onclick="loginToRoom('${r}')">${r}</button>
+                    `).join('');
+                }
                 
+                const roleActions = document.getElementById('roleActions');
+                if (roleActions) {
+                    roleActions.style.display = currentRoom ? 'block' : 'none';
+                    document.querySelectorAll('.active-room-text').forEach(el => el.innerText = currentRoom || "");
+                }
+            }
+
+            if (currentUser && currentRoom) {
                 const vorsList = document.getElementById('activeVorsList');
                 const availableVorser = state.vorser || [];
                 
@@ -810,7 +909,6 @@
                         document.getElementById('vorsDescriptionText').innerText = currentVors.description;
                         document.getElementById('hostControls').style.display = (user.role === 'host') ? 'block' : 'none';
                         
-                        // Oppdater handleliste
                         const items = currentVors.items || [];
                         document.getElementById('shoppingList').innerHTML = items.map((item, i) => `
                             <div class="guest-item" style="${item.takenBy ? 'opacity: 0.6; border-left: 4px solid var(--primary);' : ''}">
@@ -828,7 +926,6 @@
                             </div>
                         `).join('');
 
-                        // Oppdater gjesteliste
                         const participants = Object.values(state.users || {}).filter(u => u.joinedVors === currentVors.id);
                         document.getElementById('participantCount').innerText = participants.length;
                         document.getElementById('participantList').innerHTML = participants.map(p => `
