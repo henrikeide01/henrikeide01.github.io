@@ -131,9 +131,9 @@
             <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
                 <div class="logo">FESTPLAN</div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="nav-btn active" onclick="showSection('home')">🏠</button>
-                    <button class="nav-btn" onclick="showSection('leker')">🎮</button>
-                    <button class="nav-btn" onclick="showSection('planlegger')">📅</button>
+                    <button class="nav-btn active" onclick="window.showSection('home', this)">🏠</button>
+                    <button class="nav-btn" onclick="window.showSection('leker', this)">🎮</button>
+                    <button class="nav-btn" onclick="window.showSection('planlegger', this)">📅</button>
                     <button class="nav-btn" onclick="logout()" style="color: #ff4444; border-color: rgba(255,68,68,0.2);">🚪</button>
                 </div>
             </nav>
@@ -187,31 +187,41 @@
             const userRef = ref(db, 'fest_accounts/' + user);
             
             try {
+                // Forsøk en enkel sjekk først
                 const snap = await get(userRef);
+                
                 if (authMode === 'reg') {
                     if (snap.exists()) return alert("Dette brukernavnet er allerede tatt!");
-                    await set(userRef, { 
+                    
+                    const newUser = { 
                         password: pass, 
                         friendCode: Math.random().toString(36).substring(2,8).toUpperCase(),
                         units: 0,
                         rooms: [],
                         friends: []
-                    });
+                    };
+                    
+                    await set(userRef, newUser);
                     alert("Bruker opprettet! Du kan nå logge inn.");
                     window.setMode('login');
                 } else {
+                    if (!snap.exists()) return alert("Brukeren finnes ikke!");
                     const data = snap.val();
-                    if (data && data.password === pass) {
+                    if (data.password === pass) {
                         currentUser = user;
                         localStorage.setItem('fest_user', user);
                         window.checkLogin();
                     } else {
-                        alert("Feil brukernavn eller passord!");
+                        alert("Feil passord!");
                     }
                 }
             } catch (err) {
-                console.error("DETALJERT FIREBASE FEIL:", err);
-                alert("Kunne ikke koble til databasen. Sjekk nettet ditt eller kontakt admin. (Feil: " + err.message + ")");
+                console.error("FIREBASE TILGANGSFEIL:", err);
+                if (err.message.includes("Permission denied")) {
+                    alert("FEIL: Databasen er låst (Permission Denied). Du må åpne 'Rules' i Firebase-konsollen til '.read: true, .write: true' for at dette skal virke!");
+                } else {
+                    alert("Kunne ikke koble til. (Feil: " + err.message + ")");
+                }
             }
         };
 
@@ -231,11 +241,25 @@
             location.reload();
         };
 
-        window.showSection = (id) => {
+        window.showSection = (id, element) => {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('nav .nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            event.currentTarget.classList.add('active');
+            
+            const targetSection = document.getElementById(id);
+            if (targetSection) targetSection.classList.add('active');
+            
+            // Finn knappen som ble trykket på, eller finn den basert på ID hvis vi logger inn
+            if (element) {
+                element.classList.add('active');
+            } else {
+                // Ved oppstart/innlogging, finn riktig knapp manuelt
+                const buttons = document.querySelectorAll('nav .nav-btn');
+                buttons.forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${id}'`)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
         };
 
         // Kjør sjekk ved start
