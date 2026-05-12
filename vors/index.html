@@ -358,6 +358,29 @@
         .btn-next { background: var(--primary); color: white; }
         .btn-back { background: var(--card-bg); color: white; border: 1px solid rgba(255,255,255,0.1); }
 
+        .btn-play {
+            margin-top: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(255, 0, 122, 0.3);
+            display: block;
+        }
+
+        .btn-play:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 0, 122, 0.5);
+            background: #ff1a8c;
+        }
+
         @keyframes pulse {
             from { transform: scale(1); text-shadow: 0 0 10px rgba(0, 242, 255, 0.5); }
             to { transform: scale(1.05); text-shadow: 0 0 25px rgba(0, 242, 255, 0.8); }
@@ -589,29 +612,39 @@
         </div>
     </div>
 
-    <!-- SCOREBOARD (Vises nederst i spill-seksjonen) -->
+    <!-- SCOREBOARD & FRIENDS -->
     <div id="scoreboardSection" class="container" style="display: none; margin-bottom: 100px;">
-        <div class="scoreboard">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>🏆 Hall of Fame</h2>
-                <div class="input-group" style="margin-bottom: 0;">
-                    <input type="text" id="newPlayerName" placeholder="Legg til venn..." style="padding: 10px;">
-                    <button class="nav-btn" onclick="addScorePlayer()">Legg til</button>
+        <div style="display: grid; grid-template-columns: 1fr 350px; gap: 30px;">
+            <div class="scoreboard">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>🏆 Hall of Fame</h2>
+                </div>
+                <table class="score-table">
+                    <thead>
+                        <tr>
+                            <th>Spiller</th>
+                            <th>Enheter</th>
+                            <th>Handlinger</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoreTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="scoreboard">
+                <h2>👥 Venner</h2>
+                <div id="myFriendCode" style="margin: 15px 0; padding: 10px; background: rgba(0,242,255,0.1); border-radius: 10px; border: 1px dashed var(--accent); text-align: center;">
+                    <small>Din kode:</small><br>
+                    <strong id="displayMyCode" style="color: var(--accent); font-size: 20px;">----</strong>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="friendCodeInput" placeholder="Vennens kode...">
+                    <button class="nav-btn" onclick="addFriendByCode()">Legg til</button>
+                </div>
+                <div id="friendsList" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Venner fylles her -->
                 </div>
             </div>
-            <table class="score-table">
-                <thead>
-                    <tr>
-                        <th>Spiller</th>
-                        <th>Chug-rekord</th>
-                        <th>Enheter</th>
-                        <th>Handlinger</th>
-                    </tr>
-                </thead>
-                <tbody id="scoreTableBody">
-                    <!-- Fylles med JS -->
-                </tbody>
-            </table>
         </div>
     </div>
 
@@ -747,12 +780,14 @@
                     localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
                     document.getElementById('roomSection').style.display = 'block';
                     renderPlanner();
+                    renderScoreboard();
                 } else {
                     alert("Feil passord!");
                 }
             } else {
                 if(confirm("Bruker finnes ikke. Vil du opprette en ny med dette passordet?")) {
-                    await set(userRef, { password: pass, rooms: [] });
+                    const friendCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    await set(userRef, { password: pass, rooms: [], friendCode: friendCode, friends: [] });
                     currentUser = user;
                     localStorage.setItem('fest_user', user);
                     savedRooms = [];
@@ -847,7 +882,10 @@
 
         window.joinVors = function(hostId) {
             if(!currentRoom || !currentUser) return;
-            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`), hostId);
+            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { 
+                joinedVors: hostId,
+                role: state.users[currentUser]?.role || 'participant'
+            });
         }
 
         window.addItem = function() {
@@ -985,7 +1023,7 @@
                                 <span>👥 ${guests} gjester</span>
                                 <span>🛒 ${(v.items || []).length} ting trengs</span>
                             </div>
-                            <button class="btn-play" style="margin-top: 15px; background: ${isJoined ? 'var(--secondary)' : 'var(--primary)'}">${isJoined ? 'Du er her' : 'Bli med her'}</button>
+                            <button class="btn-play" style="margin-top: 15px; background: ${isJoined ? 'var(--secondary)' : 'var(--primary)'}" onclick="event.stopPropagation(); joinVors('${v.id}')">${isJoined ? 'Du er her' : 'Bli med her'}</button>
                         </div>
                     `;
                 }).join('');
@@ -1194,46 +1232,83 @@
             document.getElementById('chugStatus').innerText = "Førstemann til å stoppe klokka når glasset er tomt!";
         }
 
-        // --- SCOREBOARD LOGIKK ---
-        let scoreboardData = JSON.parse(localStorage.getItem('fest_scoreboard') || "[]");
+        // --- SCOREBOARD & VENNER LOGIKK ---
+        window.addFriendByCode = async function() {
+            const code = document.getElementById('friendCodeInput').value.trim().toUpperCase();
+            if (!code || !currentUser) return;
 
-        window.addScorePlayer = function() {
-            const name = document.getElementById('newPlayerName').value.trim();
-            if (!name) return;
-            if (scoreboardData.find(p => p.name === name)) return alert("Navnet finnes allerede!");
-            scoreboardData.push({ name, bestChug: "-", units: 0 });
-            localStorage.setItem('fest_scoreboard', JSON.stringify(scoreboardData));
-            document.getElementById('newPlayerName').value = '';
+            // Finn bruker med denne koden
+            const accountsRef = ref(db, 'fest_accounts');
+            const snapshot = await get(accountsRef);
+            const accounts = snapshot.val();
+            
+            let foundFriend = null;
+            for (let name in accounts) {
+                if (accounts[name].friendCode === code) {
+                    foundFriend = name;
+                    break;
+                }
+            }
+
+            if (!foundFriend) return alert("Fant ingen bruker med den koden!");
+            if (foundFriend === currentUser) return alert("Du kan ikke legge til deg selv!");
+
+            const myRef = ref(db, `fest_accounts/${currentUser}`);
+            const mySnap = await get(myRef);
+            const myData = mySnap.val();
+            let myFriends = myData.friends || [];
+            
+            if (myFriends.includes(foundFriend)) return alert("Denne personen er allerede din venn!");
+            
+            myFriends.push(foundFriend);
+            await update(myRef, { friends: myFriends });
+            document.getElementById('friendCodeInput').value = '';
             renderScoreboard();
         }
 
-        window.addUnit = function(name) {
-            const p = scoreboardData.find(x => x.name === name);
-            if (p) p.units++;
-            localStorage.setItem('fest_scoreboard', JSON.stringify(scoreboardData));
-            renderScoreboard();
+        window.addUnit = async function(name) {
+            const roomRef = ref(db, `fest_rooms/${currentRoom}/users/${name}/units`);
+            const snap = await get(roomRef);
+            const currentUnits = snap.val() || 0;
+            update(ref(db, `fest_rooms/${currentRoom}/users/${name}`), { units: currentUnits + 1 });
         }
 
-        window.removePlayer = function(name) {
-            if (!confirm("Slette spiller?")) return;
-            scoreboardData = scoreboardData.filter(x => x.name !== name);
-            localStorage.setItem('fest_scoreboard', JSON.stringify(scoreboardData));
-            renderScoreboard();
-        }
+        async function renderScoreboard() {
+            if (!currentUser) return;
+            
+            const myRef = ref(db, `fest_accounts/${currentUser}`);
+            const mySnap = await get(myRef);
+            const myData = mySnap.val();
+            
+            if (myData) {
+                document.getElementById('displayMyCode').innerText = myData.friendCode || "MANGLER";
+                const friends = myData.friends || [];
+                
+                // Vis venneliste
+                document.getElementById('friendsList').innerHTML = friends.map(f => `
+                    <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between;">
+                        <span>👤 ${f}</span>
+                        <span style="color: var(--accent); font-size: 12px;">VENN</span>
+                    </div>
+                `).join('');
 
-        function renderScoreboard() {
-            const body = document.getElementById('scoreTableBody');
-            body.innerHTML = scoreboardData.sort((a, b) => b.units - a.units).map(p => `
-                <tr>
-                    <td style="font-weight: 800;">${p.name}</td>
-                    <td>${p.bestChug}s</td>
-                    <td style="color: var(--accent); font-weight: 800;">${p.units} enheter 🍻</td>
-                    <td>
-                        <button class="btn-small" onclick="addUnit('${p.name}')">+ Drikke</button>
-                        <button class="remove-btn" style="margin-left: 10px;" onclick="removePlayer('${p.name}')">×</button>
-                    </td>
-                </tr>
-            `).join('');
+                // Vis scoreboard basert på venner som er i samme rom
+                const body = document.getElementById('scoreTableBody');
+                const roomUsers = Object.values(state.users || {});
+                
+                body.innerHTML = roomUsers
+                    .filter(u => u.name === currentUser || friends.includes(u.name))
+                    .sort((a, b) => (b.units || 0) - (a.units || 0))
+                    .map(u => `
+                    <tr>
+                        <td style="font-weight: 800;">${u.name === currentUser ? '⭐ ' + u.name : u.name}</td>
+                        <td style="color: var(--accent); font-weight: 800;">${u.units || 0} enheter 🍻</td>
+                        <td>
+                            <button class="btn-small" onclick="addUnit('${u.name}')">+ Drikke</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
         }
 
         window.nextCard = function() {
