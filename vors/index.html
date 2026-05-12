@@ -208,6 +208,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
+            align-items: stretch;
         }
 
         .game-card {
@@ -216,6 +217,10 @@
             border-radius: 16px;
             padding: 24px;
             transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
         }
 
         .game-card:hover {
@@ -223,15 +228,47 @@
             border-color: var(--primary);
         }
 
-        .btn-play {
-            margin-top: 20px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px;
+        /* Lykkehjul Canvas */
+        #wheel {
+            max-width: 400px;
             width: 100%;
-            border-radius: 10px;
-            font-weight: 700;
+            height: auto;
+            border-radius: 50%;
+            box-shadow: 0 0 30px var(--primary);
+            border: 10px solid var(--card-bg);
+            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
+        }
+
+        /* Scoreboard Styling */
+        .scoreboard {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 30px;
+            margin-top: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .score-table th, .score-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .score-table th { color: var(--accent); font-size: 14px; text-transform: uppercase; }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            background: var(--secondary);
+            border: none;
+            color: white;
             cursor: pointer;
         }
 
@@ -517,10 +554,64 @@
     <!-- GAME OVERLAY (Fullscreen) -->
     <div id="gameOverlay" class="game-overlay">
         <h2 id="activeGameTitle">Jeg har aldri</h2>
-        <div class="game-text" id="gameText">Trykk på start for å begynne!</div>
-        <div class="game-controls">
+        
+        <div id="standardGameView">
+            <div class="game-text" id="gameText">Trykk på start for å begynne!</div>
+        </div>
+
+        <div id="wheelView" style="display: none; position: relative;">
+            <div id="wheelIndicator" style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid var(--accent); z-index: 10;"></div>
+            <canvas id="wheelCanvas" width="500" height="500" style="max-width: 400px; width: 100%;"></canvas>
+            <div id="wheelResult" class="game-text" style="margin-top: 20px; color: var(--accent);">Klikk "Snurr" for å starte!</div>
+        </div>
+
+        <div id="chugView" style="display: none; width: 100%; max-width: 800px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+                <div class="main-card">
+                    <h3 id="player1Name">Spiller 1</h3>
+                    <div id="timer1" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div>
+                    <button class="btn-play" onclick="toggleTimer(1)" id="btnTimer1">START</button>
+                </div>
+                <div class="main-card">
+                    <h3 id="player2Name">Spiller 2</h3>
+                    <div id="timer2" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div>
+                    <button class="btn-play" onclick="toggleTimer(2)" id="btnTimer2">START</button>
+                </div>
+            </div>
+            <p id="chugStatus" style="font-size: 18px; color: var(--accent);">Førstemann til å stoppe klokka når glasset er tomt!</p>
+        </div>
+
+        <div class="game-controls" style="margin-top: 40px;">
             <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
-            <button class="btn-large btn-next" onclick="nextCard()">Neste kort →</button>
+            <button id="btnNext" class="btn-large btn-next" onclick="nextCard()">Neste kort →</button>
+            <button id="btnSpin" class="btn-large btn-next" onclick="spinWheel()" style="display: none;">Snurr hjulet! 🎡</button>
+            <button id="btnResetChug" class="btn-large btn-next" onclick="resetChug()" style="display: none;">Ny runde 🍺</button>
+        </div>
+    </div>
+
+    <!-- SCOREBOARD (Vises nederst i spill-seksjonen) -->
+    <div id="scoreboardSection" class="container" style="display: none; margin-bottom: 100px;">
+        <div class="scoreboard">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>🏆 Hall of Fame</h2>
+                <div class="input-group" style="margin-bottom: 0;">
+                    <input type="text" id="newPlayerName" placeholder="Legg til venn..." style="padding: 10px;">
+                    <button class="nav-btn" onclick="addScorePlayer()">Legg til</button>
+                </div>
+            </div>
+            <table class="score-table">
+                <thead>
+                    <tr>
+                        <th>Spiller</th>
+                        <th>Chug-rekord</th>
+                        <th>Enheter</th>
+                        <th>Handlinger</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreTableBody">
+                    <!-- Fylles med JS -->
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -967,31 +1058,200 @@
             document.getElementById('activeGameTitle').innerText = activeGame.title;
             overlay.style.display = 'flex';
             
+            // Nullstill visninger
+            document.getElementById('standardGameView').style.display = 'none';
+            document.getElementById('wheelView').style.display = 'none';
+            document.getElementById('chugView').style.display = 'none';
+            document.getElementById('btnNext').style.display = 'none';
+            document.getElementById('btnSpin').style.display = 'none';
+            document.getElementById('btnResetChug').style.display = 'none';
+
             if (id === 'lykkehjul') { 
-                if(window.renderLykkehjul) window.renderLykkehjul(); 
-                else document.getElementById('gameText').innerText = "Lykkehjul-modulen mangler i koden.";
+                document.getElementById('wheelView').style.display = 'block';
+                document.getElementById('btnSpin').style.display = 'block';
+                window.drawWheel();
             } 
             else if (id === 'chug') { 
-                if(window.renderChugGame) window.renderChugGame(); 
-                else document.getElementById('gameText').innerText = "Chug-modulen mangler i koden.";
+                document.getElementById('chugView').style.display = 'block';
+                document.getElementById('btnResetChug').style.display = 'block';
+                window.resetChug();
             }
             else {
+                document.getElementById('standardGameView').style.display = 'block';
+                document.getElementById('btnNext').style.display = 'block';
                 cardIndex = -1;
-                // Randomiser rekkefølgen hver gang vi starter
                 window.shuffle(activeGame.cards);
                 window.nextCard();
             }
         }
 
+        // --- LYKKEHJUL LOGIKK ---
+        let isSpinning = false;
+        window.drawWheel = function() {
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const sections = activeGame.cards;
+            const arc = (Math.PI * 2) / sections.length;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            sections.forEach((text, i) => {
+                const angle = i * arc;
+                ctx.beginPath();
+                ctx.fillStyle = i % 2 === 0 ? '#ff007a' : '#7000ff';
+                ctx.moveTo(250, 250);
+                ctx.arc(250, 250, 240, angle, angle + arc);
+                ctx.lineTo(250, 250);
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(250, 250);
+                ctx.rotate(angle + arc / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "white";
+                ctx.font = "bold 14px Outfit";
+                ctx.fillText(text.length > 20 ? text.substring(0, 17) + "..." : text, 230, 10);
+                ctx.restore();
+            });
+        }
+
+        window.spinWheel = function() {
+            if (isSpinning) return;
+            isSpinning = true;
+            const canvas = document.getElementById('wheelCanvas');
+            const randomSpin = 1800 + Math.random() * 1800; // Mellom 5 og 10 runder
+            const duration = 4000;
+            
+            canvas.style.transition = `transform ${duration}ms cubic-bezier(0.15, 0, 0.15, 1)`;
+            canvas.style.transform = `rotate(${randomSpin}deg)`;
+            
+            setTimeout(() => {
+                isSpinning = false;
+                const actualRotation = randomSpin % 360;
+                const sectionAngle = 360 / activeGame.cards.length;
+                // Juster for at indikatoren er øverst (270 grader i canvas-koordinater)
+                const wonIndex = Math.floor(((360 - actualRotation + 270) % 360) / sectionAngle);
+                document.getElementById('wheelResult').innerText = "Vinner: " + activeGame.cards[wonIndex];
+                
+                // Tilbakestill transformasjon stille for neste snurr
+                setTimeout(() => {
+                    canvas.style.transition = 'none';
+                    canvas.style.transform = `rotate(${actualRotation}deg)`;
+                }, 500);
+            }, duration);
+        }
+
+        // --- CHUG KONKURRANSE LOGIKK ---
+        let timers = [null, null];
+        let startTimes = [0, 0];
+        let results = [0, 0];
+
+        window.toggleTimer = function(player) {
+            const idx = player - 1;
+            const btn = document.getElementById('btnTimer' + player);
+            const display = document.getElementById('timer' + player);
+            
+            if (!timers[idx]) {
+                startTimes[idx] = performance.now();
+                btn.innerText = "STOPP! 🍺";
+                btn.style.background = "#ef4444";
+                timers[idx] = setInterval(() => {
+                    const elapsed = (performance.now() - startTimes[idx]) / 1000;
+                    display.innerText = elapsed.toFixed(2) + "s";
+                }, 10);
+            } else {
+                clearInterval(timers[idx]);
+                timers[idx] = null;
+                results[idx] = (performance.now() - startTimes[idx]) / 1000;
+                btn.innerText = "FERDIG!";
+                btn.style.background = "#22c55e";
+                btn.disabled = true;
+                checkWinner();
+            }
+        }
+
+        function checkWinner() {
+            if (!timers[0] && !timers[1] && results[0] > 0 && results[1] > 0) {
+                const winner = results[0] < results[1] ? 1 : 2;
+                document.getElementById('chugStatus').innerText = `Vinner: Spiller ${winner} (${results[winner-1].toFixed(2)}s!) 🏆`;
+            }
+        }
+
+        window.resetChug = function() {
+            timers.forEach(t => clearInterval(t));
+            timers = [null, null];
+            results = [0, 0];
+            document.getElementById('timer1').innerText = "0.00s";
+            document.getElementById('timer2').innerText = "0.00s";
+            document.getElementById('btnTimer1').innerText = "START";
+            document.getElementById('btnTimer1').style.background = "var(--primary)";
+            document.getElementById('btnTimer1').disabled = false;
+            document.getElementById('btnTimer2').innerText = "START";
+            document.getElementById('btnTimer2').style.background = "var(--primary)";
+            document.getElementById('btnTimer2').disabled = false;
+            document.getElementById('chugStatus').innerText = "Førstemann til å stoppe klokka når glasset er tomt!";
+        }
+
+        // --- SCOREBOARD LOGIKK ---
+        let scoreboardData = JSON.parse(localStorage.getItem('fest_scoreboard') || "[]");
+
+        window.addScorePlayer = function() {
+            const name = document.getElementById('newPlayerName').value.trim();
+            if (!name) return;
+            if (scoreboardData.find(p => p.name === name)) return alert("Navnet finnes allerede!");
+            scoreboardData.push({ name, bestChug: "-", units: 0 });
+            localStorage.setItem('fest_scoreboard', JSON.stringify(scoreboardData));
+            document.getElementById('newPlayerName').value = '';
+            renderScoreboard();
+        }
+
+        window.addUnit = function(name) {
+            const p = scoreboardData.find(x => x.name === name);
+            if (p) p.units++;
+            localStorage.setItem('fest_scoreboard', JSON.stringify(scoreboardData));
+            renderScoreboard();
+        }
+
+        window.removePlayer = function(name) {
+            if (!confirm("Slette spiller?")) return;
+            scoreboardData = scoreboardData.filter(x => x.name !== name);
+            localStorage.setItem('fest_scoreboard', JSON.stringify(scoreboardData));
+            renderScoreboard();
+        }
+
+        function renderScoreboard() {
+            const body = document.getElementById('scoreTableBody');
+            body.innerHTML = scoreboardData.sort((a, b) => b.units - a.units).map(p => `
+                <tr>
+                    <td style="font-weight: 800;">${p.name}</td>
+                    <td>${p.bestChug}s</td>
+                    <td style="color: var(--accent); font-weight: 800;">${p.units} enheter 🍻</td>
+                    <td>
+                        <button class="btn-small" onclick="addUnit('${p.name}')">+ Drikke</button>
+                        <button class="remove-btn" style="margin-left: 10px;" onclick="removePlayer('${p.name}')">×</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
         window.nextCard = function() {
             if (!activeGame || !activeGame.cards) return;
             cardIndex++;
-            if (cardIndex >= activeGame.cards.length) { cardIndex = 0; shuffle(activeGame.cards); }
+            if (cardIndex >= activeGame.cards.length) { cardIndex = 0; window.shuffle(activeGame.cards); }
             document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
         }
 
         window.closeGame = function() { document.getElementById('gameOverlay').style.display = 'none'; }
         window.shuffle = function(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
+
+        const originalShowSection = window.showSection;
+        window.showSection = function(id) {
+            originalShowSection(id);
+            document.getElementById('scoreboardSection').style.display = (id === 'leker') ? 'block' : 'none';
+            if (id === 'leker') renderScoreboard();
+        }
 
         window.renderGames();
     </script>
