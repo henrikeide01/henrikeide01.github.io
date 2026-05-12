@@ -7,25 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <!-- 
-    FIREBASE SECURITY RULES (COPY TO FIREBASE CONSOLE):
-    {
-      "rules": {
-        "fest_rooms": {
-          "$room_id": {
-            ".read": "true",
-            ".write": "true"
-          }
-        },
-        "meal_users": {
-          "$user_id": {
-            ".read": "true",
-            ".write": "true"
-          }
-        }
-      }
-    }
-    -->
     <style>
         :root {
             --primary: #ff007a; /* Neon Rosa */
@@ -397,8 +378,8 @@
             </div>
 
             <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 30px;">
-                <button id="mainLoginTab" class="nav-btn active" onclick="setFestAuthMode('login')" style="flex: 1; border-radius: 0; border: none; background: none; border-bottom: 2px solid var(--primary);">Logg inn</button>
-                <button id="mainRegTab" class="nav-btn" onclick="setFestAuthMode('reg')" style="flex: 1; border-radius: 0; border: none; background: none;">Ny bruker</button>
+                <button id="mainLoginTab" class="nav-btn active" onclick="window.setFestAuthMode('login')" style="flex: 1; border-radius: 0; border: none; background: none; border-bottom: 2px solid var(--primary);">Logg inn</button>
+                <button id="mainRegTab" class="nav-btn" onclick="window.setFestAuthMode('reg')" style="flex: 1; border-radius: 0; border: none; background: none;">Ny bruker</button>
             </div>
             
             <h2 id="mainAuthTitle">Velkommen tilbake! 👤</h2>
@@ -407,7 +388,7 @@
             <input type="text" id="mainUserNameInput" placeholder="Brukernavn" style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
             <input type="password" id="mainUserPassInput" placeholder="Passord" style="width: 100%; margin-bottom: 24px; padding: 20px; font-size: 18px;">
             
-            <button id="mainAuthBtn" class="btn-play" style="width: 100%;" onclick="handleFestAuth()">Start Festplanlegging</button>
+            <button id="mainAuthBtn" class="btn-play" style="width: 100%;" onclick="window.handleFestAuth()">Start Festplanlegging</button>
         </div>
     </div>
 
@@ -416,31 +397,30 @@
             <nav>
                 <div class="logo">FESTPLAN</div>
                 <div class="nav-links">
-                    <a href="#" class="nav-btn active" onclick="showSection('home')">🏠 Hjem</a>
-                    <a href="#" class="nav-btn" onclick="showSection('gjenger')">🍻 Gjenger</a>
-                    <a href="#" class="nav-btn" onclick="showSection('leker')">🎮 Leker & Spill</a>
-                    <a href="#" class="nav-btn" onclick="showSection('planlegger')">📅 Planlegger</a>
-                    <a href="#" class="nav-btn" onclick="logout()" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">Logg ut</a>
+                    <a href="#" class="nav-btn active" onclick="window.showSection('home')">🏠 Hjem</a>
+                    <a href="#" class="nav-btn" onclick="window.showSection('gjenger')">🍻 Gjenger</a>
+                    <a href="#" class="nav-btn" onclick="window.showSection('leker')">🎮 Leker & Spill</a>
+                    <a href="#" class="nav-btn" onclick="window.showSection('planlegger')">📅 Planlegger</a>
+                    <a href="#" class="nav-btn" onclick="window.logout()" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">Logg ut</a>
                 </div>
             </nav>
 
-        <!-- HOME SECTION -->
         <section id="home" class="section active">
             <div class="hero">
                 <h1>Gjør festen <span style="color: var(--accent);">legendarisk.</span></h1>
                 <p>Alt du trenger for det perfekte vorspielet på ett sted. Spill, gjestelister og god stemning.</p>
                 <div class="main-grid">
-                    <div class="main-card" onclick="showSection('leker')">
+                    <div class="main-card" onclick="window.showSection('leker')">
                         <span class="card-icon">🃏</span>
                         <h2>Drikkeleker</h2>
-                        <p>Klassikere som "Jeg har aldri", "Pekeleken" og mer.</p>
+                        <p>Klassikere som \"Jeg har aldri\", \"Pekeleken\" og mer.</p>
                     </div>
-                    <div class="main-card" onclick="showSection('planlegger')">
+                    <div class="main-card" onclick="window.showSection('planlegger')">
                         <span class="card-icon">📝</span>
                         <h2>Festplanlegger</h2>
                         <p>Hold styr på gjester, drikke og hvem som tar med hva.</p>
                     </div>
-                    <div class="main-card" onclick="startQuickGame()">
+                    <div class="main-card" onclick="window.startQuickGame()">
                         <span class="card-icon">🎲</span>
                         <h2>Quick Play</h2>
                         <p>Start en tilfeldig utfordring med en gang!</p>
@@ -449,34 +429,27 @@
             </div>
         </section>
 
-        <!-- GJENGER SECTION -->
         <section id="gjenger" class="section">
             <div class="planner-header">
                 <h2>🍻 Dine Gjenger & Koder</h2>
             </div>
-            
             <div id="gjengerAuthWarning" style="text-align: center; padding: 40px; background: var(--card-bg); border-radius: var(--radius);">
                 <p>Du må logge inn i Planleggeren først for å administrere gjengene dine.</p>
-                <button class="btn-play" style="max-width: 200px; margin-top: 20px;" onclick="showSection('planlegger')">Gå til innlogging</button>
+                <button class="btn-play" style="max-width: 200px; margin-top: 20px;" onclick="window.showSection('planlegger')">Gå til innlogging</button>
             </div>
-
             <div id="gjengerManager" style="display: none;">
                 <div class="main-card" style="max-width: 600px; margin: 0 auto 30px;">
                     <h3>Legg til ny gjeng</h3>
                     <p style="margin-bottom: 20px;">Skriv inn koden til vennegjengen din.</p>
                     <div class="input-group">
                         <input type="text" id="manageRoomInput" placeholder="F.eks: VENNER2024" style="text-transform: uppercase;">
-                        <button class="nav-btn" onclick="addRoomFromManager()">Legg til</button>
+                        <button class="nav-btn" onclick="window.addRoomFromManager()">Legg til</button>
                     </div>
                 </div>
-
-                <div id="manageRoomsList" class="game-grid">
-                    <!-- Fylles med JS -->
-                </div>
+                <div id="manageRoomsList" class="game-grid"></div>
             </div>
         </section>
 
-        <!-- LEKER SECTION -->
         <section id="leker" class="section">
             <div class="planner-header">
                 <h2>🎮 Finn din favorittlek</h2>
@@ -489,30 +462,26 @@
                 <div class="planner-header">
                     <h2 id="welcomeText">Velg din rolle 👋</h2>
                 </div>
-                
                 <div id="roomSection" style="margin-bottom: 30px; background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
                     <h3 style="margin-bottom: 15px;">Mine gjenger 🍻</h3>
                     <div class="input-group" style="margin-bottom: 20px;">
                         <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="text-transform: uppercase;">
-                        <button class="nav-btn" onclick="addRoomCode()">Legg til</button>
+                        <button class="nav-btn" onclick="window.addRoomCode()">Legg til</button>
                     </div>
                     <div id="myRoomsList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
                 </div>
-
-                <!-- VELG ROM FØRST -->
                 <div id="roomSelectionForRole" style="margin-bottom: 30px;">
                     <h3 style="margin-bottom: 15px; color: var(--accent);">Hvilken gjeng vil du planlegge for?</h3>
                     <div id="roleRoomsList" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
                 </div>
-
                 <div id="roleActions" style="display: none;">
                     <div class="main-grid">
-                        <div class="main-card" onclick="openHostSetup()">
+                        <div class="main-card" onclick="window.openHostSetup()">
                             <span class="card-icon">🏠</span>
                             <h2>Være Host</h2>
                             <p>Jeg vil holde vorset i <span class="active-room-text" style="color: var(--accent);"></span>.</p>
                         </div>
-                        <div class="main-card" onclick="becomeParticipant()">
+                        <div class="main-card" onclick="window.becomeParticipant()">
                             <span class="card-icon">🍺</span>
                             <h2>Bare bli med</h2>
                             <p>Se aktive vors i <span class="active-room-text" style="color: var(--accent);"></span>.</p>
@@ -521,19 +490,15 @@
                 </div>
             </div>
 
-            <!-- Host Setup Modal-ish -->
             <div id="hostSetupView" style="display: none;">
                 <div class="main-card" style="max-width: 600px; margin: 40px auto; text-align: left;">
                     <h2>Sett opp ditt vors 🏠</h2>
                     <p style="margin-bottom: 20px; color: var(--text-muted);">Gi gjestene dine litt info om hva som skjer.</p>
-                    
                     <label style="display: block; margin-bottom: 8px; font-weight: 600;">Beskrivelse / Beskjed til gjester:</label>
-                    <textarea id="hostDescInput" placeholder="F.eks: Velkommen til vors hos meg! Husk godt humør og badetøy. Inngang via bakgården." 
-                        style="width: 100%; height: 120px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-family: inherit; resize: none;"></textarea>
-                    
+                    <textarea id="hostDescInput" placeholder="Beskjed..." style="width: 100%; height: 120px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-family: inherit; resize: none;"></textarea>
                     <div style="display: flex; gap: 15px;">
-                        <button class="nav-btn" style="flex: 1; padding: 15px;" onclick="resetRole()">Avbryt</button>
-                        <button class="btn-large btn-next" style="flex: 2;" onclick="becomeHost()">Start mitt vors! 🎉</button>
+                        <button class="nav-btn" style="flex: 1; padding: 15px;" onclick="window.resetRole()">Avbryt</button>
+                        <button class="btn-large btn-next" style="flex: 2;" onclick="window.becomeHost()">Start mitt vors! 🎉</button>
                     </div>
                 </div>
             </div>
@@ -541,44 +506,35 @@
             <div id="vorsView" style="display: none;">
                 <div class="planner-header">
                     <h2 id="vorsStatusTitle">Oversikt over vors i gjengen</h2>
-                    <button class="nav-btn" onclick="resetRole()">Bytt rolle / vors</button>
+                    <button class="nav-btn" onclick="window.resetRole()">Bytt rolle / vors</button>
                 </div>
-
-                <!-- ALLTID VIS OVERSIKT OVER VORS -->
                 <div style="margin-bottom: 40px;">
                     <h3 style="margin-bottom: 20px; color: var(--accent);">🔥 Aktive vors i denne gjengen:</h3>
                     <div id="activeVorsList" class="game-grid"></div>
                 </div>
-
                 <div id="activeVorsDetail" style="display: none; grid-template-columns: 1fr 350px; gap: 30px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 40px;">
-                    <!-- Venstre side: Info og Handleliste -->
                     <div style="display: flex; flex-direction: column; gap: 30px;">
                         <div style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
                                 <h3 style="font-size: 28px;">ℹ️ Info fra host</h3>
                                 <div id="hostControls" style="display: none;">
-                                    <button class="nav-btn" style="font-size: 12px; padding: 5px 10px;" onclick="openHostSetup()">Rediger info</button>
+                                    <button class="nav-btn" style="font-size: 12px; padding: 5px 10px;" onclick="window.openHostSetup()">Rediger info</button>
                                 </div>
                             </div>
                             <p id="vorsDescriptionText" style="color: #cbd5e1; line-height: 1.6; font-size: 18px; white-space: pre-wrap;"></p>
                         </div>
-
                         <div id="shoppingSection" style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
                             <h3 style="margin-bottom: 20px;">🛒 Hva trengs?</h3>
                             <div class="input-group">
-                                <input type="text" id="itemName" placeholder="Ting (f.eks: Isbiter)">
+                                <input type="text" id="itemName" placeholder="Ting">
                                 <input type="text" id="itemQty" placeholder="Antall" style="max-width: 120px;">
-                                <button class="nav-btn" onclick="addItem()">Legg til</button>
+                                <button class="nav-btn" onclick="window.addItem()">Legg til</button>
                             </div>
                             <div class="guest-list" id="shoppingList" style="margin-top: 20px;"></div>
                         </div>
                     </div>
-
-                    <!-- Høyre side: Gjesteliste -->
                     <div style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1); align-self: start;">
-                        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                            👥 Gjester <span id="participantCount" style="background: var(--primary); padding: 2px 10px; border-radius: 10px; font-size: 14px;">0</span>
-                        </h3>
+                        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">👥 Gjester <span id="participantCount" style="background: var(--primary); padding: 2px 10px; border-radius: 10px; font-size: 14px;">0</span></h3>
                         <div id="participantList" style="display: flex; flex-direction: column; gap: 10px;"></div>
                     </div>
                 </div>
@@ -586,248 +542,109 @@
         </section>
     </div>
 
-    <!-- GAME OVERLAY (Fullscreen) -->
     <div id="gameOverlay" class="game-overlay">
-        <h2 id="activeGameTitle">Jeg har aldri</h2>
-        
-        <div id="standardGameView">
-            <div class="game-text" id="gameText">Trykk på start for å begynne!</div>
-        </div>
-
+        <h2 id="activeGameTitle">Leker</h2>
+        <div id="standardGameView"><div class="game-text" id="gameText">Trykk på start!</div></div>
         <div id="wheelView" style="display: none; position: relative;">
             <div id="wheelIndicator" style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid var(--accent); z-index: 10;"></div>
             <canvas id="wheelCanvas" width="500" height="500" style="max-width: 400px; width: 100%;"></canvas>
-            <div id="wheelResult" class="game-text" style="margin-top: 20px; color: var(--accent);">Klikk "Snurr" for å starte!</div>
+            <div id="wheelResult" class="game-text" style="margin-top: 20px; color: var(--accent);">Snurr hjulet!</div>
         </div>
-
         <div id="chugView" style="display: none; width: 100%; max-width: 800px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
-                <div class="main-card">
-                    <h3 id="player1Name">Spiller 1</h3>
-                    <div id="timer1" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div>
-                    <button class="btn-play" onclick="toggleTimer(1)" id="btnTimer1">START</button>
-                </div>
-                <div class="main-card">
-                    <h3 id="player2Name">Spiller 2</h3>
-                    <div id="timer2" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div>
-                    <button class="btn-play" onclick="toggleTimer(2)" id="btnTimer2">START</button>
-                </div>
+                <div class="main-card"><h3>Spiller 1</h3><div id="timer1" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div><button class="btn-play" onclick="window.toggleTimer(1)" id="btnTimer1">START</button></div>
+                <div class="main-card"><h3>Spiller 2</h3><div id="timer2" style="font-size: 48px; font-weight: 800; margin: 20px 0;">0.00s</div><button class="btn-play" onclick="window.toggleTimer(2)" id="btnTimer2">START</button></div>
             </div>
-            <p id="chugStatus" style="font-size: 18px; color: var(--accent);">Førstemann til å stoppe klokka når glasset er tomt!</p>
+            <p id="chugStatus" style="font-size: 18px; color: var(--accent);">Førstemann!</p>
         </div>
-
         <div class="game-controls" style="margin-top: 40px;">
-            <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
-            <button id="btnNext" class="btn-large btn-next" onclick="nextCard()">Neste kort →</button>
-            <button id="btnSpin" class="btn-large btn-next" onclick="spinWheel()" style="display: none;">Snurr hjulet! 🎡</button>
-            <button id="btnResetChug" class="btn-large btn-next" onclick="resetChug()" style="display: none;">Ny runde 🍺</button>
+            <button class="btn-large btn-back" onclick="window.closeGame()">Avslutt</button>
+            <button id="btnNext" class="btn-large btn-next" onclick="window.nextCard()">Neste kort →</button>
+            <button id="btnSpin" class="btn-large btn-next" onclick="window.spinWheel()" style="display: none;">Snurr! 🎡</button>
+            <button id="btnResetChug" class="btn-large btn-next" onclick="window.resetChug()" style="display: none;">Ny runde</button>
         </div>
     </div>
 
-    <!-- SCOREBOARD & FRIENDS -->
     <div id="scoreboardSection" class="container" style="display: none; margin-bottom: 100px;">
         <div style="display: grid; grid-template-columns: 1fr 350px; gap: 30px;">
             <div class="scoreboard">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h2>🏆 Hall of Fame</h2>
-                </div>
+                <h2>🏆 Hall of Fame</h2>
                 <table class="score-table">
-                    <thead>
-                        <tr>
-                            <th>Spiller</th>
-                            <th>Enheter</th>
-                            <th>Handlinger</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Spiller</th><th>Enheter</th><th>Handlinger</th></tr></thead>
                     <tbody id="scoreTableBody"></tbody>
                 </table>
             </div>
-
             <div class="scoreboard">
                 <h2>👥 Venner</h2>
-                <div id="myFriendCode" style="margin: 15px 0; padding: 10px; background: rgba(0,242,255,0.1); border-radius: 10px; border: 1px dashed var(--accent); text-align: center;">
-                    <small>Din kode:</small><br>
-                    <strong id="displayMyCode" style="color: var(--accent); font-size: 20px;">----</strong>
-                </div>
+                <div id="myFriendCode" style="margin: 15px 0; padding: 10px; background: rgba(0,242,255,0.1); border-radius: 10px; border: 1px dashed var(--accent); text-align: center;"><small>Din kode:</small><br><strong id="displayMyCode" style="color: var(--accent); font-size: 20px;">----</strong></div>
                 <div class="input-group">
                     <input type="text" id="friendCodeInput" placeholder="Vennens kode...">
-                    <button class="nav-btn" onclick="addFriendByCode()">Legg til</button>
+                    <button class="nav-btn" onclick="window.addFriendByCode()">Legg til</button>
                 </div>
-                <div id="friendsList" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Venner fylles her -->
-                </div>
+                <div id="friendsList" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;"></div>
             </div>
         </div>
     </div>
-</div> <!-- Slutt på appContent -->
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, push, remove, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { initializeApp } from \"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js\";
+        import { getDatabase, ref, onValue, set, update, get } from \"https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js\";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA",
-            authDomain: "eidert.firebaseapp.com",
-            projectId: "eidert",
-            storageBucket: "eidert.firebasestorage.app",
-            messagingSenderId: "404554280464",
-            appId: "1:404554280464:web:b454e6b567e1897eab6495",
-            measurementId: "G-WS907SPPDR",
-            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app/" 
+            apiKey: \"AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA\",
+            authDomain: \"eidert.firebaseapp.com\",
+            projectId: \"eidert\",
+            storageBucket: \"eidert.firebasestorage.app\",
+            messagingSenderId: \"404554280464\",
+            appId: \"1:404554280464:web:b454e6b567e1897eab6495\",
+            measurementId: \"G-WS907SPPDR\",
+            databaseURL: \"https://eidert-default-rtdb.europe-west1.firebasedatabase.app/\" 
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const games = [
-            { 
-                id: 'jeg-har-aldri', 
-                title: 'Jeg har aldri', 
-                icon: '🤫', 
-                desc: 'Den ultimate klassikeren med 50+ spørsmål.', 
-                cards: [
-                    "Jeg har aldri løyet på sannhet eller konsekvens.", "Jeg har aldri sendt melding til feil person.", 
-                    "Jeg har aldri sneket meg ut.", "Jeg har aldri blitt kastet ut.", "Jeg har aldri hatt en walk of shame.",
-                    "Jeg har aldri sovnet på bussen/toget og våknet på endestasjonen.", "Jeg har aldri stalket en eks på sosiale medier.",
-                    "Jeg har aldri latet som jeg var syk for å slippe et vors.", "Jeg har aldri stjålet en drink fra en venn.",
-                    "Jeg har aldri badet naken offentlig.", "Jeg har aldri glemt navnet på en jeg har klint med.",
-                    "Jeg har aldri vært i slåsskamp.", "Jeg har aldri blitt stoppet av politiet.",
-                    "Jeg har aldri hatt en crush på en lærer.", "Jeg har aldri grått på en nattklubb.",
-                    "Jeg har aldri løyet på alderen min.", "Jeg har aldri sendt en 'uheldig' bilde til feil person.",
-                    "Jeg har aldri vært forelsket i to personer samtidig.", "Jeg har aldri brukt noen andres tannbørste.",
-                    "Jeg har aldri prompet i en heis og gitt noen andre skylden.", "Jeg har aldri slettet et bilde fordi jeg fikk få likes.",
-                    "Jeg har aldri grått meg til en bedre karakter.", "Jeg har aldri kysset bestevennen til eksen min.",
-                    "Jeg har aldri blitt tatt for nasking.", "Jeg har aldri vært med i en musikkvideo.",
-                    "Jeg har aldri sjekket telefonen til partneren min.", "Jeg har aldri gått på feil do.",
-                    "Jeg har aldri bestilt mat for to personer selv om jeg var alene.", "Jeg har aldri sunget karaoke.",
-                    "Jeg har aldri vært på TV.", "Jeg har aldri hatt en hemmelig profil.",
-                    "Jeg har aldri latet som jeg kjente noen jeg ikke kjente.", "Jeg har aldri løyet på en date.",
-                    "Jeg har aldri vært i arresten.", "Jeg har aldri spydd i en taxi.",
-                    "Jeg har aldri mistet telefonen i doen.", "Jeg har aldri blitt bitt av et dyr.",
-                    "Jeg har aldri hatt en nær-døden-opplevelse.", "Jeg har aldri snoket i andres medisinskap.",
-                    "Jeg har aldri hatt en piercing jeg har angret på.", "Jeg har aldri tatovert meg i fylla."
-                ] 
-            },
-            { 
-                id: 'pekeleken', 
-                title: 'Pekeleken', 
-                icon: '👉', 
-                desc: 'Hvem i rommet er mest sannsynlig til...?', 
-                cards: [
-                    "Hvem blir kjendis?", "Hvem bruker opp alle pengene?", "Hvem sovner først?", "Hvem ender i fengsel?", 
-                    "Hvem gifter seg først?", "Hvem blir millionær?", "Hvem kommer sist til vorset?", 
-                    "Hvem ender opp på nachspiel til kl. 09:00?", "Hvem blir president?", "Hvem glemmer telefonen sin i kveld?",
-                    "Hvem dater en kjendis?", "Hvem starter et band?", "Hvem flytter til utlandet?",
-                    "Hvem blir tatt for fyllekjøring (på el-sparkesykkel)?", "Hvem vinner i Lotto?",
-                    "Hvem begynner å gråte først i kveld?", "Hvem tar flest selfies?", "Hvem chugger raskest?",
-                    "Hvem blir den strengeste forelderen?", "Hvem glemmer navnet på verten?", "Hvem går tom for batteri først?",
-                    "Hvem ender opp på en lokalavis-overskrift?", "Hvem prøver å snike seg inn på VIP-en?",
-                    "Hvem ringer eksen i kveld?", "Hvem spyr først?", "Hvem blir kveldens DJ?",
-                    "Hvem har flest bilder i kamerarullen?", "Hvem bruker mest penger på byen?",
-                    "Hvem blir værende lengst på dansegulvet?", "Hvem prøver å flørte seg ut av en bot?"
-                ] 
-            },
-            { 
-                id: 'sannhet', 
-                title: 'Sannhet eller Straff', 
-                icon: '🔥', 
-                desc: 'Tør du virkelig?', 
-                cards: [
-                    "Sannhet: Hemmelig crush?", "Straff: Ta en shot.", "Sannhet: Flaueste fyllehistorie?", 
-                    "Straff: Ring eksen.", "Sannhet: Hvem i rommet ville du helst datet?",
-                    "Straff: La verten sende en melding fra din telefon.",
-                    "Sannhet: Hva er det rareste du har gjort alene?", "Straff: Dans macarena uten musikk i 1 minutt.",
-                    "Sannhet: Hvem er din minst favoritt i rommet?", "Straff: Gjør 10 pushups.",
-                    "Sannhet: Har du noen gang løyet for å komme deg ut av en date?",
-                    "Straff: Vis de 5 siste bildene i kamerarullen din.",
-                    "Sannhet: Hva er din største frykt?", "Straff: Lukt på skoene til personen til høyre for deg.",
-                    "Sannhet: Hva er det mest ulovlige du har gjort?", "Straff: Lat som du er en kylling til det er din tur igjen.",
-                    "Sannhet: Har du noen gang vært utro?", "Straff: Drikk alt som er igjen i glasset ditt.",
-                    "Sannhet: Hvem i rommet har de peneste øynene?", "Straff: Bytt klær med personen til venstre (valgfritt plagg).",
-                    "Sannhet: Hva er den verste gaven du har fått?", "Straff: Ring en tilfeldig kontakt og syng gratulerer med dagen."
-                ] 
-            },
-            { 
-                id: 'lykkehjul', 
-                title: 'Lykkehjul', 
-                icon: '🎡', 
-                desc: 'Snurr hjulet og se hva skjebnen bringer!', 
-                cards: [
-                    "TA EN SHOT!", "GI BORT 2 SLURKER", "PEKELEKEN NESTE RUNDE", "VALGFRI PERSON DRIKKER", 
-                    "SANNHET ELLER KONSEKVENS", "ALLE DRIKKER!", "DU ER TRYGG", "BYTT DRINK MED NABOEN",
-                    "AVSLØR EN HEMMELIGHET", "DANS I 30 SEKUNDER", "CHUG RESTEN!", "INGEN DRIKKER NESTE RUNDE",
-                    "SHOTT-STAFETT!", "ALLE JENTER DRIKKER", "ALLE GUTTER DRIKKER", "HISTORIE-TIME (FORTELL NOE FLAUT)"
-                ] 
-            },
-            {
-                id: 'chug',
-                title: 'Chug-konkurranse',
-                icon: '🍺',
-                desc: 'Hvem er raskest? 1 mot 1 med timer og scoreboard.',
-                isSpecial: true
-            }
-        ];
-
+        // State
         let activeGame = null;
         let cardIndex = 0;
-        let state = { users: {}, vorser: [], lastReset: 0 };
-        let currentUser = localStorage.getItem('fest_user') || null;
-        let currentRoom = localStorage.getItem('fest_room') || null;
-        let dbRef = null;
-        let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || "[]");
-
+        let state = { users: {}, vorser: [] };
+        let currentUser = localStorage.getItem('fest_user');
+        let currentRoom = localStorage.getItem('fest_room');
+        let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || \"[]\");
         let festAuthMode = 'login';
-        window.setFestAuthMode = function(mode) {
+        let dbRef = null;
+
+        const games = [
+            { id: 'jeg-har-aldri', title: 'Jeg har aldri', icon: '🤫', cards: [\"Jeg har aldri løyet på sannhet eller konsekvens.\", \"Jeg har aldri sendt melding til feil person.\", \"Jeg har aldri sneket meg ut.\", \"Jeg har aldri badet naken.\"] },
+            { id: 'pekeleken', title: 'Pekeleken', icon: '👉', cards: [\"Hvem blir kjendis?\", \"Hvem sovner først?\", \"Hvem ender i fengsel?\"] },
+            { id: 'sannhet', title: 'Sannhet eller Straff', icon: '🔥', cards: [\"Sannhet: Hemmelig crush?\", \"Straff: Ta en shot.\", \"Sannhet: Flaueste fyllehistorie?\"] },
+            { id: 'lykkehjul', title: 'Lykkehjul', icon: '🎡', cards: [\"TA EN SHOT!\", \"GI BORT 2 SLURKER\", \"ALLE DRIKKER!\", \"DU ER TRYGG\"] },
+            { id: 'chug', title: 'Chug-konkurranse', icon: '🍺', isSpecial: true }
+        ];
+
+        // Global functions for HTML
+        window.setFestAuthMode = (mode) => {
             festAuthMode = mode;
-            const loginTab = document.getElementById('mainLoginTab');
-            const regTab = document.getElementById('mainRegTab');
-            if (loginTab) {
-                loginTab.classList.toggle('active', mode === 'login');
-                loginTab.style.borderBottom = mode === 'login' ? '2px solid var(--primary)' : 'none';
-            }
-            if (regTab) {
-                regTab.classList.toggle('active', mode === 'reg');
-                regTab.style.borderBottom = mode === 'reg' ? '2px solid var(--primary)' : 'none';
-            }
-            
-            const authTitle = document.getElementById('mainAuthTitle');
-            const authDesc = document.getElementById('mainAuthDesc');
-            const authBtn = document.getElementById('mainAuthBtn');
-            
-            if (authTitle) authTitle.innerText = mode === 'login' ? 'Velkommen tilbake! 👤' : 'Bli en festdeltaker! ✨';
-            if (authDesc) authDesc.innerText = mode === 'login' ? 'Logg inn for å se dine gjenger og venner.' : 'Lag en profil for å lagre dine egne gjenger og koder.';
-            if (authBtn) authBtn.innerText = mode === 'login' ? 'Start Festplanlegging' : 'Opprett bruker';
-        }
+            document.getElementById('mainLoginTab').classList.toggle('active', mode === 'login');
+            document.getElementById('mainRegTab').classList.toggle('active', mode === 'reg');
+            document.getElementById('mainAuthTitle').innerText = mode === 'login' ? 'Velkommen tilbake! 👤' : 'Bli en festdeltaker! ✨';
+            document.getElementById('mainAuthBtn').innerText = mode === 'login' ? 'Start Festplanlegging' : 'Opprett bruker';
+        };
 
-        window.handleFestAuth = async function() {
-            const userIn = document.getElementById('mainUserNameInput');
-            const passIn = document.getElementById('mainUserPassInput');
+        window.handleFestAuth = async () => {
+            const user = document.getElementById('mainUserNameInput').value.trim();
+            const pass = document.getElementById('mainUserPassInput').value.trim();
+            if(!user || !pass) return alert(\"Fyll inn alt!\");
             
-            if (!userIn || !passIn) {
-                console.error("Auth inputs not found!");
-                return;
-            }
-
-            const user = userIn.value.trim();
-            const pass = passIn.value.trim();
-            
-            if(!user || !pass) return alert("Fyll inn både brukernavn og passord!");
-
             const userRef = ref(db, 'fest_accounts/' + user);
-            const snapshot = await get(userRef);
-            const data = snapshot.val();
+            const snap = await get(userRef);
+            const data = snap.val();
 
             if (festAuthMode === 'reg') {
-                if (data) return alert("Brukernavnet er allerede tatt!");
-                const friendCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-                await set(userRef, { 
-                    password: pass, 
-                    rooms: [], 
-                    friendCode: friendCode, 
-                    friends: [],
-                    units: 0
-                });
-                alert("Bruker opprettet! Du kan nå logge inn.");
+                if (data) return alert(\"Navnet er tatt!\");
+                const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+                await set(userRef, { password: pass, rooms: [], friendCode: code, friends: [], units: 0 });
+                alert(\"Bruker laget!\");
                 window.setFestAuthMode('login');
             } else {
                 if (data && data.password === pass) {
@@ -835,551 +652,138 @@
                     localStorage.setItem('fest_user', user);
                     savedRooms = data.rooms || [];
                     localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
-                    checkLoginState();
-                } else {
-                    alert("Feil brukernavn eller passord!");
-                }
+                    window.checkLoginState();
+                } else alert(\"Feil login!\");
             }
-        }
+        };
 
-        window.checkLoginState = function() {
+        window.checkLoginState = () => {
             if (currentUser) {
                 document.getElementById('mainAuthView').style.display = 'none';
                 document.getElementById('appContent').style.display = 'block';
                 if (currentRoom) window.connectToRoom(currentRoom);
                 window.renderPlanner();
-                window.renderScoreboard();
             } else {
                 document.getElementById('mainAuthView').style.display = 'flex';
                 document.getElementById('appContent').style.display = 'none';
             }
-        }
+        };
 
-        window.connectToRoom = function(roomCode) {
+        window.connectToRoom = (roomCode) => {
             if (dbRef) dbRef = null;
             dbRef = ref(db, 'fest_rooms/' + roomCode);
-            onValue(dbRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data) { state = data; } else { window.resetDatabase(); }
+            onValue(dbRef, (snap) => {
+                const data = snap.val();
+                if (data) state = data;
                 window.renderPlanner();
+                window.renderScoreboard();
             });
-        }
+        };
 
-        if (currentRoom) connectToRoom(currentRoom);
+        window.logout = () => { localStorage.clear(); location.reload(); };
 
-        function resetDatabase() { if (dbRef) set(dbRef, { users: {}, vorser: [], lastReset: new Date().getTime() }); }
+        window.showSection = (id) => {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-links .nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('scoreboardSection').style.display = (id === 'leker') ? 'block' : 'none';
+            if (id === 'leker') window.renderGames();
+            if (id === 'gjenger') window.renderGjenger();
+        };
 
-        window.addRoomCode = async function() {
-            const room = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            if (!room) { alert("Skriv inn en vennekode!"); return; }
-            if (!savedRooms.includes(room)) {
-                savedRooms.push(room);
-                localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
-                await syncAccountRooms();
+        window.renderGames = () => {
+            document.getElementById('gameGrid').innerHTML = games.map(g => `
+                <div class=\"game-card\">
+                    <span style=\"font-size: 40px;\">${g.icon}</span>
+                    <h3>${g.title}</h3>
+                    <button class=\"btn-play\" onclick=\"window.startGame('${g.id}')\">Spill</button>
+                </div>
+            `).join('');
+        };
+
+        window.startGame = (id) => {
+            activeGame = games.find(g => g.id === id);
+            document.getElementById('gameOverlay').style.display = 'flex';
+            document.getElementById('wheelView').style.display = id === 'lykkehjul' ? 'block' : 'none';
+            document.getElementById('btnSpin').style.display = id === 'lykkehjul' ? 'block' : 'none';
+            document.getElementById('chugView').style.display = id === 'chug' ? 'block' : 'none';
+            document.getElementById('btnNext').style.display = (!activeGame.isSpecial && id !== 'lykkehjul') ? 'block' : 'none';
+            if (id === 'lykkehjul') window.drawWheel();
+            if (!activeGame.isSpecial) { cardIndex = -1; window.nextCard(); }
+        };
+
+        window.nextCard = () => {
+            cardIndex++;
+            if (cardIndex >= activeGame.cards.length) cardIndex = 0;
+            document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
+        };
+
+        window.closeGame = () => { document.getElementById('gameOverlay').style.display = 'none'; };
+
+        window.renderPlanner = () => {
+            const user = state.users?.[currentUser];
+            document.getElementById('roleView').style.display = (!user || !user.role) ? 'block' : 'none';
+            document.getElementById('vorsView').style.display = (user && user.role) ? 'block' : 'none';
+            
+            document.getElementById('roleRoomsList').innerHTML = savedRooms.map(r => `
+                <button class=\"nav-btn ${currentRoom === r ? 'active' : ''}\" onclick=\"window.loginToRoom('${r}')\">${r}</button>
+            `).join('');
+            
+            if (currentRoom) {
+                document.getElementById('roleActions').style.display = 'block';
+                document.querySelectorAll('.active-room-text').forEach(el => el.innerText = currentRoom);
+                
+                const vorser = state.vorser || [];
+                document.getElementById('activeVorsList').innerHTML = vorser.map(v => `
+                    <div class=\"main-card\">
+                        <h3>${v.host}'s Vors</h3>
+                        <button class=\"btn-play\" onclick=\"window.joinVors('${v.id}')\">Bli med</button>
+                    </div>
+                `).join('') || \"Ingen aktive vors.\";
             }
-            document.getElementById('roomCodeInput').value = '';
-            renderPlanner();
-            renderGjenger();
-        }
+        };
 
-        window.addRoomFromManager = async function() {
-            const room = document.getElementById('manageRoomInput').value.trim().toUpperCase();
-            if (!room) return;
-            if (!savedRooms.includes(room)) {
-                savedRooms.push(room);
-                localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
-                await syncAccountRooms();
-            }
-            document.getElementById('manageRoomInput').value = '';
-            renderGjenger();
-            renderPlanner();
-        }
-
-        window.loginToRoom = function(roomCode) {
-            currentRoom = roomCode;
-            localStorage.setItem('fest_room', roomCode);
-            connectToRoom(roomCode);
-        }
-
-        window.removeRoomCode = async function(roomCode) {
-            if(!confirm(`Er du sikker på at du vil fjerne koden "${roomCode}"?`)) return;
-            savedRooms = savedRooms.filter(r => r !== roomCode);
-            localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
-            await syncAccountRooms();
-            if (currentRoom === roomCode) { 
-                currentRoom = null; 
-                localStorage.removeItem('fest_room'); 
-            }
-            renderGjenger();
-            renderPlanner();
-        }
-
-        window.logout = function() { localStorage.clear(); location.reload(); }
-
-        window.openHostSetup = function() {
-            document.getElementById('roleView').style.display = 'none';
-            document.getElementById('vorsView').style.display = 'none';
-            document.getElementById('hostSetupView').style.display = 'block';
-        }
-
-        window.becomeHost = function() {
-            const desc = document.getElementById('hostDescInput').value.trim();
+        window.loginToRoom = (r) => { currentRoom = r; localStorage.setItem('fest_room', r); window.connectToRoom(r); };
+        window.joinVors = (id) => update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { joinedVors: id, role: 'participant' });
+        window.openHostSetup = () => { document.getElementById('roleView').style.display = 'none'; document.getElementById('hostSetupView').style.display = 'block'; };
+        window.becomeHost = () => {
+            const desc = document.getElementById('hostDescInput').value;
+            const newVors = { id: currentUser, host: currentUser, description: desc, items: [] };
             const updates = {};
             updates[`fest_rooms/${currentRoom}/users/${currentUser}/role`] = 'host';
             updates[`fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`] = currentUser;
-            let newVorser = (state.vorser || []).filter(v => v.host !== currentUser);
-            newVorser.push({ id: currentUser, host: currentUser, description: desc || "Velkommen!", items: [] });
-            updates[`fest_rooms/${currentRoom}/vorser`] = newVorser;
+            updates[`fest_rooms/${currentRoom}/vorser`] = [...(state.vorser || []), newVors];
             update(ref(db), updates);
             document.getElementById('hostSetupView').style.display = 'none';
-        }
+        };
 
-        window.joinVors = function(hostId) {
-            if(!currentRoom || !currentUser) return;
-            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { 
-                joinedVors: hostId,
-                role: state.users[currentUser]?.role || 'participant'
-            });
-        }
-
-        window.addItem = function() {
-            const name = document.getElementById('itemName').value.trim();
-            const qty = document.getElementById('itemQty').value.trim();
-            const user = state.users[currentUser];
-            if (name && user && user.joinedVors) {
-                const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
-                if (vorsIndex !== -1) {
-                    if (!state.vorser[vorsIndex].items) state.vorser[vorsIndex].items = [];
-                    state.vorser[vorsIndex].items.push({ name, qty, takenBy: null });
-                    update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items`), state.vorser[vorsIndex].items);
-                    document.getElementById('itemName').value = '';
-                }
+        window.addRoomCode = async () => {
+            const r = document.getElementById('roomCodeInput').value.toUpperCase();
+            if (!savedRooms.includes(r)) {
+                savedRooms.push(r);
+                localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+                await update(ref(db, 'fest_accounts/' + currentUser), { rooms: savedRooms });
             }
-        }
+            window.renderPlanner();
+        };
 
-        window.resetRole = function() {
-            if(!currentRoom || !currentUser) return;
-            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: null, joinedVors: null });
-            document.getElementById('hostSetupView').style.display = 'none';
-        }
-
-        window.removeItem = function(index) {
-            const user = state.users[currentUser];
-            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
-            if (vorsIndex !== -1 && user.role === 'host') {
-                state.vorser[vorsIndex].items.splice(index, 1);
-                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items`), state.vorser[vorsIndex].items);
-            }
-        }
-
-        window.toggleTakeItem = function(index) {
-            const user = state.users[currentUser];
-            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
-            if (vorsIndex !== -1) {
-                const item = state.vorser[vorsIndex].items[index];
-                item.takenBy = (item.takenBy === currentUser) ? null : currentUser;
-                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items/${index}`), item);
-            }
-        }
-
-        window.becomeParticipant = function() {
-            if(!currentRoom || !currentUser) return;
-            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: 'participant' });
-        }
-
-        window.showSection = function(id) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            
-            const target = document.getElementById(id);
-            if (target) target.classList.add('active');
-            
-            const navButtons = document.querySelectorAll('.nav-btn');
-            navButtons.forEach(btn => {
-                if(btn.innerText.toLowerCase().includes(id.toLowerCase()) || (id === 'home' && btn.innerText.includes('🏠'))) {
-                    btn.classList.add('active');
-                }
-            });
-
-            if (id === 'planlegger') renderPlanner();
-            if (id === 'leker') window.renderGames();
-            if (id === 'gjenger') renderGjenger();
-        }
-
-        window.renderGjenger = function() {
-            const isLogged = !!currentUser;
-            document.getElementById('gjengerAuthWarning').style.display = isLogged ? 'none' : 'block';
-            document.getElementById('gjengerManager').style.display = isLogged ? 'block' : 'none';
-
-            if (isLogged) {
-                const list = document.getElementById('manageRoomsList');
-                list.innerHTML = savedRooms.map(r => `
-                    <div class="main-card" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; text-align: left;">
-                        <div>
-                            <h3 style="margin: 0; color: var(--accent);">${r}</h3>
-                            <small style="color: var(--text-muted);">Aktiv gjeng</small>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="nav-btn" style="padding: 8px 15px; font-size: 12px;" onclick="window.showSection('planlegger'); window.loginToRoom('${r}')">Velg</button>
-                            <button class="remove-btn" onclick="window.removeRoomCode('${r}')">Fjern</button>
-                        </div>
-                    </div>
-                `).join('');
-
-                if (savedRooms.length === 0) {
-                    list.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Du har ingen lagrede gjenger enda.</div>`;
-                }
-            }
-        }
-
-        window.renderPlanner = function() {
-            const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
-            const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
-
-            // Role View: Vis hvis logget inn, men ingen aktiv rolle valgt
-            document.getElementById('roleView').style.display = (currentUser && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
-            
-            // Vors View: Vis hvis man har en rolle i et valgt rom
-            document.getElementById('vorsView').style.display = (currentRoom && user && user.role && !isEditingHost) ? 'block' : 'none';
-
-            if (currentUser) {
-                // Oppdater rom-valg for roller
-                const roleRoomsList = document.getElementById('roleRoomsList');
-                if (roleRoomsList) {
-                    roleRoomsList.innerHTML = savedRooms.map(r => `
-                        <button class="nav-btn ${currentRoom === r ? 'active' : ''}" onclick="loginToRoom('${r}')">${r}</button>
-                    `).join('');
-                }
-                
-                const roleActions = document.getElementById('roleActions');
-                if (roleActions) {
-                    roleActions.style.display = currentRoom ? 'block' : 'none';
-                    document.querySelectorAll('.active-room-text').forEach(el => el.innerText = currentRoom || "");
-                }
-            }
-
-            if (currentUser && currentRoom) {
-                const vorsList = document.getElementById('activeVorsList');
-                const availableVorser = state.vorser || [];
-                
-                vorsList.innerHTML = availableVorser.map(v => {
-                    const guests = Object.values(state.users || {}).filter(u => u.joinedVors === v.id).length;
-                    const isJoined = user && user.joinedVors === v.id;
-                    return `
-                        <div class="main-card" onclick="joinVors('${v.id}')" style="${isJoined ? 'border-color: var(--primary); box-shadow: 0 0 20px rgba(255,0,122,0.3);' : ''}">
-                            <span class="card-icon">🏠</span>
-                            <h2>${v.host}'s Vors ${isJoined ? '✅' : ''}</h2>
-                            <p style="margin-bottom: 10px;">${v.description}</p>
-                            <div style="display: flex; justify-content: center; gap: 10px; font-size: 14px; color: var(--accent);">
-                                <span>👥 ${guests} gjester</span>
-                                <span>🛒 ${(v.items || []).length} ting trengs</span>
-                            </div>
-                            <button class="btn-play" style="margin-top: 15px; background: ${isJoined ? 'var(--secondary)' : 'var(--primary)'}" onclick="event.stopPropagation(); joinVors('${v.id}')">${isJoined ? 'Du er her' : 'Bli med her'}</button>
-                        </div>
-                    `;
-                }).join('');
-
-                if (availableVorser.length === 0) {
-                    vorsList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Ingen har startet vors i denne gjengen enda...</div>`;
-                }
-
-                if (user && user.joinedVors) {
-                    const currentVors = availableVorser.find(v => v.id === user.joinedVors);
-                    if (currentVors) {
-                        document.getElementById('activeVorsDetail').style.display = 'grid';
-                        document.getElementById('vorsDescriptionText').innerText = currentVors.description;
-                        document.getElementById('hostControls').style.display = (user.role === 'host') ? 'block' : 'none';
-                        
-                        const items = currentVors.items || [];
-                        document.getElementById('shoppingList').innerHTML = items.map((item, i) => `
-                            <div class="guest-item" style="${item.takenBy ? 'opacity: 0.6; border-left: 4px solid var(--primary);' : ''}">
-                                <div style="flex: 1;">
-                                    <strong style="font-size: 18px;">${item.name}</strong> 
-                                    <span style="color: var(--accent); margin-left: 10px;">(${item.qty})</span>
-                                    ${item.takenBy ? `<br><small style="color: var(--primary);">✓ Tas med av ${item.takenBy}</small>` : ''}
-                                </div>
-                                <div style="display: flex; gap: 10px; align-items: center;">
-                                    <button class="nav-btn" style="padding: 6px 12px; font-size: 12px; background: ${item.takenBy === currentUser ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}" onclick="toggleTakeItem(${i})">
-                                        ${item.takenBy === currentUser ? 'Angre' : 'Jeg tar med'}
-                                    </button>
-                                    ${user.role === 'host' ? `<button class="remove-btn" onclick="removeItem(${i})">×</button>` : ''}
-                                </div>
-                            </div>
-                        `).join('');
-
-                        const participants = Object.values(state.users || {}).filter(u => u.joinedVors === currentVors.id);
-                        document.getElementById('participantCount').innerText = participants.length;
-                        document.getElementById('participantList').innerHTML = participants.map(p => `
-                            <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; border-left: 3px solid ${p.role === 'host' ? 'var(--accent)' : 'transparent'}">
-                                <span>${p.role === 'host' ? '👑' : '👤'}</span>
-                                <span style="font-weight: 600;">${p.name}</span>
-                                ${p.role === 'host' ? '<span style="font-size: 10px; color: var(--accent); margin-left: auto;">HOST</span>' : ''}
-                            </div>
-                        `).join('');
-                    }
-                } else {
-                    document.getElementById('activeVorsDetail').style.display = 'none';
-                }
-            }
-        }
-
-        window.startQuickGame = function() {
-            const randomGame = games[Math.floor(Math.random() * (games.length - 1))]; // Unngå chug i quick play
-            window.startGame(randomGame.id);
-        }
-
-        window.renderGames = function() {
-            const grid = document.getElementById('gameGrid');
-            if(grid) grid.innerHTML = games.map(game => `
-                <div class="game-card">
-                    <span style="font-size: 40px;">${game.icon}</span>
-                    <h3>${game.title}</h3>
-                    <p>${game.desc}</p>
-                    <button class="btn-play" onclick="startGame('${game.id}')">Start spill</button>
-                </div>
-            `).join('');
-        }
-
-        window.startGame = function(id) {
-            activeGame = games.find(g => g.id === id);
-            if(!activeGame) return;
-            const overlay = document.getElementById('gameOverlay');
-            document.getElementById('activeGameTitle').innerText = activeGame.title;
-            overlay.style.display = 'flex';
-            
-            // Nullstill visninger
-            document.getElementById('standardGameView').style.display = 'none';
-            document.getElementById('wheelView').style.display = 'none';
-            document.getElementById('chugView').style.display = 'none';
-            document.getElementById('btnNext').style.display = 'none';
-            document.getElementById('btnSpin').style.display = 'none';
-            document.getElementById('btnResetChug').style.display = 'none';
-
-            if (id === 'lykkehjul') { 
-                document.getElementById('wheelView').style.display = 'block';
-                document.getElementById('btnSpin').style.display = 'block';
-                window.drawWheel();
-            } 
-            else if (id === 'chug') { 
-                document.getElementById('chugView').style.display = 'block';
-                document.getElementById('btnResetChug').style.display = 'block';
-                window.resetChug();
-            }
-            else {
-                document.getElementById('standardGameView').style.display = 'block';
-                document.getElementById('btnNext').style.display = 'block';
-                cardIndex = -1;
-                window.shuffle(activeGame.cards);
-                window.nextCard();
-            }
-        }
-
-        // --- LYKKEHJUL LOGIKK ---
-        let isSpinning = false;
-        window.drawWheel = function() {
-            const canvas = document.getElementById('wheelCanvas');
-            const ctx = canvas.getContext('2d');
-            const sections = activeGame.cards;
-            const arc = (Math.PI * 2) / sections.length;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            sections.forEach((text, i) => {
-                const angle = i * arc;
-                ctx.beginPath();
-                ctx.fillStyle = i % 2 === 0 ? '#ff007a' : '#7000ff';
-                ctx.moveTo(250, 250);
-                ctx.arc(250, 250, 240, angle, angle + arc);
-                ctx.lineTo(250, 250);
-                ctx.fill();
-                ctx.strokeStyle = 'white';
-                ctx.stroke();
-                
-                ctx.save();
-                ctx.translate(250, 250);
-                ctx.rotate(angle + arc / 2);
-                ctx.textAlign = "right";
-                ctx.fillStyle = "white";
-                ctx.font = "bold 14px Outfit";
-                ctx.fillText(text.length > 20 ? text.substring(0, 17) + "..." : text, 230, 10);
-                ctx.restore();
-            });
-        }
-
-        window.spinWheel = function() {
-            if (isSpinning) return;
-            isSpinning = true;
-            const canvas = document.getElementById('wheelCanvas');
-            const randomSpin = 1800 + Math.random() * 1800; // Mellom 5 og 10 runder
-            const duration = 4000;
-            
-            canvas.style.transition = `transform ${duration}ms cubic-bezier(0.15, 0, 0.15, 1)`;
-            canvas.style.transform = `rotate(${randomSpin}deg)`;
-            
-            setTimeout(() => {
-                isSpinning = false;
-                const actualRotation = randomSpin % 360;
-                const sectionAngle = 360 / activeGame.cards.length;
-                // Juster for at indikatoren er øverst (270 grader i canvas-koordinater)
-                const wonIndex = Math.floor(((360 - actualRotation + 270) % 360) / sectionAngle);
-                document.getElementById('wheelResult').innerText = "Vinner: " + activeGame.cards[wonIndex];
-                
-                // Tilbakestill transformasjon stille for neste snurr
-                setTimeout(() => {
-                    canvas.style.transition = 'none';
-                    canvas.style.transform = `rotate(${actualRotation}deg)`;
-                }, 500);
-            }, duration);
-        }
-
-        // --- CHUG KONKURRANSE LOGIKK ---
-        let timers = [null, null];
-        let startTimes = [0, 0];
-        let results = [0, 0];
-
-        window.toggleTimer = function(player) {
-            const idx = player - 1;
-            const btn = document.getElementById('btnTimer' + player);
-            const display = document.getElementById('timer' + player);
-            
-            if (!timers[idx]) {
-                startTimes[idx] = performance.now();
-                btn.innerText = "STOPP! 🍺";
-                btn.style.background = "#ef4444";
-                timers[idx] = setInterval(() => {
-                    const elapsed = (performance.now() - startTimes[idx]) / 1000;
-                    display.innerText = elapsed.toFixed(2) + "s";
-                }, 10);
-            } else {
-                clearInterval(timers[idx]);
-                timers[idx] = null;
-                results[idx] = (performance.now() - startTimes[idx]) / 1000;
-                btn.innerText = "FERDIG!";
-                btn.style.background = "#22c55e";
-                btn.disabled = true;
-                checkWinner();
-            }
-        }
-
-        function checkWinner() {
-            if (!timers[0] && !timers[1] && results[0] > 0 && results[1] > 0) {
-                const winner = results[0] < results[1] ? 1 : 2;
-                document.getElementById('chugStatus').innerText = `Vinner: Spiller ${winner} (${results[winner-1].toFixed(2)}s!) 🏆`;
-            }
-        }
-
-        window.resetChug = function() {
-            timers.forEach(t => clearInterval(t));
-            timers = [null, null];
-            results = [0, 0];
-            document.getElementById('timer1').innerText = "0.00s";
-            document.getElementById('timer2').innerText = "0.00s";
-            document.getElementById('btnTimer1').innerText = "START";
-            document.getElementById('btnTimer1').style.background = "var(--primary)";
-            document.getElementById('btnTimer1').disabled = false;
-            document.getElementById('btnTimer2').innerText = "START";
-            document.getElementById('btnTimer2').style.background = "var(--primary)";
-            document.getElementById('btnTimer2').disabled = false;
-            document.getElementById('chugStatus').innerText = "Førstemann til å stoppe klokka når glasset er tomt!";
-        }
-
-        // --- SCOREBOARD & VENNER LOGIKK ---
-        window.addFriendByCode = async function() {
-            const code = document.getElementById('friendCodeInput').value.trim().toUpperCase();
-            if (!code || !currentUser) return;
-
-            // Finn bruker med denne koden
-            const accountsRef = ref(db, 'fest_accounts');
-            const snapshot = await get(accountsRef);
-            const accounts = snapshot.val();
-            
-            let foundFriend = null;
-            for (let name in accounts) {
-                if (accounts[name].friendCode === code) {
-                    foundFriend = name;
-                    break;
-                }
-            }
-
-            if (!foundFriend) return alert("Fant ingen bruker med den koden!");
-            if (foundFriend === currentUser) return alert("Du kan ikke legge til deg selv!");
-
-            const myRef = ref(db, `fest_accounts/${currentUser}`);
-            const mySnap = await get(myRef);
-            const myData = mySnap.val();
-            let myFriends = myData.friends || [];
-            
-            if (myFriends.includes(foundFriend)) return alert("Denne personen er allerede din venn!");
-            
-            myFriends.push(foundFriend);
-            await update(myRef, { friends: myFriends });
-            document.getElementById('friendCodeInput').value = '';
-            renderScoreboard();
-        }
-
-        window.addUnit = async function(name) {
-            const roomRef = ref(db, `fest_rooms/${currentRoom}/users/${name}/units`);
-            const snap = await get(roomRef);
-            const currentUnits = snap.val() || 0;
-            update(ref(db, `fest_rooms/${currentRoom}/users/${name}`), { units: currentUnits + 1 });
-        }
-
-        async function renderScoreboard() {
-            if (!currentUser) return;
-            
-            const myRef = ref(db, `fest_accounts/${currentUser}`);
-            const mySnap = await get(myRef);
-            const myData = mySnap.val();
-            
-            if (myData) {
-                document.getElementById('displayMyCode').innerText = myData.friendCode || "MANGLER";
-                const friends = myData.friends || [];
-                
-                // Vis venneliste
-                document.getElementById('friendsList').innerHTML = friends.map(f => `
-                    <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between;">
-                        <span>👤 ${f}</span>
-                        <span style="color: var(--accent); font-size: 12px;">VENN</span>
-                    </div>
-                `).join('');
-
-                // Vis scoreboard basert på venner som er i samme rom
-                const body = document.getElementById('scoreTableBody');
-                const roomUsers = Object.values(state.users || {});
-                
-                body.innerHTML = roomUsers
-                    .filter(u => u.name === currentUser || friends.includes(u.name))
-                    .sort((a, b) => (b.units || 0) - (a.units || 0))
-                    .map(u => `
-                    <tr>
-                        <td style="font-weight: 800;">${u.name === currentUser ? '⭐ ' + u.name : u.name}</td>
-                        <td style="color: var(--accent); font-weight: 800;">${u.units || 0} enheter 🍻</td>
-                        <td>
-                            <button class="btn-small" onclick="addUnit('${u.name}')">+ Drikke</button>
-                        </td>
-                    </tr>
+        window.renderScoreboard = async () => {
+            const snap = await get(ref(db, 'fest_accounts/' + currentUser));
+            const data = snap.val();
+            if (data) {
+                document.getElementById('displayMyCode').innerText = data.friendCode;
+                document.getElementById('scoreTableBody').innerHTML = Object.values(state.users || {}).map(u => `
+                    <tr><td>${u.name}</td><td>${u.units || 0}</td><td><button onclick=\"window.addUnit('${u.name}')\">+1</button></td></tr>
                 `).join('');
             }
-        }
+        };
 
-        window.nextCard = function() {
-            if (!activeGame || !activeGame.cards) return;
-            cardIndex++;
-            if (cardIndex >= activeGame.cards.length) { cardIndex = 0; window.shuffle(activeGame.cards); }
-            document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
-        }
+        window.addUnit = (name) => {
+            const u = (state.users[name].units || 0) + 1;
+            update(ref(db, `fest_rooms/${currentRoom}/users/${name}`), { units: u });
+        };
 
-        window.closeGame = function() { document.getElementById('gameOverlay').style.display = 'none'; }
-        window.shuffle = function(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
-
-        const originalShowSection = window.showSection;
-        window.showSection = function(id) {
-            originalShowSection(id);
-            document.getElementById('scoreboardSection').style.display = (id === 'leker') ? 'block' : 'none';
-            if (id === 'leker') renderScoreboard();
-        }
-
-        window.renderGames();
+        // Init
         window.checkLoginState();
     </script>
 </body>
