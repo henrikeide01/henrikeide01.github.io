@@ -261,64 +261,106 @@
                         🔑 Min kode: <strong id="partyCode" style="color:var(--accent);font-size:18px;letter-spacing:4px;">...</strong>
                     </div>
                 </div>
-                <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
-                    <button class="nav-btn active" id="ptab-minFest" onclick="setPlanTab('minFest',this)">🏠 Min Fest</button>
-                    <button class="nav-btn" id="ptab-grupper" onclick="setPlanTab('grupper',this)">👥 Vennegrupper</button>
-                    <button class="nav-btn" id="ptab-finnVors" onclick="setPlanTab('finnVors',this)">🔍 Finn Vors</button>
+
+                <!-- 1. GRUPPEKODER (Alltid synlig øverst) -->
+                <div class="planner-card" style="margin-bottom: 24px;">
+                    <h3 style="margin-bottom:12px;">👥 Felles Vennekoder</h3>
+                    <p style="color:#94a3b8;font-size:14px;margin-bottom:16px;">Del en felles kode (f.eks "17MAI") med venner. Alle med denne koden kan se vors som publiseres på den!</p>
+                    <div style="display:flex;gap:10px;margin-bottom:16px;">
+                        <input type="text" id="groupCodeInput" placeholder="Skriv inn kode (eks: 17MAI)" style="margin:0;text-transform:uppercase;">
+                        <button class="nav-btn" onclick="addGroupCode()">Legg til</button>
+                    </div>
+                    <div id="groupCodeList" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
                 </div>
-                <div id="planTab-minFest">
+
+                <!-- 2. ROLLEVALG -->
+                <div id="roleSelectionView">
+                    <h3 style="text-align:center; margin-bottom: 20px; font-size:24px;">Hva er din plan for kvelden?</h3>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="choice-card" onclick="setRole('host')" style="background:rgba(255,255,255,0.05); padding: 30px; border-radius: 20px; text-align: center; cursor: pointer; border: 2px solid transparent;">
+                            <div style="font-size: 40px; margin-bottom: 10px;">👑</div>
+                            <h3>Jeg skal Hoste</h3>
+                            <p style="color:#94a3b8; font-size: 14px; margin-top: 10px;">Planlegg et vors og publiser det til en vennekode.</p>
+                        </div>
+                        <div class="choice-card" onclick="setRole('guest')" style="background:rgba(255,255,255,0.05); padding: 30px; border-radius: 20px; text-align: center; cursor: pointer; border: 2px solid transparent;">
+                            <div style="font-size: 40px; margin-bottom: 10px;">🎉</div>
+                            <h3>Jeg er Deltaker</h3>
+                            <p style="color:#94a3b8; font-size: 14px; margin-top: 10px;">Finn og delta på et vors vennene dine har laget.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. HOST DASHBOARD -->
+                <div id="hostDashboardView" style="display:none;">
+                    <div style="display:flex;justify-content:space-between; margin-bottom: 20px; align-items:center;">
+                        <h3 style="color:var(--primary); font-size:24px;">👑 Mitt Vors (Host)</h3>
+                        <button class="nav-btn" style="background:rgba(239,68,68,0.1); color:#ef4444;" onclick="stopHosting()">❌ Slutt å hoste</button>
+                    </div>
                     <div class="planner-grid">
                         <div class="planner-card">
-                            <h3 style="margin-bottom:8px;">👥 Gjesteliste (<span id="guestCount">0</span>)</h3>
-                            <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">Fylles automatisk når folk melder seg på via Finn Vors.</p>
-                            <div id="guestList"><p style="color:#64748b;font-size:14px;">Ingen gjester ennå.</p></div>
-                            <button class="nav-btn" onclick="refreshAttendees()" style="margin-top:16px;width:100%;">🔄 Oppdater liste</button>
+                            <h3 style="margin-bottom:16px;">📍 Info om Vorset</h3>
+                            <textarea id="hostInfo" placeholder="Adresse, klokkeslett, tema..." style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);color:white;padding:12px;border-radius:12px;margin-bottom:12px;font-size:14px;min-height:80px;"></textarea>
+                            <select id="hostGroupCode" style="width:100%;background:rgba(30,30,30,0.9);border:1px solid rgba(255,255,255,0.1);color:white;padding:12px;border-radius:12px;margin-bottom:12px;font-size:14px;"></select>
+                            <button class="btn-main" style="width:100%; padding:14px;" onclick="publishMyParty()">📢 Publiser / Oppdater Vors</button>
                         </div>
                         <div class="planner-card">
-                            <h3 style="margin-bottom:16px;">📋 Huskeliste</h3>
+                            <h3 style="margin-bottom:16px;">📋 Ting som trengs (Huskeliste)</h3>
                             <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-                                <input type="text" id="todoInput" placeholder="Hva trengs?" style="margin:0;flex:1;min-width:120px;">
-                                <input type="text" id="todoQty" placeholder="Antall" style="margin:0;max-width:90px;" inputmode="decimal">
-                                <button class="nav-btn" onclick="addTodo()">+</button>
+                                <input type="text" id="hostTodoInput" placeholder="Hva trengs?" style="margin:0;flex:1;min-width:120px;">
+                                <input type="text" id="hostTodoQty" placeholder="Antall" style="margin:0;max-width:90px;" inputmode="decimal">
+                                <button class="nav-btn" onclick="addTodo('host')">+</button>
                             </div>
-                            <div id="todoList"></div>
+                            <div id="hostTodoList"></div>
                         </div>
                         <div class="planner-card">
-                            <h3 style="margin-bottom:16px;">🏠 Er du host?</h3>
-                            <p style="color:#94a3b8;font-size:14px;margin-bottom:16px;">Velg om du hoster, og publiser til en vennegruppe!</p>
-                            <div style="display:flex;gap:12px;margin-bottom:16px;">
-                                <button id="btnIsHost" class="nav-btn" onclick="setHost(true)" style="flex:1;">✅ Ja, jeg hoster!</button>
-                                <button id="btnNotHost" class="nav-btn active" onclick="setHost(false)" style="flex:1;">❌ Ikke host</button>
-                            </div>
-                            <div id="hostStatus" style="margin-bottom:16px;font-size:14px;color:#94a3b8;"></div>
-                            <div id="publishArea" style="display:none;">
-                                <textarea id="partyInfo" placeholder="Info om festen (adresse, tid, tema...)" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);color:white;padding:12px;border-radius:12px;margin-bottom:12px;font-size:14px;min-height:80px;resize:vertical;"></textarea>
-                                <select id="publishGroupCode" style="width:100%;background:rgba(30,30,30,0.9);border:1px solid rgba(255,255,255,0.1);color:white;padding:12px;border-radius:12px;margin-bottom:12px;font-size:14px;">
-                                    <option value="">-- Velg vennegruppe å publisere til --</option>
-                                </select>
-                                <button class="btn-main" onclick="publishParty()" style="padding:14px;">📢 Publiser festen!</button>
-                            </div>
+                            <h3 style="margin-bottom:8px;">👥 Deltakerliste (<span id="hostGuestCount">0</span>)</h3>
+                            <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">De som melder seg på dukker opp her.</p>
+                            <div id="hostGuestList"></div>
+                            <button class="nav-btn" onclick="refreshMyGuests()" style="margin-top:16px;width:100%;">🔄 Oppdater liste</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- VENNEGRUPPER -->
-                <div id="planTab-grupper" style="display:none;">
-                    <div class="planner-card" style="max-width:500px;">
-                        <h3 style="margin-bottom:12px;">👥 Mine vennegrupper</h3>
-                        <p style="color:#94a3b8;font-size:14px;margin-bottom:16px;">Del en kode med venner. Alle med samme kode kan se hverandres planlagte vors!</p>
-                        <div style="display:flex;gap:10px;margin-bottom:16px;">
-                            <input type="text" id="groupCodeInput" placeholder="Skriv inn kode (eks: 17MAI)" style="margin:0;text-transform:uppercase;">
-                            <button class="nav-btn" onclick="addGroupCode()">Legg til</button>
-                        </div>
-                        <div id="groupCodeList"></div>
+                <!-- 4. DELTAKER: FINN VORS -->
+                <div id="guestFindView" style="display:none;">
+                    <div style="display:flex;justify-content:space-between; margin-bottom: 20px; align-items:center;">
+                        <h3 style="font-size:24px;">🔍 Tilgjengelige Vors</h3>
+                        <button class="nav-btn" onclick="setRole(null)">← Tilbake til valg</button>
                     </div>
+                    <p style="color:#94a3b8; margin-bottom: 16px;">Vors publisert til dine felles vennekoder:</p>
+                    <div id="guestDiscoverList"><p style="color:#64748b;">Laster vors...</p></div>
                 </div>
 
-                <!-- FINN VORS -->
-                <div id="planTab-finnVors" style="display:none;">
-                    <p style="color:#94a3b8;margin-bottom:20px;">Vors planlagt av venner i dine grupper:</p>
-                    <div id="discoverList"><p style="color:#94a3b8;">Trykk på "Finn Vors" for å laste...</p></div>
+                <!-- 5. DELTAKER: VORS DASHBOARD (Etter de har valgt et vors) -->
+                <div id="guestDashboardView" style="display:none;">
+                    <div style="display:flex;justify-content:space-between; margin-bottom: 20px; align-items:center;">
+                        <h3 style="color:var(--accent); font-size:24px;" id="guestDashTitle">🎉 Vors</h3>
+                        <button class="nav-btn" onclick="leavePartyDashboard()">← Tilbake til Vors-listen</button>
+                    </div>
+                    <div class="planner-grid">
+                        <div class="planner-card">
+                            <h3 style="margin-bottom:16px;">📍 Info fra Host</h3>
+                            <p id="guestDashInfo" style="color:#e2e8f0; white-space:pre-wrap; margin-bottom: 24px; font-size: 16px;"></p>
+                            <div style="padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+                                <button id="btnRsvpYes" class="btn-main" style="width:100%; margin-bottom: 10px;" onclick="rsvpCurrent('ja')">✅ Delta på dette vorset</button>
+                                <button id="btnRsvpNo" class="nav-btn" style="width:100%; text-align:center; display:block;" onclick="rsvpCurrent('nei')">❌ Forlat / Kommer ikke</button>
+                            </div>
+                        </div>
+                        <div class="planner-card">
+                            <h3 style="margin-bottom:16px;">📋 Ting som trengs (Huskeliste)</h3>
+                            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                                <input type="text" id="guestTodoInput" placeholder="Hva trengs?" style="margin:0;flex:1;min-width:120px;">
+                                <input type="text" id="guestTodoQty" placeholder="Antall" style="margin:0;max-width:90px;" inputmode="decimal">
+                                <button class="nav-btn" onclick="addTodo('guest')">+</button>
+                            </div>
+                            <div id="guestTodoList"></div>
+                        </div>
+                        <div class="planner-card">
+                            <h3 style="margin-bottom:8px;">👥 Deltakere (<span id="guestDashGuestCount">0</span>)</h3>
+                            <div id="guestDashGuestList" style="margin-bottom: 16px;"></div>
+                            <button class="nav-btn" onclick="refreshGuestDash()" style="width:100%;">🔄 Oppdater liste</button>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -705,26 +747,16 @@
         }, 100);
 
         // PLANNER STATE
-        let guestData = [], todoData = [], bringData = [], groupCodes = [], isHost = false;
-
-        window.setPlanTab = (tab, el) => {
-            ['minFest','grupper','finnVors'].forEach(t => {
-                document.getElementById(`planTab-${t}`).style.display = 'none';
-                document.getElementById(`ptab-${t}`).classList.remove('active');
-            });
-            document.getElementById(`planTab-${tab}`).style.display = 'block';
-            if (el) el.classList.add('active');
-            if (tab === 'finnVors') loadDiscoverTab();
-        };
+        let groupCodes = [];
+        let currentRole = null; 
+        let activePartyCode = null;
+        let activePartyHost = null;
 
         function loadData() {
             onValue(ref(db, 'fest_accounts/' + currentUser), (snap) => {
                 const data = snap.val() || {};
-                guestData = data.guests || [];
-                todoData = data.todos || [];
-                bringData = data.bringItems || [];
                 groupCodes = data.groupCodes || [];
-                isHost = data.isHost || false;
+                
                 if (!data.partyCode) {
                     const code = Math.random().toString(36).substr(2,6).toUpperCase();
                     update(ref(db,'fest_accounts/'+currentUser), { partyCode: code });
@@ -732,47 +764,15 @@
                 } else {
                     document.getElementById('partyCode').innerText = data.partyCode;
                 }
-                renderPlanner();
+                
                 renderGroupCodes();
                 updatePublishDropdown();
+                
+                // Beholder gjeldende view
+                if(activePartyHost) refreshGuestDash();
+                if(currentRole === 'host') refreshMyGuests();
             });
         }
-
-        window.addGuest = () => {
-            const v = document.getElementById('guestInput').value.trim();
-            if(v) { guestData.push(v); update(ref(db,'fest_accounts/'+currentUser),{guests:guestData}); document.getElementById('guestInput').value=''; }
-        };
-        window.addTodo = () => {
-            const v = document.getElementById('todoInput').value.trim();
-            const qty = document.getElementById('todoQty').value.trim();
-            if(v) {
-                todoData.push({ text: v, qty: qty || '' });
-                update(ref(db,'fest_accounts/'+currentUser),{todos:todoData});
-                document.getElementById('todoInput').value='';
-                document.getElementById('todoQty').value='';
-            }
-        };
-        window.addBringItem = () => {
-            const item = document.getElementById('bringItem').value.trim();
-            const who = document.getElementById('bringWho').value.trim() || currentUser;
-            if(item) {
-                bringData.push({item,who});
-                update(ref(db,'fest_accounts/'+currentUser),{bringItems:bringData});
-                document.getElementById('bringItem').value='';
-                document.getElementById('bringWho').value='';
-            }
-        };
-        window.setHost = (val) => {
-            isHost = val;
-            update(ref(db,'fest_accounts/'+currentUser),{isHost:val});
-            document.getElementById('btnIsHost').classList.toggle('active',val);
-            document.getElementById('btnNotHost').classList.toggle('active',!val);
-            document.getElementById('hostStatus').innerText = val ? `🎉 ${currentUser} er host!` : `Du er gjest. God fest! 🍻`;
-            document.getElementById('publishArea').style.display = val ? 'block' : 'none';
-        };
-        window.removeGuest = (i) => { guestData.splice(i,1); update(ref(db,'fest_accounts/'+currentUser),{guests:guestData}); };
-        window.removeTodo = (i) => { todoData.splice(i,1); update(ref(db,'fest_accounts/'+currentUser),{todos:todoData}); };
-        window.removeBringItem = (i) => { bringData.splice(i,1); update(ref(db,'fest_accounts/'+currentUser),{bringItems:bringData}); };
 
         window.addGroupCode = () => {
             const v = document.getElementById('groupCodeInput').value.trim().toUpperCase();
@@ -793,71 +793,115 @@
             const el = document.getElementById('groupCodeList');
             if(!el) return;
             el.innerHTML = groupCodes.length === 0
-                ? '<p style="color:#64748b;font-size:14px;">Ingen grupper ennå.</p>'
-                : groupCodes.map(c => `<div class="list-item"><span>🔗 <strong>${c}</strong></span><button onclick="removeGroupCode('${c}')" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:20px;">×</button></div>`).join('');
+                ? '<p style="color:#64748b;font-size:14px;">Ingen koder lagt til ennå.</p>'
+                : groupCodes.map(c => `<span style="background:rgba(255,255,255,0.1);padding:6px 14px;border-radius:20px;font-size:14px;">🔗 ${c} <button onclick="removeGroupCode('${c}')" style="background:none;border:none;color:#ff4444;cursor:pointer;margin-left:6px;font-weight:bold;">×</button></span>`).join('');
         }
 
         function updatePublishDropdown() {
-            const sel = document.getElementById('publishGroupCode');
+            const sel = document.getElementById('hostGroupCode');
             if(!sel) return;
-            sel.innerHTML = '<option value="">-- Velg vennegruppe --</option>' + groupCodes.map(c=>`<option value="${c}">${c}</option>`).join('');
+            sel.innerHTML = '<option value="">-- Velg vennekode å publisere til --</option>' + groupCodes.map(c=>`<option value="${c}">${c}</option>`).join('');
         }
 
-        window.publishParty = async () => {
+        window.setRole = async (role) => {
+            currentRole = role;
+            document.getElementById('roleSelectionView').style.display = 'none';
+            document.getElementById('hostDashboardView').style.display = 'none';
+            document.getElementById('guestFindView').style.display = 'none';
+            document.getElementById('guestDashboardView').style.display = 'none';
+
+            if (role === 'host') {
+                document.getElementById('hostDashboardView').style.display = 'block';
+                // Laster eksisterende info om man har publisert før
+                const userSnap = await get(ref(db, 'fest_accounts/' + currentUser));
+                const publishedTo = userSnap.val()?.publishedToCode;
+                if(publishedTo) {
+                    document.getElementById('hostGroupCode').value = publishedTo;
+                    const pSnap = await get(ref(db, `group_parties/${publishedTo}/${currentUser}`));
+                    if(pSnap.exists()) {
+                        document.getElementById('hostInfo').value = pSnap.val().info || '';
+                    }
+                }
+                refreshMyGuests();
+                renderTodoList('host', currentUser, publishedTo);
+            } else if (role === 'guest') {
+                document.getElementById('guestFindView').style.display = 'block';
+                loadDiscoverList();
+            } else {
+                document.getElementById('roleSelectionView').style.display = 'block';
+            }
+        };
+
+        window.publishMyParty = async () => {
+            const code = document.getElementById('hostGroupCode').value;
+            const info = document.getElementById('hostInfo').value.trim();
+            if(!code) return alert('Velg en felles vennekode!');
+            
             try {
-                const code = document.getElementById('publishGroupCode').value;
-                const info = document.getElementById('partyInfo').value.trim();
-                if(!code) return alert('Velg en vennegruppe!');
+                // Hent eksisterende data for å unngå overskriving
+                let existingAttendees = { [currentUser]: 'ja' };
+                let existingTodos = [];
+                const oldSnap = await get(ref(db, `group_parties/${code}/${currentUser}`));
+                if(oldSnap.exists()) {
+                    existingAttendees = oldSnap.val().attendees || existingAttendees;
+                    existingTodos = oldSnap.val().todos || existingTodos;
+                }
+
                 await set(ref(db,`group_parties/${code}/${currentUser}`), {
-                    host: currentUser, info: info||'Ingen info ennå',
-                    bringItems: [], publishedAt: Date.now(),
-                    attendees: { [currentUser]: 'ja' }
+                    host: currentUser, 
+                    info: info || 'Ingen info',
+                    todos: existingTodos,
+                    publishedAt: Date.now(),
+                    attendees: existingAttendees
                 });
-                // Save which code this host published to
                 await update(ref(db,'fest_accounts/'+currentUser), { publishedToCode: code });
-                alert(`🎉 Festen er publisert til gruppen "${code}"!`);
-                refreshAttendees();
-                loadDiscoverTab(); // Refresh tab if it's open
-            } catch (error) {
-                console.error("Feil ved publisering:", error);
-                alert("Det skjedde en feil ved publisering av festen. Vennligst prøv igjen.");
+                alert(`🎉 Ditt vors er oppdatert/publisert til "${code}"!`);
+                refreshMyGuests();
+            } catch(e) {
+                console.error(e);
+                alert("Det skjedde en feil ved publisering: " + e.message);
             }
         };
 
-        window.removeParty = async (code) => {
-            if(confirm('Er du sikker på at du vil slette denne festen?')) {
-                await set(ref(db, `group_parties/${code}/${currentUser}`), null);
-                alert('Festen er slettet!');
-                loadDiscoverTab();
+        window.stopHosting = async () => {
+            if(!confirm('Er du sikker på at du vil slette vorset ditt? Alle data vil forsvinne.')) return;
+            const userSnap = await get(ref(db, 'fest_accounts/' + currentUser));
+            const publishedTo = userSnap.val()?.publishedToCode;
+            if(publishedTo) {
+                await set(ref(db, `group_parties/${publishedTo}/${currentUser}`), null);
+                await update(ref(db, 'fest_accounts/' + currentUser), { publishedToCode: null });
             }
+            document.getElementById('hostInfo').value = '';
+            setRole(null);
         };
 
-        window.refreshAttendees = async () => {
-            const snap = await get(ref(db,'fest_accounts/'+currentUser));
-            const data = snap.val() || {};
-            const code = data.publishedToCode;
+        window.refreshMyGuests = async () => {
+            if(currentRole !== 'host') return;
+            const userSnap = await get(ref(db,'fest_accounts/'+currentUser));
+            const code = userSnap.val()?.publishedToCode;
             if (!code) {
-                document.getElementById('guestList').innerHTML = '<p style="color:#64748b;font-size:14px;">Publiser festen først for å se påmeldte.</p>';
-                document.getElementById('guestCount').innerText = '0';
+                document.getElementById('hostGuestList').innerHTML = '<p style="color:#64748b;font-size:14px;">Publiser vorset først for å se påmeldte.</p>';
+                document.getElementById('hostGuestCount').innerText = '0';
                 return;
             }
             const partySnap = await get(ref(db,`group_parties/${code}/${currentUser}/attendees`));
             const attendees = partySnap.val() || {};
             const yes = Object.entries(attendees).filter(([,s]) => s === 'ja');
             const no = Object.entries(attendees).filter(([,s]) => s === 'nei');
-            document.getElementById('guestCount').innerText = yes.length;
-            document.getElementById('guestList').innerHTML = `
+            document.getElementById('hostGuestCount').innerText = yes.length;
+            document.getElementById('hostGuestList').innerHTML = `
                 ${yes.length > 0 ? `<div style="margin-bottom:8px;"><strong style="font-size:12px;color:var(--accent);">KOMMER (${yes.length}):</strong><div style="margin-top:6px;">${yes.map(([u])=>`<div class="list-item">✅ ${u}</div>`).join('')}</div></div>` : ''}
                 ${no.length > 0 ? `<div><strong style="font-size:12px;color:#ff4444;">KOMMER IKKE (${no.length}):</strong><div style="margin-top:6px;">${no.map(([u])=>`<div class="list-item">❌ ${u}</div>`).join('')}</div></div>` : ''}
                 ${yes.length === 0 && no.length === 0 ? '<p style="color:#64748b;font-size:14px;">Ingen har svart ennå.</p>' : ''}
             `;
+            renderTodoList('host', currentUser, code);
         };
 
-        async function loadDiscoverTab() {
-            const container = document.getElementById('discoverList');
-            container.innerHTML = '<p style="color:#94a3b8;">Laster...</p>';
+        async function loadDiscoverList() {
+            const container = document.getElementById('guestDiscoverList');
+            container.innerHTML = '<p style="color:#94a3b8;">Laster vors...</p>';
             if(groupCodes.length === 0) {
-                container.innerHTML = '<p style="color:#94a3b8;">Du har ingen vennegrupper ennå. Legg til koder i "Vennegrupper"!</p>';
+                container.innerHTML = '<p style="color:#94a3b8;">Du har ingen vennekoder ennå. Legg til koder øverst!</p>';
                 return;
             }
             let html = '';
@@ -866,44 +910,134 @@
                 if(!snap.exists()) continue;
                 snap.forEach(pSnap => {
                     const p = pSnap.val();
+                    if(p.host === currentUser) return; // Du ser ditt eget vors i host-panelet
                     const myStatus = (p.attendees||{})[currentUser];
-                    const att = Object.entries(p.attendees||{}).map(([u,s])=>`<span style="background:rgba(255,255,255,0.1);padding:3px 10px;border-radius:20px;font-size:12px;">${u} ${s==='ja'?'✅':'❌'}</span>`).join(' ');
-                    const brings = (p.bringItems||[]).map(b=>`<span style="background:rgba(255,255,255,0.07);padding:3px 10px;border-radius:8px;font-size:12px;"><b>${b.who}</b>: ${b.item}</span>`).join(' ');
+                    const att = Object.values(p.attendees||{}).filter(s=>s==='ja').length;
                     html += `<div class="planner-card" style="margin-bottom:20px;">
-                        <div style="font-size:11px;letter-spacing:2px;color:var(--accent);margin-bottom:6px;">GRUPPE: ${code}</div>
+                        <div style="font-size:11px;letter-spacing:2px;color:var(--accent);margin-bottom:6px;">KODE: ${code}</div>
                         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px;">
-                            <div><h3>🎉 ${p.host} hoster vors!</h3><p style="color:#94a3b8;margin-top:6px;font-size:14px;">${p.info}</p></div>
-                            <div style="display:flex;gap:8px;">
-                                <button class="nav-btn ${myStatus==='ja'?'active':''}" onclick="rsvpParty('${code}','${p.host}','ja')">✅ Delta</button>
-                                <button class="nav-btn ${myStatus==='nei'?'active':''}" onclick="rsvpParty('${code}','${p.host}','nei')">❌ Nei</button>
-                                ${p.host === currentUser ? `<button class="nav-btn" onclick="removeParty('${code}')" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.2); color:#ef4444;">🗑️ Slett</button>` : ''}
-                            </div>
+                            <div><h3>🎉 ${p.host} hoster vors!</h3><p style="color:#94a3b8;margin-top:6px;font-size:14px;">👥 ${att} påmeldt</p></div>
+                            <button class="btn-main" onclick="openGuestDashboard('${code}', '${p.host}')">👉 Velg dette vorset</button>
                         </div>
-                        ${brings ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);"><strong style="font-size:13px;">Medbringliste:</strong><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${brings}</div></div>` : ''}
-                        ${att ? `<div style="margin-top:10px;"><strong style="font-size:13px;">Deltakere:</strong><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${att}</div></div>` : ''}
                     </div>`;
                 });
             }
-            container.innerHTML = html || '<p style="color:#94a3b8;">Ingen vors funnet i dine vennegrupper ennå.</p>';
+            container.innerHTML = html || '<p style="color:#94a3b8;">Ingen andre vors funnet for dine vennekoder.</p>';
         }
 
-        window.rsvpParty = async (code, host, status) => {
-            await update(ref(db,`group_parties/${code}/${host}/attendees`), { [currentUser]: status });
-            loadDiscoverTab();
+        window.openGuestDashboard = async (code, host) => {
+            activePartyCode = code;
+            activePartyHost = host;
+            document.getElementById('guestFindView').style.display = 'none';
+            document.getElementById('guestDashboardView').style.display = 'block';
+            refreshGuestDash();
         };
 
-        function renderPlanner() {
-            document.getElementById('guestCount').innerText = '0';
-            document.getElementById('todoList').innerHTML = todoData.map((t,i) => {
+        window.leavePartyDashboard = () => {
+            activePartyCode = null;
+            activePartyHost = null;
+            setRole('guest'); // Går tilbake til listen
+        };
+
+        window.refreshGuestDash = async () => {
+            if(!activePartyCode || !activePartyHost) return;
+            const snap = await get(ref(db,`group_parties/${activePartyCode}/${activePartyHost}`));
+            if(!snap.exists()) {
+                alert('Dette vorset finnes ikke lenger.');
+                leavePartyDashboard();
+                return;
+            }
+            const p = snap.val();
+            document.getElementById('guestDashTitle').innerText = `🎉 ${p.host} sitt Vors`;
+            document.getElementById('guestDashInfo').innerText = p.info;
+            
+            const myStatus = (p.attendees||{})[currentUser];
+            document.getElementById('btnRsvpYes').classList.toggle('active', myStatus === 'ja');
+            document.getElementById('btnRsvpNo').classList.toggle('active', myStatus === 'nei');
+
+            // Gjesteliste
+            const attendees = p.attendees || {};
+            const yes = Object.entries(attendees).filter(([,s]) => s === 'ja');
+            document.getElementById('guestDashGuestCount').innerText = yes.length;
+            document.getElementById('guestDashGuestList').innerHTML = `
+                ${yes.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${yes.map(([u])=>`<span style="background:rgba(255,255,255,0.1);padding:5px 12px;border-radius:20px;font-size:13px;">✅ ${u}</span>`).join('')}</div>` : '<p style="color:#64748b;font-size:14px;">Ingen har svart ennå.</p>'}
+            `;
+            
+            renderTodoList('guest', activePartyHost, activePartyCode);
+        };
+
+        window.rsvpCurrent = async (status) => {
+            if(!activePartyCode || !activePartyHost) return;
+            await update(ref(db,`group_parties/${activePartyCode}/${activePartyHost}/attendees`), { [currentUser]: status });
+            refreshGuestDash();
+        };
+
+        window.addTodo = async (view) => {
+            let code, host;
+            const textInputId = view === 'host' ? 'hostTodoInput' : 'guestTodoInput';
+            const qtyInputId = view === 'host' ? 'hostTodoQty' : 'guestTodoQty';
+            
+            if (view === 'host') {
+                const userSnap = await get(ref(db,'fest_accounts/'+currentUser));
+                code = userSnap.val()?.publishedToCode;
+                host = currentUser;
+                if(!code) return alert("Publiser vorset først!");
+            } else {
+                code = activePartyCode;
+                host = activePartyHost;
+            }
+
+            const text = document.getElementById(textInputId).value.trim();
+            const qty = document.getElementById(qtyInputId).value.trim();
+            if(!text) return;
+
+            const snap = await get(ref(db,`group_parties/${code}/${host}/todos`));
+            const todos = snap.val() || [];
+            todos.push({ text, qty: qty || '', addedBy: currentUser });
+            
+            await update(ref(db,`group_parties/${code}/${host}`), { todos });
+            document.getElementById(textInputId).value = '';
+            document.getElementById(qtyInputId).value = '';
+            
+            if(view === 'host') refreshMyGuests();
+            else refreshGuestDash();
+        };
+
+        window.removeTodoAction = async (view, index) => {
+            let code, host;
+            if (view === 'host') {
+                const userSnap = await get(ref(db,'fest_accounts/'+currentUser));
+                code = userSnap.val()?.publishedToCode;
+                host = currentUser;
+            } else {
+                code = activePartyCode;
+                host = activePartyHost;
+            }
+            if(!code || !host) return;
+
+            const snap = await get(ref(db,`group_parties/${code}/${host}/todos`));
+            let todos = snap.val() || [];
+            todos.splice(index, 1);
+            await update(ref(db,`group_parties/${code}/${host}`), { todos });
+            
+            if(view === 'host') refreshMyGuests();
+            else refreshGuestDash();
+        };
+
+        async function renderTodoList(view, host, code) {
+            if(!code || !host) return;
+            const snap = await get(ref(db, `group_parties/${code}/${host}/todos`));
+            const todos = snap.val() || [];
+            const listId = view === 'host' ? 'hostTodoList' : 'guestTodoList';
+            const el = document.getElementById(listId);
+            if(!el) return;
+            
+            el.innerHTML = todos.length === 0 ? '<p style="color:#64748b;font-size:14px;">Ingen ting lagt til.</p>' : todos.map((t, i) => {
                 const text = typeof t === 'object' ? t.text : t;
                 const qty = typeof t === 'object' && t.qty ? `<span style="background:rgba(0,242,255,0.15);color:var(--accent);padding:2px 10px;border-radius:20px;font-size:13px;margin-left:8px;">${t.qty}</span>` : '';
-                return `<div class="list-item"><span>${text}${qty}</span><button onclick="removeTodo(${i})" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:20px;">×</button></div>`;
+                const user = typeof t === 'object' && t.addedBy ? `<span style="font-size:11px;color:#94a3b8;margin-left:8px;">(${t.addedBy})</span>` : '';
+                return `<div class="list-item"><span>${text}${qty}${user}</span><button onclick="removeTodoAction('${view}', ${i})" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:20px;">×</button></div>`;
             }).join('');
-            document.getElementById('btnIsHost').classList.toggle('active',isHost);
-            document.getElementById('btnNotHost').classList.toggle('active',!isHost);
-            document.getElementById('hostStatus').innerText = isHost ? `🎉 ${currentUser} er host!` : `Du er gjest. God fest! 🍻`;
-            document.getElementById('publishArea').style.display = isHost ? 'block' : 'none';
-            if (isHost) refreshAttendees();
         }
 
         renderGames();
