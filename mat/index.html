@@ -426,6 +426,23 @@
         </div>
     </div>
 
+    <!-- Budget Modal -->
+    <div class="modal" id="budgetModal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 20px;">💸 Sett maksbudsjett</h2>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+                Vi vil prøve å finne en kombinasjon av retter som holder seg under dette beløpet for hele perioden.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <input type="number" id="budgetInput" placeholder="Maks kr (f.eks 1000)">
+                <div style="display: flex; gap: 12px; margin-top: 12px;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="saveBudget()">Lagre budsjett</button>
+                    <button class="btn btn-secondary" onclick="closeBudgetModal()">Avbryt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const days = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
         let currentMode = 7;
