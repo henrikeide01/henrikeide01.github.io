@@ -442,6 +442,7 @@
             </div>
         </div>
     </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -454,8 +455,6 @@
             "biff": ["kyllingfilet", "svinestrimler"],
             "karbonadedeig": ["kjøttdeig", "kyllingdeig"]
         };
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA",
@@ -465,7 +464,7 @@
             messagingSenderId: "404554280464",
             appId: "1:404554280464:web:b454e6b567e1897eab6495",
             measurementId: "G-WS907SPPDR",
-            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app/" 
+            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app" 
         };
 
         const app = initializeApp(firebaseConfig);
