@@ -800,8 +800,17 @@
         }
 
         window.handleFestAuth = async function() {
-            const user = document.getElementById('mainUserNameInput').value.trim();
-            const pass = document.getElementById('mainUserPassInput').value.trim();
+            const userIn = document.getElementById('mainUserNameInput');
+            const passIn = document.getElementById('mainUserPassInput');
+            
+            if (!userIn || !passIn) {
+                console.error("Auth inputs not found!");
+                return;
+            }
+
+            const user = userIn.value.trim();
+            const pass = passIn.value.trim();
+            
             if(!user || !pass) return alert("Fyll inn både brukernavn og passord!");
 
             const userRef = ref(db, 'fest_accounts/' + user);
@@ -819,7 +828,7 @@
                     units: 0
                 });
                 alert("Bruker opprettet! Du kan nå logge inn.");
-                setFestAuthMode('login');
+                window.setFestAuthMode('login');
             } else {
                 if (data && data.password === pass) {
                     currentUser = user;
