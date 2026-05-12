@@ -842,30 +842,26 @@
             }
         }
 
-        function checkLoginState() {
+        window.checkLoginState = function() {
             if (currentUser) {
                 document.getElementById('mainAuthView').style.display = 'none';
                 document.getElementById('appContent').style.display = 'block';
-                if (currentRoom) connectToRoom(currentRoom);
-                renderPlanner();
-                renderScoreboard();
+                if (currentRoom) window.connectToRoom(currentRoom);
+                window.renderPlanner();
+                window.renderScoreboard();
             } else {
                 document.getElementById('mainAuthView').style.display = 'flex';
                 document.getElementById('appContent').style.display = 'none';
             }
         }
 
-        async function syncAccountRooms() {
-            if (currentUser) await update(ref(db, 'fest_accounts/' + currentUser), { rooms: savedRooms });
-        }
-
-        function connectToRoom(roomCode) {
+        window.connectToRoom = function(roomCode) {
             if (dbRef) dbRef = null;
             dbRef = ref(db, 'fest_rooms/' + roomCode);
             onValue(dbRef, (snapshot) => {
                 const data = snapshot.val();
-                if (data) { state = data; } else { resetDatabase(); }
-                renderPlanner();
+                if (data) { state = data; } else { window.resetDatabase(); }
+                window.renderPlanner();
             });
         }
 
@@ -1010,7 +1006,7 @@
             if (id === 'gjenger') renderGjenger();
         }
 
-        function renderGjenger() {
+        window.renderGjenger = function() {
             const isLogged = !!currentUser;
             document.getElementById('gjengerAuthWarning').style.display = isLogged ? 'none' : 'block';
             document.getElementById('gjengerManager').style.display = isLogged ? 'block' : 'none';
@@ -1024,8 +1020,8 @@
                             <small style="color: var(--text-muted);">Aktiv gjeng</small>
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button class="nav-btn" style="padding: 8px 15px; font-size: 12px;" onclick="showSection('planlegger'); loginToRoom('${r}')">Velg</button>
-                            <button class="remove-btn" onclick="removeRoomCode('${r}')">Fjern</button>
+                            <button class="nav-btn" style="padding: 8px 15px; font-size: 12px;" onclick="window.showSection('planlegger'); window.loginToRoom('${r}')">Velg</button>
+                            <button class="remove-btn" onclick="window.removeRoomCode('${r}')">Fjern</button>
                         </div>
                     </div>
                 `).join('');
@@ -1036,7 +1032,7 @@
             }
         }
 
-        function renderPlanner() {
+        window.renderPlanner = function() {
             const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
             const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
 
@@ -1384,7 +1380,7 @@
         }
 
         window.renderGames();
-        checkLoginState();
+        window.checkLoginState();
     </script>
 </body>
 </html>
