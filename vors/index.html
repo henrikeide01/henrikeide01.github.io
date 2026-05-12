@@ -489,7 +489,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, push, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, update, push, remove, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA",
@@ -717,23 +717,130 @@
             }
         }
 
+        window.resetRole = function() {
+            if(!currentRoom || !currentUser) return;
+            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: null, joinedVors: null });
+            document.getElementById('hostSetupView').style.display = 'none';
+        }
+
+        window.removeItem = function(index) {
+            const user = state.users[currentUser];
+            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
+            if (vorsIndex !== -1 && user.role === 'host') {
+                state.vorser[vorsIndex].items.splice(index, 1);
+                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items`), state.vorser[vorsIndex].items);
+            }
+        }
+
+        window.toggleTakeItem = function(index) {
+            const user = state.users[currentUser];
+            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
+            if (vorsIndex !== -1) {
+                const item = state.vorser[vorsIndex].items[index];
+                item.takenBy = (item.takenBy === currentUser) ? null : currentUser;
+                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items/${index}`), item);
+            }
+        }
+
+        window.becomeParticipant = function() {
+            if(!currentRoom || !currentUser) return;
+            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: 'participant' });
+        }
+
+        window.showSection = function(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            const target = document.getElementById(id);
+            if (target) target.classList.add('active');
+            
+            const navButtons = document.querySelectorAll('.nav-btn');
+            navButtons.forEach(btn => {
+                if(btn.innerText.toLowerCase().includes(id.toLowerCase()) || (id === 'home' && btn.innerText.includes('🏠'))) {
+                    btn.classList.add('active');
+                }
+            });
+
+            if (id === 'planlegger') renderPlanner();
+            if (id === 'leker') window.renderGames();
+        }
+
         function renderPlanner() {
             const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
-            document.getElementById('authView').style.display = currentRoom ? 'none' : 'block';
+            const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
+
+            document.getElementById('authView').style.display = (currentUser) ? 'none' : 'block';
+            document.getElementById('roomSection').style.display = (currentUser) ? 'block' : 'none';
+            
+            // Vis rolle-valg hvis man har valgt rom, men ikke rolle
+            document.getElementById('roleView').style.display = (currentRoom && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
+            document.getElementById('vorsView').style.display = (currentRoom && user && user.role && !isEditingHost) ? 'block' : 'none';
+
             if (currentUser && currentRoom) {
+                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋 (Gjeng: ${currentRoom})`;
+                
                 const vorsList = document.getElementById('activeVorsList');
                 const availableVorser = state.vorser || [];
-                vorsList.innerHTML = availableVorser.map(v => `
-                    <div class="main-card" onclick="joinVors('${v.id}')">
-                        <h3>${v.host}'s Vors</h3>
-                        <p>${v.description}</p>
-                        <button class="btn-play">Bli med</button>
-                    </div>
-                `).join('');
+                
+                vorsList.innerHTML = availableVorser.map(v => {
+                    const guests = Object.values(state.users || {}).filter(u => u.joinedVors === v.id).length;
+                    const isJoined = user && user.joinedVors === v.id;
+                    return `
+                        <div class="main-card" onclick="joinVors('${v.id}')" style="${isJoined ? 'border-color: var(--primary); box-shadow: 0 0 20px rgba(255,0,122,0.3);' : ''}">
+                            <span class="card-icon">🏠</span>
+                            <h2>${v.host}'s Vors ${isJoined ? '✅' : ''}</h2>
+                            <p style="margin-bottom: 10px;">${v.description}</p>
+                            <div style="display: flex; justify-content: center; gap: 10px; font-size: 14px; color: var(--accent);">
+                                <span>👥 ${guests} gjester</span>
+                                <span>🛒 ${(v.items || []).length} ting trengs</span>
+                            </div>
+                            <button class="btn-play" style="margin-top: 15px; background: ${isJoined ? 'var(--secondary)' : 'var(--primary)'}">${isJoined ? 'Du er her' : 'Bli med her'}</button>
+                        </div>
+                    `;
+                }).join('');
+
+                if (availableVorser.length === 0) {
+                    vorsList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Ingen har startet vors i denne gjengen enda...</div>`;
+                }
+
                 if (user && user.joinedVors) {
-                    document.getElementById('activeVorsDetail').style.display = 'grid';
-                    const v = state.vorser.find(v => v.id === user.joinedVors);
-                    if(v) document.getElementById('vorsDescriptionText').innerText = v.description;
+                    const currentVors = availableVorser.find(v => v.id === user.joinedVors);
+                    if (currentVors) {
+                        document.getElementById('activeVorsDetail').style.display = 'grid';
+                        document.getElementById('vorsDescriptionText').innerText = currentVors.description;
+                        document.getElementById('hostControls').style.display = (user.role === 'host') ? 'block' : 'none';
+                        
+                        // Oppdater handleliste
+                        const items = currentVors.items || [];
+                        document.getElementById('shoppingList').innerHTML = items.map((item, i) => `
+                            <div class="guest-item" style="${item.takenBy ? 'opacity: 0.6; border-left: 4px solid var(--primary);' : ''}">
+                                <div style="flex: 1;">
+                                    <strong style="font-size: 18px;">${item.name}</strong> 
+                                    <span style="color: var(--accent); margin-left: 10px;">(${item.qty})</span>
+                                    ${item.takenBy ? `<br><small style="color: var(--primary);">✓ Tas med av ${item.takenBy}</small>` : ''}
+                                </div>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <button class="nav-btn" style="padding: 6px 12px; font-size: 12px; background: ${item.takenBy === currentUser ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}" onclick="toggleTakeItem(${i})">
+                                        ${item.takenBy === currentUser ? 'Angre' : 'Jeg tar med'}
+                                    </button>
+                                    ${user.role === 'host' ? `<button class="remove-btn" onclick="removeItem(${i})">×</button>` : ''}
+                                </div>
+                            </div>
+                        `).join('');
+
+                        // Oppdater gjesteliste
+                        const participants = Object.values(state.users || {}).filter(u => u.joinedVors === currentVors.id);
+                        document.getElementById('participantCount').innerText = participants.length;
+                        document.getElementById('participantList').innerHTML = participants.map(p => `
+                            <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; border-left: 3px solid ${p.role === 'host' ? 'var(--accent)' : 'transparent'}">
+                                <span>${p.role === 'host' ? '👑' : '👤'}</span>
+                                <span style="font-weight: 600;">${p.name}</span>
+                                ${p.role === 'host' ? '<span style="font-size: 10px; color: var(--accent); margin-left: auto;">HOST</span>' : ''}
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    document.getElementById('activeVorsDetail').style.display = 'none';
                 }
             }
         }
