@@ -682,127 +682,176 @@
             "karbonadedeig": ["kjøttdeig", "kyllingdeig"]
         };
 
-        let users = JSON.parse(localStorage.getItem('eidert_users')) || {};
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA",
+            authDomain: "eidert.firebaseapp.com",
+            projectId: "eidert",
+            storageBucket: "eidert.firebasestorage.app",
+            messagingSenderId: "404554280464",
+            appId: "1:404554280464:web:b454e6b567e1897eab6495",
+            measurementId: "G-WS907SPPDR",
+            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app/" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const days = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
+        let currentMode = 7;
+        const initialDishes = [
+            { name: "Kjøttkaker i brun saus", price: 160, protein: "kjøttdeig", ingredients: ["Kjøttdeig (400g) - 65kr", "Løk (1 stk) - 5kr", "Poteter (800g) - 25kr", "Ertstuing (1 pk) - 15kr", "Tyttebærsyltetøy (1 glass) - 30kr", "Brun saus (1 pk) - 20kr"] },
+            { name: "Laks med agurksalat", price: 195, protein: "laks", ingredients: ["Laksefilet (4 stk/500g) - 120kr", "Agurk (1 stk) - 25kr", "Rømme (1 beger) - 20kr", "Poteter (800g) - 25kr", "Sitron (1 stk) - 5kr"] },
+            { name: "Taco", price: 215, protein: "kjøttdeig", ingredients: ["Kjøttdeig (400g) - 65kr", "Tortillalefer (8 stk) - 30kr", "Mais (1 boks) - 15kr", "Hvitost (revet 200g) - 45kr", "Salathode (1 stk) - 25kr", "Salsa (1 glass) - 20kr", "Rømme (1 beger) - 15kr"] },
+            { name: "Spaghetti Bolognese", price: 120, protein: "kjøttdeig", ingredients: ["Spaghetti (500g) - 20kr", "Kjøttdeig (400g) - 65kr", "Hakkede tomater (1 boks) - 15kr", "Løk (1 stk) - 5kr", "Hvitløk (1 kinesisk) - 5kr", "Parmesan (1 stykke) - 10kr"] },
+            { name: "Kylling Curry", price: 170, protein: "kylling", ingredients: ["Kyllingfilet (400g) - 80kr", "Kokosmelk (1 boks) - 25kr", "Curry-paste (1 glass) - 35kr", "Ris (4 porsj) - 10kr", "Paprika (1 stk) - 15kr", "Vårløk (1 bunt) - 5kr"] },
+            { name: "Fårikål", price: 240, protein: "lam", ingredients: ["Fårikålkjøtt (1.5 kg) - 180kr", "Hodekål (1 stor) - 30kr", "Hel sort pepper (1 pk) - 10kr", "Poteter (1 kg) - 20kr"] },
+            { name: "Finnbiff", price: 295, protein: "reinsdyrskav", ingredients: ["Reinsdyrskav (400g) - 160kr", "Champignon (200g) - 30kr", "Løk (1 stk) - 5kr", "Kremfløte (3 dl) - 25kr", "Enebær (1 pk) - 20kr", "Potetmos (2 pk) - 25kr", "Tyttebær (1 glass) - 30kr"] },
+            { name: "Lasagne", price: 180, protein: "kjøttdeig", ingredients: ["Lasagneplater (1 pk) - 25kr", "Kjøttdeig (400g) - 65kr", "Hvitost (revet 200g) - 45kr", "Pastasaus (1 glass) - 30kr", "Hakkede tomater (1 boks) - 15kr"] },
+            { name: "Plukkfisk", price: 155, protein: "torsk", ingredients: ["Torskefilet (400g) - 90kr", "Poteter (800g) - 25kr", "Hvit saus (1 pk) - 20kr", "Purreløk (1 stk) - 10kr", "Bacon i terninger (1 pk) - 10kr"] },
+            { name: "Pølse og potetmos", price: 110, protein: "pølse", ingredients: ["Grillpølser (1 pk/600g) - 55kr", "Potetmos (2 pk) - 25kr", "Smør (litt) - 10kr", "Melk (litt) - 10kr", "Ketchup (1 flaske) - 10kr"] },
+            { name: "Biff med fløtepoteter", price: 345, protein: "biff", ingredients: ["Indrefilet av storfe (400g) - 250kr", "Fløtepoteter (1 ferdigpakke) - 45kr", "Peppersaus (1 pk) - 20kr", "Asparges (1 bunt) - 30kr"] },
+            { name: "Tomatsuppe med makaroni", price: 85, protein: "egg", ingredients: ["Tomatsuppe (2 pk) - 40kr", "Egg (4 stk) - 15kr", "Makaroni (1 pk) - 15kr", "Baguette (1 stk) - 15kr"] },
+            { name: "Pannekaker med flesk", price: 110, protein: "bacon", ingredients: ["Pannekakemix (1 pk) - 30kr", "Melk (1 liter) - 22kr", "Bacon/Flesk (2 pk) - 40kr", "Blåbærsyltetøy (1 glass) - 18kr"] },
+            { name: "Wok med scampi", price: 235, protein: "scampi", ingredients: ["Scampi (1 pk frossen) - 120kr", "Eggenudler (1 pk) - 30kr", "Wok-grønnsaker (1 pose frossen) - 40kr", "Soyasaus (1 flaske) - 25kr", "Fersk ingefær (1 bit) - 20kr"] },
+            { name: "Kyllingsalat", price: 150, protein: "kylling", ingredients: ["Kylling (ferdigstekt 200g) - 50kr", "Salatblanding (1 pose) - 35kr", "Cherrytomater (1 pk) - 25kr", "Fetaost (1 glass) - 25kr", "Hvitløksdressing (1 flaske) - 15kr"] },
+            { name: "Hjemmelaget Pizza", price: 215, protein: "skinke", ingredients: ["Pizzadeig (1 ferdig rull) - 35kr", "Skinke (1 pk) - 35kr", "Pepperoni (1 pk) - 35kr", "Hvitost (revet 300g) - 60kr", "Pizzasaus (1 boks) - 25kr", "Paprika (1 stk) - 25kr"] },
+            { name: "Torsk med smørsaus", price: 195, protein: "torsk", ingredients: ["Torskefilet (400g) - 90kr", "Smør (1 pk) - 40kr", "Gulrøtter (1 pose) - 25kr", "Poteter (800g) - 25kr", "Kruspersille (1 potte) - 15kr"] },
+            { name: "Bacalao", price: 265, protein: "klippfisk", ingredients: ["Klippfisk (400g) - 140kr", "Hakkede tomater (2 bokser) - 30kr", "Løk (2 stk) - 10kr", "Chili (1 stk) - 10kr", "Poteter (800g) - 25kr", "Sorte oliven (1 glass) - 20kr", "Olivenolje (1 flaske) - 30kr"] },
+            { name: "Svinestek", price: 220, protein: "svinestek", ingredients: ["Svinestek (1 kg) - 130kr", "Surkål (1 pk) - 20kr", "Poteter (800g) - 25kr", "Brun saus (1 pk) - 20kr", "Gulrøtter (1 pose) - 25kr"] },
+            { name: "Chili con Carne", price: 160, protein: "kjøttdeig", ingredients: ["Kjøttdeig (400g) - 65kr", "Chilibønner (2 bokser) - 30kr", "Fersk chili (1 stk) - 10kr", "Hakkede tomater (1 boks) - 15kr", "Ris (4 porsj) - 10kr", "Nachos (1 pose) - 30kr"] },
+            { name: "Fiskeboller i hvit saus", price: 125, protein: "fiskeboller", ingredients: ["Fiskeboller (1 boks) - 45kr", "Hvit saus (1 pk) - 20kr", "Karripulver (1 glass) - 15kr", "Poteter (800g) - 25kr", "Gulrøtter (1 pose) - 20kr"] },
+            { name: "Reker og loff", price: 280, protein: "reker", ingredients: ["Ferske reker (1 kg) - 200kr", "Loff (1 stk) - 30kr", "Majones (1 tube) - 25kr", "Sitron (1 stk) - 5kr", "Fersk dill (1 bunt) - 20kr"] },
+            { name: "Biff Lindstrøm", price: 185, protein: "karbonadedeig", ingredients: ["Karbonadedeig (400g) - 80kr", "Syltede rødbeter (1 glass) - 25kr", "Kapers (1 glass) - 20kr", "Løk (1 stk) - 5kr", "Egg (2 stk) - 5kr", "Poteter (800g) - 50kr"] },
+            { name: "Moussaka", price: 195, protein: "lammedeig", ingredients: ["Aubergine (1 stk) - 25kr", "Kjøttdeig av lam/storfe (400g) - 75kr", "Poteter (800g) - 25kr", "Ost (revet 200g) - 45kr", "Tomatsaus (1 glass) - 25kr"] },
+            { name: "Thai Rød Curry", price: 180, protein: "kylling", ingredients: ["Kyllingfilet (400g) - 80kr", "Bambusskudd (1 boks) - 20kr", "Rød curry-paste (1 glass) - 35kr", "Kokosmelk (1 boks) - 25kr", "Ris (4 porsj) - 10kr", "Lime (1 stk) - 10kr"] },
+            { name: "Sushi (Hjemmelaget)", price: 340, protein: "salmalaks", ingredients: ["Sushiris (1 pk) - 40kr", "Salmalaks (400g) - 220kr", "Avokado (1 stk) - 25kr", "Nori-tang (1 pk) - 30kr", "Soyasaus/Wasabi - 25kr"] },
+            { name: "Pai med skinke og purre", price: 155, protein: "skinke", ingredients: ["Ferdig paideig (1 rull) - 35kr", "Skinke i biter (1 pk) - 30kr", "Purreløk (1 stk) - 15kr", "Egg (4 stk) - 15kr", "Melk/Fløte (2 dl) - 15kr", "Ost (revet 200g) - 45kr"] },
+            { name: "Fiskesuppe", price: 190, protein: "laks", ingredients: ["Laksefilet (200g) - 60kr", "Torskefilet (200g) - 45kr", "Kremfløte (3 dl) - 25kr", "Gulrøtter (1 pose) - 20kr", "Purreløk (1 stk) - 10kr", "Fiskebuljong - 30kr"] },
+            { name: "Shepherd's Pie", price: 175, protein: "lammedeig", ingredients: ["Kjøttdeig/Lammedeig (400g) - 75kr", "Poteter (800g) - 25kr", "Frosne erter (1 pose) - 25kr", "Gulrøtter (1 pose) - 20kr", "Løk (1 stk) - 5kr", "Smør og melk (til mos) - 25kr"] },
+            { name: "Cæsar-salat", price: 165, protein: "kylling", ingredients: ["Romanosalat (2 hoder) - 40kr", "Kyllingfilet (400g) - 80kr", "Bacon (1 pk) - 20kr", "Parmesan (1 stykke) - 10kr", "Cæsar-dressing (1 flaske) - 25kr"] },
+            { name: "Brennende kjærlighet", price: 135, protein: "bacon", ingredients: ["Potetmos (2 pk) - 25kr", "Bacon i terninger (2 pk) - 40kr", "Løk (2 stk) - 10kr", "Purreløk (1 stk) - 10kr", "Sylteagurk (1 glass) - 50kr"] },
+            { name: "Indisk Butter Chicken", price: 215, protein: "kylling", ingredients: ["Kyllingfilet (400g) - 80kr", "Smør (1 pk) - 40kr", "Tomatpuré (1 glass) - 15kr", "Kremfløte (3 dl) - 25kr", "Garam Masala (1 glass) - 25kr", "Naanbrød (1 pk) - 30kr"] },
+            { name: "Stekt sild", price: 115, protein: "sild", ingredients: ["Fersk sild (500g) - 45kr", "Rugmel (1 pk) - 25kr", "Løk (1 stk) - 5kr", "SeterRømme (1 beger) - 20kr", "Poteter (800g) - 20kr"] },
+            { name: "Vegetar lasagne", price: 160, protein: "ricottaost", ingredients: ["Fersk spinat (1 pose) - 35kr", "Ricottaost (1 beger) - 40kr", "Hakkede tomater (1 boks) - 15kr", "Lasagneplater (1 pk) - 25kr", "Hvitost (revet 200g) - 45kr"] },
+            { name: "Biff stroganoff", price: 245, protein: "biff", ingredients: ["Biffkjøtt i strimler (400g) - 150kr", "Champignon (200g) - 30kr", "Løk (1 stk) - 5kr", "Tomatpuré (1 glass) - 15kr", "SeterRømme (1 beger) - 20kr", "Ris (4 porsj) - 25kr"] },
+            { name: "Kyllingvinger med tilbehør", price: 175, protein: "kylling", ingredients: ["Kyllingvinger (1 stor pk) - 80kr", "Hot sauce/BBQ (1 flaske) - 35kr", "Selleristenger (1 pk) - 25kr", "Blue cheese dressing (1 flaske) - 35kr"] },
+            { name: "Pulled Pork Burger", price: 210, protein: "pulled pork", ingredients: ["Ferdig Pulled Pork (1 pk) - 95kr", "BBQ-saus (1 flaske) - 35kr", "Coleslaw (1 ferdig pk) - 40kr", "Hamburgerbrød (4 stk) - 40kr"] },
+            { name: "Quesadilla med kylling", price: 170, protein: "kylling", ingredients: ["Tortillalefer (8 stk) - 30kr", "Kyllingfilet (400g) - 80kr", "Hvitost (revet 200g) - 45kr", "Paprika (1 stk) - 15kr", "Vårløk (1 bunt) - 0kr (fra kjøleskap)"] },
+            { name: "Fish & Chips", price: 185, protein: "torsk", ingredients: ["Torskefilet (400g) - 90kr", "Frityrrøre/Mel - 10kr", "Pommes frites (1 stor pose frossen) - 40kr", "Ertestuing (1 pk) - 15kr", "Remulade (1 tube) - 30kr"] },
+            { name: "Gulasj", price: 220, protein: "høyrygg", ingredients: ["Høyrygg av storfe (500g) - 130kr", "Paprika (2 stk) - 30kr", "Poteter (800g) - 25kr", "Løk (2 stk) - 10kr", "Karve/Paprikakrydder - 25kr"] },
+            { name: "Pytt i panne", price: 110, protein: "egg", ingredients: ["Pytt i panne (1 stor pose frossen) - 60kr", "Egg (4 stk) - 15kr", "Ketchup (1 flaske) - 15kr", "Brød (1 halvt) - 20kr"] },
+            { name: "Omelett med skinke", price: 95, protein: "egg", ingredients: ["Egg (8 stk) - 30kr", "Skinke (1 pk) - 30kr", "Ost (litt revet) - 15kr", "Løk/Paprika (litt) - 5kr", "Brød (1 halvt) - 15kr"] },
+            { name: "Grøt (Risengrynsgrøt)", price: 65, protein: "grøtris", ingredients: ["Grøtris (1 pk) - 25kr", "Melk (2 liter) - 45kr", "Sukker/Kanel/Smør - 0kr"] },
+            { name: "Wienerschnitzel", price: 230, protein: "svinekjøtt", ingredients: ["Kalv/Svinekjøtt i skiver (400g) - 120kr", "Griljermel/Egg (til panering) - 25kr", "Erter (1 pose frossen) - 20kr", "Poteter (800g) - 25kr", "Sitron/Kapers - 40kr"] },
+            { name: "Fiskegrateng", price: 130, protein: "fisk", ingredients: ["Fiskegrateng (1 stor ferdig) - 65kr", "Poteter (800g) - 25kr", "Gulrøtter (1 pose) - 20kr", "Smeltet smør - 20kr"] },
+            { name: "Pitabrød med kjøttdeig", price: 165, protein: "kjøttdeig", ingredients: ["Pitabrød (1 pk/6 stk) - 25kr", "Kjøttdeig (400g) - 65kr", "Salatmiks (1 pose) - 35kr", "Agurk/Tomat (1 av hver) - 30kr", "Hvitløksdressing - 10kr"] },
+            { name: "Koteletter med surkål", price: 155, protein: "koteletter", ingredients: ["Nakkekoteletter (4 stk) - 65kr", "Surkål (1 pk) - 20kr", "Poteter (800g) - 25kr", "Brun saus (1 pk) - 20kr", "Gulrøtter (1 pose) - 25kr"] },
+            { name: "Ovnsbakt laks med grønnsaker", price: 185, protein: "laks", ingredients: ["Laksefilet (4 stk/500g) - 120kr", "Brokkoli (1 stk) - 25kr", "Gulrøtter (1 pose) - 20kr", "Rømme (1 beger) - 20kr"] },
+            { name: "Meksikansk gryte", price: 135, protein: "kjøttdeig", ingredients: ["Toro Meksikansk gryte (1 pk) - 35kr", "Kjøttdeig (400g) - 65kr", "Salat (1 hode) - 20kr", "Baguette (1 stk hvitløksbrød) - 15kr"] },
+            { name: "Lapskaus", price: 155, protein: "svineknoke", ingredients: ["Svineknoke/Lapskauskjøtt (500g) - 80kr", "Poteter (1 kg) - 30kr", "Gulrøtter (1 pose) - 20kr", "Kålrot (1 stk) - 25kr"] }
+        ];
+
         let currentUser = localStorage.getItem('eidert_current_user') || null;
         let authMode = 'login';
-
-        let dishes = initialDishes;
+        let dishes = [...initialDishes];
         let currentPlan = [];
         let likedIngs = [];
-        let editingIndex = -1;
 
-        function init() {
+        window.init = function() {
             if (!currentUser) {
                 document.getElementById('authPage').style.display = 'flex';
                 document.getElementById('landingPage').style.display = 'none';
                 document.getElementById('appContainer').style.display = 'none';
             } else {
-                loadUserData();
+                // Koble til Firebase for denne brukeren
+                const userRef = ref(db, 'meal_users/' + currentUser);
+                onValue(userRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        dishes = data.dishes || [...initialDishes];
+                        currentPlan = data.plan || [];
+                        likedIngs = data.likedIngredients || [];
+                        if (data.budget) localStorage.setItem('eidert_budget', data.budget);
+                    }
+                    render();
+                });
+
                 document.getElementById('authPage').style.display = 'none';
                 document.getElementById('landingPage').style.display = 'flex';
             }
         }
 
-        function setAuthMode(mode) {
+        window.setAuthMode = function(mode) {
             authMode = mode;
             document.getElementById('loginTab').classList.toggle('active', mode === 'login');
             document.getElementById('regTab').classList.toggle('active', mode === 'reg');
         }
 
-        function handleAuth() {
+        window.handleAuth = async function() {
             const user = document.getElementById('userIn').value.trim();
             const pass = document.getElementById('passIn').value.trim();
             if (!user || !pass) return alert("Fyll inn både brukernavn og passord!");
 
+            const userRef = ref(db, 'meal_users/' + user);
+            const snapshot = await get(userRef);
+            const data = snapshot.val();
+
             if (authMode === 'reg') {
-                if (users[user]) return alert("Brukernavnet er opptatt!");
-                users[user] = { password: pass, dishes: [...initialDishes], plan: [], budget: 0, likedIngredients: [] };
-                localStorage.setItem('eidert_users', JSON.stringify(users));
+                if (data) return alert("Brukernavnet er opptatt!");
+                await set(userRef, { 
+                    password: pass, 
+                    dishes: [...initialDishes], 
+                    plan: [], 
+                    budget: 0, 
+                    likedIngredients: [] 
+                });
                 alert("Bruker opprettet! Du kan nå logge inn.");
-                setAuthMode('login');
+                window.setAuthMode('login');
             } else {
-                if (users[user] && users[user].password === pass) {
+                if (data && data.password === pass) {
                     currentUser = user;
                     localStorage.setItem('eidert_current_user', user);
-                    loadUserData();
-                    init();
-                    if (likedIngs.length === 0) openPrefModal();
+                    window.init();
                 } else {
                     alert("Feil brukernavn eller passord!");
                 }
             }
         }
 
-        function logout() {
+        window.logout = function() {
             localStorage.removeItem('eidert_current_user');
             currentUser = null;
             location.reload();
         }
 
-        function loadUserData() {
-            const data = users[currentUser];
-            
-            // Hvis brukeren har den gamle listen på 50 retter, oppgrader automatisk til den nye på 200+
-            if (!data.dishes || data.dishes.length <= 50) {
-                console.log("Oppgraderer matdatabase for " + currentUser);
-                dishes = [...initialDishes];
-                save(); 
-            } else {
-                dishes = data.dishes;
-            }
-
-            currentPlan = data.plan || [];
-            likedIngs = data.likedIngredients || [];
-            if (data.budget) localStorage.setItem('eidert_budget', data.budget);
-            else localStorage.removeItem('eidert_budget');
-        }
-
-        function resetToDefaults() {
-            if (confirm("Er du sikker? Dette vil slette dine egne retter og erstatte alt med standardlisten på 200+ retter.")) {
-                dishes = [...initialDishes];
-                save();
-                alert("Matbasen er nå oppdatert til 200+ retter!");
-            }
-        }
-
-        function save() {
+        window.save = function() {
             if (!currentUser) return;
-            users[currentUser].dishes = dishes;
-            users[currentUser].plan = currentPlan;
-            users[currentUser].likedIngredients = likedIngs;
-            users[currentUser].budget = localStorage.getItem('eidert_budget');
-            localStorage.setItem('eidert_users', JSON.stringify(users));
-            render();
-            if (document.getElementById('dbModal').classList.contains('active')) renderDatabase();
+            update(ref(db, 'meal_users/' + currentUser), {
+                dishes: dishes,
+                plan: currentPlan,
+                likedIngredients: likedIngs,
+                budget: localStorage.getItem('eidert_budget') || 0
+            });
         }
 
-        function startApp(mode) {
+        window.startApp = function(mode) {
             currentMode = mode;
-            
-            // Skjul forside og vis app
             document.getElementById('landingPage').style.display = 'none';
             document.getElementById('appContainer').classList.add('active');
             
             const titles = { 1: "Dagsplan", 7: "Ukeplan", 30: "Månedsplan" };
-            const subtitles = { 1: "Én perfekt middag", 7: "En god oversikt over uken", 30: "Månedlig oversikt for familien" };
-            
-            if (document.getElementById('planTitleText')) {
-                document.getElementById('planTitleText').innerText = titles[mode];
-            }
-            document.getElementById('planSubtitle').innerText = subtitles[mode];
+            if (document.getElementById('planTitleText')) document.getElementById('planTitleText').innerText = titles[mode];
             document.getElementById('printTitle').innerText = titles[mode] + " for " + currentUser;
             
-            // Gi nettleseren et millisekund til å tegne opp containeren før vi genererer/rendrer
-            setTimeout(() => {
-                if (currentPlan.length !== mode) {
-                    generateWeek(); 
-                } else {
-                    render();
-                }
-            }, 50);
+            if (currentPlan.length !== mode) generateWeek(); 
+            else render();
         }
 
-        function goHome() {
+        window.goHome = function() {
             document.getElementById('landingPage').style.display = 'flex';
             document.getElementById('appContainer').classList.remove('active');
         }
