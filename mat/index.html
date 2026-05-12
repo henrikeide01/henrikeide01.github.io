@@ -204,11 +204,29 @@
 
         /* Auth Page Styling */
         #authPage { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: #0f172a; color: white; padding: 20px; }
-        .auth-card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: var(--radius-lg); width: 100%; max-width: 400px; backdrop-filter: blur(12px); }
-        .auth-tabs { display: flex; gap: 20px; margin-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; }
-        .auth-tab { cursor: pointer; opacity: 0.5; transition: 0.2s; font-weight: 600; }
+        .auth-card { 
+            background: rgba(30, 41, 59, 0.7); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            padding: 60px 48px; 
+            border-radius: var(--radius-lg); 
+            width: 100%; 
+            max-width: 500px; 
+            backdrop-filter: blur(12px); 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .auth-tabs { display: flex; gap: 24px; margin-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
+        .auth-tab { cursor: pointer; opacity: 0.5; transition: 0.2s; font-weight: 600; font-size: 18px; }
         .auth-tab.active { opacity: 1; border-bottom: 2px solid var(--primary); }
-        .auth-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; margin-bottom: 16px; }
+        .auth-input { 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            color: white; 
+            margin-bottom: 20px; 
+            padding: 16px 20px; 
+            font-size: 16px;
+            border-radius: 12px;
+            width: 100%;
+        }
         
         /* Preferences Styling */
         .pref-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
@@ -230,18 +248,18 @@
     <!-- LOGIN / REGISTER -->
     <div id="authPage" style="display: none;">
         <div class="auth-card">
-            <h1 style="text-align: center; margin-bottom: 8px;">🥘 Eidert</h1>
-            <p style="text-align: center; color: #94a3b8; margin-bottom: 32px;">Logg inn for å lagre din plan</p>
+            <h1 style="text-align: center; margin-bottom: 12px; font-size: 42px;">🥘 Eidert</h1>
+            <p style="text-align: center; color: #94a3b8; margin-bottom: 48px; font-size: 18px;">Logg inn for å lagre din plan</p>
             
             <div class="auth-tabs">
                 <div id="loginTab" class="auth-tab active" onclick="setAuthMode('login')">Logg inn</div>
                 <div id="regTab" class="auth-tab" onclick="setAuthMode('reg')">Ny bruker</div>
             </div>
-
+ 
             <div id="loginForm">
                 <input type="text" id="userIn" class="auth-input" placeholder="Brukernavn">
                 <input type="password" id="passIn" class="auth-input" placeholder="Passord">
-                <button class="btn btn-primary" style="width: 100%; margin-top: 12px;" onclick="handleAuth()">Start planlegging</button>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 24px; padding: 18px; font-size: 18px;" onclick="handleAuth()">Start planlegging</button>
             </div>
         </div>
     </div>
@@ -288,7 +306,7 @@
                 <div class="header-main">
                     <div class="header-title-area">
                         <h1 id="planTitle" style="font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; display: flex; align-items: center; gap: 16px;">
-                            Ukeplan
+                            <span id="planTitleText">Ukeplan</span>
                             <span id="budgetBadge" style="display: none; font-size: 14px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 4px 12px; border-radius: 20px;">💸 Maks 1000 kr</span>
                         </h1>
                         <p id="planSubtitle" style="color: var(--text-muted); font-size: 18px;">Planlegg middagene for hele familien</p>
@@ -346,7 +364,10 @@
         <div class="db-modal-content">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
                 <h2 style="font-size: 24px;">📂 Matdatabase</h2>
-                <button class="btn btn-secondary" onclick="closeDatabase()">Lukk vindu</button>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="openAddModal()">➕ Legg til ny rett</button>
+                    <button class="btn btn-secondary" onclick="closeDatabase()">Lukk</button>
+                </div>
             </div>
             <p style="color: var(--text-muted); margin-top: 16px;">Her har du full oversikt over alle retter og ingredienser.</p>
             <div class="db-list" id="dbList"></div>
@@ -740,18 +761,28 @@
 
         function startApp(mode) {
             currentMode = mode;
+            
+            // Skjul forside og vis app
             document.getElementById('landingPage').style.display = 'none';
             document.getElementById('appContainer').classList.add('active');
             
             const titles = { 1: "Dagsplan", 7: "Ukeplan", 30: "Månedsplan" };
             const subtitles = { 1: "Én perfekt middag", 7: "En god oversikt over uken", 30: "Månedlig oversikt for familien" };
             
-            document.getElementById('planTitle').innerText = titles[mode];
+            if (document.getElementById('planTitleText')) {
+                document.getElementById('planTitleText').innerText = titles[mode];
+            }
             document.getElementById('planSubtitle').innerText = subtitles[mode];
             document.getElementById('printTitle').innerText = titles[mode] + " for " + currentUser;
             
-            if (currentPlan.length !== mode) generateWeek(); 
-            else render();
+            // Gi nettleseren et millisekund til å tegne opp containeren før vi genererer/rendrer
+            setTimeout(() => {
+                if (currentPlan.length !== mode) {
+                    generateWeek(); 
+                } else {
+                    render();
+                }
+            }, 50);
         }
 
         function goHome() {
