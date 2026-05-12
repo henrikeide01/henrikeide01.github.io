@@ -16,6 +16,7 @@
             --card-bg: rgba(255, 255, 255, 0.05);
             --text: #ffffff;
             --radius: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
         body {
@@ -26,6 +27,7 @@
                         radial-gradient(circle at 100% 100%, #2e0b1a 0%, #050505 50%);
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
         }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; width: 100%; }
         .logo { font-size: 32px; font-weight: 800; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -60,6 +62,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: 0.3s;
+            text-decoration: none;
         }
         .nav-btn.active {
             background: var(--primary);
@@ -96,11 +99,44 @@
             box-shadow: 0 10px 20px rgba(255, 0, 122, 0.3);
         }
         .btn-main:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(255, 0, 122, 0.5); }
-        .btn-main:active { transform: translateY(0); }
-
+        
         /* App Sections */
-        .section { display: none; padding: 40px 0; }
+        .section { display: none; padding: 40px 0; animation: fadeIn 0.5s ease-out; }
         .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Game Cards */
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .game-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 30px;
+            transition: var(--transition);
+            text-align: center;
+        }
+        .game-card:hover { transform: scale(1.03); border-color: var(--primary); background: rgba(255,255,255,0.08); }
+
+        /* Planner */
+        .planner-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .planner-card { background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1); }
+        .list-item { 
+            background: rgba(255,255,255,0.05); 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin-bottom: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+
+        /* Overlay */
+        .game-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg); z-index: 1000; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px; text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -110,17 +146,13 @@
         <div class="auth-card">
             <div class="logo" style="font-size: 48px; margin-bottom: 10px;">FESTPLAN</div>
             <p style="color: #94a3b8; margin-bottom: 30px;">Gjør festen legendarisk.</p>
-            
             <div style="display: flex; gap: 10px; margin-bottom: 30px; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px;">
                 <button id="mainLoginTab" class="nav-btn active" style="flex: 1; border: none;" onclick="setMode('login')">Logg inn</button>
                 <button id="mainRegTab" class="nav-btn" style="flex: 1; border: none;" onclick="setMode('reg')">Ny bruker</button>
             </div>
-            
             <h2 id="mainAuthTitle" style="margin-bottom: 20px; font-size: 24px;">Velkommen tilbake! 👤</h2>
-            
-            <input type="text" id="mainUserNameInput" placeholder="Brukernavn" autocomplete="username">
-            <input type="password" id="mainUserPassInput" placeholder="Passord" autocomplete="current-password">
-            
+            <input type="text" id="mainUserNameInput" placeholder="Brukernavn">
+            <input type="password" id="mainUserPassInput" placeholder="Passord">
             <button id="mainAuthBtn" class="btn-main" onclick="handleAuth()">Start Festplanlegging</button>
         </div>
     </div>
@@ -130,49 +162,72 @@
         <div class="container">
             <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
                 <div class="logo">FESTPLAN</div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="nav-btn active" onclick="window.showSection('home', this)">🏠</button>
-                    <button class="nav-btn" onclick="window.showSection('leker', this)">🎮</button>
-                    <button class="nav-btn" onclick="window.showSection('planlegger', this)">📅</button>
-                    <button class="nav-btn" onclick="logout()" style="color: #ff4444; border-color: rgba(255,68,68,0.2);">🚪</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="nav-btn active" onclick="window.showSection('home', this)">🏠 Hjem</button>
+                    <button class="nav-btn" onclick="window.showSection('leker', this)">🎮 Leker</button>
+                    <button class="nav-btn" onclick="window.showSection('planlegger', this)">📅 Planlegger</button>
+                    <button class="nav-btn" onclick="logout()" style="background: rgba(255,68,68,0.1); border-color: rgba(255,68,68,0.2); color: #ff4444;">LOGG UT</button>
                 </div>
             </nav>
 
+            <!-- HOME -->
             <section id="home" class="section active">
-                <div class="auth-card" style="max-width: 100%; text-align: left;">
-                    <h1>Klar for fest? 🍻</h1>
-                    <p style="color: #94a3b8; margin-top: 10px;">Velg fanene over for å se leker eller planlegge kvelden.</p>
+                <div style="text-align: center; padding: 60px 0;">
+                    <h1 style="font-size: 64px; margin-bottom: 20px;">Klar for fest? <span style="color: var(--accent);">🍻</span></h1>
+                    <p style="font-size: 20px; color: #94a3b8; max-width: 600px; margin: 0 auto 40px;">Alt du trenger for det perfekte vorspielet på ett sted.</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+                        <div class="game-card" onclick="window.showSection('leker')">
+                            <span style="font-size: 64px;">🃏</span>
+                            <h2>Drikkeleker</h2>
+                            <p>Finn de beste klassikerne.</p>
+                        </div>
+                        <div class="game-card" onclick="window.showSection('planlegger')">
+                            <span style="font-size: 64px;">📝</span>
+                            <h2>Planlegger</h2>
+                            <p>Gjesteliste og huskeliste.</p>
+                        </div>
+                    </div>
                 </div>
             </section>
 
+            <!-- LEKER -->
             <section id="leker" class="section">
-                <div class="auth-card" style="max-width: 100%; text-align: left;">
-                    <h2 style="margin-bottom: 20px;">Drikkeleker 🎮</h2>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-                        <div class="auth-card" style="padding: 20px; background: rgba(255,255,255,0.05);">
-                            <h3 style="color: var(--accent);">Jeg har aldri</h3>
-                            <p style="font-size: 14px; color: #94a3b8; margin: 10px 0;">Klassikeren som aldri slår feil.</p>
-                            <button class="btn-main" style="padding: 10px; font-size: 12px;">Start spill</button>
-                        </div>
-                        <div class="auth-card" style="padding: 20px; background: rgba(255,255,255,0.05);">
-                            <h3 style="color: var(--primary);">Pekeleken</h3>
-                            <p style="font-size: 14px; color: #94a3b8; margin: 10px 0;">Hvem i rommet er mest sannsynlig til...?</p>
-                            <button class="btn-main" style="padding: 10px; font-size: 12px;">Start spill</button>
-                        </div>
-                    </div>
-                </div>
+                <h2 style="margin-bottom: 30px; font-size: 32px;">🎮 Drikkeleker</h2>
+                <div class="game-grid" id="gameGrid"></div>
             </section>
 
+            <!-- PLANLEGGER -->
             <section id="planlegger" class="section">
-                <div class="auth-card" style="max-width: 100%; text-align: left;">
-                    <h2 style="margin-bottom: 20px;">Vors-planlegger 📅</h2>
-                    <p style="color: #94a3b8; margin-bottom: 20px;">Hold oversikt over hvem som kommer og hva som skjer.</p>
-                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
-                        <p style="font-style: italic; color: #64748b;">Ingen aktive vors-rom ennå. Opprett et nytt rom for å starte planleggingen!</p>
-                        <button class="btn-main" style="margin-top: 20px;">+ Opprett nytt vors-rom</button>
+                <h2 style="margin-bottom: 30px; font-size: 32px;">📅 Festplanlegger</h2>
+                <div class="planner-grid">
+                    <div class="planner-card">
+                        <h3>👥 Gjesteliste (<span id="guestCount">0</span>)</h3>
+                        <div style="display: flex; gap: 10px; margin: 20px 0;">
+                            <input type="text" id="guestInput" placeholder="Navn..." style="margin:0;">
+                            <button class="nav-btn" onclick="addGuest()">Legg til</button>
+                        </div>
+                        <div id="guestList"></div>
+                    </div>
+                    <div class="planner-card">
+                        <h3>🛒 Huskeliste</h3>
+                        <div style="display: flex; gap: 10px; margin: 20px 0;">
+                            <input type="text" id="todoInput" placeholder="Hva trengs?" style="margin:0;">
+                            <button class="nav-btn" onclick="addTodo()">Legg til</button>
+                        </div>
+                        <div id="todoList"></div>
                     </div>
                 </div>
             </section>
+        </div>
+    </div>
+
+    <!-- GAME OVERLAY -->
+    <div id="gameOverlay" class="game-overlay">
+        <h2 id="activeGameTitle" style="font-size: 48px; margin-bottom: 30px;"></h2>
+        <div id="gameText" style="font-size: 32px; font-weight: 600; margin-bottom: 50px; max-width: 800px;"></div>
+        <div style="display: flex; gap: 20px;">
+            <button class="nav-btn" style="padding: 20px 40px;" onclick="closeGame()">Avslutt</button>
+            <button class="nav-btn active" style="padding: 20px 40px;" onclick="nextCard()">Neste kort →</button>
         </div>
     </div>
 
@@ -194,10 +249,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        const games = [
+            { id: 'aldri', title: 'Jeg har aldri', icon: '🤫', cards: ["Jeg har aldri løyet på sannhet eller konsekvens.", "Jeg har aldri sneket meg ut.", "Jeg har aldri blitt kastet ut av en bar.", "Jeg har aldri hatt en walk of shame."] },
+            { id: 'peke', title: 'Pekeleken', icon: '👉', cards: ["Hvem er mest sannsynlig til å bli kjendis?", "Hvem sovner først?", "Hvem ender i fengsel?", "Hvem gifter seg først?"] },
+            { id: 'sannhet', title: 'Sannhet/Konsekvens', icon: '🔥', cards: ["Sannhet: Hvem liker du her?", "Konsekvens: Ta en shot.", "Sannhet: Din flaueste fyllehistorie?", "Konsekvens: Ring en eks."] }
+        ];
+
         let currentUser = localStorage.getItem('fest_user');
+        let activeGame = null;
+        let cardIndex = 0;
         let authMode = 'login';
 
-        // Gjøre funksjoner tilgjengelige for HTML
+        // AUTH
         window.setMode = (mode) => {
             authMode = mode;
             document.getElementById('mainLoginTab').classList.toggle('active', mode === 'login');
@@ -209,89 +272,104 @@
         window.handleAuth = async () => {
             const user = document.getElementById('mainUserNameInput').value.trim();
             const pass = document.getElementById('mainUserPassInput').value.trim();
-            
-            if(!user || !pass) return alert("Vennligst fyll ut både brukernavn og passord.");
-            
-            console.log("Forsøker auth:", authMode, user);
+            if(!user || !pass) return alert("Fyll ut alt.");
             const userRef = ref(db, 'fest_accounts/' + user);
-            
-            try {
-                // Forsøk en enkel sjekk først
-                const snap = await get(userRef);
-                
-                if (authMode === 'reg') {
-                    if (snap.exists()) return alert("Dette brukernavnet er allerede tatt!");
-                    
-                    const newUser = { 
-                        password: pass, 
-                        friendCode: Math.random().toString(36).substring(2,8).toUpperCase(),
-                        units: 0,
-                        rooms: [],
-                        friends: []
-                    };
-                    
-                    await set(userRef, newUser);
-                    alert("Bruker opprettet! Du kan nå logge inn.");
-                    window.setMode('login');
-                } else {
-                    if (!snap.exists()) return alert("Brukeren finnes ikke!");
-                    const data = snap.val();
-                    if (data.password === pass) {
-                        currentUser = user;
-                        localStorage.setItem('fest_user', user);
-                        window.checkLogin();
-                    } else {
-                        alert("Feil passord!");
-                    }
-                }
-            } catch (err) {
-                console.error("FIREBASE TILGANGSFEIL:", err);
-                if (err.message.includes("Permission denied")) {
-                    alert("FEIL: Databasen er låst (Permission Denied). Du må åpne 'Rules' i Firebase-konsollen til '.read: true, .write: true' for at dette skal virke!");
-                } else {
-                    alert("Kunne ikke koble til. (Feil: " + err.message + ")");
-                }
+            const snap = await get(userRef);
+            if(authMode === 'reg') {
+                if(snap.exists()) return alert("Opptatt.");
+                await set(userRef, { password: pass, guests: [], todos: [] });
+                alert("Konto opprettet!"); window.setMode('login');
+            } else {
+                if(snap.val()?.password === pass) {
+                    currentUser = user; localStorage.setItem('fest_user', user); window.checkLogin();
+                } else alert("Feil.");
             }
         };
 
         window.checkLogin = () => {
-            if (currentUser) {
+            if(currentUser) {
                 document.getElementById('mainAuthView').style.display = 'none';
                 document.getElementById('appContent').style.display = 'block';
-                if (authMode === 'login' || currentUser) window.showSection('home');
+                loadData();
+                window.showSection('home');
             } else {
                 document.getElementById('mainAuthView').style.display = 'flex';
                 document.getElementById('appContent').style.display = 'none';
             }
         };
 
-        window.logout = () => {
-            localStorage.clear();
-            location.reload();
-        };
+        window.logout = () => { localStorage.clear(); location.reload(); };
 
+        // NAVIGATION
         window.showSection = (id, element) => {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('nav .nav-btn').forEach(b => b.classList.remove('active'));
-            
-            const targetSection = document.getElementById(id);
-            if (targetSection) targetSection.classList.add('active');
-            
-            // Finn knappen som ble trykket på, eller finn den basert på ID hvis vi logger inn
-            if (element) {
-                element.classList.add('active');
-            } else {
-                // Ved oppstart/innlogging, finn riktig knapp manuelt
-                const buttons = document.querySelectorAll('nav .nav-btn');
-                buttons.forEach(btn => {
-                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${id}'`)) {
-                        btn.classList.add('active');
-                    }
-                });
+            document.getElementById(id).classList.add('active');
+            if(element) element.classList.add('active');
+            else {
+                const btns = document.querySelectorAll('nav .nav-btn');
+                btns.forEach(b => { if(b.getAttribute('onclick')?.includes(id)) b.classList.add('active'); });
             }
         };
 
-        // Kjør sjekk ved start
+        // GAMES
+        function renderGames() {
+            document.getElementById('gameGrid').innerHTML = games.map(g => `
+                <div class="game-card">
+                    <span style="font-size: 48px;">${g.icon}</span>
+                    <h3 style="margin: 15px 0;">${g.title}</h3>
+                    <button class="btn-main" onclick="startGame('${g.id}')" style="padding: 10px;">Spill nå</button>
+                </div>
+            `).join('');
+        }
+        window.startGame = (id) => {
+            activeGame = games.find(g => g.id === id);
+            cardIndex = 0;
+            document.getElementById('activeGameTitle').innerText = activeGame.title;
+            document.getElementById('gameText').innerText = activeGame.cards[0];
+            document.getElementById('gameOverlay').style.display = 'flex';
+        };
+        window.nextCard = () => {
+            cardIndex = (cardIndex + 1) % activeGame.cards.length;
+            document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
+        };
+        window.closeGame = () => document.getElementById('gameOverlay').style.display = 'none';
+
+        // PLANNER
+        let guestData = [];
+        let todoData = [];
+
+        function loadData() {
+            onValue(ref(db, 'fest_accounts/' + currentUser), (snap) => {
+                const data = snap.val();
+                guestData = data?.guests || [];
+                todoData = data?.todos || [];
+                renderPlanner();
+            });
+        }
+
+        window.addGuest = () => {
+            const val = document.getElementById('guestInput').value.trim();
+            if(val) { guestData.push(val); update(ref(db, 'fest_accounts/' + currentUser), { guests: guestData }); document.getElementById('guestInput').value = ''; }
+        };
+        window.addTodo = () => {
+            const val = document.getElementById('todoInput').value.trim();
+            if(val) { todoData.push(val); update(ref(db, 'fest_accounts/' + currentUser), { todos: todoData }); document.getElementById('todoInput').value = ''; }
+        };
+        window.removeGuest = (i) => { guestData.splice(i,1); update(ref(db, 'fest_accounts/' + currentUser), { guests: guestData }); };
+        window.removeTodo = (i) => { todoData.splice(i,1); update(ref(db, 'fest_accounts/' + currentUser), { todos: todoData }); };
+
+        function renderPlanner() {
+            document.getElementById('guestCount').innerText = guestData.length;
+            document.getElementById('guestList').innerHTML = guestData.map((g, i) => `
+                <div class="list-item"><span>${g}</span><button onclick="removeGuest(${i})" style="background:none;border:none;color:#ff4444;cursor:pointer;">×</button></div>
+            `).join('');
+            document.getElementById('todoList').innerHTML = todoData.map((t, i) => `
+                <div class="list-item"><span>${t}</span><button onclick="removeTodo(${i})" style="background:none;border:none;color:#ff4444;cursor:pointer;">×</button></div>
+            `).join('');
+        }
+
+        renderGames();
         window.checkLogin();
     </script>
 </body>
