@@ -7,6 +7,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- 
+    FIREBASE SECURITY RULES (COPY TO FIREBASE CONSOLE):
+    {
+      "rules": {
+        "fest_rooms": {
+          "$room_id": {
+            ".read": "true",
+            ".write": "true"
+          }
+        },
+        "meal_users": {
+          "$user_id": {
+            ".read": "true",
+            ".write": "true"
+          }
+        }
+      }
+    }
+    -->
     <style>
         :root {
             --primary: #ff007a; /* Neon Rosa */
@@ -800,9 +819,21 @@
         window.showSection = function(id) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if (event && event.target.tagName === 'A') event.target.classList.add('active');
+            
+            const target = document.getElementById(id);
+            if (target) target.classList.add('active');
+            
+            // Finn knappen som ble trykket
+            const navButtons = document.querySelectorAll('.nav-btn');
+            navButtons.forEach(btn => {
+                if(btn.innerText.toLowerCase().includes(id.toLowerCase()) || 
+                   (id === 'home' && btn.innerText.includes('🏠'))) {
+                    btn.classList.add('active');
+                }
+            });
+
             if (id === 'planlegger') renderPlanner();
+            if (id === 'leker') window.renderGames();
         }
 
         window.renderGames = function() {
@@ -837,41 +868,85 @@
         window.renderLykkehjul = function() {
             const container = document.getElementById('gameOverlay');
             container.innerHTML = `
-                <div style="position: relative; width: 300px; height: 300px; margin: 0 auto 40px; border: 8px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--card-bg);">
-                    <div id="wheel" style="width: 100%; height: 100%; transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);">
-                        ${activeGame.cards.map((c, i) => `
-                            <div style="position: absolute; width: 50%; height: 50%; top: 50%; left: 50%; transform-origin: 0% 0%; transform: rotate(${i * (360/activeGame.cards.length)}deg) skewY(-${90 - (360/activeGame.cards.length)}deg); background: ${i % 2 === 0 ? 'var(--primary)' : 'var(--secondary)'}; border: 1px solid rgba(255,255,255,0.2);">
-                                <span style="position: absolute; transform-origin: 0% 0%; transform: skewY(${90 - (360/activeGame.cards.length)}deg) rotate(${(360/activeGame.cards.length)/2}deg) translate(20px, 40px); color: white; font-weight: 800; font-size: 10px; white-space: nowrap;">${c}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid var(--accent); z-index: 10;"></div>
+                <h2 style="margin-bottom: 20px;">🎡 Lykkehjul</h2>
+                <div style="position: relative; width: 350px; height: 350px; margin: 0 auto 40px; display: flex; align-items: center; justify-content: center;">
+                    <canvas id="wheelCanvas" width="350" height="350" style="border: 8px solid white; border-radius: 50%; box-shadow: 0 0 30px rgba(255, 0, 122, 0.4);"></canvas>
+                    <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid var(--accent); z-index: 10;"></div>
                 </div>
-                <h2 id="wheelResult" style="margin-bottom: 20px; min-height: 40px;"></h2>
+                <h2 id="wheelResult" style="margin-bottom: 20px; min-height: 40px; font-size: 28px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px;"></h2>
                 <div class="game-controls">
                     <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
                     <button class="btn-large btn-next" id="spinBtn" onclick="spinWheel()">SNURR!</button>
                 </div>
             `;
+            drawWheel();
+        }
+
+        function drawWheel() {
+            const canvas = document.getElementById('wheelCanvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2;
+            const slices = activeGame.cards.length;
+            const sliceAngle = (2 * Math.PI) / slices;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            activeGame.cards.forEach((text, i) => {
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, i * sliceAngle, (i + 1) * sliceAngle);
+                ctx.fillStyle = i % 2 === 0 ? '#ff007a' : '#7000ff';
+                ctx.fill();
+                ctx.stroke();
+
+                // Tekst
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(i * sliceAngle + sliceAngle / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "white";
+                ctx.font = "bold 12px Outfit";
+                ctx.fillText(text.substring(0, 20), radius - 20, 5);
+                ctx.restore();
+            });
         }
 
         window.spinWheel = function() {
-            const wheel = document.getElementById('wheel');
+            const canvas = document.getElementById('wheelCanvas');
             const btn = document.getElementById('spinBtn');
             const resultText = document.getElementById('wheelResult');
+            if(!canvas || btn.disabled) return;
+            
             btn.disabled = true;
             resultText.innerText = "Snurrer...";
             
-            const rand = 1800 + Math.random() * 1800;
-            wheel.style.transform = `rotate(${rand}deg)`;
-            
-            setTimeout(() => {
-                const actualDeg = rand % 360;
-                const sliceSize = 360 / activeGame.cards.length;
-                const index = Math.floor((360 - actualDeg) / sliceSize) % activeGame.cards.length;
-                resultText.innerText = activeGame.cards[index];
-                btn.disabled = false;
-            }, 4000);
+            let rotation = 0;
+            const totalRotation = 1800 + Math.random() * 1800;
+            const start = performance.now();
+            const duration = 4000;
+
+            function animate(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const currentRotation = easeOut * totalRotation;
+                
+                canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    const actualDeg = currentRotation % 360;
+                    const sliceSize = 360 / activeGame.cards.length;
+                    const index = Math.floor((360 - (actualDeg % 360)) / sliceSize) % activeGame.cards.length;
+                    resultText.innerText = activeGame.cards[index];
+                    btn.disabled = false;
+                }
+            }
+            requestAnimationFrame(animate);
         }
 
         window.startGame = function(id) {
