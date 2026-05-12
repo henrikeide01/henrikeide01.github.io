@@ -592,22 +592,22 @@
             },
             { 
                 id: 'sannhet', 
-                title: 'Sannhet eller Konsekvens', 
+                title: 'Sannhet eller Straff', 
                 icon: '🔥', 
                 desc: 'Tør du virkelig?', 
                 cards: [
-                    "Sannhet: Hemmelig crush?", "Konsekvens: Ta en shot.", "Sannhet: Flaueste fyllehistorie?", 
-                    "Konsekvens: Ring eksen.", "Sannhet: Hvem i rommet ville du helst datet?",
-                    "Konsekvens: La verten sende en melding fra din telefon.",
-                    "Sannhet: Hva er det rareste du har gjort alene?", "Konsekvens: Dans macarena uten musikk i 1 minutt.",
-                    "Sannhet: Hvem er din minst favoritt i rommet?", "Konsekvens: Gjør 10 pushups.",
+                    "Sannhet: Hemmelig crush?", "Straff: Ta en shot.", "Sannhet: Flaueste fyllehistorie?", 
+                    "Straff: Ring eksen.", "Sannhet: Hvem i rommet ville du helst datet?",
+                    "Straff: La verten sende en melding fra din telefon.",
+                    "Sannhet: Hva er det rareste du har gjort alene?", "Straff: Dans macarena uten musikk i 1 minutt.",
+                    "Sannhet: Hvem er din minst favoritt i rommet?", "Straff: Gjør 10 pushups.",
                     "Sannhet: Har du noen gang løyet for å komme deg ut av en date?",
-                    "Konsekvens: Vis de 5 siste bildene i kamerarullen din.",
-                    "Sannhet: Hva er din største frykt?", "Konsekvens: Lukt på skoene til personen til høyre for deg.",
-                    "Sannhet: Hva er det mest ulovlige du har gjort?", "Konsekvens: Lat som du er en kylling til det er din tur igjen.",
-                    "Sannhet: Har du noen gang vært utro?", "Konsekvens: Drikk alt som er igjen i glasset ditt.",
-                    "Sannhet: Hvem i rommet har de peneste øynene?", "Konsekvens: Bytt klær med personen til venstre (valgfritt plagg).",
-                    "Sannhet: Hva er den verste gaven du har fått?", "Konsekvens: Ring en tilfeldig kontakt og syng gratulerer med dagen."
+                    "Straff: Vis de 5 siste bildene i kamerarullen din.",
+                    "Sannhet: Hva er din største frykt?", "Straff: Lukt på skoene til personen til høyre for deg.",
+                    "Sannhet: Hva er det mest ulovlige du har gjort?", "Straff: Lat som du er en kylling til det er din tur igjen.",
+                    "Sannhet: Har du noen gang vært utro?", "Straff: Drikk alt som er igjen i glasset ditt.",
+                    "Sannhet: Hvem i rommet har de peneste øynene?", "Straff: Bytt klær med personen til venstre (valgfritt plagg).",
+                    "Sannhet: Hva er den verste gaven du har fått?", "Straff: Ring en tilfeldig kontakt og syng gratulerer med dagen."
                 ] 
             },
             { 
@@ -755,6 +755,7 @@
         }
 
         window.joinVors = function(hostId) {
+            if(!currentRoom || !currentUser) return;
             update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`), hostId);
         }
 
@@ -942,6 +943,11 @@
             }
         }
 
+        window.startQuickGame = function() {
+            const randomGame = games[Math.floor(Math.random() * (games.length - 1))]; // Unngå chug i quick play
+            window.startGame(randomGame.id);
+        }
+
         window.renderGames = function() {
             const grid = document.getElementById('gameGrid');
             if(grid) grid.innerHTML = games.map(game => `
@@ -956,12 +962,23 @@
 
         window.startGame = function(id) {
             activeGame = games.find(g => g.id === id);
+            if(!activeGame) return;
             const overlay = document.getElementById('gameOverlay');
+            document.getElementById('activeGameTitle').innerText = activeGame.title;
             overlay.style.display = 'flex';
-            if (id === 'lykkehjul') { window.renderLykkehjul(); } 
-            else if (id === 'chug') { window.renderChugGame(); }
+            
+            if (id === 'lykkehjul') { 
+                if(window.renderLykkehjul) window.renderLykkehjul(); 
+                else document.getElementById('gameText').innerText = "Lykkehjul-modulen mangler i koden.";
+            } 
+            else if (id === 'chug') { 
+                if(window.renderChugGame) window.renderChugGame(); 
+                else document.getElementById('gameText').innerText = "Chug-modulen mangler i koden.";
+            }
             else {
                 cardIndex = -1;
+                // Randomiser rekkefølgen hver gang vi starter
+                window.shuffle(activeGame.cards);
                 window.nextCard();
             }
         }
