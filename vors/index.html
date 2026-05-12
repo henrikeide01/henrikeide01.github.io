@@ -148,7 +148,7 @@
         .chug-btn.stop { background: #ef4444; color: white; }
 
         /* Spin the Wheel */
-        .wheel-box { position: relative; width: 420px; height: 420px; margin: 20px auto; }
+        .wheel-box { position: relative; width: 100%; max-width: 420px; aspect-ratio: 1 / 1; margin: 20px auto; display: flex; justify-content: center; align-items: center; }
 
         /* === RESPONSIVE / MOBILE === */
         @media (max-width: 768px) {
@@ -163,7 +163,7 @@
             .game-card span { font-size: 32px !important; }
             .planner-grid { grid-template-columns: 1fr; }
             .planner-card { padding: 20px; }
-            .wheel-box { width: 300px; height: 300px; }
+            .wheel-box { max-width: 300px; height: auto; margin: 10px auto; }
             .chug-container { flex-direction: column; gap: 16px; }
             .chug-timer { font-size: 44px !important; }
             #activeGameTitle { font-size: 28px !important; }
@@ -178,7 +178,7 @@
         }
         @media (max-width: 480px) {
             .game-grid { grid-template-columns: 1fr; }
-            .wheel-box { width: 260px; height: 260px; margin: 10px auto; }
+            .wheel-box { max-width: 260px; height: auto; margin: 10px auto; }
             h1 { font-size: 28px !important; }
         }
         .wheel-canvas { width: 100%; height: 100%; border-radius: 50%; border: 10px solid #1a1a1a; box-shadow: 0 0 40px rgba(0,0,0,0.7), 0 0 20px var(--primary); }
@@ -262,15 +262,15 @@
                     </div>
                 </div>
 
-                <!-- 1. GRUPPEKODER (Alltid synlig øverst) -->
+                <!-- VENNELISTE -->
                 <div class="planner-card" style="margin-bottom: 24px;">
-                    <h3 style="margin-bottom:12px;">👥 Felles Vennekoder</h3>
-                    <p style="color:#94a3b8;font-size:14px;margin-bottom:16px;">Del en felles kode (f.eks "17MAI") med venner. Alle med denne koden kan se vors som publiseres på den!</p>
+                    <h3 style="margin-bottom:12px;">👥 Min Venneliste</h3>
+                    <p style="color:#94a3b8;font-size:14px;margin-bottom:16px;">Legg til venner med koden deres for å se hverandres vors!</p>
                     <div style="display:flex;gap:10px;margin-bottom:16px;">
-                        <input type="text" id="groupCodeInput" placeholder="Skriv inn kode (eks: 17MAI)" style="margin:0;text-transform:uppercase;">
-                        <button class="nav-btn" onclick="addGroupCode()">Legg til</button>
+                        <input type="text" id="friendCodeInput" placeholder="Skriv inn vennekode" style="margin:0;text-transform:uppercase;">
+                        <button class="nav-btn" onclick="addFriend()">Legg til venn</button>
                     </div>
-                    <div id="groupCodeList" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                    <div id="friendList" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
                 </div>
 
                 <!-- 2. ROLLEVALG -->
@@ -300,8 +300,7 @@
                         <div class="planner-card">
                             <h3 style="margin-bottom:16px;">📍 Info om Vorset</h3>
                             <textarea id="hostInfo" placeholder="Adresse, klokkeslett, tema..." style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);color:white;padding:12px;border-radius:12px;margin-bottom:12px;font-size:14px;min-height:80px;"></textarea>
-                            <select id="hostGroupCode" style="width:100%;background:rgba(30,30,30,0.9);border:1px solid rgba(255,255,255,0.1);color:white;padding:12px;border-radius:12px;margin-bottom:12px;font-size:14px;"></select>
-                            <button class="btn-main" style="width:100%; padding:14px;" onclick="publishMyParty()">📢 Publiser / Oppdater Vors</button>
+                            <button class="btn-main" style="width:100%; padding:14px;" onclick="publishMyParty()">📢 Publiser til venner</button>
                         </div>
                         <div class="planner-card">
                             <h3 style="margin-bottom:16px;">📋 Ting som trengs (Huskeliste)</h3>
@@ -327,7 +326,7 @@
                         <h3 style="font-size:24px;">🔍 Tilgjengelige Vors</h3>
                         <button class="nav-btn" onclick="setRole(null)">← Tilbake til valg</button>
                     </div>
-                    <p style="color:#94a3b8; margin-bottom: 16px;">Vors publisert til dine felles vennekoder:</p>
+                    <p style="color:#94a3b8; margin-bottom: 16px;">Vors planlagt av dine venner:</p>
                     <div id="guestDiscoverList"><p style="color:#64748b;">Laster vors...</p></div>
                 </div>
 
@@ -747,15 +746,14 @@
         }, 100);
 
         // PLANNER STATE
-        let groupCodes = [];
+        let friendsData = [];
         let currentRole = null; 
-        let activePartyCode = null;
         let activePartyHost = null;
 
         function loadData() {
             onValue(ref(db, 'fest_accounts/' + currentUser), (snap) => {
                 const data = snap.val() || {};
-                groupCodes = data.groupCodes || [];
+                friendsData = data.friends || [];
                 
                 if (!data.partyCode) {
                     const code = Math.random().toString(36).substr(2,6).toUpperCase();
@@ -765,8 +763,7 @@
                     document.getElementById('partyCode').innerText = data.partyCode;
                 }
                 
-                renderGroupCodes();
-                updatePublishDropdown();
+                renderFriends();
                 
                 // Beholder gjeldende view
                 if(activePartyHost) refreshGuestDash();
@@ -774,33 +771,40 @@
             });
         }
 
-        window.addGroupCode = () => {
-            const v = document.getElementById('groupCodeInput').value.trim().toUpperCase();
-            if(v && !groupCodes.includes(v)) {
-                groupCodes.push(v);
-                update(ref(db,'fest_accounts/'+currentUser),{groupCodes});
-                document.getElementById('groupCodeInput').value='';
-                renderGroupCodes(); updatePublishDropdown();
+        window.addFriend = async () => {
+            const code = document.getElementById('friendCodeInput').value.trim().toUpperCase();
+            if(!code) return;
+            const snap = await get(ref(db, 'fest_accounts'));
+            let foundFriend = null;
+            snap.forEach(userSnap => {
+                if(userSnap.val().partyCode === code && userSnap.key !== currentUser) foundFriend = userSnap.key;
+            });
+            if(foundFriend && !friendsData.includes(foundFriend)) {
+                friendsData.push(foundFriend);
+                await update(ref(db,'fest_accounts/'+currentUser),{friends:friendsData});
+                document.getElementById('friendCodeInput').value='';
+                alert(`Lagt til ${foundFriend} som venn!`);
+                renderFriends();
+            } else if (!foundFriend) {
+                alert('Fant ingen venn med den koden.');
+            } else {
+                alert('Du har allerede lagt til denne vennen.');
+                document.getElementById('friendCodeInput').value='';
             }
         };
-        window.removeGroupCode = (code) => {
-            groupCodes = groupCodes.filter(c=>c!==code);
-            update(ref(db,'fest_accounts/'+currentUser),{groupCodes});
-            renderGroupCodes(); updatePublishDropdown();
+
+        window.removeFriend = (friendName) => {
+            friendsData = friendsData.filter(f => f !== friendName);
+            update(ref(db,'fest_accounts/'+currentUser),{friends:friendsData});
+            renderFriends();
         };
 
-        function renderGroupCodes() {
-            const el = document.getElementById('groupCodeList');
+        function renderFriends() {
+            const el = document.getElementById('friendList');
             if(!el) return;
-            el.innerHTML = groupCodes.length === 0
-                ? '<p style="color:#64748b;font-size:14px;">Ingen koder lagt til ennå.</p>'
-                : groupCodes.map(c => `<span style="background:rgba(255,255,255,0.1);padding:6px 14px;border-radius:20px;font-size:14px;">🔗 ${c} <button onclick="removeGroupCode('${c}')" style="background:none;border:none;color:#ff4444;cursor:pointer;margin-left:6px;font-weight:bold;">×</button></span>`).join('');
-        }
-
-        function updatePublishDropdown() {
-            const sel = document.getElementById('hostGroupCode');
-            if(!sel) return;
-            sel.innerHTML = '<option value="">-- Velg vennekode å publisere til --</option>' + groupCodes.map(c=>`<option value="${c}">${c}</option>`).join('');
+            el.innerHTML = friendsData.length === 0
+                ? '<p style="color:#64748b;font-size:14px;">Ingen venner lagt til ennå.</p>'
+                : friendsData.map(f => `<span style="background:rgba(255,255,255,0.1);padding:6px 14px;border-radius:20px;font-size:14px;">👤 ${f} <button onclick="removeFriend('${f}')" style="background:none;border:none;color:#ff4444;cursor:pointer;margin-left:6px;font-weight:bold;">×</button></span>`).join('');
         }
 
         window.setRole = async (role) => {
@@ -812,18 +816,12 @@
 
             if (role === 'host') {
                 document.getElementById('hostDashboardView').style.display = 'block';
-                // Laster eksisterende info om man har publisert før
-                const userSnap = await get(ref(db, 'fest_accounts/' + currentUser));
-                const publishedTo = userSnap.val()?.publishedToCode;
-                if(publishedTo) {
-                    document.getElementById('hostGroupCode').value = publishedTo;
-                    const pSnap = await get(ref(db, `group_parties/${publishedTo}/${currentUser}`));
-                    if(pSnap.exists()) {
-                        document.getElementById('hostInfo').value = pSnap.val().info || '';
-                    }
+                const pSnap = await get(ref(db, `fest_accounts/${currentUser}/party`));
+                if(pSnap.exists()) {
+                    document.getElementById('hostInfo').value = pSnap.val().info || '';
                 }
                 refreshMyGuests();
-                renderTodoList('host', currentUser, publishedTo);
+                renderTodoList('host', currentUser);
             } else if (role === 'guest') {
                 document.getElementById('guestFindView').style.display = 'block';
                 loadDiscoverList();
@@ -833,29 +831,25 @@
         };
 
         window.publishMyParty = async () => {
-            const code = document.getElementById('hostGroupCode').value;
             const info = document.getElementById('hostInfo').value.trim();
-            if(!code) return alert('Velg en felles vennekode!');
             
             try {
-                // Hent eksisterende data for å unngå overskriving
                 let existingAttendees = { [currentUser]: 'ja' };
                 let existingTodos = [];
-                const oldSnap = await get(ref(db, `group_parties/${code}/${currentUser}`));
+                const oldSnap = await get(ref(db, `fest_accounts/${currentUser}/party`));
                 if(oldSnap.exists()) {
                     existingAttendees = oldSnap.val().attendees || existingAttendees;
                     existingTodos = oldSnap.val().todos || existingTodos;
                 }
 
-                await set(ref(db,`group_parties/${code}/${currentUser}`), {
+                await update(ref(db,`fest_accounts/${currentUser}/party`), {
                     host: currentUser, 
                     info: info || 'Ingen info',
                     todos: existingTodos,
                     publishedAt: Date.now(),
                     attendees: existingAttendees
                 });
-                await update(ref(db,'fest_accounts/'+currentUser), { publishedToCode: code });
-                alert(`🎉 Ditt vors er oppdatert/publisert til "${code}"!`);
+                alert(`🎉 Ditt vors er publisert til vennene dine!`);
                 refreshMyGuests();
             } catch(e) {
                 console.error(e);
@@ -864,28 +858,21 @@
         };
 
         window.stopHosting = async () => {
-            if(!confirm('Er du sikker på at du vil slette vorset ditt? Alle data vil forsvinne.')) return;
-            const userSnap = await get(ref(db, 'fest_accounts/' + currentUser));
-            const publishedTo = userSnap.val()?.publishedToCode;
-            if(publishedTo) {
-                await set(ref(db, `group_parties/${publishedTo}/${currentUser}`), null);
-                await update(ref(db, 'fest_accounts/' + currentUser), { publishedToCode: null });
-            }
+            if(!confirm('Er du sikker på at du vil slette vorset ditt?')) return;
+            await update(ref(db, `fest_accounts/${currentUser}/party`), null);
             document.getElementById('hostInfo').value = '';
             setRole(null);
         };
 
         window.refreshMyGuests = async () => {
             if(currentRole !== 'host') return;
-            const userSnap = await get(ref(db,'fest_accounts/'+currentUser));
-            const code = userSnap.val()?.publishedToCode;
-            if (!code) {
+            const partySnap = await get(ref(db,`fest_accounts/${currentUser}/party`));
+            if (!partySnap.exists()) {
                 document.getElementById('hostGuestList').innerHTML = '<p style="color:#64748b;font-size:14px;">Publiser vorset først for å se påmeldte.</p>';
                 document.getElementById('hostGuestCount').innerText = '0';
                 return;
             }
-            const partySnap = await get(ref(db,`group_parties/${code}/${currentUser}/attendees`));
-            const attendees = partySnap.val() || {};
+            const attendees = partySnap.val().attendees || {};
             const yes = Object.entries(attendees).filter(([,s]) => s === 'ja');
             const no = Object.entries(attendees).filter(([,s]) => s === 'nei');
             document.getElementById('hostGuestCount').innerText = yes.length;
@@ -894,39 +881,36 @@
                 ${no.length > 0 ? `<div><strong style="font-size:12px;color:#ff4444;">KOMMER IKKE (${no.length}):</strong><div style="margin-top:6px;">${no.map(([u])=>`<div class="list-item">❌ ${u}</div>`).join('')}</div></div>` : ''}
                 ${yes.length === 0 && no.length === 0 ? '<p style="color:#64748b;font-size:14px;">Ingen har svart ennå.</p>' : ''}
             `;
-            renderTodoList('host', currentUser, code);
+            renderTodoList('host', currentUser);
         };
 
         async function loadDiscoverList() {
             const container = document.getElementById('guestDiscoverList');
             container.innerHTML = '<p style="color:#94a3b8;">Laster vors...</p>';
-            if(groupCodes.length === 0) {
-                container.innerHTML = '<p style="color:#94a3b8;">Du har ingen vennekoder ennå. Legg til koder øverst!</p>';
+            if(friendsData.length === 0) {
+                container.innerHTML = '<p style="color:#94a3b8;">Du har ingen venner ennå. Legg til venner øverst!</p>';
                 return;
             }
             let html = '';
-            for(const code of groupCodes) {
-                const snap = await get(ref(db,`group_parties/${code}`));
-                if(!snap.exists()) continue;
-                snap.forEach(pSnap => {
-                    const p = pSnap.val();
-                    if(p.host === currentUser) return; // Du ser ditt eget vors i host-panelet
+            for(const friend of friendsData) {
+                const snap = await get(ref(db,`fest_accounts/${friend}/party`));
+                if(snap.exists()) {
+                    const p = snap.val();
                     const myStatus = (p.attendees||{})[currentUser];
                     const att = Object.values(p.attendees||{}).filter(s=>s==='ja').length;
                     html += `<div class="planner-card" style="margin-bottom:20px;">
-                        <div style="font-size:11px;letter-spacing:2px;color:var(--accent);margin-bottom:6px;">KODE: ${code}</div>
+                        <div style="font-size:11px;letter-spacing:2px;color:var(--accent);margin-bottom:6px;">VENN</div>
                         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px;">
-                            <div><h3>🎉 ${p.host} hoster vors!</h3><p style="color:#94a3b8;margin-top:6px;font-size:14px;">👥 ${att} påmeldt</p></div>
-                            <button class="btn-main" onclick="openGuestDashboard('${code}', '${p.host}')">👉 Velg dette vorset</button>
+                            <div><h3>🎉 ${friend} hoster vors!</h3><p style="color:#94a3b8;margin-top:6px;font-size:14px;">👥 ${att} påmeldt</p></div>
+                            <button class="btn-main" onclick="openGuestDashboard('${friend}')">👉 Velg dette vorset</button>
                         </div>
                     </div>`;
-                });
+                }
             }
-            container.innerHTML = html || '<p style="color:#94a3b8;">Ingen andre vors funnet for dine vennekoder.</p>';
+            container.innerHTML = html || '<p style="color:#94a3b8;">Ingen vors planlagt av dine venner for øyeblikket.</p>';
         }
 
-        window.openGuestDashboard = async (code, host) => {
-            activePartyCode = code;
+        window.openGuestDashboard = async (host) => {
             activePartyHost = host;
             document.getElementById('guestFindView').style.display = 'none';
             document.getElementById('guestDashboardView').style.display = 'block';
@@ -934,22 +918,21 @@
         };
 
         window.leavePartyDashboard = () => {
-            activePartyCode = null;
             activePartyHost = null;
             setRole('guest'); // Går tilbake til listen
         };
 
         window.refreshGuestDash = async () => {
-            if(!activePartyCode || !activePartyHost) return;
-            const snap = await get(ref(db,`group_parties/${activePartyCode}/${activePartyHost}`));
+            if(!activePartyHost) return;
+            const snap = await get(ref(db,`fest_accounts/${activePartyHost}/party`));
             if(!snap.exists()) {
                 alert('Dette vorset finnes ikke lenger.');
                 leavePartyDashboard();
                 return;
             }
             const p = snap.val();
-            document.getElementById('guestDashTitle').innerText = `🎉 ${p.host} sitt Vors`;
-            document.getElementById('guestDashInfo').innerText = p.info;
+            document.getElementById('guestDashTitle').innerText = `🎉 ${activePartyHost} sitt Vors`;
+            document.getElementById('guestDashInfo').innerText = p.info || 'Ingen info oppgitt.';
             
             const myStatus = (p.attendees||{})[currentUser];
             document.getElementById('btnRsvpYes').classList.toggle('active', myStatus === 'ja');
@@ -963,27 +946,25 @@
                 ${yes.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${yes.map(([u])=>`<span style="background:rgba(255,255,255,0.1);padding:5px 12px;border-radius:20px;font-size:13px;">✅ ${u}</span>`).join('')}</div>` : '<p style="color:#64748b;font-size:14px;">Ingen har svart ennå.</p>'}
             `;
             
-            renderTodoList('guest', activePartyHost, activePartyCode);
+            renderTodoList('guest', activePartyHost);
         };
 
         window.rsvpCurrent = async (status) => {
-            if(!activePartyCode || !activePartyHost) return;
-            await update(ref(db,`group_parties/${activePartyCode}/${activePartyHost}/attendees`), { [currentUser]: status });
+            if(!activePartyHost) return;
+            await update(ref(db,`fest_accounts/${activePartyHost}/party/attendees`), { [currentUser]: status });
             refreshGuestDash();
         };
 
         window.addTodo = async (view) => {
-            let code, host;
+            let host;
             const textInputId = view === 'host' ? 'hostTodoInput' : 'guestTodoInput';
             const qtyInputId = view === 'host' ? 'hostTodoQty' : 'guestTodoQty';
             
             if (view === 'host') {
-                const userSnap = await get(ref(db,'fest_accounts/'+currentUser));
-                code = userSnap.val()?.publishedToCode;
                 host = currentUser;
-                if(!code) return alert("Publiser vorset først!");
+                const snap = await get(ref(db,`fest_accounts/${currentUser}/party`));
+                if(!snap.exists()) return alert("Publiser vorset først!");
             } else {
-                code = activePartyCode;
                 host = activePartyHost;
             }
 
@@ -991,11 +972,11 @@
             const qty = document.getElementById(qtyInputId).value.trim();
             if(!text) return;
 
-            const snap = await get(ref(db,`group_parties/${code}/${host}/todos`));
+            const snap = await get(ref(db,`fest_accounts/${host}/party/todos`));
             const todos = snap.val() || [];
             todos.push({ text, qty: qty || '', addedBy: currentUser });
             
-            await update(ref(db,`group_parties/${code}/${host}`), { todos });
+            await update(ref(db,`fest_accounts/${host}/party`), { todos });
             document.getElementById(textInputId).value = '';
             document.getElementById(qtyInputId).value = '';
             
@@ -1004,29 +985,21 @@
         };
 
         window.removeTodoAction = async (view, index) => {
-            let code, host;
-            if (view === 'host') {
-                const userSnap = await get(ref(db,'fest_accounts/'+currentUser));
-                code = userSnap.val()?.publishedToCode;
-                host = currentUser;
-            } else {
-                code = activePartyCode;
-                host = activePartyHost;
-            }
-            if(!code || !host) return;
+            let host = view === 'host' ? currentUser : activePartyHost;
+            if(!host) return;
 
-            const snap = await get(ref(db,`group_parties/${code}/${host}/todos`));
+            const snap = await get(ref(db,`fest_accounts/${host}/party/todos`));
             let todos = snap.val() || [];
             todos.splice(index, 1);
-            await update(ref(db,`group_parties/${code}/${host}`), { todos });
+            await update(ref(db,`fest_accounts/${host}/party`), { todos });
             
             if(view === 'host') refreshMyGuests();
             else refreshGuestDash();
         };
 
-        async function renderTodoList(view, host, code) {
-            if(!code || !host) return;
-            const snap = await get(ref(db, `group_parties/${code}/${host}/todos`));
+        async function renderTodoList(view, host) {
+            if(!host) return;
+            const snap = await get(ref(db, `fest_accounts/${host}/party/todos`));
             const todos = snap.val() || [];
             const listId = view === 'host' ? 'hostTodoList' : 'guestTodoList';
             const el = document.getElementById(listId);
