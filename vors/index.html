@@ -389,16 +389,40 @@
 </head>
 <body>
 
-    <div class="container">
-        <nav>
-            <div class="logo">FESTPLAN</div>
-            <div class="nav-links">
-                <a href="#" class="nav-btn active" onclick="showSection('home')">🏠 Hjem</a>
-                <a href="#" class="nav-btn" onclick="showSection('gjenger')">🍻 Gjenger</a>
-                <a href="#" class="nav-btn" onclick="showSection('leker')">🎮 Leker & Spill</a>
-                <a href="#" class="nav-btn" onclick="showSection('planlegger')">📅 Planlegger</a>
+    <div id="mainAuthView" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;">
+        <div class="main-card" style="max-width: 500px; width: 100%; padding: 40px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div class="logo" style="font-size: 48px; margin-bottom: 10px;">FESTPLAN</div>
+                <p style="color: var(--text-muted);">Logg inn eller lag en bruker for å starte festen!</p>
             </div>
-        </nav>
+
+            <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 30px;">
+                <button id="mainLoginTab" class="nav-btn active" onclick="setFestAuthMode('login')" style="flex: 1; border-radius: 0; border: none; background: none; border-bottom: 2px solid var(--primary);">Logg inn</button>
+                <button id="mainRegTab" class="nav-btn" onclick="setFestAuthMode('reg')" style="flex: 1; border-radius: 0; border: none; background: none;">Ny bruker</button>
+            </div>
+            
+            <h2 id="mainAuthTitle">Velkommen tilbake! 👤</h2>
+            <p id="mainAuthDesc" style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px;">Logg inn for å se dine gjenger og venner.</p>
+            
+            <input type="text" id="mainUserNameInput" placeholder="Brukernavn" style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
+            <input type="password" id="mainUserPassInput" placeholder="Passord" style="width: 100%; margin-bottom: 24px; padding: 20px; font-size: 18px;">
+            
+            <button id="mainAuthBtn" class="btn-play" style="width: 100%;" onclick="handleFestAuth()">Start Festplanlegging</button>
+        </div>
+    </div>
+
+    <div id="appContent" style="display: none;">
+        <div class="container">
+            <nav>
+                <div class="logo">FESTPLAN</div>
+                <div class="nav-links">
+                    <a href="#" class="nav-btn active" onclick="showSection('home')">🏠 Hjem</a>
+                    <a href="#" class="nav-btn" onclick="showSection('gjenger')">🍻 Gjenger</a>
+                    <a href="#" class="nav-btn" onclick="showSection('leker')">🎮 Leker & Spill</a>
+                    <a href="#" class="nav-btn" onclick="showSection('planlegger')">📅 Planlegger</a>
+                    <a href="#" class="nav-btn" onclick="logout()" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">Logg ut</a>
+                </div>
+            </nav>
 
         <!-- HOME SECTION -->
         <section id="home" class="section active">
@@ -460,33 +484,21 @@
             <div id="gameGrid" class="game-grid"></div>
         </section>
 
-        <!-- PLANLEGGER SECTION -->
         <section id="planlegger" class="section">
-            <div id="authView">
-                <div class="main-card" style="max-width: 500px; margin: 40px auto;">
-                    <h2>Din Profil 👤</h2>
-                    <p style="margin-bottom: 24px;">Logg inn eller opprett bruker for å lagre dine gjenger.</p>
-                    <input type="text" id="userNameInput" placeholder="Brukernavn" style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
-                    <input type="password" id="userPassInput" placeholder="Passord" style="width: 100%; margin-bottom: 24px; padding: 20px; font-size: 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 12px;">
-                    <button class="btn-large btn-next" style="width: 100%; margin-bottom: 20px;" onclick="handleFestAuth()">Start Festplanlegging</button>
-                    
-                    <div id="roomSection" style="display: none; border-top: 1px solid rgba(255,255,255,0.1); pt: 20px;">
-                        <h3 style="margin: 20px 0 10px;">Dine gjenger 🍻</h3>
-                        <div class="input-group" style="margin-bottom: 20px;">
-                            <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="padding: 20px; font-size: 18px; text-transform: uppercase;">
-                            <button class="nav-btn" onclick="addRoomCode()" style="padding: 0 25px;">Legg til</button>
-                        </div>
-                        <div id="myRoomsList" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="roleView" style="display: none;">
+            <div id="roleView">
                 <div class="planner-header">
                     <h2 id="welcomeText">Velg din rolle 👋</h2>
-                    <button class="nav-btn" onclick="logout()">Bytt bruker</button>
                 </div>
                 
+                <div id="roomSection" style="margin-bottom: 30px; background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
+                    <h3 style="margin-bottom: 15px;">Mine gjenger 🍻</h3>
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="text-transform: uppercase;">
+                        <button class="nav-btn" onclick="addRoomCode()">Legg til</button>
+                    </div>
+                    <div id="myRoomsList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
+                </div>
+
                 <!-- VELG ROM FØRST -->
                 <div id="roomSelectionForRole" style="margin-bottom: 30px;">
                     <h3 style="margin-bottom: 15px; color: var(--accent);">Hvilken gjeng vil du planlegge for?</h3>
@@ -647,6 +659,7 @@
             </div>
         </div>
     </div>
+</div> <!-- Slutt på appContent -->
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -763,37 +776,73 @@
         let dbRef = null;
         let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || "[]");
 
+        let festAuthMode = 'login';
+        window.setFestAuthMode = function(mode) {
+            festAuthMode = mode;
+            const loginTab = document.getElementById('mainLoginTab');
+            const regTab = document.getElementById('mainRegTab');
+            if (loginTab) {
+                loginTab.classList.toggle('active', mode === 'login');
+                loginTab.style.borderBottom = mode === 'login' ? '2px solid var(--primary)' : 'none';
+            }
+            if (regTab) {
+                regTab.classList.toggle('active', mode === 'reg');
+                regTab.style.borderBottom = mode === 'reg' ? '2px solid var(--primary)' : 'none';
+            }
+            
+            const authTitle = document.getElementById('mainAuthTitle');
+            const authDesc = document.getElementById('mainAuthDesc');
+            const authBtn = document.getElementById('mainAuthBtn');
+            
+            if (authTitle) authTitle.innerText = mode === 'login' ? 'Velkommen tilbake! 👤' : 'Bli en festdeltaker! ✨';
+            if (authDesc) authDesc.innerText = mode === 'login' ? 'Logg inn for å se dine gjenger og venner.' : 'Lag en profil for å lagre dine egne gjenger og koder.';
+            if (authBtn) authBtn.innerText = mode === 'login' ? 'Start Festplanlegging' : 'Opprett bruker';
+        }
+
         window.handleFestAuth = async function() {
-            const user = document.getElementById('userNameInput').value.trim();
-            const pass = document.getElementById('userPassInput').value.trim();
+            const user = document.getElementById('mainUserNameInput').value.trim();
+            const pass = document.getElementById('mainUserPassInput').value.trim();
             if(!user || !pass) return alert("Fyll inn både brukernavn og passord!");
 
             const userRef = ref(db, 'fest_accounts/' + user);
             const snapshot = await get(userRef);
             const data = snapshot.val();
 
-            if (data) {
-                if (data.password === pass) {
+            if (festAuthMode === 'reg') {
+                if (data) return alert("Brukernavnet er allerede tatt!");
+                const friendCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                await set(userRef, { 
+                    password: pass, 
+                    rooms: [], 
+                    friendCode: friendCode, 
+                    friends: [],
+                    units: 0
+                });
+                alert("Bruker opprettet! Du kan nå logge inn.");
+                setFestAuthMode('login');
+            } else {
+                if (data && data.password === pass) {
                     currentUser = user;
                     localStorage.setItem('fest_user', user);
                     savedRooms = data.rooms || [];
                     localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
-                    document.getElementById('roomSection').style.display = 'block';
-                    renderPlanner();
-                    renderScoreboard();
+                    checkLoginState();
                 } else {
-                    alert("Feil passord!");
+                    alert("Feil brukernavn eller passord!");
                 }
+            }
+        }
+
+        function checkLoginState() {
+            if (currentUser) {
+                document.getElementById('mainAuthView').style.display = 'none';
+                document.getElementById('appContent').style.display = 'block';
+                if (currentRoom) connectToRoom(currentRoom);
+                renderPlanner();
+                renderScoreboard();
             } else {
-                if(confirm("Bruker finnes ikke. Vil du opprette en ny med dette passordet?")) {
-                    const friendCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-                    await set(userRef, { password: pass, rooms: [], friendCode: friendCode, friends: [] });
-                    currentUser = user;
-                    localStorage.setItem('fest_user', user);
-                    savedRooms = [];
-                    document.getElementById('roomSection').style.display = 'block';
-                    renderPlanner();
-                }
+                document.getElementById('mainAuthView').style.display = 'flex';
+                document.getElementById('appContent').style.display = 'none';
             }
         }
 
@@ -982,9 +1031,6 @@
             const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
             const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
 
-            // Auth View: Skjul hvis logget inn
-            document.getElementById('authView').style.display = (currentUser) ? 'none' : 'block';
-            
             // Role View: Vis hvis logget inn, men ingen aktiv rolle valgt
             document.getElementById('roleView').style.display = (currentUser && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
             
@@ -1329,6 +1375,7 @@
         }
 
         window.renderGames();
+        checkLoginState();
     </script>
 </body>
 </html>
