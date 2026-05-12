@@ -1382,8 +1382,14 @@
 
         window.startApp = function(mode) {
             currentMode = mode;
-            document.getElementById('landingPage').style.display = 'none';
-            document.getElementById('appContainer').classList.add('active');
+            const landingPage = document.getElementById('landingPage');
+            const appContainer = document.getElementById('appContainer');
+            
+            if (landingPage) landingPage.style.display = 'none';
+            if (appContainer) {
+                appContainer.style.display = 'flex';
+                appContainer.classList.add('active');
+            }
             
             const titles = { 1: "Dagsplan", 7: "Ukeplan", 30: "Månedsplan" };
             if (document.getElementById('planTitleText')) document.getElementById('planTitleText').innerText = titles[mode];
