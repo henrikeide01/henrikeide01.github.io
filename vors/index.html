@@ -347,17 +347,16 @@
             </div>
             <div class="game-grid" id="gameGrid">
                 <!-- Leker legges inn her via JS -->
-            </div>
-        </section>
-
-        <!-- PLANLEGGER SECTION -->
+            </d        <!-- PLANLEGGER SECTION -->
         <section id="planlegger" class="section">
             <div id="authView">
                 <div class="main-card" style="max-width: 500px; margin: 40px auto;">
-                    <h2>Hvem er du?</h2>
-                    <p style="margin-bottom: 24px;">Skriv navnet ditt for å starte planleggingen.</p>
-                    <input type="text" id="userNameInput" placeholder="Ditt navn..." style="width: 100%; margin-bottom: 20px; padding: 20px; font-size: 18px;">
-                    <button class="btn-large btn-next" style="width: 100%;" onclick="login()">Bli med</button>
+                    <h2>Bli med på vors 🍻</h2>
+                    <p style="margin-bottom: 24px;">Skriv navnet ditt og vennekoden for å starte.</p>
+                    <input type="text" id="userNameInput" placeholder="Ditt navn..." style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
+                    <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="width: 100%; margin-bottom: 20px; padding: 20px; font-size: 18px; text-transform: uppercase;">
+                    <button class="btn-large btn-next" style="width: 100%;" onclick="login()">Start planlegging</button>
+                    <p style="margin-top: 20px; font-size: 14px; color: var(--text-muted);">Tips: Alle i samme gjeng må bruke samme vennekode.</p>
                 </div>
             </div>
 
@@ -367,7 +366,7 @@
                     <button class="nav-btn" onclick="logout()">Logg ut</button>
                 </div>
                 <div class="main-grid">
-                    <div class="main-card" onclick="becomeHost()">
+                    <div class="main-card" onclick="openHostSetup()">
                         <span class="card-icon">🏠</span>
                         <h2>Være Host</h2>
                         <p>Jeg vil holde vorset og styre listen.</p>
@@ -376,6 +375,23 @@
                         <span class="card-icon">🍺</span>
                         <h2>Bare bli med</h2>
                         <p>Jeg vil se hvem som har vors og melde meg på.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Host Setup Modal-ish -->
+            <div id="hostSetupView" style="display: none;">
+                <div class="main-card" style="max-width: 600px; margin: 40px auto; text-align: left;">
+                    <h2>Sett opp ditt vors 🏠</h2>
+                    <p style="margin-bottom: 20px; color: var(--text-muted);">Gi gjestene dine litt info om hva som skjer.</p>
+                    
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Beskrivelse / Beskjed til gjester:</label>
+                    <textarea id="hostDescInput" placeholder="F.eks: Velkommen til vors hos meg! Husk godt humør og badetøy. Inngang via bakgården." 
+                        style="width: 100%; height: 120px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-family: inherit; resize: none;"></textarea>
+                    
+                    <div style="display: flex; gap: 15px;">
+                        <button class="nav-btn" style="flex: 1; padding: 15px;" onclick="resetRole()">Avbryt</button>
+                        <button class="btn-large btn-next" style="flex: 2;" onclick="becomeHost()">Start mitt vors! 🎉</button>
                     </div>
                 </div>
             </div>
@@ -390,22 +406,36 @@
                     <!-- Vorser listes her -->
                 </div>
 
-                <div id="shoppingSection" style="display: none; background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                        <h3>🛒 Handleliste for <span id="currentVorsName">Vors</span></h3>
-                        <div id="hostControls" style="display: none;">
-                            <span style="font-size: 12px; color: var(--accent);">Du er host</span>
+                <div id="activeVorsDetail" style="display: none; grid-template-columns: 1fr 350px; gap: 30px;">
+                    <!-- Venstre side: Info og Handleliste -->
+                    <div style="display: flex; flex-direction: column; gap: 30px;">
+                        <div style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                                <h3 style="font-size: 28px;">ℹ️ Info fra host</h3>
+                                <div id="hostControls" style="display: none;">
+                                    <button class="nav-btn" style="font-size: 12px; padding: 5px 10px;" onclick="openHostSetup()">Rediger info</button>
+                                </div>
+                            </div>
+                            <p id="vorsDescriptionText" style="color: #cbd5e1; line-height: 1.6; font-size: 18px; white-space: pre-wrap;"></p>
+                        </div>
+
+                        <div id="shoppingSection" style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1);">
+                            <h3 style="margin-bottom: 20px;">🛒 Hva trengs?</h3>
+                            <div class="input-group">
+                                <input type="text" id="itemName" placeholder="Ting (f.eks: Isbiter)">
+                                <input type="text" id="itemQty" placeholder="Antall" style="max-width: 120px;">
+                                <button class="nav-btn" onclick="addItem()">Legg til</button>
+                            </div>
+                            <div class="guest-list" id="shoppingList" style="margin-top: 20px;"></div>
                         </div>
                     </div>
 
-                    <div class="input-group">
-                        <input type="text" id="itemName" placeholder="Hva trengs?">
-                        <input type="text" id="itemQty" placeholder="Antall/Mengde" style="max-width: 150px;">
-                        <button class="nav-btn" onclick="addItem()">Legg til</button>
-                    </div>
-
-                    <div class="guest-list" id="shoppingList">
-                        <!-- Ting listes her -->
+                    <!-- Høyre side: Gjesteliste -->
+                    <div style="background: var(--card-bg); padding: 30px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1); align-self: start;">
+                        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                            👥 Gjester <span id="participantCount" style="background: var(--primary); padding: 2px 10px; border-radius: 10px; font-size: 14px;">0</span>
+                        </h3>
+                        <div id="participantList" style="display: flex; flex-direction: column; gap: 10px;"></div>
                     </div>
                 </div>
             </div>
@@ -422,182 +452,322 @@
         </div>
     </div>
 
-    <script>
-        // Spilldata
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, push, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAnWI9w2TXkSUtq0kDQKNHJpspw6JKqEuA",
+            authDomain: "eidert.firebaseapp.com",
+            projectId: "eidert",
+            storageBucket: "eidert.firebasestorage.app",
+            messagingSenderId: "404554280464",
+            appId: "1:404554280464:web:b454e6b567e1897eab6495",
+            measurementId: "G-WS907SPPDR",
+            databaseURL: "https://eidert-default-rtdb.europe-west1.firebasedatabase.app/" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
         const games = [
-            { id: 'jeg-har-aldri', title: 'Jeg har aldri', icon: '🤫', desc: 'Den ultimate klassikeren.', cards: ["Jeg har aldri løyet på sannhet eller konsekvens.", "Jeg har aldri sendt melding til feil person.", "Jeg har aldri sneket meg ut.", "Jeg har aldri blitt kastet ut.", "Jeg har aldri hatt en walk of shame."] },
-            { id: 'pekeleken', title: 'Pekeleken', icon: '👉', desc: 'Hvem i rommet...?', cards: ["Hvem blir kjendis?", "Hvem bruker opp alle pengene?", "Hvem sovner først?", "Hvem ender i fengsel?", "Hvem gifter seg først?"] },
-            { id: 'sannhet', title: 'Sannhet eller Konsekvens', icon: '🔥', desc: 'Tør du?', cards: ["Sannhet: Hemmelig crush?", "Konsekvens: Ta en shot.", "Sannhet: Flaueste fyllehistorie?", "Konsekvens: Ring eksen."] }
+            { 
+                id: 'jeg-har-aldri', 
+                title: 'Jeg har aldri', 
+                icon: '🤫', 
+                desc: 'Den ultimate klassikeren med 50+ spørsmål.', 
+                cards: [
+                    "Jeg har aldri løyet på sannhet eller konsekvens.", "Jeg har aldri sendt melding til feil person.", 
+                    "Jeg har aldri sneket meg ut.", "Jeg har aldri blitt kastet ut.", "Jeg har aldri hatt en walk of shame.",
+                    "Jeg har aldri sovnet på bussen/toget og våknet på endestasjonen.", "Jeg har aldri stalket en eks på sosiale medier.",
+                    "Jeg har aldri latet som jeg var syk for å slippe et vors.", "Jeg har aldri stjålet en drink fra en venn.",
+                    "Jeg har aldri badet naken offentlig.", "Jeg har aldri glemt navnet på en jeg har klint med.",
+                    "Jeg har aldri vært i slåsskamp.", "Jeg har aldri blitt stoppet av politiet.",
+                    "Jeg har aldri hatt en crush på en lærer.", "Jeg har aldri grått på en nattklubb.",
+                    "Jeg har aldri løyet på alderen min.", "Jeg har aldri sendt en 'uheldig' bilde til feil person.",
+                    "Jeg har aldri vært forelsket i to personer samtidig.", "Jeg har aldri brukt noen andres tannbørste.",
+                    "Jeg har aldri prompet i en heis og gitt noen andre skylden.", "Jeg har aldri slettet et bilde fordi jeg fikk få likes.",
+                    "Jeg har aldri grått meg til en bedre karakter.", "Jeg har aldri kysset bestevennen til eksen min.",
+                    "Jeg har aldri blitt tatt for nasking.", "Jeg har aldri vært med i en musikkvideo.",
+                    "Jeg har aldri sjekket telefonen til partneren min.", "Jeg har aldri gått på feil do.",
+                    "Jeg har aldri bestilt mat for to personer selv om jeg var alene.", "Jeg har aldri sunget karaoke.",
+                    "Jeg har aldri vært på TV.", "Jeg har aldri hatt en hemmelig profil.",
+                    "Jeg har aldri latet som jeg kjente noen jeg ikke kjente.", "Jeg har aldri løyet på en date.",
+                    "Jeg har aldri vært i arresten.", "Jeg har aldri spydd i en taxi.",
+                    "Jeg har aldri mistet telefonen i doen.", "Jeg har aldri blitt bitt av et dyr.",
+                    "Jeg har aldri hatt en nær-døden-opplevelse.", "Jeg har aldri snoket i andres medisinskap.",
+                    "Jeg har aldri hatt en piercing jeg har angret på.", "Jeg har aldri tatovert meg i fylla."
+                ] 
+            },
+            { 
+                id: 'pekeleken', 
+                title: 'Pekeleken', 
+                icon: '👉', 
+                desc: 'Hvem i rommet er mest sannsynlig til...?', 
+                cards: [
+                    "Hvem blir kjendis?", "Hvem bruker opp alle pengene?", "Hvem sovner først?", "Hvem ender i fengsel?", 
+                    "Hvem gifter seg først?", "Hvem blir millionær?", "Hvem kommer sist til vorset?", 
+                    "Hvem ender opp på nachspiel til kl. 09:00?", "Hvem blir president?", "Hvem glemmer telefonen sin i kveld?",
+                    "Hvem dater en kjendis?", "Hvem starter et band?", "Hvem flytter til utlandet?",
+                    "Hvem blir tatt for fyllekjøring (på el-sparkesykkel)?", "Hvem vinner i Lotto?",
+                    "Hvem begynner å gråte først i kveld?", "Hvem tar flest selfies?", "Hvem chugger raskest?",
+                    "Hvem blir den strengeste forelderen?", "Hvem glemmer navnet på verten?", "Hvem går tom for batteri først?",
+                    "Hvem ender opp på en lokalavis-overskrift?", "Hvem prøver å snike seg inn på VIP-en?",
+                    "Hvem ringer eksen i kveld?", "Hvem spyr først?", "Hvem blir kveldens DJ?",
+                    "Hvem har flest bilder i kamerarullen?", "Hvem bruker mest penger på byen?",
+                    "Hvem blir værende lengst på dansegulvet?", "Hvem prøver å flørte seg ut av en bot?"
+                ] 
+            },
+            { 
+                id: 'sannhet', 
+                title: 'Sannhet eller Konsekvens', 
+                icon: '🔥', 
+                desc: 'Tør du virkelig?', 
+                cards: [
+                    "Sannhet: Hemmelig crush?", "Konsekvens: Ta en shot.", "Sannhet: Flaueste fyllehistorie?", 
+                    "Konsekvens: Ring eksen.", "Sannhet: Hvem i rommet ville du helst datet?",
+                    "Konsekvens: La verten sende en melding fra din telefon.",
+                    "Sannhet: Hva er det rareste du har gjort alene?", "Konsekvens: Dans macarena uten musikk i 1 minutt.",
+                    "Sannhet: Hvem er din minst favoritt i rommet?", "Konsekvens: Gjør 10 pushups.",
+                    "Sannhet: Har du noen gang løyet for å komme deg ut av en date?",
+                    "Konsekvens: Vis de 5 siste bildene i kamerarullen din.",
+                    "Sannhet: Hva er din største frykt?", "Konsekvens: Lukt på skoene til personen til høyre for deg.",
+                    "Sannhet: Hva er det mest ulovlige du har gjort?", "Konsekvens: Lat som du er en kylling til det er din tur igjen.",
+                    "Sannhet: Har du noen gang vært utro?", "Konsekvens: Drikk alt som er igjen i glasset ditt.",
+                    "Sannhet: Hvem i rommet har de peneste øynene?", "Konsekvens: Bytt klær med personen til venstre (valgfritt plagg).",
+                    "Sannhet: Hva er den verste gaven du har fått?", "Konsekvens: Ring en tilfeldig kontakt og syng gratulerer med dagen."
+                ] 
+            },
+            { 
+                id: 'lykkehjul', 
+                title: 'Lykkehjul', 
+                icon: '🎡', 
+                desc: 'Snurr hjulet og se hva skjebnen bringer!', 
+                cards: [
+                    "TA EN SHOT!", "GI BORT 2 SLURKER", "PEKELEKEN NESTE RUNDE", "VALGFRI PERSON DRIKKER", 
+                    "SANNHET ELLER KONSEKVENS", "ALLE DRIKKER!", "DU ER TRYGG", "BYTT DRINK MED NABOEN",
+                    "AVSLØR EN HEMMELIGHET", "DANS I 30 SEKUNDER", "CHUG RESTEN!", "INGEN DRIKKER NESTE RUNDE",
+                    "SHOTT-STAFETT!", "ALLE JENTER DRIKKER", "ALLE GUTTER DRIKKER", "HISTORIE-TIME (FORTELL NOE FLAUT)"
+                ] 
+            },
+            {
+                id: 'chug',
+                title: 'Chug-konkurranse',
+                icon: '🍺',
+                desc: 'Hvem er raskest? 1 mot 1 med timer og scoreboard.',
+                isSpecial: true
+            }
         ];
 
         let activeGame = null;
         let cardIndex = 0;
-
-        // --- FEST KOORDINATOR LOGIKK ---
-        let state = JSON.parse(localStorage.getItem('fest_state')) || {
-            users: {},
-            vorser: [],
-            lastReset: new Date().getTime()
-        };
-
+        let state = { users: {}, vorser: [], lastReset: 0 };
         let currentUser = localStorage.getItem('fest_user') || null;
+        let currentRoom = localStorage.getItem('fest_room') || null;
+        let dbRef = null;
+
+        function connectToRoom(roomCode) {
+            if (dbRef) return; // Allerede tilkoblet
+            dbRef = ref(db, 'fest_rooms/' + roomCode);
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    state = data;
+                    checkReset();
+                    renderPlanner();
+                } else {
+                    resetDatabase();
+                }
+            });
+        }
+
+        if (currentRoom) connectToRoom(currentRoom);
+
+        function resetDatabase() {
+            if (!dbRef) return;
+            set(dbRef, { users: {}, vorser: [], lastReset: new Date().getTime() });
+        }
 
         function checkReset() {
             const now = new Date();
             const lastResetDate = new Date(state.lastReset);
-            
-            // Hvis det har gått forbi 05:00 og vi er på en ny dag siden sist reset
-            if (now.getHours() >= 5) {
-                if (lastResetDate.getDate() !== now.getDate() || lastResetDate.getMonth() !== now.getMonth()) {
-                    console.log("Resetter data for ny dag...");
-                    state = { users: {}, vorser: [], lastReset: now.getTime() };
-                    saveState();
-                }
+            if (now.getHours() >= 5 && (lastResetDate.getDate() !== now.getDate() || lastResetDate.getMonth() !== now.getMonth())) {
+                resetDatabase();
             }
         }
 
-        function saveState() {
-            localStorage.setItem('fest_state', JSON.stringify(state));
-            renderPlanner();
-        }
-
-        function login() {
+        window.login = function() {
             const name = document.getElementById('userNameInput').value.trim();
-            if (name) {
+            const room = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (name && room) {
                 currentUser = name;
+                currentRoom = room;
                 localStorage.setItem('fest_user', name);
-                if (!state.users[name]) state.users[name] = { name: name, role: null, joinedVors: null };
-                saveState();
+                localStorage.setItem('fest_room', room);
+                
+                connectToRoom(room);
+
+                if (!state.users) state.users = {};
+                if (!state.users[name]) {
+                    state.users[name] = { name: name, role: null, joinedVors: null };
+                    update(ref(db, `fest_rooms/${currentRoom}/users`), state.users);
+                }
+                renderPlanner();
+            } else {
+                alert("Du må skrive både navn og vennekode!");
             }
         }
 
-        function logout() {
+        window.logout = function() {
             localStorage.removeItem('fest_user');
+            localStorage.removeItem('fest_room');
             currentUser = null;
-            renderPlanner();
+            currentRoom = null;
+            location.reload();
         }
 
-        function becomeHost() {
-            state.users[currentUser].role = 'host';
-            state.users[currentUser].joinedVors = currentUser;
+        window.openHostSetup = function() {
+            document.getElementById('roleView').style.display = 'none';
+            document.getElementById('vorsView').style.display = 'none';
+            document.getElementById('hostSetupView').style.display = 'block';
             
-            // Slett gammelt vors hvis det fantes
-            state.vorser = state.vorser.filter(v => v.host !== currentUser);
+            // Hvis vi allerede er host, fyll inn eksisterende beskrivelse
+            const v = (state.vorser || []).find(v => v.host === currentUser);
+            if (v) document.getElementById('hostDescInput').value = v.description || "";
+        }
+
+        window.becomeHost = function() {
+            const desc = document.getElementById('hostDescInput').value.trim();
+            const updates = {};
+            updates[`fest_rooms/${currentRoom}/users/${currentUser}/role`] = 'host';
+            updates[`fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`] = currentUser;
             
-            // Opprett nytt
-            state.vorser.push({
-                id: currentUser,
-                host: currentUser,
-                items: []
+            let newVorser = (state.vorser || []).filter(v => v.host !== currentUser);
+            newVorser.push({ 
+                id: currentUser, 
+                host: currentUser, 
+                description: desc || "Velkommen til vors! 🎉",
+                items: [] 
             });
-            saveState();
-        }
-
-        function becomeParticipant() {
-            state.users[currentUser].role = 'participant';
-            saveState();
-        }
-
-        function joinVors(hostId) {
-            // Hvis vi var host selv, slett vårt eget vors
-            if (state.users[currentUser].role === 'host') {
-                state.vorser = state.vorser.filter(v => v.host !== currentUser);
-                state.users[currentUser].role = 'participant';
-            }
+            updates[`fest_rooms/${currentRoom}/vorser`] = newVorser;
             
-            state.users[currentUser].joinedVors = hostId;
-            saveState();
+            update(ref(db), updates);
+            document.getElementById('hostSetupView').style.display = 'none';
         }
 
-        function resetRole() {
-            state.users[currentUser].role = null;
-            state.users[currentUser].joinedVors = null;
-            saveState();
+        window.becomeParticipant = function() {
+            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: 'participant' });
         }
 
-        function addItem() {
+        window.joinVors = function(hostId) {
+            const updates = {};
+            if (state.users[currentUser].role === 'host') {
+                updates[`fest_rooms/${currentRoom}/vorser`] = (state.vorser || []).filter(v => v.host !== currentUser);
+                updates[`fest_rooms/${currentRoom}/users/${currentUser}/role`] = 'participant';
+            }
+            updates[`fest_rooms/${currentRoom}/users/${currentUser}/joinedVors`] = hostId;
+            update(ref(db), updates);
+        }
+
+        window.resetRole = function() {
+            update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { role: null, joinedVors: null });
+            document.getElementById('hostSetupView').style.display = 'none';
+        }
+
+        window.addItem = function() {
             const name = document.getElementById('itemName').value.trim();
             const qty = document.getElementById('itemQty').value.trim();
-            const vorsId = state.users[currentUser].joinedVors;
-            const vors = state.vorser.find(v => v.id === vorsId);
-
-            if (name && vors) {
-                vors.items.push({ name, qty, takenBy: null });
-                document.getElementById('itemName').value = '';
-                document.getElementById('itemQty').value = '';
-                saveState();
-            }
-        }
-
-        function removeItem(index) {
-            const vorsId = state.users[currentUser].joinedVors;
-            const vors = state.vorser.find(v => v.id === vorsId);
-            if (vors && (state.users[currentUser].role === 'host')) {
-                vors.items.splice(index, 1);
-                saveState();
-            }
-        }
-
-        function toggleTakeItem(index) {
-            const vorsId = state.users[currentUser].joinedVors;
-            const vors = state.vorser.find(v => v.id === vorsId);
-            if (vors) {
-                if (vors.items[index].takenBy === currentUser) {
-                    vors.items[index].takenBy = null;
-                } else {
-                    vors.items[index].takenBy = currentUser;
+            const user = state.users[currentUser];
+            if (name && user && user.joinedVors) {
+                const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
+                if (vorsIndex !== -1) {
+                    if (!state.vorser[vorsIndex].items) state.vorser[vorsIndex].items = [];
+                    state.vorser[vorsIndex].items.push({ name, qty, takenBy: null });
+                    update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}`), state.vorser[vorsIndex]);
+                    document.getElementById('itemName').value = '';
+                    document.getElementById('itemQty').value = '';
                 }
-                saveState();
+            }
+        }
+
+        window.removeItem = function(index) {
+            const user = state.users[currentUser];
+            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
+            if (vorsIndex !== -1 && user.role === 'host') {
+                state.vorser[vorsIndex].items.splice(index, 1);
+                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}`), state.vorser[vorsIndex]);
+            }
+        }
+
+        window.toggleTakeItem = function(index) {
+            const user = state.users[currentUser];
+            const vorsIndex = state.vorser.findIndex(v => v.id === user.joinedVors);
+            if (vorsIndex !== -1) {
+                const item = state.vorser[vorsIndex].items[index];
+                item.takenBy = (item.takenBy === currentUser) ? null : currentUser;
+                update(ref(db, `fest_rooms/${currentRoom}/vorser/${vorsIndex}/items/${index}`), item);
             }
         }
 
         function renderPlanner() {
-            checkReset();
-            const user = currentUser ? state.users[currentUser] : null;
+            const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
+            const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
 
             document.getElementById('authView').style.display = currentUser ? 'none' : 'block';
-            document.getElementById('roleView').style.display = (currentUser && !user.role) ? 'block' : 'none';
-            document.getElementById('vorsView').style.display = (currentUser && user.role) ? 'block' : 'none';
+            document.getElementById('roleView').style.display = (currentUser && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
+            document.getElementById('vorsView').style.display = (currentUser && user && user.role && !isEditingHost) ? 'block' : 'none';
 
-            if (currentUser) {
-                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋`;
+            if (currentUser && currentRoom) {
+                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋 (Kode: ${currentRoom})`;
             }
 
             if (user && user.role) {
                 const vorsList = document.getElementById('activeVorsList');
+                const vorsDetail = document.getElementById('activeVorsDetail');
+
                 if (!user.joinedVors) {
                     document.getElementById('vorsStatusTitle').innerText = "Hvor er festen? 🍻";
-                    document.getElementById('shoppingSection').style.display = 'none';
+                    vorsDetail.style.display = 'none';
                     vorsList.style.display = 'grid';
                     
-                    if (state.vorser.length === 0) {
-                        vorsList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Ingen har meldt seg som host enda...</div>`;
+                    const availableVorser = state.vorser || [];
+                    if (availableVorser.length === 0) {
+                        vorsList.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">Ingen har meldt seg som host enda...</div>`;
                     } else {
-                        vorsList.innerHTML = state.vorser.map(v => `
-                            <div class="main-card" onclick="joinVors('${v.id}')">
-                                <span class="card-icon">🏠</span>
-                                <h2>${v.host}'s Vors</h2>
-                                <p>${v.items.length} ting på listen</p>
-                                <button class="btn-play" style="margin-top: 15px;">Bli med her</button>
-                            </div>
-                        `).join('');
+                        vorsList.innerHTML = availableVorser.map(v => {
+                            // Finn antall gjester
+                            const guests = Object.values(state.users).filter(u => u.joinedVors === v.id).length;
+                            return `
+                                <div class="main-card" onclick="joinVors('${v.id}')">
+                                    <span class="card-icon">🏠</span>
+                                    <h2>${v.host}'s Vors</h2>
+                                    <p style="margin-bottom: 10px;">${v.description.substring(0, 60)}${v.description.length > 60 ? '...' : ''}</p>
+                                    <div style="display: flex; justify-content: center; gap: 10px; font-size: 14px; color: var(--accent);">
+                                        <span>👥 ${guests} gjester</span>
+                                        <span>🛒 ${(v.items || []).length} ting trengs</span>
+                                    </div>
+                                    <button class="btn-play" style="margin-top: 15px;">Bli med her</button>
+                                </div>
+                            `;
+                        }).join('');
                     }
                 } else {
-                    const currentVors = state.vorser.find(v => v.id === user.joinedVors);
+                    const currentVors = (state.vorser || []).find(v => v.id === user.joinedVors);
                     if (!currentVors) {
-                        // Vorset ble slettet
-                        user.joinedVors = null;
-                        saveState();
+                        update(ref(db, `fest_rooms/${currentRoom}/users/${currentUser}`), { joinedVors: null });
                         return;
                     }
 
                     document.getElementById('vorsStatusTitle').innerText = `Du er på ${currentVors.host}'s vors! ✨`;
-                    document.getElementById('currentVorsName').innerText = `${currentVors.host}'s vors`;
                     vorsList.style.display = 'none';
-                    document.getElementById('shoppingSection').style.display = 'block';
+                    vorsDetail.style.display = 'grid';
+                    
+                    document.getElementById('vorsDescriptionText').innerText = currentVors.description;
                     document.getElementById('hostControls').style.display = (user.role === 'host') ? 'block' : 'none';
 
-                    document.getElementById('shoppingList').innerHTML = currentVors.items.map((item, i) => `
+                    // Oppdater handleliste
+                    const items = currentVors.items || [];
+                    document.getElementById('shoppingList').innerHTML = items.map((item, i) => `
                         <div class="guest-item" style="${item.takenBy ? 'opacity: 0.6; border-left: 4px solid var(--primary);' : ''}">
                             <div style="flex: 1;">
                                 <strong style="font-size: 18px;">${item.name}</strong> 
@@ -612,12 +782,22 @@
                             </div>
                         </div>
                     `).join('');
+
+                    // Oppdater gjesteliste
+                    const participants = Object.values(state.users).filter(u => u.joinedVors === currentVors.id);
+                    document.getElementById('participantCount').innerText = participants.length;
+                    document.getElementById('participantList').innerHTML = participants.map(p => `
+                        <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; border-left: 3px solid ${p.role === 'host' ? 'var(--accent)' : 'transparent'}">
+                            <span>${p.role === 'host' ? '👑' : '👤'}</span>
+                            <span style="font-weight: 600;">${p.name}</span>
+                            ${p.role === 'host' ? '<span style="font-size: 10px; color: var(--accent); margin-left: auto;">HOST</span>' : ''}
+                        </div>
+                    `).join('');
                 }
             }
         }
 
-        // --- SPILL LOGIKK (uendret) ---
-        function showSection(id) {
+        window.showSection = function(id) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
@@ -625,9 +805,9 @@
             if (id === 'planlegger') renderPlanner();
         }
 
-        function renderGames() {
+        window.renderGames = function() {
             const grid = document.getElementById('gameGrid');
-            grid.innerHTML = games.map(game => `
+            if(grid) grid.innerHTML = games.map(game => `
                 <div class="game-card">
                     <span style="font-size: 40px;">${game.icon}</span>
                     <h3 style="margin: 10px 0;">${game.title}</h3>
@@ -637,7 +817,7 @@
             `).join('');
         }
 
-        function startGame(id) {
+        window.startGame = function(id) {
             activeGame = games.find(g => g.id === id);
             cardIndex = -1;
             document.getElementById('activeGameTitle').innerText = activeGame.title;
@@ -645,18 +825,175 @@
             nextCard();
         }
 
-        function nextCard() {
+        window.nextCard = function() {
             cardIndex++;
             if (cardIndex >= activeGame.cards.length) { cardIndex = 0; shuffle(activeGame.cards); }
             document.getElementById('gameText').innerText = activeGame.cards[cardIndex];
         }
 
-        function closeGame() { document.getElementById('gameOverlay').style.display = 'none'; }
-        function startQuickGame() { startGame(games[Math.floor(Math.random() * games.length)].id); }
+        window.closeGame = function() { document.getElementById('gameOverlay').style.display = 'none'; }
+        window.startQuickGame = function() { window.startGame(games[Math.floor(Math.random() * games.length)].id); }
+
+        window.renderLykkehjul = function() {
+            const container = document.getElementById('gameOverlay');
+            container.innerHTML = `
+                <div style="position: relative; width: 300px; height: 300px; margin: 0 auto 40px; border: 8px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--card-bg);">
+                    <div id="wheel" style="width: 100%; height: 100%; transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);">
+                        ${activeGame.cards.map((c, i) => `
+                            <div style="position: absolute; width: 50%; height: 50%; top: 50%; left: 50%; transform-origin: 0% 0%; transform: rotate(${i * (360/activeGame.cards.length)}deg) skewY(-${90 - (360/activeGame.cards.length)}deg); background: ${i % 2 === 0 ? 'var(--primary)' : 'var(--secondary)'}; border: 1px solid rgba(255,255,255,0.2);">
+                                <span style="position: absolute; transform-origin: 0% 0%; transform: skewY(${90 - (360/activeGame.cards.length)}deg) rotate(${(360/activeGame.cards.length)/2}deg) translate(20px, 40px); color: white; font-weight: 800; font-size: 10px; white-space: nowrap;">${c}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid var(--accent); z-index: 10;"></div>
+                </div>
+                <h2 id="wheelResult" style="margin-bottom: 20px; min-height: 40px;"></h2>
+                <div class="game-controls">
+                    <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
+                    <button class="btn-large btn-next" id="spinBtn" onclick="spinWheel()">SNURR!</button>
+                </div>
+            `;
+        }
+
+        window.spinWheel = function() {
+            const wheel = document.getElementById('wheel');
+            const btn = document.getElementById('spinBtn');
+            const resultText = document.getElementById('wheelResult');
+            btn.disabled = true;
+            resultText.innerText = "Snurrer...";
+            
+            const rand = 1800 + Math.random() * 1800;
+            wheel.style.transform = `rotate(${rand}deg)`;
+            
+            setTimeout(() => {
+                const actualDeg = rand % 360;
+                const sliceSize = 360 / activeGame.cards.length;
+                const index = Math.floor((360 - actualDeg) / sliceSize) % activeGame.cards.length;
+                resultText.innerText = activeGame.cards[index];
+                btn.disabled = false;
+            }, 4000);
+        }
+
+        window.startGame = function(id) {
+            activeGame = games.find(g => g.id === id);
+            const overlay = document.getElementById('gameOverlay');
+            overlay.style.display = 'flex';
+
+            if (id === 'lykkehjul') {
+                window.renderLykkehjul();
+            } else if (id === 'chug') {
+                window.renderChugGame();
+            } else {
+                overlay.innerHTML = `
+                    <h2 id="activeGameTitle">${activeGame.title}</h2>
+                    <div class="game-text" id="gameText">Trykk på start for å begynne!</div>
+                    <div class="game-controls">
+                        <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
+                        <button class="btn-large btn-next" onclick="nextCard()">Neste kort →</button>
+                    </div>
+                `;
+                cardIndex = -1;
+                nextCard();
+            }
+        }
+
+        window.renderChugGame = function() {
+            const container = document.getElementById('gameOverlay');
+            container.innerHTML = `
+                <h2 style="margin-bottom: 20px;">🍺 Chug-Battle!</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; max-width: 800px; margin-bottom: 40px;">
+                    <div class="main-card" style="padding: 30px;">
+                        <h3>Spiller 1</h3>
+                        <div id="timer1" style="font-size: 48px; font-weight: 800; margin: 20px 0; font-family: monospace;">00.00</div>
+                        <button class="btn-play" id="btn1" onclick="toggleTimer(1)" style="background: var(--primary);">START / STOPP</button>
+                        <div id="score1" style="margin-top: 20px; font-size: 20px;">Seiere: 0</div>
+                    </div>
+                    <div class="main-card" style="padding: 30px;">
+                        <h3>Spiller 2</h3>
+                        <div id="timer2" style="font-size: 48px; font-weight: 800; margin: 20px 0; font-family: monospace;">00.00</div>
+                        <button class="btn-play" id="btn2" onclick="toggleTimer(2)" style="background: var(--secondary);">START / STOPP</button>
+                        <div id="score2" style="margin-top: 20px; font-size: 20px;">Seiere: 0</div>
+                    </div>
+                </div>
+                <div class="game-controls">
+                    <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
+                    <button class="btn-large btn-next" onclick="resetChug()">Nullstill Tid</button>
+                </div>
+            `;
+            window.chugData = {
+                t1: 0, t2: 0, running1: false, running2: false, interval1: null, interval2: null,
+                s1: parseInt(localStorage.getItem('chug_s1') || 0),
+                s2: parseInt(localStorage.getItem('chug_s2') || 0)
+            };
+            updateChugUI();
+        }
+
+        window.toggleTimer = function(id) {
+            const d = window.chugData;
+            if (id === 1) {
+                if (d.running1) {
+                    clearInterval(d.interval1);
+                    d.running1 = false;
+                    checkChugWinner();
+                } else {
+                    d.t1 = 0;
+                    d.running1 = true;
+                    const start = Date.now();
+                    d.interval1 = setInterval(() => {
+                        d.t1 = (Date.now() - start) / 1000;
+                        document.getElementById('timer1').innerText = d.t1.toFixed(2);
+                    }, 10);
+                }
+            } else {
+                if (d.running2) {
+                    clearInterval(d.interval2);
+                    d.running2 = false;
+                    checkChugWinner();
+                } else {
+                    d.t2 = 0;
+                    d.running2 = true;
+                    const start = Date.now();
+                    d.interval2 = setInterval(() => {
+                        d.t2 = (Date.now() - start) / 1000;
+                        document.getElementById('timer2').innerText = d.t2.toFixed(2);
+                    }, 10);
+                }
+            }
+        }
+
+        function checkChugWinner() {
+            const d = window.chugData;
+            if (!d.running1 && !d.running2 && d.t1 > 0 && d.t2 > 0) {
+                if (d.t1 < d.t2) {
+                    d.s1++;
+                    alert("Spiller 1 vant!");
+                } else {
+                    d.s2++;
+                    alert("Spiller 2 vant!");
+                }
+                localStorage.setItem('chug_s1', d.s1);
+                localStorage.setItem('chug_s2', d.s2);
+                updateChugUI();
+            }
+        }
+
+        function updateChugUI() {
+            const d = window.chugData;
+            document.getElementById('score1').innerText = `Seiere: ${d.s1}`;
+            document.getElementById('score2').innerText = `Seiere: ${d.s2}`;
+        }
+
+        window.resetChug = function() {
+            const d = window.chugData;
+            clearInterval(d.interval1);
+            clearInterval(d.interval2);
+            d.t1 = 0; d.t2 = 0; d.running1 = false; d.running2 = false;
+            document.getElementById('timer1').innerText = "00.00";
+            document.getElementById('timer2').innerText = "00.00";
+        }
         function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
 
-        renderGames();
-        renderPlanner();
+        window.renderGames();
     </script>
 </body>
 </html>
