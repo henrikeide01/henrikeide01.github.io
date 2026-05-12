@@ -320,6 +320,11 @@
 
         .btn-next { background: var(--primary); color: white; }
         .btn-back { background: var(--card-bg); color: white; border: 1px solid rgba(255,255,255,0.1); }
+
+        @keyframes pulse {
+            from { transform: scale(1); text-shadow: 0 0 10px rgba(0, 242, 255, 0.5); }
+            to { transform: scale(1.05); text-shadow: 0 0 25px rgba(0, 242, 255, 0.8); }
+        }
     </style>
 </head>
 <body>
@@ -364,9 +369,10 @@
             <div class="planner-header">
                 <h2>🎮 Finn din favorittlek</h2>
             </div>
-            <div class="game-grid" id="gameGrid">
-                <!-- Leker legges inn her via JS -->
-            </d        <!-- PLANLEGGER SECTION -->
+            </div>
+        </section>
+
+        <!-- PLANLEGGER SECTION -->
         <section id="planlegger" class="section">
             <div id="authView">
                 <div class="main-card" style="max-width: 500px; margin: 40px auto;">
@@ -863,17 +869,22 @@
         }
 
         window.closeGame = function() { document.getElementById('gameOverlay').style.display = 'none'; }
-        window.startQuickGame = function() { window.startGame(games[Math.floor(Math.random() * games.length)].id); }
+        window.startQuickGame = function() { 
+            const randomGame = games[Math.floor(Math.random() * games.length)];
+            window.startGame(randomGame.id); 
+        }
 
         window.renderLykkehjul = function() {
             const container = document.getElementById('gameOverlay');
             container.innerHTML = `
                 <h2 style="margin-bottom: 20px;">🎡 Lykkehjul</h2>
                 <div style="position: relative; width: 350px; height: 350px; margin: 0 auto 40px; display: flex; align-items: center; justify-content: center;">
-                    <canvas id="wheelCanvas" width="350" height="350" style="border: 8px solid white; border-radius: 50%; box-shadow: 0 0 30px rgba(255, 0, 122, 0.4);"></canvas>
+                    <canvas id="wheelCanvas" width="350" height="350" style="border: 8px solid white; border-radius: 50%; box-shadow: 0 0 30px rgba(255, 0, 122, 0.4); transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);"></canvas>
                     <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid var(--accent); z-index: 10;"></div>
                 </div>
-                <h2 id="wheelResult" style="margin-bottom: 20px; min-height: 40px; font-size: 28px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px;"></h2>
+                <div style="min-height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                    <h2 id="wheelResult" style="font-size: 32px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);"></h2>
+                </div>
                 <div class="game-controls">
                     <button class="btn-large btn-back" onclick="closeGame()">Avslutt</button>
                     <button class="btn-large btn-next" id="spinBtn" onclick="spinWheel()">SNURR!</button>
@@ -908,8 +919,13 @@
                 ctx.rotate(i * sliceAngle + sliceAngle / 2);
                 ctx.textAlign = "right";
                 ctx.fillStyle = "white";
-                ctx.font = "bold 12px Outfit";
-                ctx.fillText(text.substring(0, 20), radius - 20, 5);
+                ctx.font = "bold 14px 'Outfit', sans-serif";
+                
+                // Tilpass tekstlengde
+                let displayText = text;
+                if(displayText.length > 18) displayText = displayText.substring(0, 16) + "..";
+                
+                ctx.fillText(displayText, radius - 30, 5);
                 ctx.restore();
             });
         }
@@ -931,7 +947,7 @@
             function animate(now) {
                 const elapsed = now - start;
                 const progress = Math.min(elapsed / duration, 1);
-                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const easeOut = 1 - Math.pow(1 - progress, 4); // Sterkere ease-out
                 const currentRotation = easeOut * totalRotation;
                 
                 canvas.style.transform = `rotate(${currentRotation}deg)`;
@@ -939,11 +955,19 @@
                 if (progress < 1) {
                     requestAnimationFrame(animate);
                 } else {
-                    const actualDeg = currentRotation % 360;
+                    // Kalkuler vinner basert på pilen på toppen (-90 grader)
+                    const netRotation = (currentRotation % 360);
                     const sliceSize = 360 / activeGame.cards.length;
-                    const index = Math.floor((360 - (actualDeg % 360)) / sliceSize) % activeGame.cards.length;
-                    resultText.innerText = activeGame.cards[index];
+                    
+                    // Pilen er på toppen (270 grader i canvas-koordinater, eller -90)
+                    // Siden hjulet roterer med klokken, må vi finne ut hvilken slice som er på 270 grader
+                    const winningIndex = Math.floor((360 - (netRotation % 360) + 270) % 360 / sliceSize) % activeGame.cards.length;
+                    
+                    resultText.innerText = activeGame.cards[winningIndex];
                     btn.disabled = false;
+                    
+                    // Legg til en liten glow-effekt på resultatet
+                    resultText.style.animation = "pulse 1s infinite alternate";
                 }
             }
             requestAnimationFrame(animate);
