@@ -442,7 +442,11 @@
             </div>
         </div>
     </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        const substitutionRules = {
             "kylling": ["svinestrimler", "laks", "biff"],
             "laks": ["torsk", "ørret", "sei"],
             "torsk": ["laks", "sei", "fiskeboller"],
@@ -450,8 +454,6 @@
             "biff": ["kyllingfilet", "svinestrimler"],
             "karbonadedeig": ["kjøttdeig", "kyllingdeig"]
         };
-
-    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
