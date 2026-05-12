@@ -376,12 +376,19 @@
         <section id="planlegger" class="section">
             <div id="authView">
                 <div class="main-card" style="max-width: 500px; margin: 40px auto;">
-                    <h2>Bli med på vors 🍻</h2>
-                    <p style="margin-bottom: 24px;">Skriv navnet ditt og vennekoden for å starte.</p>
+                    <h2>Dine gjenger 🍻</h2>
+                    <p style="margin-bottom: 24px;">Skriv inn koden til vennegjengen din.</p>
                     <input type="text" id="userNameInput" placeholder="Ditt navn..." style="width: 100%; margin-bottom: 12px; padding: 20px; font-size: 18px;">
-                    <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="width: 100%; margin-bottom: 20px; padding: 20px; font-size: 18px; text-transform: uppercase;">
-                    <button class="btn-large btn-next" style="width: 100%;" onclick="login()">Start planlegging</button>
-                    <p style="margin-top: 20px; font-size: 14px; color: var(--text-muted);">Tips: Alle i samme gjeng må bruke samme vennekode.</p>
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <input type="text" id="roomCodeInput" placeholder="Vennekode (f.eks: VORS2024)" style="padding: 20px; font-size: 18px; text-transform: uppercase;">
+                        <button class="nav-btn" onclick="addRoomCode()" style="padding: 0 25px;">Legg til</button>
+                    </div>
+                    
+                    <div id="myRoomsList" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Lagrede koder her -->
+                    </div>
+
+                    <p style="margin-top: 20px; font-size: 14px; color: #94a3b8;">Logg inn med en kode for å se aktive vors i den gjengen.</p>
                 </div>
             </div>
 
@@ -592,20 +599,24 @@
         let dbRef = null;
 
         function connectToRoom(roomCode) {
-            if (dbRef) return; // Allerede tilkoblet
+            if (dbRef) {
+                // Rydd opp forrige lytter hvis vi bytter rom
+                dbRef = null;
+            }
             dbRef = ref(db, 'fest_rooms/' + roomCode);
             onValue(dbRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     state = data;
                     checkReset();
-                    renderPlanner();
                 } else {
                     resetDatabase();
                 }
+                renderPlanner();
             });
         }
 
+        let savedRooms = JSON.parse(localStorage.getItem('fest_saved_rooms') || "[]");
         if (currentRoom) connectToRoom(currentRoom);
 
         function resetDatabase() {
@@ -621,26 +632,46 @@
             }
         }
 
-        window.login = function() {
+        window.addRoomCode = function() {
             const name = document.getElementById('userNameInput').value.trim();
             const room = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            if (name && room) {
-                currentUser = name;
-                currentRoom = room;
-                localStorage.setItem('fest_user', name);
-                localStorage.setItem('fest_room', room);
-                
-                connectToRoom(room);
+            if (!name) { alert("Skriv navnet ditt først!"); return; }
+            if (!room) { alert("Skriv inn en vennekode!"); return; }
 
+            currentUser = name;
+            localStorage.setItem('fest_user', name);
+
+            if (!savedRooms.includes(room)) {
+                savedRooms.push(room);
+                localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+            }
+            document.getElementById('roomCodeInput').value = '';
+            renderPlanner();
+        }
+
+        window.loginToRoom = function(roomCode) {
+            currentRoom = roomCode;
+            localStorage.setItem('fest_room', roomCode);
+            connectToRoom(roomCode);
+            
+            // Registrer bruker i rommet hvis ikke finnes
+            setTimeout(() => {
                 if (!state.users) state.users = {};
-                if (!state.users[name]) {
-                    state.users[name] = { name: name, role: null, joinedVors: null };
+                if (!state.users[currentUser]) {
+                    state.users[currentUser] = { name: currentUser, role: null, joinedVors: null };
                     update(ref(db, `fest_rooms/${currentRoom}/users`), state.users);
                 }
-                renderPlanner();
-            } else {
-                alert("Du må skrive både navn og vennekode!");
+            }, 500);
+        }
+
+        window.removeRoomCode = function(roomCode) {
+            savedRooms = savedRooms.filter(r => r !== roomCode);
+            localStorage.setItem('fest_saved_rooms', JSON.stringify(savedRooms));
+            if (currentRoom === roomCode) {
+                currentRoom = null;
+                localStorage.removeItem('fest_room');
             }
+            renderPlanner();
         }
 
         window.logout = function() {
@@ -738,12 +769,34 @@
             const user = currentUser ? (state.users ? state.users[currentUser] : null) : null;
             const isEditingHost = document.getElementById('hostSetupView').style.display === 'block';
 
-            document.getElementById('authView').style.display = currentUser ? 'none' : 'block';
-            document.getElementById('roleView').style.display = (currentUser && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
-            document.getElementById('vorsView').style.display = (currentUser && user && user.role && !isEditingHost) ? 'block' : 'none';
+            document.getElementById('authView').style.display = currentRoom ? 'none' : 'block';
+            document.getElementById('roleView').style.display = (currentRoom && (!user || !user.role) && !isEditingHost) ? 'block' : 'none';
+            document.getElementById('vorsView').style.display = (currentRoom && user && user.role && !isEditingHost) ? 'block' : 'none';
+
+            // Oppdater navnet i input hvis lagret
+            if (currentUser && document.getElementById('userNameInput')) {
+                document.getElementById('userNameInput').value = currentUser;
+            }
+
+            // Render liste over lagrede rom
+            const myRoomsList = document.getElementById('myRoomsList');
+            if (myRoomsList) {
+                myRoomsList.innerHTML = savedRooms.map(r => `
+                    <div class="guest-item" style="background: rgba(255,255,255,0.08);">
+                        <strong style="color: var(--accent); cursor: pointer;" onclick="loginToRoom('${r}')">${r}</strong>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="nav-btn" style="padding: 5px 15px; font-size: 12px;" onclick="loginToRoom('${r}')">Gå inn</button>
+                            <button class="remove-btn" onclick="removeRoomCode('${r}')">×</button>
+                        </div>
+                    </div>
+                `).join('');
+                if (savedRooms.length === 0) {
+                    myRoomsList.innerHTML = `<p style="text-align: center; color: #64748b; font-size: 14px;">Ingen koder lagret enda.</p>`;
+                }
+            }
 
             if (currentUser && currentRoom) {
-                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋 (Kode: ${currentRoom})`;
+                document.getElementById('welcomeText').innerText = `Hei, ${currentUser}! 👋 (Gjeng: ${currentRoom})`;
             }
 
             if (user && user.role) {
