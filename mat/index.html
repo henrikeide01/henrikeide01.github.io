@@ -809,8 +809,13 @@
 
         window.setAuthMode = function(mode) {
             authMode = mode;
-            document.getElementById('loginTab').classList.toggle('active', mode === 'login');
-            document.getElementById('regTab').classList.toggle('active', mode === 'reg');
+            const loginTab = document.getElementById('loginTab');
+            const regTab = document.getElementById('regTab');
+            if(loginTab) loginTab.classList.toggle('active', mode === 'login');
+            if(regTab) regTab.classList.toggle('active', mode === 'reg');
+            
+            const btn = document.querySelector('#loginForm button');
+            if(btn) btn.innerText = mode === 'login' ? 'Start planlegging' : 'Opprett bruker';
         }
 
         window.resetToDefaults = function() {
@@ -1349,6 +1354,7 @@
             closePrefModal();
             generateWeek();
         }
+        window.save = function() {
             if (!currentUser) return;
             update(ref(db, 'meal_users/' + currentUser), {
                 dishes: dishes,
