@@ -919,6 +919,14 @@
             visibility: visible;
         }
 
+        #confirmModal {
+            z-index: 4200;
+        }
+
+        #requestDetailModal {
+            z-index: 4100;
+        }
+
         .detail-modal-card {
             background-color: var(--white);
             border-radius: var(--radius-lg);
@@ -1500,7 +1508,7 @@
         </span>
         <div class="admin-banner-actions">
             <button class="btn-admin-action" onclick="openAddProjectModal()" style="display: inline-flex; align-items: center; gap: 4px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nytt prosjekt</button>
-            <button class="btn-admin-action" onclick="exportUpdatedSite()" style="display: inline-flex; align-items: center; gap: 4px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> Lagre & last ned nettside</button>
+            <button class="btn-admin-action" onclick="exportUpdatedSite()" style="display: inline-flex; align-items: center; gap: 4px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> Lagre nettside</button>
             <button class="btn-admin-action danger" onclick="deactivateAdminMode()">Avslutt modus</button>
         </div>
     </div>
@@ -2268,6 +2276,8 @@
         const firebaseApp = firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
         const snekkerAuth = firebase.auth();
         const snekkerDb = firebase.database();
+        let siteSaveTimer = null;
+        let applyingSavedSiteContent = false;
 
         // Modal carousel tracking
         let currentCarouselIndex = 0;
@@ -2281,10 +2291,13 @@
         // ------------------------------------------------------------- 
         // LIFECYCLE INITIALIZATION                                     
         // ------------------------------------------------------------- 
-        window.addEventListener("DOMContentLoaded", () => {
+        window.addEventListener("DOMContentLoaded", async () => {
+            loadSavedSiteState();
+            await loadPublicSiteStateFromFirebase();
             renderPortfolio();
             generateBookingCalendar();
             showActiveTestimonial();
+            applySavedSiteContent();
             
             // Load Web3Forms Key from localStorage if exists
             const savedKey = localStorage.getItem("snekker_web3_key") || "";
@@ -2299,22 +2312,145 @@
             document.getElementById("activeQuoteText").addEventListener("input", (e) => {
                 if (isAdminMode && testimonialsData[activeTestimonialIndex]) {
                     testimonialsData[activeTestimonialIndex].text = e.target.textContent;
+                    scheduleSiteSave();
                 }
             });
             document.getElementById("activeQuoteAuthor").addEventListener("input", (e) => {
                 if (isAdminMode && testimonialsData[activeTestimonialIndex]) {
                     testimonialsData[activeTestimonialIndex].author = e.target.textContent;
+                    scheduleSiteSave();
                 }
             });
             document.getElementById("activeQuoteLocation").addEventListener("input", (e) => {
                 if (isAdminMode && testimonialsData[activeTestimonialIndex]) {
                     testimonialsData[activeTestimonialIndex].loc = e.target.textContent;
+                    scheduleSiteSave();
                 }
             });
             
             // Sync request badge count on load
             updateReqBadgeCount();
         });
+
+        function getEditablePageElements() {
+            return Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, p, span:not(.project-tag):not(.day-num):not(.day-lbl):not(#reqBadgeCount), li'))
+                .filter(el => !el.closest('.modal-overlay') && !el.closest('#adminBanner') && !el.closest('.toast-message') && !el.closest('button'));
+        }
+
+        function loadSavedSiteState() {
+            try {
+                const savedProjects = JSON.parse(localStorage.getItem("snekker_projects_data") || "null");
+                const savedTestimonials = JSON.parse(localStorage.getItem("snekker_testimonials_data") || "null");
+                if (Array.isArray(savedProjects)) projectsData = savedProjects;
+                if (Array.isArray(savedTestimonials)) testimonialsData = savedTestimonials;
+            } catch (error) {
+                console.warn("Kunne ikke lese lagret sideinnhold.", error);
+            }
+        }
+
+        async function loadPublicSiteStateFromFirebase() {
+            try {
+                const [projectsSnap, testimonialsSnap, contentSnap] = await Promise.all([
+                    snekkerDb.ref("snekker_projects").get(),
+                    snekkerDb.ref("snekker_testimonials").get(),
+                    snekkerDb.ref("snekker_settings/site_content").get()
+                ]);
+                const firebaseProjects = projectsSnap.val();
+                const firebaseTestimonials = testimonialsSnap.val();
+                const firebaseContent = contentSnap.val();
+                if (Array.isArray(firebaseProjects)) {
+                    projectsData = firebaseProjects;
+                    localStorage.setItem("snekker_projects_data", JSON.stringify(projectsData));
+                }
+                if (Array.isArray(firebaseTestimonials)) {
+                    testimonialsData = firebaseTestimonials;
+                    localStorage.setItem("snekker_testimonials_data", JSON.stringify(testimonialsData));
+                }
+                if (Array.isArray(firebaseContent)) {
+                    localStorage.setItem("snekker_site_content", JSON.stringify(firebaseContent));
+                }
+            } catch (error) {
+                console.warn("Kunne ikke hente offentlig sideinnhold fra Firebase.", error);
+            }
+        }
+
+        function collectSiteContent() {
+            return getEditablePageElements().map(el => el.textContent);
+        }
+
+        function applySavedSiteContent() {
+            try {
+                const savedContent = JSON.parse(localStorage.getItem("snekker_site_content") || "null");
+                if (!Array.isArray(savedContent)) return;
+                applyingSavedSiteContent = true;
+                getEditablePageElements().forEach((el, index) => {
+                    if (typeof savedContent[index] === "string") el.textContent = savedContent[index];
+                });
+            } catch (error) {
+                console.warn("Kunne ikke bruke lagret sideinnhold.", error);
+            } finally {
+                applyingSavedSiteContent = false;
+            }
+        }
+
+        async function saveSiteStateToFirebase() {
+            if (!snekkerAuth.currentUser) return false;
+            await Promise.all([
+                snekkerDb.ref("snekker_projects").set(projectsData),
+                snekkerDb.ref("snekker_testimonials").set(testimonialsData),
+                snekkerDb.ref("snekker_settings/site_content").set(collectSiteContent())
+            ]);
+            return true;
+        }
+
+        function saveSiteStateLocal() {
+            localStorage.setItem("snekker_projects_data", JSON.stringify(projectsData));
+            localStorage.setItem("snekker_testimonials_data", JSON.stringify(testimonialsData));
+            localStorage.setItem("snekker_site_content", JSON.stringify(collectSiteContent()));
+        }
+
+        function scheduleSiteSave() {
+            if (applyingSavedSiteContent) return;
+            saveSiteStateLocal();
+            clearTimeout(siteSaveTimer);
+            siteSaveTimer = setTimeout(() => {
+                saveSiteStateToFirebase().catch(error => console.warn("Kunne ikke autolagre til Firebase.", error));
+            }, 900);
+        }
+
+        async function loadSiteStateFromFirebase() {
+            if (!snekkerAuth.currentUser) return;
+            const [projectsSnap, testimonialsSnap, contentSnap] = await Promise.all([
+                snekkerDb.ref("snekker_projects").get(),
+                snekkerDb.ref("snekker_testimonials").get(),
+                snekkerDb.ref("snekker_settings/site_content").get()
+            ]);
+            const firebaseProjects = projectsSnap.val();
+            const firebaseTestimonials = testimonialsSnap.val();
+            const firebaseContent = contentSnap.val();
+            if (Array.isArray(firebaseProjects)) {
+                projectsData = firebaseProjects;
+                localStorage.setItem("snekker_projects_data", JSON.stringify(projectsData));
+            }
+            if (Array.isArray(firebaseTestimonials)) {
+                testimonialsData = firebaseTestimonials;
+                localStorage.setItem("snekker_testimonials_data", JSON.stringify(testimonialsData));
+            }
+            if (Array.isArray(firebaseContent)) {
+                localStorage.setItem("snekker_site_content", JSON.stringify(firebaseContent));
+            }
+            renderPortfolio();
+            showActiveTestimonial();
+            applySavedSiteContent();
+        }
+
+        async function ensureSiteFirebaseLogin() {
+            if (snekkerAuth.currentUser) return true;
+            const password = prompt("Skriv inn Firebase-passordet for å lagre nettsiden på nett:");
+            if (!password) return false;
+            await ensureFirebaseInboxLogin(password);
+            return true;
+        }
 
         // -------------------------------------------------------------
         // FIREBASE / VERCEL SYNC
@@ -2566,6 +2702,7 @@
             testimonialsData.push(newT);
             activeTestimonialIndex = testimonialsData.length - 1;
             showActiveTestimonial();
+            scheduleSiteSave();
             showToast("Ny kundeomtale lagt til! Klikk direkte på teksten for å endre den.", "success");
         }
 
@@ -2584,6 +2721,7 @@
                         activeTestimonialIndex = testimonialsData.length - 1;
                     }
                     showActiveTestimonial();
+                    scheduleSiteSave();
                     showToast("Kundeomtale slettet.", "warning");
                 }
             );
@@ -2944,19 +3082,27 @@
             }
         });
 
-        function activateAdminMode() {
+        async function activateAdminMode() {
             isAdminMode = true;
+            try {
+                if (snekkerAuth.currentUser) await loadSiteStateFromFirebase();
+            } catch (error) {
+                console.warn("Kunne ikke hente sideinnhold fra Firebase.", error);
+            }
 
             // Display Top Admin banner
             document.getElementById("adminBanner").style.display = "flex";
 
             // Make ALL generic text blocks inside the main document body directly editable
-            const editables = document.querySelectorAll('h1, h2, h3, h4, h5, p, span:not(.project-tag):not(.day-num):not(.day-lbl):not(#reqBadgeCount), li');
+            const editables = getEditablePageElements();
             
             editables.forEach(el => {
-                if (!el.closest('.modal-overlay') && !el.closest('#adminBanner') && !el.closest('.toast-message') && !el.closest('button')) {
-                    el.setAttribute("contenteditable", "true");
-                    el.classList.add('admin-editable');
+                el.setAttribute("contenteditable", "true");
+                el.classList.add('admin-editable');
+                if (!el.dataset.autoSaveBound) {
+                    el.addEventListener("input", scheduleSiteSave);
+                    el.addEventListener("blur", scheduleSiteSave);
+                    el.dataset.autoSaveBound = "true";
                 }
             });
 
@@ -2966,7 +3112,7 @@
             // Show testimonials admin controls
             document.getElementById("testimonialAdminControls").style.display = "flex";
 
-            showToast("Snekker-modus aktivert! Du kan nå redigere tekst inline.", "success");
+            showToast("Snekker-modus aktivert! Endringer lagres automatisk i nettleseren.", "success");
         }
 
         function deactivateAdminMode() {
@@ -2987,6 +3133,7 @@
             // Hide testimonials admin controls
             document.getElementById("testimonialAdminControls").style.display = "none";
             
+            scheduleSiteSave();
             showToast("Snekker-modus avsluttet.", "warning");
         }
 
@@ -3438,6 +3585,7 @@
 
             closeAdminModal(null, true);
             renderPortfolio();
+            scheduleSiteSave();
         }
 
         // Delete Project
@@ -3450,81 +3598,33 @@
                 () => {
                     projectsData.splice(idx, 1);
                     renderPortfolio();
+                    scheduleSiteSave();
                     showToast("Prosjektet ble slettet fra listen.", "warning");
                 }
             );
         }
 
         // ------------------------------------------------------------- 
-        // SERIALIZE DOM STATE AND DOWNLOAD FRESH UPDATED HTML         
+        // SAVE PAGE STATE WITHOUT DOWNLOADING A NEW FILE
         // ------------------------------------------------------------- 
         function exportUpdatedSite() {
             showConfirmDialog(
-                "Lagre og eksporter nettside?",
-                "Dette laster ned en helt ny 'index.html'-fil på din maskin med alle dine nye prosjekter og tekst-endringer lagret permanent. Er du klar for å laste den ned?",
-                () => {
-                    deactivateAdminMode();
-
-                    const clonedDoc = document.documentElement.cloneNode(true);
-
-                    const banner = clonedDoc.querySelector("#adminBanner");
-                    if (banner) banner.style.display = "none";
-
-                    const adminModalEl = clonedDoc.querySelector("#adminModal");
-                    if (adminModalEl) adminModalEl.classList.remove("open");
-
-                    const pinModalEl = clonedDoc.querySelector("#pinModal");
-                    if (pinModalEl) pinModalEl.classList.remove("open");
-
-                    const cModalEl = clonedDoc.querySelector("#confirmModal");
-                    if (cModalEl) cModalEl.classList.remove("open");
-
-                    const dModal = clonedDoc.querySelector("#detailModal");
-                    if (dModal) dModal.classList.remove("open");
-
-                    const searchInp = clonedDoc.querySelector("#searchInput");
-                    if (searchInp) searchInp.value = "";
-
-                    const bBox = clonedDoc.querySelector("#bookingBox");
-                    if (bBox) bBox.style.display = "block";
-
-                    const bSuccess = clonedDoc.querySelector("#bookingSuccess");
-                    if (bSuccess) bSuccess.style.display = "none";
-
-                    const dataScript = clonedDoc.querySelector("#snekker-projects-data");
-                    if (dataScript) {
-                        dataScript.textContent = `
-        // Global project dataset array (Base64 or URL images included)
-        let projectsData = ${JSON.stringify(projectsData, null, 12)};
-                        `;
+                "Lagre nettside?",
+                "Dette lagrer endringene i nettleseren og prøver å oppdatere Firebase slik at de vises på nett. Det lastes ikke ned noen ny fil.",
+                async () => {
+                    try {
+                        saveSiteStateLocal();
+                        const loggedIn = await ensureSiteFirebaseLogin();
+                        if (loggedIn) {
+                            await saveSiteStateToFirebase();
+                            showToast("Nettsiden er lagret i nettleseren og oppdatert i Firebase.", "success");
+                        } else {
+                            showToast("Endringene er lagret i nettleseren. Logg inn med Firebase for å lagre på nett.", "warning");
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        showToast("Lagret i nettleseren, men kunne ikke oppdatere Firebase.", "error");
                     }
-
-                    const testScript = clonedDoc.querySelector("#snekker-testimonials-data");
-                    if (testScript) {
-                        testScript.textContent = `
-        // Testimonials data array for slider
-        let testimonialsData = ${JSON.stringify(testimonialsData, null, 12)};
-                        `;
-                    }
-                    
-                    const requestsModalEl = clonedDoc.querySelector("#requestsModal");
-                    if (requestsModalEl) requestsModalEl.classList.remove("open");
-
-                    const reqDetailModalEl = clonedDoc.querySelector("#requestDetailModal");
-                    if (reqDetailModalEl) reqDetailModalEl.classList.remove("open");
-
-                    const htmlString = "<!DOCTYPE html>\n" + clonedDoc.outerHTML;
-                    const blob = new Blob([htmlString], { type: "text/html;charset=utf-8" });
-                    const link = document.createElement("a");
-                    link.href = URL.createObjectURL(blob);
-                    link.download = "index.html";
-                    
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-
-                    activateAdminMode();
-                    showToast("Oppdatert nettside (index.html) ble lastet ned!", "success");
                 }
             );
         }
