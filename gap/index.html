@@ -39,13 +39,21 @@
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             font-family: var(--font-body);
             background-color: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.6;
             overflow-x: hidden;
-            scroll-behavior: smooth;
+        }
+
+        /* Sikrer perfekt margin til sticky header under scrolling og lenke-klikk */
+        section, .services-section, .portfolio-section, .booking-section, .contact-section {
+            scroll-margin-top: 110px;
         }
 
         h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 800; color: var(--brand-spruce); }
@@ -64,7 +72,7 @@
             box-shadow: var(--shadow-sm);
         }
         .header-container { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .logo-link { display: flex; align-items: center; gap: 16px; }
+        .logo-link { display: flex; align-items: center; gap: 16px; position: relative; }
         .logo-svg { width: 52px; height: 52px; transition: transform var(--transition) ease; }
         .logo-link:hover .logo-svg { transform: rotate(-10deg) scale(1.05); }
         #logoImg { display:none; width:52px; height:52px; object-fit:contain; border-radius:8px; }
@@ -103,6 +111,8 @@
             transition: all var(--transition) ease; display: inline-flex; align-items: center; justify-content: center;
         }
         .btn-secondary:hover { background-color: rgba(28,46,36,0.05); }
+        
+        /* Bilderedigering – optimalisert slik at brukeren må klikke på selve knappen, ikke bildet */
         .hero-visual { position: relative; border-radius: var(--radius-lg); height: 520px; overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); }
         .hero-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .hero-visual-overlay {
@@ -110,16 +120,32 @@
             background: linear-gradient(to bottom, transparent 50%, rgba(28,46,36,0.15) 100%);
             pointer-events: none;
         }
-        /* admin click hint on hero image */
-        .hero-visual[data-adminclick]::after {
-            content: "📷 Klikk for å endre bilde";
-            position: absolute; top: 12px; right: 12px;
-            background: rgba(28,46,36,0.85); color: #fff;
-            padding: 6px 12px; border-radius: var(--radius-full);
-            font-size: 0.75rem; font-weight: 700;
+        
+        /* Dedikerte redigeringsknapper som hindrer tilfeldige klikk */
+        .admin-image-trigger {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 10;
+            background: var(--brand-wood);
+            color: var(--white);
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-full);
+            font-size: 0.8rem;
+            font-weight: 800;
+            cursor: pointer;
             display: none;
+            box-shadow: var(--shadow-md);
+            transition: all 0.2s ease;
+            min-height: 44px;
         }
-        body.admin-active .hero-visual[data-adminclick]:hover::after { display: block; }
+        .admin-image-trigger:hover {
+            background: var(--brand-wood-dark);
+            transform: scale(1.05);
+        }
+        body.admin-active .admin-image-trigger { display: block; }
+
         .hero-stats-overlay {
             position: absolute; bottom: 24px; left: 24px; right: 24px;
             background: rgba(28,46,36,0.9); backdrop-filter: blur(10px);
@@ -147,8 +173,8 @@
         .portfolio-filters { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-bottom: 40px; }
         .filter-btn {
             background-color: var(--white); border: 1px solid var(--border-color);
-            padding: 10px 24px; border-radius: var(--radius-full); font-weight: 700; font-size: 0.88rem;
-            cursor: pointer; transition: all var(--transition) ease;
+            padding: 12px 24px; border-radius: var(--radius-full); font-weight: 700; font-size: 0.88rem;
+            cursor: pointer; transition: all var(--transition) ease; min-height: 44px;
         }
         .filter-btn.active, .filter-btn:hover { background-color: var(--brand-wood); color: var(--white); border-color: var(--brand-wood); }
         .portfolio-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; }
@@ -176,9 +202,9 @@
         .project-spec-item svg { width: 14px; height: 14px; fill: currentColor; opacity: 0.8; }
         .card-admin-controls { position: absolute; top: 16px; right: 16px; z-index: 3; display: none; gap: 8px; }
         .btn-card-admin {
-            background-color: var(--white); border: none; width: 36px; height: 36px;
+            background-color: var(--white); border: none; width: 44px; height: 44px;
             border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center;
-            cursor: pointer; box-shadow: var(--shadow-sm); transition: all 0.2s ease;
+            cursor: pointer; box-shadow: var(--shadow-md); transition: all 0.2s ease;
         }
         .btn-card-admin:hover { transform: scale(1.1); }
         .btn-card-admin.delete { color: var(--brand-red); }
@@ -193,7 +219,7 @@
         .add-project-card:hover { border-color: var(--brand-wood); background-color: rgba(255,255,255,0.4); transform: translateY(-4px); }
         .add-project-icon { width: 64px; height: 64px; color: var(--brand-wood); margin-bottom: 16px; }
 
-        /* ── REQUEST / BOOKING SECTION (redesigned) ── */
+        /* ── REQUEST / BOOKING SECTION ── */
         .booking-section { background-color: var(--white); padding: 80px 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
         .booking-layout { display: grid; grid-template-columns: 1fr 1.35fr; gap: 64px; align-items: flex-start; }
         .booking-info h2 { font-size: 2.5rem; margin-bottom: 24px; letter-spacing: -0.5px; }
@@ -204,7 +230,7 @@
         .booking-feat-item h4 { font-size: 1.05rem; margin-bottom: 4px; }
         .booking-feat-item p { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 0; }
 
-        /* Request Box – full redesign */
+        /* Request Box */
         .request-box {
             background-color: var(--bg-primary); border-radius: var(--radius-lg);
             border: 1px solid var(--border-color); overflow: hidden;
@@ -221,10 +247,10 @@
         .req-type-tabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
         .req-type-tab {
             background-color: var(--white); border: 1.5px solid var(--border-color);
-            padding: 10px 6px; border-radius: var(--radius-md);
+            padding: 12px 6px; border-radius: var(--radius-md);
             font-size: 0.75rem; font-weight: 800; text-align: center; cursor: pointer;
             transition: all var(--transition) ease; text-transform: uppercase; letter-spacing: 0.5px;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 48px;
         }
         .req-type-tab .tab-icon { font-size: 1.25rem; }
         .req-type-tab.active { background-color: var(--brand-wood); color: var(--white); border-color: var(--brand-wood); }
@@ -236,7 +262,7 @@
         .cal-nav h4 { font-size: 1rem; color: var(--brand-spruce); }
         .cal-nav-btn {
             background: var(--white); border: 1px solid var(--border-color);
-            width: 30px; height: 30px; border-radius: var(--radius-full);
+            width: 44px; height: 44px; border-radius: var(--radius-full);
             display: flex; align-items: center; justify-content: center; cursor: pointer;
             transition: all 0.2s ease;
         }
@@ -244,40 +270,42 @@
         .cal-nav-btn svg { width: 14px; height: 14px; fill: currentColor; }
         .cal-weekday-headers { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 4px; }
         .cal-weekday-hdr { font-size: 0.65rem; font-weight: 700; text-align: center; text-transform: uppercase; color: var(--text-secondary); padding: 4px 0; }
-        .cal-days-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+        
+        /* Større og bedre plasserte trykksoner i kalenderen */
+        .cal-days-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; }
         .cal-day {
             aspect-ratio: 1; border-radius: var(--radius-sm);
             display: flex; align-items: center; justify-content: center;
             font-size: 0.82rem; font-weight: 700; cursor: pointer;
             background: var(--white); border: 1px solid transparent;
-            transition: all 0.2s ease; user-select: none;
+            transition: all 0.2s ease; user-select: none; min-height: 44px;
         }
         .cal-day:hover:not(.disabled):not(.active) { border-color: var(--brand-wood); color: var(--brand-wood); }
         .cal-day.active { background-color: var(--brand-spruce); color: var(--white); border-color: var(--brand-spruce); }
         .cal-day.today { border-color: var(--brand-copper); color: var(--brand-copper); font-weight: 900; }
         .cal-day.today.active { background-color: var(--brand-spruce); color: var(--white); }
-        .cal-day.disabled { opacity: 0.28; cursor: not-allowed; }
+        .cal-day.disabled { opacity: 0.28; cursor: not-allowed; background-color: #eae7df; }
         .cal-day.other-month { opacity: 0.35; }
 
-        /* Time slots – full day grid */
+        /* Time slots */
         .timeslot-grid {
-            display: grid; grid-template-columns: repeat(4,1fr); gap: 6px;
+            display: grid; grid-template-columns: repeat(4,1fr); gap: 8px;
         }
         .timeslot-btn {
             background: var(--white); border: 1px solid var(--border-color);
-            padding: 8px 4px; border-radius: var(--radius-md);
+            padding: 10px 4px; border-radius: var(--radius-md);
             font-size: 0.78rem; font-weight: 700; text-align: center; cursor: pointer;
-            transition: all 0.2s ease; line-height: 1.3;
+            transition: all 0.2s ease; line-height: 1.3; min-height: 44px;
         }
         .timeslot-btn:hover:not(.blocked) { border-color: var(--brand-wood); color: var(--brand-wood); }
         .timeslot-btn.active { background-color: var(--brand-copper); color: var(--white); border-color: var(--brand-copper); }
-        .timeslot-btn.blocked { opacity: 0.28; cursor: not-allowed; text-decoration: line-through; }
+        .timeslot-btn.blocked { opacity: 0.28; cursor: not-allowed; text-decoration: line-through; background-color: #eae7df; }
         .timeslot-btn.blocked-admin { background-color: rgba(209,25,42,0.08); border-color: var(--brand-red); color: var(--brand-red); cursor: pointer; }
 
         /* Request fields */
         .req-fields { display: flex; flex-direction: column; gap: 10px; }
         .req-input {
-            width: 100%; padding: 11px 14px; background-color: var(--white);
+            width: 100%; padding: 12px 14px; background-color: var(--white);
             border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.88rem;
         }
         .req-input:focus { border-color: var(--brand-wood); box-shadow: 0 0 0 3px rgba(139,90,43,0.1); }
@@ -343,9 +371,9 @@
         .modal-overlay.open .detail-modal-card { transform: scale(1); }
         .modal-header { padding: 24px 32px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-primary); }
         .modal-header h2 { font-size: 1.5rem; color: var(--brand-spruce); }
-        .modal-close-btn { background: none; border: none; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); border-radius: var(--radius-full); transition: all 0.2s ease; }
+        .modal-close-btn { background: none; border: none; width: 44px; height: 44px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); border-radius: var(--radius-full); transition: all 0.2s ease; }
         .modal-close-btn:hover { background-color: rgba(28,46,36,0.08); color: var(--brand-red); transform: rotate(90deg); }
-        .modal-close-btn svg { width: 14px; height: 14px; fill: currentColor; }
+        .modal-close-btn svg { width: 16px; height: 16px; fill: currentColor; }
         .detail-modal-grid { display: grid; grid-template-columns: 1.2fr 1fr; height: calc(90vh - 80px); overflow: hidden; }
         .detail-visuals { padding: 32px; overflow-y: auto; border-right: 1px solid var(--border-color); background-color: var(--bg-primary); display: flex; flex-direction: column; gap: 24px; }
         .detail-info-pane { padding: 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
@@ -372,73 +400,11 @@
         }
         .modal-overlay.open .admin-modal-card { transform: scale(1); }
 
-        /* ── ADMIN BANNER ── */
-        .admin-banner {
-            background-color: var(--brand-green); color: var(--white);
-            padding: 12px 24px; font-family: var(--font-display); font-weight: 700; font-size: 0.95rem;
-            display: none; justify-content: space-between; align-items: center;
-            position: sticky; top: 0; z-index: 1002;
-            box-shadow: 0 4px 12px rgba(42,80,42,0.2); border-bottom: 2px solid #1a351a;
-        }
-        .admin-banner-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-        .btn-admin-action {
-            background-color: var(--white); color: var(--brand-green); border: none;
-            padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 800; font-size: 0.82rem;
-            cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm);
-        }
-        .btn-admin-action:hover { background-color: #e6efe6; transform: translateY(-1px); }
-        .btn-admin-action.danger { background-color: var(--brand-red); color: var(--white); }
-        .btn-admin-action.danger:hover { background-color: #b01020; }
-
-        /* Editable fields in admin */
-        [contenteditable="true"] {
-            outline: 2px dashed var(--brand-copper); outline-offset: 4px;
-            cursor: text; transition: background-color 0.2s ease; border-radius: 3px;
-        }
-        [contenteditable="true"]:hover { background-color: rgba(184,115,51,0.08); }
-        [contenteditable="true"]:focus { outline-style: solid; background-color: rgba(184,115,51,0.1); }
-
-        /* Toast */
-        .toast-message {
-            background-color: rgba(28,46,36,0.95); backdrop-filter: blur(8px);
-            color: var(--white); padding: 14px 28px; border-radius: var(--radius-md);
-            box-shadow: var(--shadow-lg); font-size: 0.9rem; font-weight: 700;
-            display: flex; align-items: center; gap: 10px; pointer-events: auto;
-            animation: slideToastIn 0.35s cubic-bezier(0.175,0.885,0.32,1.275) forwards,
-                       fadeToastOut 0.4s ease forwards 3.6s;
-            border-left: 4px solid var(--brand-wood); z-index: 9999;
-        }
-        .toast-message.success { border-left-color: var(--brand-green); }
-        .toast-message.error { border-left-color: var(--brand-red); }
-        @keyframes slideToastIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes fadeToastOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-10px) scale(0.9); } }
-
-        /* ── FOOTER ── */
-        footer { background-color: var(--bg-footer); color: var(--white); padding: 80px 0 40px; border-top: 2px solid var(--brand-wood); }
-        .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 64px; margin-bottom: 64px; }
-        .footer-logo-block { display: flex; flex-direction: column; gap: 20px; }
-        .footer-column h3 { font-size: 1.15rem; margin-bottom: 24px; letter-spacing: -0.2px; color: var(--brand-copper); }
-        .footer-links { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-        .footer-links li a { opacity: 0.8; font-weight: 500; font-size: 0.9rem; display: inline-block; }
-        .footer-links li a:hover { opacity: 1; transform: translateX(4px); color: var(--brand-copper); }
-        .footer-bottom { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; }
-        .copyright { font-size: 0.85rem; opacity: 0.6; }
-        .admin-login-btn { font-size: 0.85rem; color: var(--text-secondary); background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; opacity: 0.5; transition: opacity 0.2s ease; }
-        .admin-login-btn:hover { opacity: 1; color: var(--brand-copper); }
-
-        /* Cookie banner */
-        #cookieBanner {
-            display: none; position: fixed; bottom: 20px; left: 20px; right: 20px;
-            max-width: 440px; background-color: var(--bg-card); padding: 22px 24px;
-            border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 9999;
-            border: 1px solid var(--border-color);
-        }
-
-        /* ── REQUESTS DASHBOARD MODAL ── */
+        /* ── DUAL-PANE CRM WORKSPACE ── */
         .requests-modal-card {
-            background-color: var(--white); border-radius: var(--radius-lg); width: 100%;
-            max-width: 960px; max-height: 92vh; box-shadow: var(--shadow-lg);
-            overflow: hidden; display: flex; flex-direction: column;
+            background-color: var(--white); border-radius: var(--radius-lg); 
+            width: 95vw; max-width: 1400px; height: 90vh; max-height: 850px;
+            box-shadow: var(--shadow-lg); overflow: hidden; display: flex; flex-direction: column;
             transform: scale(0.95); transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
         }
         .modal-overlay.open .requests-modal-card { transform: scale(1); }
@@ -448,59 +414,168 @@
             flex-shrink: 0;
         }
         .req-modal-header h2 { color: var(--white); margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
-        .req-modal-body { flex: 1; overflow-y: auto; }
-        .req-tabs-bar { display: flex; gap: 0; border-bottom: 2px solid var(--border-color); background-color: var(--bg-primary); }
+        .req-modal-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .req-tabs-bar { display: flex; gap: 0; border-bottom: 2px solid var(--border-color); background-color: var(--bg-primary); flex-shrink: 0; }
         .req-tab-btn {
-            padding: 14px 22px; font-weight: 700; font-size: 0.9rem; background: none; border: none;
+            padding: 16px 24px; font-weight: 700; font-size: 0.9rem; background: none; border: none;
             border-bottom: 3px solid transparent; margin-bottom: -2px; cursor: pointer;
             transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; color: var(--text-secondary);
         }
         .req-tab-btn.active { color: var(--brand-spruce); border-bottom-color: var(--brand-copper); }
         .req-tab-btn:hover:not(.active) { color: var(--brand-spruce); background: rgba(28,46,36,0.04); }
         .req-tab-btn.settings-tab { margin-left: auto; }
-        .req-tab-content { padding: 28px; }
-        .req-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 560px; }
+        
+        /* Split-Pane CRM Workspace */
+        .crm-workspace {
+            display: grid; grid-template-columns: 1.15fr 0.85fr; flex: 1; overflow: hidden;
+        }
+        .crm-list-container {
+            padding: 24px; overflow-y: auto; border-right: 1px solid var(--border-color); height: 100%;
+        }
+        .crm-inspector-container {
+            padding: 28px; overflow-y: auto; background-color: var(--bg-primary); height: 100%;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .req-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
         .req-table thead tr { border-bottom: 2px solid var(--border-color); background-color: var(--bg-primary); }
-        .req-table th { padding: 11px 14px; font-weight: 700; color: var(--brand-spruce); text-align: left; }
-        .req-table tbody tr { border-bottom: 1px solid var(--border-color); transition: background 0.15s ease; }
-        .req-table tbody tr:hover { background-color: rgba(139,90,43,0.03); }
-        .req-table td { padding: 11px 14px; vertical-align: top; }
+        .req-table th { padding: 12px 14px; font-weight: 700; color: var(--brand-spruce); text-align: left; position: sticky; top: 0; background: var(--bg-primary); z-index: 2; }
+        .req-table tbody tr { border-bottom: 1px solid var(--border-color); transition: background 0.15s ease; cursor: pointer; }
+        .req-table tbody tr:hover { background-color: rgba(139,90,43,0.04); }
+        .req-table tbody tr.selected-row { background-color: rgba(139,90,43,0.08); }
+        .req-table td { padding: 12px 14px; vertical-align: middle; }
+        
         .status-badge {
-            display: inline-block; padding: 3px 9px; border-radius: var(--radius-full);
+            display: inline-block; padding: 4px 10px; border-radius: var(--radius-full);
             font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
         }
         .status-ny { background: rgba(139,90,43,0.12); color: var(--brand-wood); }
         .status-arbeid { background: rgba(184,115,51,0.15); color: #8a5200; }
         .status-utfort { background: rgba(42,80,42,0.12); color: var(--brand-green); }
-        .req-status-select { padding: 4px 6px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 700; background-color: var(--white); cursor: pointer; }
-        .req-action-btn { border: none; padding: 5px 10px; border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; margin-right: 4px; margin-bottom: 4px; transition: all 0.2s ease; }
-        .req-action-btn.view { background: var(--bg-primary); color: var(--brand-spruce); border: 1px solid var(--border-color); }
+        .req-status-select { padding: 6px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 700; background-color: var(--white); cursor: pointer; }
+        .req-status-select:focus { border-color: var(--brand-wood); }
+        .req-action-btn { border: none; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; margin-right: 4px; margin-bottom: 4px; transition: all 0.2s ease; }
+        .req-action-btn.view { background: var(--white); color: var(--brand-spruce); border: 1px solid var(--border-color); }
         .req-action-btn.view:hover { background: var(--brand-spruce); color: #fff; }
         .req-action-btn.del { background: var(--brand-red); color: #fff; }
         .req-action-btn.del:hover { background: #b01020; }
-        .req-empty-state { text-align: center; padding: 56px 24px; color: var(--text-secondary); }
-        .req-empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+        .req-empty-state { text-align: center; padding: 64px 24px; color: var(--text-secondary); width: 100%; grid-column: 1/-1; }
+        .req-empty-state .empty-icon { font-size: 3.5rem; margin-bottom: 16px; }
 
-        /* Settings tab */
-        .settings-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; max-width: 560px; }
-        .settings-card h4 { font-size: 1.05rem; margin-bottom: 8px; color: var(--brand-spruce); }
+        /* Innstillinger */
+        .settings-grid {
+            padding: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; overflow-y: auto; height: 100%;
+        }
+        .settings-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; height: fit-content; }
+        .settings-card h4 { font-size: 1.1rem; margin-bottom: 8px; color: var(--brand-spruce); }
         .settings-card p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; }
         .settings-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-        .pin-change-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color); }
+        .pin-change-section { border-top: none; }
 
-        /* Request detail modal */
+        /* Detalje-kort */
         .req-detail-card {
             background-color: var(--white); border-radius: var(--radius-lg); width: 95%;
             max-width: 580px; box-shadow: var(--shadow-lg); overflow: hidden;
             transform: scale(0.95); transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
         }
         .modal-overlay.open .req-detail-card { transform: scale(1); }
-        .detail-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .detail-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .detail-field { display: flex; flex-direction: column; gap: 3px; }
         .detail-field-label { font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; }
         .detail-field-val { font-size: 0.92rem; font-weight: 700; color: var(--brand-spruce); }
         .detail-field-val a { color: var(--brand-copper); text-decoration: underline; }
-        .note-badge { background-color: rgba(139,90,43,0.1); color: var(--brand-wood); padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; display: inline-block; margin-top: 4px; }
+        .note-badge { background-color: rgba(139,90,43,0.1); color: var(--brand-wood); padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; display: inline-block; margin-top: 4px; }
+
+        /* ── FOOTER STYLING REPLICATING THE SCREENSHOT ── */
+        footer {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 80px 0 40px;
+            border-top: 1px solid var(--border-color);
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr;
+            gap: 64px;
+            margin-bottom: 64px;
+        }
+        .footer-logo-block {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .footer-column h3 {
+            font-size: 1.25rem;
+            margin-bottom: 24px;
+            letter-spacing: -0.2px;
+            color: var(--brand-spruce);
+        }
+        .footer-links {
+            list-style: disc;
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .footer-links li {
+            color: var(--brand-spruce);
+        }
+        .footer-links li a {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-block;
+            transition: color 0.2s ease;
+        }
+        .footer-links li a:hover {
+            color: var(--brand-wood);
+        }
+        .footer-bottom {
+            border-top: 1px solid var(--border-color);
+            padding-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+        .copyright {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        /* Footer buttons to replicate input_file_0.png */
+        .btn-footer-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition) ease;
+        }
+        .btn-footer-action.inbox {
+            background-color: var(--brand-wood);
+            color: var(--white);
+            border: none;
+        }
+        .btn-footer-action.inbox:hover {
+            background-color: var(--brand-wood-dark);
+            transform: translateY(-2px);
+        }
+        .btn-footer-action.admin-login {
+            background-color: var(--white);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-footer-action.admin-login:hover {
+            background-color: #fcfbf9;
+            border-color: var(--text-secondary);
+            transform: translateY(-2px);
+        }
 
         /* ── RESPONSIVE ── */
         @media (max-width: 1024px) {
@@ -509,6 +584,14 @@
             .services-grid { grid-template-columns: repeat(2,1fr); }
             .portfolio-grid { grid-template-columns: repeat(2,1fr); }
             .booking-layout, .contact-layout { grid-template-columns: 1fr; gap: 40px; }
+        }
+        @media (max-width: 992px) {
+            .crm-workspace {
+                grid-template-columns: 1fr; 
+            }
+            .crm-inspector-container {
+                display: none; /* Fallback på mobil */
+            }
         }
         @media (max-width: 768px) {
             header { height: 80px; }
@@ -523,6 +606,11 @@
             .timeslot-grid { grid-template-columns: repeat(3,1fr); }
             .req-row { grid-template-columns: 1fr; }
             .detail-info-grid { grid-template-columns: 1fr; }
+            .settings-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 16px;
+            }
         }
         @media (max-width: 480px) {
             .timeslot-grid { grid-template-columns: repeat(2,1fr); }
@@ -532,6 +620,9 @@
 </head>
 <body>
 
+<!-- ── TOAST CONTAINER ── -->
+<div id="toastContainer" class="toast-container"></div>
+
 <!-- ── ADMIN BANNER ── -->
 <div class="admin-banner" id="adminBanner">
     <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -539,15 +630,15 @@
         <strong>Snekker-modus aktiv</strong>
         <button class="btn-admin-action" onclick="openRequestsModal()" style="background-color:var(--brand-copper);color:#fff;border:none;display:inline-flex;align-items:center;gap:6px;">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,18H4V8l8,5l8-5V18z M12,11L4,6h16L12,11z"/></svg>
-            Forespørsler <span id="reqBadgeCount" style="background:var(--brand-red);color:#fff;border-radius:50%;padding:1px 6px;font-size:0.7rem;font-weight:800;">0</span>
+            Innboks <span id="reqBadgeCount" style="background:var(--brand-red);color:#fff;border-radius:50%;padding:1px 6px;font-size:0.7rem;font-weight:800;">0</span>
         </button>
     </span>
     <div class="admin-banner-actions">
         <button class="btn-admin-action" onclick="openAddProjectModal()" style="display:inline-flex;align-items:center;gap:4px;">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nytt prosjekt
         </button>
-        <button class="btn-admin-action" onclick="exportUpdatedSite()" style="display:inline-flex;align-items:center;gap:4px;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> Lagre &amp; last ned
+        <button class="btn-admin-action" onclick="saveVisualChangesToFirebase()" style="background-color:var(--brand-wood);color:#fff;display:inline-flex;align-items:center;gap:4px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> Lagre endringer live
         </button>
         <button class="btn-admin-action danger" onclick="deactivateAdminMode()">Avslutt modus</button>
     </div>
@@ -556,19 +647,20 @@
 <!-- ── HEADER ── -->
 <header>
     <div class="container header-container">
-        <a href="#" class="logo-link" id="logoContainer">
-            <img id="logoImg" src="" alt="Logo" style="display:none;width:52px;height:52px;object-fit:contain;border-radius:8px;" onclick="if(typeof isAdminMode!=='undefined'&&isAdminMode){event.preventDefault();event.stopPropagation();adminChangeImage('logo');}">
-            <svg class="logo-svg" id="logoSvg" viewBox="0 0 100 100" onclick="if(typeof isAdminMode!=='undefined'&&isAdminMode){event.preventDefault();event.stopPropagation();adminChangeImage('logo');}">
+        <div class="logo-link" id="logoContainer">
+            <img id="logoImg" src="" alt="Logo" style="display:none;width:52px;height:52px;object-fit:contain;border-radius:8px;">
+            <svg class="logo-svg" id="logoSvg" viewBox="0 0 100 100">
                 <path d="M20,70 L70,20 L80,30 L30,80 Z" fill="#b87333"/>
                 <path d="M55,30 L65,20 L85,40 L75,50 Z" fill="#1c2e24"/>
                 <path d="M35,50 L65,80 L55,90 L25,60 Z" fill="#8b5a2b"/>
                 <circle cx="50" cy="50" r="45" fill="none" stroke="#1c2e24" stroke-width="3" stroke-dasharray="6,4" opacity="0.3"/>
             </svg>
-            <div class="logo-info">
+            <button class="admin-image-trigger" id="editLogoBtn" onclick="adminChangeImage('logo')" style="position:absolute; top:-10px; right:-10px; padding: 4px 10px; font-size: 0.7rem; z-index: 10;">📷 Endre logo</button>
+            <div class="logo-info" style="margin-left: 8px;">
                 <span class="logo-title" id="editableHeaderTitle" contenteditable="false">Geir Arne Pedersen</span>
                 <span class="logo-subtitle" id="editableHeaderSubtitle" contenteditable="false">Snekker &amp; Tømrer</span>
             </div>
-        </a>
+        </div>
         <ul class="nav-links">
             <li><a href="#">Hjem</a></li>
             <li><a href="#tjenester">Tjenester</a></li>
@@ -599,9 +691,10 @@
             <button class="btn-secondary" onclick="scrollToEl('prosjekter')">Se mine arbeider</button>
         </div>
     </div>
-    <div class="hero-visual" data-adminclick="true" onclick="if(typeof isAdminMode!=='undefined'&&isAdminMode)adminChangeImage('hero');">
+    <div class="hero-visual">
         <img id="editableHeroImage" src="https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1200&q=80" alt="Tømrer arbeider med bjelker">
         <div class="hero-visual-overlay"></div>
+        <button class="admin-image-trigger" id="editHeroBtn" onclick="adminChangeImage('hero')">📷 Endre bilde</button>
         <div class="hero-stats-overlay">
             <div class="stat-box"><h3 id="statVal1" contenteditable="false">15+</h3><p id="statLbl1" contenteditable="false">Års erfaring</p></div>
             <div class="stat-box"><h3 id="statVal2" contenteditable="false">100%</h3><p id="statLbl2" contenteditable="false">Fornøyde kunder</p></div>
@@ -957,7 +1050,7 @@
         <div id="pinModalIcon" style="font-size:2.8rem;margin-bottom:16px;">⚙️</div>
         <h3 id="pinModalTitle" style="font-size:1.45rem;margin-bottom:8px;color:var(--brand-spruce);">Logg inn i Snekker-modus</h3>
         <p id="pinModalDesc" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:24px;">Oppgi PIN-koden for å aktivere redigering (standard: 1234).</p>
-        <input type="password" class="req-input" id="pinInput" placeholder="PIN-kode" style="text-align:center;font-size:1.6rem;letter-spacing:8px;font-weight:700;height:54px;margin-bottom:12px;">
+        <input type="password" class="req-input" id="pinInput" placeholder="PIN" style="text-align:center;font-size:1.6rem;letter-spacing:8px;font-weight:700;height:54px;margin-bottom:12px;">
         <div id="pinErrorMsg" style="color:var(--brand-red);font-size:0.85rem;font-weight:700;display:none;margin-bottom:12px;">Feil PIN-kode. Prøv igjen.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <button class="req-submit-btn" style="background:var(--brand-spruce);" onclick="submitPinCheck()">Logg inn</button>
@@ -979,59 +1072,6 @@
     </div>
 </div>
 
-<!-- ── TOAST CONTAINER ── -->
-<div id="toastContainer" style="position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
-
-<!-- ── REQUESTS & INBOX MODAL ── -->
-<div class="modal-overlay" id="requestsModal" onclick="closeRequestsModal(event)">
-    <div class="requests-modal-card">
-        <div class="req-modal-header">
-            <h2><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,18H4V8l8,5l8-5V18z M12,11L4,6h16L12,11z"/></svg>CRM Innboks &amp; Administrasjon</h2>
-            <button class="modal-close-btn" onclick="closeRequestsModal(null,true)" style="color:#fff;"><svg viewBox="0 0 24 24" style="fill:currentColor;width:22px;height:22px;"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
-        </div>
-        <div class="req-modal-body">
-            <div class="req-tabs-bar">
-                <button id="tabBtnReqs" class="req-tab-btn active" onclick="switchReqTab('requests')">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    Forespørsler &amp; Avtaler (<span id="bookingsCount">0</span>)
-                </button>
-                <button id="tabBtnMessages" class="req-tab-btn" onclick="switchReqTab('messages')">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    Kontaktmeldinger (<span id="messagesCount">0</span>)
-                </button>
-                <button id="tabBtnSettings" class="req-tab-btn settings-tab" onclick="switchReqTab('settings')">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    Innstillinger
-                </button>
-            </div>
-            <div class="req-tab-content" id="reqTabContent"></div>
-        </div>
-    </div>
-</div>
-
-<!-- ── REQUEST DETAIL MODAL ── -->
-<div class="modal-overlay" id="reqDetailModal" onclick="closeReqDetailModal(event)">
-    <div class="req-detail-card">
-        <div class="modal-header" style="background:var(--bg-primary);">
-            <h2 style="font-size:1.2rem;">Henvendelsesdetaljer</h2>
-            <button class="modal-close-btn" onclick="closeReqDetailModal(null,true)"><svg viewBox="0 0 24 24" style="fill:currentColor;width:14px;height:14px;"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
-        </div>
-        <div style="padding:24px;">
-            <div id="reqDetailContent" style="margin-bottom:20px;"></div>
-            <div style="margin-bottom:16px;">
-                <label style="font-weight:700;font-size:0.85rem;color:var(--brand-spruce);display:block;margin-bottom:8px;">Interne notater (kun for deg):</label>
-                <textarea id="reqDetailNotes" class="req-input" style="height:88px;resize:none;" placeholder="F.eks: Ringte kunden 15. mai. Avtalt befaring neste uke..."></textarea>
-            </div>
-            <div style="display:flex;gap:12px;justify-content:flex-end;">
-                <input type="hidden" id="reqDetailId">
-                <input type="hidden" id="reqDetailTab">
-                <button class="btn-secondary" style="border-radius:var(--radius-sm);padding:10px 16px;" onclick="closeReqDetailModal(null,true)">Avbryt</button>
-                <button class="req-submit-btn" style="width:auto;padding:10px 20px;background:var(--brand-spruce);" onclick="saveReqDetail()">Lagre notat</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- ── COOKIE BANNER ── -->
 <div id="cookieBanner">
     <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
@@ -1047,18 +1087,19 @@
     </div>
 </div>
 
-<!-- ── FOOTER ── -->
+<!-- ── FOOTER (Replikert eksakt lik input_file_0.png) ── -->
 <footer>
     <div class="container">
         <div class="footer-grid">
             <div class="footer-logo-block">
-                <svg viewBox="0 0 100 100" width="70" height="70">
-                    <path d="M20,70 L70,20 L80,30 L30,80 Z" fill="#fff"/>
-                    <path d="M55,30 L65,20 L85,40 L75,50 Z" fill="#b87333"/>
-                    <path d="M35,50 L65,80 L55,90 L25,60 Z" fill="#fff"/>
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6,4" opacity="0.3"/>
-                </svg>
-                <p style="font-size:0.92rem;opacity:0.7;max-width:300px;">Geir Arne Pedersen leverer tømrertjenester med fokus på kvalitet og pålitelighet i hele trondheimsregionen.</p>
+                <!-- Hvit sirkulær badge med hammer-logo som i bildet -->
+                <div style="background:#fff; border-radius:50%; width:80px; height:80px; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-sm); margin-bottom:16px;">
+                    <svg viewBox="0 0 100 100" width="50" height="50">
+                        <path d="M20,70 L70,20 L80,30 L30,80 Z" fill="#8b5a2b"/>
+                        <path d="M55,30 L65,20 L85,40 L75,50 Z" fill="#1c2e24"/>
+                    </svg>
+                </div>
+                <p style="font-size:0.95rem; line-height:1.6; color:var(--text-secondary); max-width:320px;">Geir Arne Pedersen leverer tømrertjenester med fokus på kvalitet og pålitelighet i hele trondheimsregionen.</p>
             </div>
             <div class="footer-column">
                 <h3>Navigasjon</h3>
@@ -1072,23 +1113,25 @@
             </div>
             <div class="footer-column">
                 <h3>Snekkerfirmaet</h3>
-                <div style="font-size:0.9rem;opacity:0.8;line-height:1.9;">
+                <div style="font-size:0.95rem; color:var(--text-secondary); line-height:1.9;">
                     <p><strong>Geir Arne Pedersen AS</strong></p>
                     <p>Org.nr: 987 654 321 MVA</p>
                     <p>Adresse: Snekkerveien 12, 7080 Heimdal</p>
-                    <p>post@geirarnepedersen.no</p>
+                    <p style="word-break:break-all;">post@geirarnepedersen.no</p>
                 </div>
             </div>
         </div>
         <div class="footer-bottom">
             <span class="copyright">2026 © Geir Arne Pedersen. Utviklet med kjærlighet for snekkerfaget.</span>
-            <div style="display:flex;gap:12px;align-items:center;">
-                <button class="admin-login-btn" onclick="activateAdminModePrompt('requests')" style="background:var(--brand-copper);color:#fff;border:none;padding:7px 14px;border-radius:var(--radius-sm);opacity:1;">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,18H4V8l8,5l8-5V18z M12,11L4,6h16L12,11z"/></svg>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <!-- Knapp 1: Innboks (Brun farge) -->
+                <button class="btn-footer-action inbox" onclick="activateAdminModePrompt('requests')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,18H4V8l8,5l8-5V18z M12,11L4,6h16L12,11z"/></svg>
                     Innboks
                 </button>
-                <button class="admin-login-btn" onclick="activateAdminModePrompt('admin')">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <!-- Knapp 2: Snekker-modus (Hvit med tynn ramme) -->
+                <button class="btn-footer-action admin-login" onclick="activateAdminModePrompt('admin')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     Snekker-modus
                 </button>
             </div>
@@ -1097,9 +1140,13 @@
 </footer>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- DATA                                                           -->
+<!-- JAVASCRIPT & FIREBASE REST SYNC                                -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<script id="snekker-projects-data">
+<script>
+// ── CONFIG ──
+const DB_BASE = "https://eidert-default-rtdb.europe-west1.firebasedatabase.app/";
+
+// Standard fallback data om databasen skulle være helt tom
 let projectsData = [
     {
         title:"Tradisjonell tømmerterrasse med levegg",
@@ -1116,7 +1163,7 @@ let projectsData = [
         desc:"Oppføring av komplett dobbeltgarasje i klassisk stil med saltak og praktisk lagringsloft/hems.",
         longDesc:"For denne kunden bygde jeg en tradisjonell dobbeltgarasje på 46 m² med saltak. Garasjen har stående kledning som ble tilpasset hovedhuset perfekt, to leddporter med motor, samt et praktisk lagringsloft (hems) med luke og stige for ekstra bodplass. Konstruksjonen ble bygget med robuste materialer designet for å tåle hardt trønderklima, inkludert ekstra snølast på taket.",
         year:2025,loc:"Sjetnemarka",wood:"Malt gran, impregnert furu",client:"Egil Brandsjord",
-        quote:"Garasjen ble kjempeflott! Geir Arne var punktlig, profesjonell og holdt oss informert under hele prosessen. Veldig ryddig tømrer.",
+        quote:"Garasjen ble kjempeflott! Egir Arne var punktlig, profesjonell og holdt oss informert under hele prosessen. Veldig ryddig tømrer.",
         images:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80","https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80"]
     },
     {
@@ -1132,167 +1179,255 @@ let projectsData = [
         title:"Totalrenovering av eldre enebolig",
         category:"Renovering",
         desc:"Total oppgradering av fasade med ny kledning, 15cm etterisolering og utskifting av 12 vinduer.",
-        longDesc:"Dette var et omfattende renoveringsprosjekt på en enebolig fra 1974. Jeg fjernet den gamle kledningen, lektet ut og la på 15 cm isolasjon for å oppgradere boligen til dagens energistandard. Deretter la jeg ny, moderne liggende dobbelfals kledning i gran, og byttet ut totalt 12 vinduer og to ytterdører med høyeffektive trelags glass. Resultatet ble et vesentlig lunere hus med moderne uttrykk.",
+        longDesc:"Dette var et omfattende renoveringsprosjekt på en enebolig fra 1974. Jeg førte ut den gamle kledningen, lektet ut og la på 15 cm isolasjon for å oppgradere boligen til dagens energistandard. Deretter la jeg ny, moderne liggende dobbelfals kledning i gran, og byttet ut totalt 12 vinduer og to ytterdører med høyeffektive trelags glass. Resultatet ble et vesentlig lunere hus med moderne uttrykk.",
         year:2025,loc:"Klæbu",wood:"Ferdiggrunnet gran",client:"Svein Erik Dahl",
         quote:"Strømregningen vår ble halvert etter etterisoleringen og vindusbyttet. Geir Arne gjorde en fenomenal og effektiv jobb!",
         images:["https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80","https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1200&q=80"]
     }
 ];
-</script>
 
-<script id="snekker-testimonials-data">
 let testimonialsData = [
     {text:`"Geir Arne bygde vår nye terrasse i Royal-impregnert furu. Arbeidet ble utført utrolig raskt, til avtalt pris, og med en finish som overgikk forventningene våre. En kjempetrivelig kar som vi trygt vil bruke igjen!"`,author:"Kristin og Thomas Hansen",loc:"Melhus, Terrasseprosjekt"},
     {text:`"Dobbeltgarasjen ble akkurat slik vi så for oss. Geir Arne kom med gode råd angående hems-løsningen, noe som ga oss masse verdifull lagringsplass. Veldig ryddig og dyktig snekker!"`,author:"Egil Brandsjord",loc:"Sjetnemarka, Dobbeltgarasje"},
     {text:`"Vi er kjempefornøyde med etterisoleringen og den nye kledningen Geir Arne la på huset vårt. Huset ble som nytt, og strømregningen har gått drastisk ned. Profesjonell tømrer som anbefales på det sterkeste!"`,author:"Svein Erik Dahl",loc:"Klæbu, Renoveringsprosjekt"}
 ];
-</script>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- JAVASCRIPT                                                     -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<script>
+// Redigerbare felt-IDer
+const EDITABLE_IDS=["editableHeaderTitle","editableHeaderSubtitle","editableHeroBadge","editableHeroTitle","editableHeroDesc","statVal1","statLbl1","statVal2","statLbl2","statVal3","statLbl3","editableServicesTitle","editableServicesDesc","srvTitle1","srvDesc1","srvTitle2","srvDesc2","srvTitle3","srvDesc3","srvTitle4","srvDesc4","editablePortfolioTitle","editablePortfolioDesc","editablePhoneNum","editableEmailAddr","editableWorkArea","activeQuoteText","activeQuoteAuthor","activeQuoteLocation"];
+
 // ── STATE ──
-let isAdminMode = false;
+let isAdminMode = false; // Settes strengt til false slik at siden ikke åpner i snekkermodus som standard
 let activeTestimonialIndex = 0;
 let activeCategory = "alle";
 let tempUploadedImageBase64 = "";
 let currentCarouselIndex = 0;
 let carouselImages = [];
 let activeRequestsTab = "requests";
+let selectedCrmItemId = null;
 
-// Calendar state
+// Kalender-tilstand
 let calCurrentYear = new Date().getFullYear();
-let calCurrentMonth = new Date().getMonth(); // 0-indexed
-let selectedCalDate = null; // { year, month, day } or null
+let calCurrentMonth = new Date().getMonth();
+let selectedCalDate = null;
 let activeReqType = "Befaring";
 let selectedTimeslot = null;
 
 const MONTH_NAMES_NO = ["Januar","Februar","Mars","April","Mai","Juni","Juli","August","September","Oktober","November","Desember"];
 const DAY_NAMES_NO   = ["Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag","Søndag"];
 
-// All working-hour slots (every 30min 07:00–19:30)
 function getAllSlots() {
     const slots = [];
     for(let h=7; h<20; h++){
         slots.push(`${String(h).padStart(2,'0')}:00`);
         slots.push(`${String(h).padStart(2,'0')}:30`);
     }
-    return slots; // 07:00 – 19:30 (26 slots)
+    return slots;
 }
 
-// ── INIT ──
-window.addEventListener("DOMContentLoaded", () => {
-    renderPortfolio();
-    renderCalendar();
-    showActiveTestimonial();
-
-    if(!localStorage.getItem("cookies_accepted")) document.getElementById("cookieBanner").style.display="block";
-
-    const savedHero = localStorage.getItem("heroImage_url");
-    if(savedHero) document.getElementById("editableHeroImage").src = savedHero;
-
-    const savedLogo = localStorage.getItem("logoImg_url");
-    if(savedLogo){
-        document.getElementById("logoSvg").style.display="none";
-        document.getElementById("logoImg").style.display="block";
-        document.getElementById("logoImg").src=savedLogo;
+// ── FIREBASE UTILS ──
+async function fetchFromDb(path, defaultValue) {
+    try {
+        const res = await fetch(`${DB_BASE}${path}.json`);
+        if (!res.ok) throw new Error("Lesing mislyktes");
+        const data = await res.json();
+        if (data === null) {
+            if (defaultValue !== undefined) {
+                await saveToDb(path, defaultValue);
+                return defaultValue;
+            }
+            return null;
+        }
+        return data;
+    } catch (err) {
+        console.error("Firebase feil for sti: " + path, err);
+        return defaultValue;
     }
+}
 
-    updateReqBadgeCount();
+async function saveToDb(path, data) {
+    try {
+        const res = await fetch(`${DB_BASE}${path}.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error("Lagring mislyktes");
+        return true;
+    } catch (err) {
+        console.error("Firebase skrivefeil: " + path, err);
+        showToast("Feil under synkronisering mot skyen.", "error");
+        return false;
+    }
+}
 
-    // testimonial inline edit listeners
-    ["activeQuoteText","activeQuoteAuthor","activeQuoteLocation"].forEach(id=>{
-        document.getElementById(id).addEventListener("input",e=>{
-            if(!isAdminMode||!testimonialsData[activeTestimonialIndex])return;
-            const field = id==="activeQuoteText"?"text":id==="activeQuoteAuthor"?"author":"loc";
+// ── INITIAL LOAD ──
+window.addEventListener("DOMContentLoaded", async () => {
+    // Sørg for at admin banneret og redigering er deaktivert/skjult som standard
+    document.getElementById("adminBanner").style.display = "none";
+    document.body.classList.remove("admin-active");
+
+    // Last alt fra Firebase
+    await loadAllDataFromFirebase();
+
+    // Legg til lyttere på omtalene under redigering
+    ["activeQuoteText","activeQuoteAuthor","activeQuoteLocation"].forEach(id => {
+        document.getElementById(id).addEventListener("input", e => {
+            if(!isAdminMode || !testimonialsData[activeTestimonialIndex]) return;
+            const field = id==="activeQuoteText" ? "text" : id==="activeQuoteAuthor" ? "author" : "loc";
             testimonialsData[activeTestimonialIndex][field] = e.target.textContent;
         });
     });
 
-    document.getElementById("pinInput").addEventListener("keydown",e=>{ if(e.key==="Enter") submitPinCheck(); });
+    document.getElementById("pinInput").addEventListener("keydown", e => { if(e.key==="Enter") submitPinCheck(); });
 });
 
-// ── HELPERS ──
+async function loadAllDataFromFirebase() {
+    showToast("Kobler til databasen...", "success");
+
+    // Settings
+    const settings = await fetchFromDb("snekker_settings", {
+        admin_pin: "1234",
+        web3_key: "",
+        content: {},
+        logoImg_url: "",
+        heroImage_url: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1200&q=80"
+    });
+
+    const dbPin = settings.admin_pin || "1234";
+    const dbWeb3Key = settings.web3_key || "";
+    const dbContent = settings.content || {};
+
+    localStorage.setItem("snekker_admin_pin", dbPin);
+    localStorage.setItem("snekker_web3_key", dbWeb3Key);
+
+    // Påfør tekster til DOM
+    EDITABLE_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && dbContent[id] !== undefined) {
+            el.textContent = dbContent[id];
+        }
+    });
+
+    // Logo og Hero bilde
+    if (settings.logoImg_url) {
+        document.getElementById("logoSvg").style.display="none";
+        document.getElementById("logoImg").style.display="block";
+        document.getElementById("logoImg").src = settings.logoImg_url;
+    }
+    if (settings.heroImage_url) {
+        document.getElementById("editableHeroImage").src = settings.heroImage_url;
+    }
+
+    // Prosjekter
+    projectsData = await fetchFromDb("snekker_projects", projectsData);
+
+    // Omtaler
+    testimonialsData = await fetchFromDb("snekker_testimonials", testimonialsData);
+
+    // Blokkerte timer
+    const dbBlocked = await fetchFromDb("snekker_blocked_slots", {});
+    localStorage.setItem("snekker_blocked_slots", JSON.stringify(dbBlocked));
+
+    // Bookinger og kontaktmeldinger
+    const dbBookings = await fetchFromDb("snekker_bookings", []);
+    localStorage.setItem("snekker_bookings", JSON.stringify(dbBookings));
+
+    const dbMessages = await fetchFromDb("snekker_messages", []);
+    localStorage.setItem("snekker_messages", JSON.stringify(dbMessages));
+
+    // Render grensesnittet
+    renderPortfolio();
+    renderCalendar();
+    showActiveTestimonial();
+    updateReqBadgeCount();
+
+    showToast("Tilkoblet skyen!", "success");
+}
+
+// ── SCROLL & ANCHORS ──
 function scrollToEl(id){
-    const el = document.getElementById(id)||document.querySelector(`[id="${id}"]`)||document.querySelector(`a[href="#${id}"]`);
     const target = document.getElementById(id);
-    if(!target)return;
-    const top = target.getBoundingClientRect().top + window.pageYOffset - 96;
-    window.scrollTo({top,behavior:"smooth"});
+    if(target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
 }
 
-function showToast(msg,type="success"){
-    const c=document.getElementById("toastContainer");
-    const t=document.createElement("div");
-    t.className=`toast-message ${type}`;
-    const icons={success:"✔️",error:"❌",warning:"⚠️"};
-    t.innerHTML=`<span>${icons[type]||"ℹ️"}</span><span>${msg}</span>`;
-    c.appendChild(t);
-    setTimeout(()=>t.remove(),4200);
+function showToast(msg, type="success"){
+    const container = document.getElementById("toastContainer");
+    const t = document.createElement("div");
+    t.className = `toast-message ${type}`;
+    const icons = {success: "✔️", error: "❌", warning: "⚠️"};
+    t.innerHTML = `<span>${icons[type]||"ℹ️"}</span><span>${msg}</span>`;
+    container.appendChild(t);
+    setTimeout(() => t.remove(), 4200);
 }
 
-let _confirmCb=null;
-function showConfirmDialog(title,desc,cb){
-    document.getElementById("confirmModalTitle").textContent=title;
-    document.getElementById("confirmModalDesc").textContent=desc;
-    _confirmCb=cb;
-    const btn=document.getElementById("confirmModalYesBtn");
-    const nb=btn.cloneNode(true);
-    btn.parentNode.replaceChild(nb,btn);
-    nb.addEventListener("click",()=>{if(_confirmCb)_confirmCb();closeConfirmModal(null,true);});
+let _confirmCb = null;
+function showConfirmDialog(title, desc, cb){
+    document.getElementById("confirmModalTitle").textContent = title;
+    document.getElementById("confirmModalDesc").textContent = desc;
+    _confirmCb = cb;
+    const btn = document.getElementById("confirmModalYesBtn");
+    const nb = btn.cloneNode(true);
+    btn.parentNode.replaceChild(nb, btn);
+    nb.addEventListener("click", () => {
+        if(_confirmCb) _confirmCb();
+        closeConfirmModal(null, true);
+    });
     document.getElementById("confirmModal").classList.add("open");
-    document.body.style.overflow="hidden";
-}
-function closeConfirmModal(ev,force=false){
-    const m=document.getElementById("confirmModal");
-    if(force||ev?.target===m){m.classList.remove("open");document.body.style.overflow="auto";}
+    document.body.style.overflow = "hidden";
 }
 
-// ── COOKIE ──
-function acceptCookies(){localStorage.setItem("cookies_accepted","true");document.getElementById("cookieBanner").style.display="none";}
+function closeConfirmModal(ev, force=false){
+    const m = document.getElementById("confirmModal");
+    if(force || ev?.target === m){
+        m.classList.remove("open");
+        document.body.style.overflow = "auto";
+    }
+}
 
-// ── IMAGE CHANGE (logo + hero) ──
-// Supports: file from PC (via file picker), file from downloads, or URL paste
+function acceptCookies(){
+    localStorage.setItem("cookies_accepted", "true");
+    document.getElementById("cookieBanner").style.display="none";
+}
+
+// ── REDIGERING AV BILDER (Endret slik at man ikke klikker direkte på bildene i vanlig modus) ──
 function adminChangeImage(target) {
-    if(!isAdminMode)return;
-    // Build a small inline picker inside a confirm-style flow
+    if(!isAdminMode) return;
     _showImagePicker(target);
 }
 
 function _showImagePicker(target){
-    // Use the existing confirm modal repurposed
-    const title = target==="logo" ? "Bytt logo-bilde" : "Bytt forsidebilde";
+    const title = target==="logo" ? "Bytt firmalogo" : "Bytt hovedbilde (hero)";
     document.getElementById("confirmModalTitle").textContent = title;
     document.getElementById("confirmModalDesc").innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:10px;text-align:left;margin-top:8px;">
-            <button type="button" class="btn-secondary" style="border-radius:var(--radius-sm);font-size:0.88rem;" onclick="_imgPickerFile('${target}')">📁 Velg fil fra PC / Nedlastinger</button>
-            <button type="button" class="btn-secondary" style="border-radius:var(--radius-sm);font-size:0.88rem;" onclick="_imgPickerUrl('${target}')">🔗 Lim inn URL / nettadresse</button>
+        <div style="display:flex;flex-direction:column;gap:12px;text-align:left;margin-top:12px;">
+            <button type="button" class="btn-secondary" style="border-radius:var(--radius-sm);min-height:44px;" onclick="_imgPickerFile('${target}')">📁 Velg bildefil fra PC</button>
+            <button type="button" class="btn-secondary" style="border-radius:var(--radius-sm);min-height:44px;" onclick="_imgPickerUrl('${target}')">🔗 Lim inn bildelenke (URL)</button>
         </div>
     `;
     const yesBtn = document.getElementById("confirmModalYesBtn");
-    yesBtn.style.display="none";
+    yesBtn.style.display = "none";
     document.getElementById("confirmModal").classList.add("open");
-    document.body.style.overflow="hidden";
+    document.body.style.overflow = "hidden";
 }
 
 function _imgPickerClose(){
     const yesBtn = document.getElementById("confirmModalYesBtn");
-    yesBtn.style.display="";
-    closeConfirmModal(null,true);
+    yesBtn.style.display = "";
+    closeConfirmModal(null, true);
 }
 
 function _imgPickerFile(target){
     _imgPickerClose();
     const input = document.createElement("input");
-    input.type="file";
-    input.accept="image/*";
-    // Allow files from anywhere including Downloads folder
+    input.type = "file";
+    input.accept = "image/*";
     input.onchange = function(){
-        const file=input.files[0];
-        if(!file)return;
-        const reader=new FileReader();
-        reader.onload=function(e){
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e){
             _applyImage(target, e.target.result);
         };
         reader.readAsDataURL(file);
@@ -1302,69 +1437,61 @@ function _imgPickerFile(target){
 
 function _imgPickerUrl(target){
     _imgPickerClose();
-    // Re-open with URL input
     document.getElementById("confirmModalTitle").textContent = "Lim inn bilde-URL";
     document.getElementById("confirmModalDesc").innerHTML = `
-        <div style="text-align:left;margin-top:8px;">
+        <div style="text-align:left;margin-top:12px;">
             <input type="text" id="imgUrlInput" class="req-input" placeholder="https://eksempel.no/bilde.jpg" style="margin-bottom:8px;">
-            <p style="font-size:0.8rem;color:var(--text-secondary);">Du kan kopiere en URL fra nettleseren, Google Bilder, eller Unsplash.</p>
+            <p style="font-size:0.8rem;color:var(--text-secondary);">Du kan bruke en bildeadresse fra f.eks. Google, Unsplash eller lignende.</p>
         </div>
     `;
     const yesBtn = document.getElementById("confirmModalYesBtn");
-    yesBtn.style.display="";
-    yesBtn.textContent="Bruk dette bildet";
-    _confirmCb = function(){
+    yesBtn.style.display = "";
+    yesBtn.textContent = "Bruk bildet";
+    const nb = yesBtn.cloneNode(true);
+    yesBtn.parentNode.replaceChild(nb, yesBtn);
+    nb.addEventListener("click", () => {
         const url = document.getElementById("imgUrlInput")?.value?.trim();
         if(url) _applyImage(target, url);
-        // Reset button text
-        yesBtn.textContent="Ja, fortsett";
-    };
-    const nb=yesBtn.cloneNode(true);
-    yesBtn.parentNode.replaceChild(nb,yesBtn);
-    nb.textContent="Bruk dette bildet";
-    nb.addEventListener("click",()=>{
-        const url=document.getElementById("imgUrlInput")?.value?.trim();
-        if(url) _applyImage(target, url);
-        nb.textContent="Ja, fortsett";
-        closeConfirmModal(null,true);
+        closeConfirmModal(null, true);
     });
     document.getElementById("confirmModal").classList.add("open");
-    document.body.style.overflow="hidden";
-    setTimeout(()=>document.getElementById("imgUrlInput")?.focus(),100);
+    document.body.style.overflow = "hidden";
+    setTimeout(() => document.getElementById("imgUrlInput")?.focus(), 150);
 }
 
 function _applyImage(target, src){
     if(target==="logo"){
-        localStorage.setItem("logoImg_url", src);
         document.getElementById("logoSvg").style.display="none";
         document.getElementById("logoImg").style.display="block";
-        document.getElementById("logoImg").src=src;
+        document.getElementById("logoImg").src = src;
     } else {
-        localStorage.setItem("heroImage_url", src);
-        document.getElementById("editableHeroImage").src=src;
+        document.getElementById("editableHeroImage").src = src;
     }
-    showToast("Bilde oppdatert!","success");
+    showToast("Bilde er endret! Husk å trykke 'Lagre endringer live' for å lagre permanent til skyen.", "success");
 }
 
 // ── PORTFOLIO ──
 function renderPortfolio(){
-    const grid=document.getElementById("portfolioGrid");
-    grid.innerHTML="";
+    const grid = document.getElementById("portfolioGrid");
+    grid.innerHTML = "";
+    
     if(isAdminMode){
-        const add=document.createElement("div");
-        add.className="add-project-card";add.style.display="flex";
-        add.onclick=openAddProjectModal;
-        add.innerHTML=`<svg class="add-project-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><h3 style="color:var(--brand-wood);">Legg til nytt prosjekt</h3><p style="font-size:0.85rem;color:var(--text-secondary);margin-top:8px;">Klikk for å publisere en ny snekkerjobb.</p>`;
+        const add = document.createElement("div");
+        add.className = "add-project-card"; add.style.display = "flex";
+        add.onclick = openAddProjectModal;
+        add.innerHTML = `<svg class="add-project-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><h3 style="color:var(--brand-wood);">Legg til prosjekt</h3><p style="font-size:0.85rem;color:var(--text-secondary);margin-top:8px;">Trykk for å opprette et nytt prosjekt.</p>`;
         grid.appendChild(add);
     }
-    const filtered=projectsData.filter(p=>activeCategory==="alle"||p.category.toLowerCase()===activeCategory.toLowerCase());
-    filtered.forEach(proj=>{
-        const idx=projectsData.indexOf(proj);
-        const card=document.createElement("div");
-        card.className="project-card";
-        card.onclick=e=>openDetailModal(idx,e);
-        const img=proj.images?.[0]||"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80";
-        card.innerHTML=`
+    
+    const filtered = projectsData.filter(p => activeCategory === "alle" || p.category.toLowerCase() === activeCategory.toLowerCase());
+    filtered.forEach(proj => {
+        const idx = projectsData.indexOf(proj);
+        const card = document.createElement("div");
+        card.className = "project-card";
+        card.onclick = e => openDetailModal(idx, e);
+        const img = proj.images?.[0] || "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80";
+        
+        card.innerHTML = `
         <div class="project-img-wrapper">
             <span class="project-tag">${proj.category}</span>
             <div class="card-admin-controls" style="display:${isAdminMode?"flex":"none"}">
@@ -1385,129 +1512,149 @@ function renderPortfolio(){
     });
 }
 
-function filterCategory(cat,btn){
-    activeCategory=cat;
-    document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+function filterCategory(cat, btn){
+    activeCategory = cat;
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     renderPortfolio();
 }
 
-// ── DETAIL MODAL ──
-function openDetailModal(idx,event){
-    if(event?.target?.closest(".card-admin-controls"))return;
-    const proj=projectsData[idx];if(!proj)return;
-    carouselImages=proj.images?.length?proj.images:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80"];
-    currentCarouselIndex=0;
-    document.getElementById("modalProjectTitle").textContent=proj.title;
-    document.getElementById("modalLongDesc").textContent=proj.longDesc;
-    document.getElementById("specCat").textContent=proj.category;
-    document.getElementById("specYear").textContent=proj.year;
-    document.getElementById("specLoc").textContent=proj.loc;
-    document.getElementById("specWood").textContent=proj.wood;
-    const qEl=document.getElementById("modalQuote");
-    if(proj.quote){qEl.parentElement.style.display="block";qEl.textContent=`"${proj.quote}" — ${proj.client||"Kunde"}`;}
-    else{qEl.parentElement.style.display="none";}
-    const slides=document.getElementById("carouselSlides");
-    slides.innerHTML="";
-    carouselImages.forEach(src=>{const i=document.createElement("img");i.src=src;i.alt=proj.title;slides.appendChild(i);});
+// ── DETALJER PROSJEKT MODAL ──
+function openDetailModal(idx, event){
+    if(event?.target?.closest(".card-admin-controls")) return;
+    const proj = projectsData[idx]; if(!proj) return;
+    carouselImages = proj.images?.length ? proj.images : ["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80"];
+    currentCarouselIndex = 0;
+    
+    document.getElementById("modalProjectTitle").textContent = proj.title;
+    document.getElementById("modalLongDesc").textContent = proj.longDesc;
+    document.getElementById("specCat").textContent = proj.category;
+    document.getElementById("specYear").textContent = proj.year;
+    document.getElementById("specLoc").textContent = proj.loc;
+    document.getElementById("specWood").textContent = proj.wood;
+    
+    const qEl = document.getElementById("modalQuote");
+    if(proj.quote){
+        qEl.parentElement.style.display = "block";
+        qEl.textContent = `"${proj.quote}" — ${proj.client || "Kunde"}`;
+    } else {
+        qEl.parentElement.style.display = "none";
+    }
+    
+    const slides = document.getElementById("carouselSlides");
+    slides.innerHTML = "";
+    carouselImages.forEach(src => {
+        const i = document.createElement("img");
+        i.src = src;
+        i.alt = proj.title;
+        slides.appendChild(i);
+    });
+    
     updateCarouselPos();
     document.getElementById("detailModal").classList.add("open");
-    document.body.style.overflow="hidden";
+    document.body.style.overflow = "hidden";
 }
-function closeDetailModal(ev,force=false){
-    const m=document.getElementById("detailModal");
-    if(force||ev?.target===m){m.classList.remove("open");document.body.style.overflow="auto";}
+
+function closeDetailModal(ev, force=false){
+    const m = document.getElementById("detailModal");
+    if(force || ev?.target === m){
+        m.classList.remove("open");
+        document.body.style.overflow = "auto";
+    }
 }
+
 function slideCarousel(dir){
-    currentCarouselIndex=(currentCarouselIndex+dir+carouselImages.length)%carouselImages.length;
+    currentCarouselIndex = (currentCarouselIndex + dir + carouselImages.length) % carouselImages.length;
     updateCarouselPos();
 }
+
 function updateCarouselPos(){
-    document.getElementById("carouselSlides").style.transform=`translateX(${currentCarouselIndex*-100}%)`;
+    document.getElementById("carouselSlides").style.transform = `translateX(${currentCarouselIndex * -100}%)`;
 }
 
 // ── TESTIMONIALS ──
 function showActiveTestimonial(){
-    const q=testimonialsData[activeTestimonialIndex];if(!q)return;
-    document.getElementById("activeQuoteText").textContent=q.text;
-    document.getElementById("activeQuoteAuthor").textContent=q.author;
-    document.getElementById("activeQuoteLocation").textContent=q.loc;
+    const q = testimonialsData[activeTestimonialIndex]; if(!q) return;
+    document.getElementById("activeQuoteText").textContent = q.text;
+    document.getElementById("activeQuoteAuthor").textContent = q.author;
+    document.getElementById("activeQuoteLocation").textContent = q.loc;
 }
+
 function slideTestimonial(dir){
-    activeTestimonialIndex=(activeTestimonialIndex+dir+testimonialsData.length)%testimonialsData.length;
+    activeTestimonialIndex = (activeTestimonialIndex + dir + testimonialsData.length) % testimonialsData.length;
     showActiveTestimonial();
 }
+
 function addNewTestimonial(){
-    testimonialsData.push({text:`"Ny kundeomtale – klikk for å redigere teksten direkte."`,author:"Kunde Navn",loc:"Sted, Type prosjekt"});
-    activeTestimonialIndex=testimonialsData.length-1;
+    testimonialsData.push({text:`"Ny omtale - skriv inn din tekst her."`, author:"Kunde", loc:"Sted"});
+    activeTestimonialIndex = testimonialsData.length - 1;
     showActiveTestimonial();
-    showToast("Ny omtale lagt til! Klikk på teksten for å redigere.","success");
+    showToast("Ny omtale lagt til! Klikk for å endre teksten.", "success");
 }
+
 function deleteActiveTestimonial(){
-    if(testimonialsData.length<=1){showToast("Du må beholde minst én kundeomtale.","error");return;}
-    showConfirmDialog("Slette omtale?","Er du sikker på at du vil slette denne omtalen?",()=>{
-        testimonialsData.splice(activeTestimonialIndex,1);
-        activeTestimonialIndex=Math.min(activeTestimonialIndex,testimonialsData.length-1);
+    if(testimonialsData.length <= 1){
+        showToast("Du må ha minst én omtale.", "error"); return;
+    }
+    showConfirmDialog("Slett omtale?", "Vil du slette denne omtalen permanent?", () => {
+        testimonialsData.splice(activeTestimonialIndex, 1);
+        activeTestimonialIndex = Math.min(activeTestimonialIndex, testimonialsData.length - 1);
         showActiveTestimonial();
-        showToast("Omtale slettet.","warning");
+        showToast("Omtale slettet.", "warning");
     });
 }
 
-// ── CALENDAR ──
+// ── KALENDER ──
 function renderCalendar(){
-    const grid=document.getElementById("calDaysGrid");
-    grid.innerHTML="";
-    document.getElementById("calMonthLabel").textContent=`${MONTH_NAMES_NO[calCurrentMonth]} ${calCurrentYear}`;
+    const grid = document.getElementById("calDaysGrid");
+    grid.innerHTML = "";
+    document.getElementById("calMonthLabel").textContent = `${MONTH_NAMES_NO[calCurrentMonth]} ${calCurrentYear}`;
 
-    const today=new Date();
+    const today = new Date();
     today.setHours(0,0,0,0);
 
-    // First day of month (0=Sun..6=Sat), convert to Mon-first
-    const firstDow=new Date(calCurrentYear,calCurrentMonth,1).getDay();
-    const startOffset=(firstDow===0)?6:firstDow-1; // Mon=0 offset
-    const daysInMonth=new Date(calCurrentYear,calCurrentMonth+1,0).getDate();
+    const firstDow = new Date(calCurrentYear, calCurrentMonth, 1).getDay();
+    const startOffset = (firstDow === 0) ? 6 : firstDow - 1; 
+    const daysInMonth = new Date(calCurrentYear, calCurrentMonth + 1, 0).getDate();
 
-    // Previous month fill
-    const prevMonthDays=new Date(calCurrentYear,calCurrentMonth,0).getDate();
-    for(let i=startOffset-1;i>=0;i--){
-        const d=document.createElement("div");
-        d.className="cal-day other-month disabled";
-        d.textContent=prevMonthDays-i;
+    const prevMonthDays = new Date(calCurrentYear, calCurrentMonth, 0).getDate();
+    for(let i=startOffset-1; i>=0; i--){
+        const d = document.createElement("div");
+        d.className = "cal-day other-month disabled";
+        d.textContent = prevMonthDays - i;
         grid.appendChild(d);
     }
 
-    // Current month days
-    for(let day=1;day<=daysInMonth;day++){
-        const date=new Date(calCurrentYear,calCurrentMonth,day);
+    for(let day=1; day<=daysInMonth; day++){
+        const date = new Date(calCurrentYear, calCurrentMonth, day);
         date.setHours(0,0,0,0);
-        const dow=date.getDay(); // 0=Sun,6=Sat
-        const isWeekend=dow===0||dow===6;
-        const isPast=date<today;
-        const isToday=date.getTime()===today.getTime();
-        const isSelected=selectedCalDate&&selectedCalDate.year===calCurrentYear&&selectedCalDate.month===calCurrentMonth&&selectedCalDate.day===day;
+        const dow = date.getDay();
+        const isWeekend = dow === 0 || dow === 6;
+        const isPast = date < today;
+        const isToday = date.getTime() === today.getTime();
+        const isSelected = selectedCalDate && selectedCalDate.year === calCurrentYear && selectedCalDate.month === calCurrentMonth && selectedCalDate.day === day;
 
-        const d=document.createElement("div");
-        d.textContent=day;
-        const classes=["cal-day"];
-        if(isWeekend||isPast) classes.push("disabled");
+        const d = document.createElement("div");
+        d.textContent = day;
+        const classes = ["cal-day"];
+        if(isWeekend || isPast) classes.push("disabled");
         if(isToday) classes.push("today");
         if(isSelected) classes.push("active");
 
-        d.className=classes.join(" ");
-        if(!isWeekend&&!isPast){
-            d.onclick=()=>selectCalDay(day);
-            d.title=`${DAY_NAMES_NO[(dow===0?6:dow-1)]} ${day}. ${MONTH_NAMES_NO[calCurrentMonth]}`;
+        d.className = classes.join(" ");
+        if(!isWeekend && !isPast){
+            d.onclick = () => selectCalDay(day);
+            d.title = `${DAY_NAMES_NO[(dow===0?6:dow-1)]} ${day}. ${MONTH_NAMES_NO[calCurrentMonth]}`;
         }
         grid.appendChild(d);
     }
 
-    // Fill remaining cells to complete last row (up to 42 cells total)
-    const totalCells=startOffset+daysInMonth;
-    const remainder=totalCells%7===0?0:7-(totalCells%7);
-    for(let i=1;i<=remainder;i++){
-        const d=document.createElement("div");
-        d.className="cal-day other-month disabled";
-        d.textContent=i;
+    const totalCells = startOffset + daysInMonth;
+    const remainder = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for(let i=1; i<=remainder; i++){
+        const d = document.createElement("div");
+        d.className = "cal-day other-month disabled";
+        d.textContent = i;
         grid.appendChild(d);
     }
 
@@ -1515,54 +1662,54 @@ function renderCalendar(){
 }
 
 function calNavMonth(dir){
-    calCurrentMonth+=dir;
-    if(calCurrentMonth>11){calCurrentMonth=0;calCurrentYear++;}
-    else if(calCurrentMonth<0){calCurrentMonth=11;calCurrentYear--;}
+    calCurrentMonth += dir;
+    if(calCurrentMonth > 11){ calCurrentMonth = 0; calCurrentYear++; }
+    else if(calCurrentMonth < 0){ calCurrentMonth = 11; calCurrentYear--; }
     renderCalendar();
 }
 
 function selectCalDay(day){
-    selectedCalDate={year:calCurrentYear,month:calCurrentMonth,day};
-    selectedTimeslot=null;
+    selectedCalDate = { year: calCurrentYear, month: calCurrentMonth, day };
+    selectedTimeslot = null;
     renderCalendar();
 
-    const dow=new Date(calCurrentYear,calCurrentMonth,day).getDay();
-    const dowName=DAY_NAMES_NO[dow===0?6:dow-1];
-    document.getElementById("selectedDateLabel").textContent=`${dowName} ${day}. ${MONTH_NAMES_NO[calCurrentMonth]} ${calCurrentYear}`;
+    const dow = new Date(calCurrentYear, calCurrentMonth, day).getDay();
+    const dowName = DAY_NAMES_NO[dow === 0 ? 6 : dow - 1];
+    document.getElementById("selectedDateLabel").textContent = `${dowName} ${day}. ${MONTH_NAMES_NO[calCurrentMonth]} ${calCurrentYear}`;
     renderTimeslots();
 }
 
 function renderTimeslots(){
-    const grid=document.getElementById("timeslotGrid");
-    grid.innerHTML="";
+    const grid = document.getElementById("timeslotGrid");
+    grid.innerHTML = "";
     if(!selectedCalDate){
-        grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);font-size:0.85rem;padding:12px 0;">Velg en dato over for å se ledige tidspunkt.</div>`;
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);font-size:0.85rem;padding:12px 0;">Velg en dato over for å se ledige tidspunkt.</div>`;
         return;
     }
 
-    const allSlots=getAllSlots();
-    const dateKey=`${selectedCalDate.year}-${String(selectedCalDate.month+1).padStart(2,'0')}-${String(selectedCalDate.day).padStart(2,'0')}`;
-    const blocked=JSON.parse(localStorage.getItem("snekker_blocked_slots")||"{}");
-    const blockedForDay=blocked[dateKey]||[];
+    const allSlots = getAllSlots();
+    const dateKey = `${selectedCalDate.year}-${String(selectedCalDate.month+1).padStart(2,'0')}-${String(selectedCalDate.day).padStart(2,'0')}`;
+    const blocked = JSON.parse(localStorage.getItem("snekker_blocked_slots") || "{}");
+    const blockedForDay = blocked[dateKey] || [];
 
-    allSlots.forEach(slot=>{
-        const isBlocked=blockedForDay.includes(slot);
-        const isActive=selectedTimeslot===slot;
-        const btn=document.createElement("button");
-        btn.type="button";
-        btn.textContent=slot;
+    allSlots.forEach(slot => {
+        const isBlocked = blockedForDay.includes(slot);
+        const isActive = selectedTimeslot === slot;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = slot;
 
         if(isAdminMode){
-            btn.className=`timeslot-btn${isBlocked?" blocked-admin":""}`;
-            btn.title=isBlocked?"Klikk for å åpne tidspunktet":"Klikk for å stenge tidspunktet";
-            btn.onclick=()=>adminToggleSlot(dateKey,slot);
+            btn.className = `timeslot-btn${isBlocked ? " blocked-admin" : ""}`;
+            btn.title = isBlocked ? "Klikk for å åpne tidspunktet" : "Klikk for å stenge tidspunktet";
+            btn.onclick = () => adminToggleSlot(dateKey, slot);
         } else {
             if(isBlocked){
-                btn.className="timeslot-btn blocked";
-                btn.disabled=true;
+                btn.className = "timeslot-btn blocked";
+                btn.disabled = true;
             } else {
-                btn.className=`timeslot-btn${isActive?" active":""}`;
-                btn.onclick=()=>selectTimeslot(slot);
+                btn.className = `timeslot-btn${isActive ? " active" : ""}`;
+                btn.onclick = () => selectTimeslot(slot);
             }
         }
         grid.appendChild(btn);
@@ -1570,480 +1717,719 @@ function renderTimeslots(){
 }
 
 function selectTimeslot(slot){
-    selectedTimeslot=slot;
+    selectedTimeslot = slot;
     renderTimeslots();
-    // Smooth scroll to form on mobile
-    if(window.innerWidth<768){
-        document.getElementById("requestForm")?.scrollIntoView({behavior:"smooth",block:"nearest"});
+    if(window.innerWidth < 768){
+        document.getElementById("requestForm")?.scrollIntoView({behavior: "smooth", block: "nearest"});
     }
 }
 
-function adminToggleSlot(dateKey,slot){
-    const blocked=JSON.parse(localStorage.getItem("snekker_blocked_slots")||"{}");
-    if(!blocked[dateKey])blocked[dateKey]=[];
-    const idx=blocked[dateKey].indexOf(slot);
-    if(idx>=0) blocked[dateKey].splice(idx,1);
+async function adminToggleSlot(dateKey, slot){
+    const blocked = JSON.parse(localStorage.getItem("snekker_blocked_slots") || "{}");
+    if(!blocked[dateKey]) blocked[dateKey] = [];
+    const idx = blocked[dateKey].indexOf(slot);
+    if(idx >= 0) blocked[dateKey].splice(idx, 1);
     else blocked[dateKey].push(slot);
-    localStorage.setItem("snekker_blocked_slots",JSON.stringify(blocked));
-    renderTimeslots();
-    showToast(idx>=0?"Tidspunkt åpnet igjen.":"Tidspunkt stengt for kunder.","warning");
+    
+    // Lagre til Firebase
+    const ok = await saveToDb("snekker_blocked_slots", blocked);
+    if (ok) {
+        localStorage.setItem("snekker_blocked_slots", JSON.stringify(blocked));
+        renderTimeslots();
+        showToast(idx >= 0 ? "Tidspunkt er åpnet." : "Tidspunkt stengt for kunder.", "warning");
+    }
 }
 
-function selectReqType(type,btn){
-    activeReqType=type;
-    document.querySelectorAll(".req-type-tab").forEach(b=>b.classList.remove("active"));
+function selectReqType(type, btn){
+    activeReqType = type;
+    document.querySelectorAll(".req-type-tab").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
-    const submitBtn=document.getElementById("reqSubmitBtn");
-    if(type==="Befaring") submitBtn.textContent="Send forespørsel om befaring";
-    else if(type==="Prosjektprat") submitBtn.textContent="Send forespørsel om prosjektprat";
-    else submitBtn.textContent="Send forespørsel om telefonsamtale";
+    const submitBtn = document.getElementById("reqSubmitBtn");
+    if(type === "Befaring") submitBtn.textContent = "Send forespørsel om befaring";
+    else if(type === "Prosjektprat") submitBtn.textContent = "Send forespørsel om prosjektprat";
+    else submitBtn.textContent = "Send forespørsel om telefonsamtale";
 }
 
-function handleRequestSubmit(e){
+// ── BRUKER INNSENDING ──
+async function handleRequestSubmit(e){
     e.preventDefault();
-    if(!selectedCalDate){showToast("Vennligst velg en dato i kalenderen.","error");return;}
-    if(!selectedTimeslot){showToast("Vennligst velg et tidspunkt.","error");return;}
+    if(!selectedCalDate){ showToast("Vennligst velg en dato i kalenderen.", "error"); return; }
+    if(!selectedTimeslot){ showToast("Vennligst velg et tidspunkt.", "error"); return; }
 
-    const name=document.getElementById("reqName").value;
-    const phone=document.getElementById("reqPhone").value;
-    const email=document.getElementById("reqEmail").value;
-    const addr=document.getElementById("reqAddr").value;
-    const msg=document.getElementById("reqMsg").value;
-    const refCode="GPA-"+Math.floor(10000+Math.random()*90000);
-    const dateStr=`${DAY_NAMES_NO[new Date(selectedCalDate.year,selectedCalDate.month,selectedCalDate.day).getDay()===0?6:new Date(selectedCalDate.year,selectedCalDate.month,selectedCalDate.day).getDay()-1]} ${selectedCalDate.day}. ${MONTH_NAMES_NO[selectedCalDate.month]} ${selectedCalDate.year}`;
+    const name = document.getElementById("reqName").value;
+    const phone = document.getElementById("reqPhone").value;
+    const email = document.getElementById("reqEmail").value;
+    const addr = document.getElementById("reqAddr").value;
+    const msg = document.getElementById("reqMsg").value;
+    const refCode = "GPA-" + Math.floor(10000 + Math.random() * 90000);
+    const dateStr = `${DAY_NAMES_NO[new Date(selectedCalDate.year, selectedCalDate.month, selectedCalDate.day).getDay() === 0 ? 6 : new Date(selectedCalDate.year, selectedCalDate.month, selectedCalDate.day).getDay() - 1]} ${selectedCalDate.day}. ${MONTH_NAMES_NO[selectedCalDate.month]} ${selectedCalDate.year}`;
 
-    document.getElementById("summaryType").textContent=`Type: ${activeReqType}`;
-    document.getElementById("summaryDate").textContent=`Dato: ${dateStr}`;
-    document.getElementById("summaryTime").textContent=`Tidspunkt: kl. ${selectedTimeslot}`;
-    document.getElementById("summaryRef").textContent=`Ref: ${refCode}`;
-    document.getElementById("successText").innerHTML=`Takk, <strong>${name}</strong>! Forespørselen din er registrert. Geir Arne tar kontakt for å bekrefte tidspunktet.`;
+    const obj = {
+        id: refCode,
+        type: activeReqType,
+        name,
+        email,
+        phone,
+        addr: addr || "Ikke oppgitt",
+        date: dateStr,
+        slot: selectedTimeslot,
+        msg: msg || "",
+        timestamp: new Date().toLocaleString(),
+        status: "Ny",
+        adminNotes: ""
+    };
 
-    const obj={id:refCode,type:activeReqType,name,email,phone,addr:addr||"Ikke oppgitt",date:dateStr,slot:selectedTimeslot,msg:msg||"",timestamp:new Date().toLocaleString()};
-    const list=JSON.parse(localStorage.getItem("snekker_bookings")||"[]");
+    showToast("Sender forespørsel...", "success");
+
+    const list = await fetchFromDb("snekker_bookings", []);
     list.push(obj);
-    localStorage.setItem("snekker_bookings",JSON.stringify(list));
-    updateReqBadgeCount();
-    sendEmailNotification("Forespørsel: "+activeReqType,obj);
 
-    document.getElementById("requestBox").style.display="none";
-    document.getElementById("bookingSuccess").style.display="flex";
+    const ok = await saveToDb("snekker_bookings", list);
+    if (ok) {
+        localStorage.setItem("snekker_bookings", JSON.stringify(list));
+        updateReqBadgeCount();
+
+        // Send e-post via Web3Forms (bruker den lagrede felles-nøkkelen i databasen)
+        const key = localStorage.getItem("snekker_web3_key") || "";
+        if(key) sendEmailNotification("Ny forespørsel: " + activeReqType, obj, key);
+
+        document.getElementById("summaryType").textContent = `Type: ${activeReqType}`;
+        document.getElementById("summaryDate").textContent = `Dato: ${dateStr}`;
+        document.getElementById("summaryTime").textContent = `Tidspunkt: kl. ${selectedTimeslot}`;
+        document.getElementById("summaryRef").textContent = `Ref: ${refCode}`;
+        document.getElementById("successText").innerHTML = `Takk, <strong>${name}</strong>! Forespørselen din er lagret, og Geir Arne vil ta kontakt for å bekrefte.`;
+
+        document.getElementById("requestBox").style.display = "none";
+        document.getElementById("bookingSuccess").style.display = "flex";
+    }
 }
 
 function resetRequestForm(){
-    document.getElementById("requestBox").style.display="block";
-    document.getElementById("bookingSuccess").style.display="none";
+    document.getElementById("requestBox").style.display = "block";
+    document.getElementById("bookingSuccess").style.display = "none";
     document.getElementById("requestForm").reset();
-    selectedCalDate=null;selectedTimeslot=null;
+    selectedCalDate = null; selectedTimeslot = null;
     renderCalendar();
-    document.getElementById("selectedDateLabel").textContent="velg en dato først";
+    document.getElementById("selectedDateLabel").textContent = "velg en dato først";
 }
 
-function handleContactSubmit(e){
+async function handleContactSubmit(e){
     e.preventDefault();
-    const inputs=e.target.querySelectorAll("input,textarea");
-    const name=inputs[0].value,phone=inputs[1].value,email=inputs[2].value,msg=inputs[3].value;
-    const obj={id:"MSG-"+Math.floor(10000+Math.random()*90000),name,email,phone,message:msg,timestamp:new Date().toLocaleString()};
-    const list=JSON.parse(localStorage.getItem("snekker_messages")||"[]");
+    const inputs = e.target.querySelectorAll("input, textarea");
+    const name = inputs[0].value, phone = inputs[1].value, email = inputs[2].value, msg = inputs[3].value;
+    
+    const obj = {
+        id: "MSG-" + Math.floor(10000 + Math.random() * 90000),
+        name,
+        email,
+        phone,
+        message: msg,
+        timestamp: new Date().toLocaleString(),
+        status: "Ny",
+        adminNotes: ""
+    };
+
+    showToast("Sender melding...", "success");
+
+    const list = await fetchFromDb("snekker_messages", []);
     list.push(obj);
-    localStorage.setItem("snekker_messages",JSON.stringify(list));
-    updateReqBadgeCount();
-    sendEmailNotification("Generell henvendelse",obj);
-    showToast("Meldingen din er sendt til Geir Arne!","success");
-    e.target.reset();
+
+    const ok = await saveToDb("snekker_messages", list);
+    if(ok) {
+        localStorage.setItem("snekker_messages", JSON.stringify(list));
+        updateReqBadgeCount();
+
+        const key = localStorage.getItem("snekker_web3_key") || "";
+        if(key) sendEmailNotification("Ny kontaktmelding", obj, key);
+
+        showToast("Meldingen din er sendt og registrert!", "success");
+        e.target.reset();
+    }
 }
 
-function sendEmailNotification(subject,data){
-    const key=localStorage.getItem("snekker_web3_key")||"";
-    if(!key)return;
-    const fd=new FormData();
-    fd.append("access_key",key);
-    fd.append("subject",`${subject} – fra ${data.name}`);
-    fd.append("from_name","Pedersen Nettside");
-    let txt=`Ny henvendelse fra nettsiden:\n\n`;
-    for(const[k,v]of Object.entries(data)) txt+=`${k.toUpperCase()}: ${v}\n`;
-    fd.append("message",txt);
-    fetch("https://api.web3forms.com/submit",{method:"POST",body:fd}).catch(()=>{});
+function sendEmailNotification(subject, data, accessKey){
+    if(!accessKey) return;
+    const fd = new FormData();
+    fd.append("access_key", accessKey);
+    fd.append("subject", `${subject} – fra ${data.name}`);
+    fd.append("from_name", "Pedersen Nettside");
+    
+    let txt = `Ny henvendelse registrert på nettsiden:\\n\\n`;
+    for(const [k, v] of Object.entries(data)) {
+        if(k !== "adminNotes" && k !== "status") {
+            txt += `${k.toUpperCase()}: ${v}\\n`;
+        }
+    }
+    fd.append("message", txt);
+    fetch("https://api.web3forms.com/submit", {method: "POST", body: fd}).catch(() => {});
 }
 
-// ── ADMIN MODE ──
-const EDITABLE_IDS=["editableHeaderTitle","editableHeaderSubtitle","editableHeroBadge","editableHeroTitle","editableHeroDesc","statVal1","statLbl1","statVal2","statLbl2","statVal3","statLbl3","editableServicesTitle","editableServicesDesc","srvTitle1","srvDesc1","srvTitle2","srvDesc2","srvTitle3","srvDesc3","srvTitle4","srvDesc4","editablePortfolioTitle","editablePortfolioDesc","editablePhoneNum","editableEmailAddr","editableWorkArea","activeQuoteText","activeQuoteAuthor","activeQuoteLocation"];
-
+// ── AKTIVERE / DEAKTIVERE ADMIN MODUS ──
 function activateAdminMode(){
-    isAdminMode=true;
-    document.getElementById("adminBanner").style.display="flex";
+    isAdminMode = true;
+    document.getElementById("adminBanner").style.display = "flex";
     document.body.classList.add("admin-active");
-    EDITABLE_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.setAttribute("contenteditable","true");});
-    document.getElementById("testimonialAdminControls").style.display="flex";
+    EDITABLE_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.setAttribute("contenteditable", "true");
+    });
+    document.getElementById("testimonialAdminControls").style.display = "flex";
     renderPortfolio();
     renderTimeslots();
-    showToast("Snekker-modus aktivert! Klikk på tekst for å redigere, eller på bilde for å bytte.","success");
+    showToast("Snekker-modus aktiv! Klikk på tekster for å endre dem direkte.", "success");
 }
 
 function deactivateAdminMode(){
-    isAdminMode=false;
-    document.getElementById("adminBanner").style.display="none";
+    isAdminMode = false;
+    document.getElementById("adminBanner").style.display = "none";
     document.body.classList.remove("admin-active");
-    EDITABLE_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.setAttribute("contenteditable","false");});
-    document.getElementById("testimonialAdminControls").style.display="none";
+    EDITABLE_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.setAttribute("contenteditable", "false");
+    });
+    document.getElementById("testimonialAdminControls").style.display = "none";
     renderPortfolio();
     renderTimeslots();
-    showToast("Snekker-modus avsluttet.","warning");
+    showToast("Snekker-modus avsluttet.", "warning");
 }
 
-// ── PIN ──
-window.pinTarget="admin";
-function activateAdminModePrompt(target="admin"){
-    window.pinTarget=target;
-    if(target==="requests"){
-        document.getElementById("pinModalIcon").innerHTML='<svg viewBox="0 0 24 24" width="48" height="48" fill="var(--brand-spruce)"><path d="M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,18H4V8l8,5l8-5V18z M12,11L4,6h16L12,11z"/></svg>';
-        document.getElementById("pinModalTitle").textContent="Åpne Innboks";
-        document.getElementById("pinModalDesc").textContent="Oppgi PIN for å se forespørsler og meldinger.";
-    } else {
-        document.getElementById("pinModalIcon").textContent="⚙️";
-        document.getElementById("pinModalTitle").textContent="Logg inn i Snekker-modus";
-        document.getElementById("pinModalDesc").textContent="Oppgi PIN-koden for å aktivere redigering (standard: 1234).";
+// ── DIRECT SAVE TO CLOUD (Lagrer alt direkte til Firebase) ──
+async function saveVisualChangesToFirebase() {
+    showToast("Lagrer endringer til databasen...", "success");
+
+    const content = {};
+    EDITABLE_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) content[id] = el.textContent;
+    });
+
+    const settings = await fetchFromDb("snekker_settings", {});
+    settings.content = content;
+    
+    if(document.getElementById("logoImg").style.display === "block") {
+        settings.logoImg_url = document.getElementById("logoImg").src;
     }
-    document.getElementById("pinInput").value="";
-    document.getElementById("pinErrorMsg").style.display="none";
+    settings.heroImage_url = document.getElementById("editableHeroImage").src;
+
+    const savedSettings = await saveToDb("snekker_settings", settings);
+    const savedProjects = await saveToDb("snekker_projects", projectsData);
+    const savedTestimonials = await saveToDb("snekker_testimonials", testimonialsData);
+
+    if (savedSettings && savedProjects && savedTestimonials) {
+        showToast("Alle nettside-endringer er lagret og oppdatert direkte!", "success");
+    } else {
+        showToast("Noen feil oppstod under lagring av endringene.", "error");
+    }
+}
+
+// ── PIN KODE VERIFISERING ──
+window.pinTarget = "admin";
+function activateAdminModePrompt(target="admin"){
+    window.pinTarget = target;
+    if(target === "requests"){
+        document.getElementById("pinModalIcon").innerHTML = '<svg viewBox="0 0 24 24" width="48" height="48" fill="var(--brand-spruce)"><path d="M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,18H4V8l8,5l8-5V18z M12,11L4,6h16L12,11z"/></svg>';
+        document.getElementById("pinModalTitle").textContent = "Åpne Innboks";
+        document.getElementById("pinModalDesc").textContent = "Tast inn PIN-kode for å se forespørsler og meldinger.";
+    } else {
+        document.getElementById("pinModalIcon").textContent = "⚙️";
+        document.getElementById("pinModalTitle").textContent = "Logg inn i Snekker-modus";
+        document.getElementById("pinModalDesc").textContent = "Oppgi PIN-koden for å aktivere redigering (standard: 1234).";
+    }
+    document.getElementById("pinInput").value = "";
+    document.getElementById("pinErrorMsg").style.display = "none";
     document.getElementById("pinModal").classList.add("open");
-    document.body.style.overflow="hidden";
-    setTimeout(()=>document.getElementById("pinInput").focus(),200);
+    document.body.style.overflow = "hidden";
+    setTimeout(() => document.getElementById("pinInput").focus(), 200);
 }
-function closePinModal(ev,force=false){
-    const m=document.getElementById("pinModal");
-    if(force||ev?.target===m){m.classList.remove("open");document.body.style.overflow="auto";}
+
+function closePinModal(ev, force=false){
+    const m = document.getElementById("pinModal");
+    if(force || ev?.target === m){
+        m.classList.remove("open");
+        document.body.style.overflow = "auto";
+    }
 }
+
 function submitPinCheck(){
-    const storedPin=localStorage.getItem("snekker_admin_pin")||"1234";
-    if(document.getElementById("pinInput").value===storedPin){
-        closePinModal(null,true);
-        if(window.pinTarget==="requests") openRequestsModal();
+    const storedPin = localStorage.getItem("snekker_admin_pin") || "1234";
+    if(document.getElementById("pinInput").value === storedPin){
+        closePinModal(null, true);
+        if(window.pinTarget === "requests") openRequestsModal();
         else activateAdminMode();
     } else {
-        document.getElementById("pinErrorMsg").style.display="block";
-        document.getElementById("pinInput").value="";
+        document.getElementById("pinErrorMsg").style.display = "block";
+        document.getElementById("pinInput").value = "";
         document.getElementById("pinInput").focus();
     }
 }
 
-// ── REQUESTS MODAL ──
+// ── REDESIGNET FULLSKJERM CRM INNBOKS ──
 function openRequestsModal(){
     renderReqTable();
     document.getElementById("requestsModal").classList.add("open");
-    document.body.style.overflow="hidden";
+    document.body.style.overflow = "hidden";
 }
-function closeRequestsModal(ev,force=false){
-    const m=document.getElementById("requestsModal");
-    if(force||ev?.target===m){m.classList.remove("open");document.body.style.overflow="auto";}
-}
-function switchReqTab(tab){
-    activeRequestsTab=tab;
-    ["tabBtnReqs","tabBtnMessages","tabBtnSettings"].forEach(id=>{
-        const btn=document.getElementById(id);
-        if(btn){btn.classList.remove("active");btn.style.borderBottomColor="transparent";}
-    });
-    const activeBtn={requests:"tabBtnReqs",messages:"tabBtnMessages",settings:"tabBtnSettings"}[tab];
-    const ab=document.getElementById(activeBtn);
-    if(ab){ab.classList.add("active");ab.style.borderBottomColor="var(--brand-copper)";}
-    renderReqTable();
-}
-function updateReqBadgeCount(){
-    const b=JSON.parse(localStorage.getItem("snekker_bookings")||"[]").length;
-    const m=JSON.parse(localStorage.getItem("snekker_messages")||"[]").length;
-    document.getElementById("reqBadgeCount").textContent=b+m;
-    document.getElementById("bookingsCount").textContent=b;
-    document.getElementById("messagesCount").textContent=m;
-}
-function changeReqStatus(id,tab,val){
-    const key=tab==="requests"?"snekker_bookings":"snekker_messages";
-    const list=JSON.parse(localStorage.getItem(key)||"[]");
-    const item=list.find(i=>i.id===id);
-    if(item){item.status=val;localStorage.setItem(key,JSON.stringify(list));}
-    renderReqTable();
-}
-function deleteReq(id,tab){
-    showConfirmDialog("Slette henvendelse?","Vil du slette denne henvendelsen fra oversikten?",()=>{
-        const key=tab==="requests"?"snekker_bookings":"snekker_messages";
-        const list=JSON.parse(localStorage.getItem(key)||"[]").filter(i=>i.id!==id);
-        localStorage.setItem(key,JSON.stringify(list));
-        updateReqBadgeCount();renderReqTable();
-        showToast("Henvendelse slettet.","warning");
-    });
-}
-function openReqDetail(id,tab){
-    const key=tab==="requests"?"snekker_bookings":"snekker_messages";
-    const item=JSON.parse(localStorage.getItem(key)||"[]").find(i=>i.id===id);
-    if(!item)return;
-    document.getElementById("reqDetailId").value=id;
-    document.getElementById("reqDetailTab").value=tab;
-    document.getElementById("reqDetailNotes").value=item.adminNotes||"";
-    let html=`<div style="background:var(--bg-primary);padding:16px;border-radius:var(--radius-md);border:1px solid var(--border-color);">
-        <div class="detail-info-grid">
-            <div class="detail-field"><span class="detail-field-label">Navn</span><span class="detail-field-val">${item.name}</span></div>
-            <div class="detail-field"><span class="detail-field-label">Mottatt</span><span class="detail-field-val">${item.timestamp}</span></div>
-            <div class="detail-field"><span class="detail-field-label">Telefon</span><span class="detail-field-val">${item.phone}</span></div>
-            <div class="detail-field"><span class="detail-field-label">E-post</span><span class="detail-field-val"><a href="mailto:${item.email}">${item.email}</a></span></div>
-        </div>`;
-    if(tab==="requests"){
-        html+=`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);">
-            <div class="detail-info-grid">
-                <div class="detail-field"><span class="detail-field-label">Type</span><span class="detail-field-val" style="color:var(--brand-wood)">${item.type}</span></div>
-                <div class="detail-field"><span class="detail-field-label">Dato</span><span class="detail-field-val">${item.date}</span></div>
-                <div class="detail-field"><span class="detail-field-label">Tidspunkt</span><span class="detail-field-val">kl. ${item.slot}</span></div>
-                <div class="detail-field"><span class="detail-field-label">Adresse</span><span class="detail-field-val">${item.addr}</span></div>
-            </div>
-            ${item.msg?`<div style="margin-top:10px;"><span class="detail-field-label">Prosjektbeskrivelse</span><p style="font-size:0.88rem;margin-top:4px;color:var(--text-secondary);">${item.msg}</p></div>`:""}
-        </div>`;
-    } else {
-        html+=`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);"><span class="detail-field-label">Melding</span><p style="font-size:0.88rem;margin-top:4px;color:var(--text-secondary);">${item.message}</p></div>`;
+
+function closeRequestsModal(ev, force=false){
+    const m = document.getElementById("requestsModal");
+    if(force || ev?.target === m){
+        m.classList.remove("open");
+        document.body.style.overflow = "auto";
     }
-    html+=`</div>`;
-    document.getElementById("reqDetailContent").innerHTML=html;
-    document.getElementById("reqDetailModal").classList.add("open");
 }
-function closeReqDetailModal(ev,force=false){
-    const m=document.getElementById("reqDetailModal");
-    if(force||ev?.target===m) m.classList.remove("open");
-}
-function saveReqDetail(){
-    const id=document.getElementById("reqDetailId").value;
-    const tab=document.getElementById("reqDetailTab").value;
-    const notes=document.getElementById("reqDetailNotes").value;
-    const key=tab==="requests"?"snekker_bookings":"snekker_messages";
-    const list=JSON.parse(localStorage.getItem(key)||"[]");
-    const item=list.find(i=>i.id===id);
-    if(item){item.adminNotes=notes;localStorage.setItem(key,JSON.stringify(list));}
-    showToast("Notat lagret.","success");
-    closeReqDetailModal(null,true);
+
+function switchReqTab(tab){
+    activeRequestsTab = tab;
+    selectedCrmItemId = null;
+    
+    ["tabBtnReqs","tabBtnMessages","tabBtnSettings"].forEach(id => {
+        const btn = document.getElementById(id);
+        if(btn) {
+            btn.classList.remove("active");
+            btn.style.borderBottomColor = "transparent";
+        }
+    });
+    
+    const activeBtn = {requests: "tabBtnReqs", messages: "tabBtnMessages", settings: "tabBtnSettings"}[tab];
+    const ab = document.getElementById(activeBtn);
+    if(ab) {
+        ab.classList.add("active");
+        ab.style.borderBottomColor = "var(--brand-copper)";
+    }
     renderReqTable();
+}
+
+function updateReqBadgeCount(){
+    const b = JSON.parse(localStorage.getItem("snekker_bookings") || "[]").length;
+    const m = JSON.parse(localStorage.getItem("snekker_messages") || "[]").length;
+    document.getElementById("reqBadgeCount").textContent = b + m;
+    document.getElementById("bookingsCount").textContent = b;
+    document.getElementById("messagesCount").textContent = m;
+}
+
+async function changeReqStatus(id, tab, val){
+    const key = tab === "requests" ? "snekker_bookings" : "snekker_messages";
+    const list = await fetchFromDb(key, []);
+    const item = list.find(i => i.id === id);
+    if(item){
+        item.status = val;
+        const ok = await saveToDb(key, list);
+        if (ok) {
+            localStorage.setItem(key, JSON.stringify(list));
+            showToast(`Status oppdatert til "${val}"`, "success");
+            renderReqTable();
+        }
+    }
+}
+
+async function deleteReq(id, tab){
+    showConfirmDialog("Slette henvendelse?", "Er du sikker på at du vil slette denne henvendelsen permanent?", async () => {
+        const key = tab === "requests" ? "snekker_bookings" : "snekker_messages";
+        const list = await fetchFromDb(key, []);
+        const filtered = list.filter(i => i.id !== id);
+        const ok = await saveToDb(key, filtered);
+        if (ok) {
+            localStorage.setItem(key, JSON.stringify(filtered));
+            selectedCrmItemId = null;
+            updateReqBadgeCount();
+            renderReqTable();
+            showToast("Henvendelsen er slettet.", "warning");
+        }
+    });
+}
+
+function openReqDetail(id, tab){
+    if (window.innerWidth > 992) {
+        selectedCrmItemId = id;
+        renderReqTable();
+    } else {
+        const key = tab === "requests" ? "snekker_bookings" : "snekker_messages";
+        const item = JSON.parse(localStorage.getItem(key) || "[]").find(i => i.id === id);
+        if(!item) return;
+
+        document.getElementById("reqDetailId").value = id;
+        document.getElementById("reqDetailTab").value = tab;
+        document.getElementById("reqDetailNotes").value = item.adminNotes || "";
+
+        let html = `<div style="background:var(--bg-primary);padding:16px;border-radius:var(--radius-md);border:1px solid var(--border-color);">
+            <div class="detail-info-grid">
+                <div class="detail-field"><span class="detail-field-label">Navn</span><span class="detail-field-val">${item.name}</span></div>
+                <div class="detail-field"><span class="detail-field-label">Mottatt</span><span class="detail-field-val">${item.timestamp}</span></div>
+                <div class="detail-field"><span class="detail-field-label">Telefon</span><span class="detail-field-val">${item.phone}</span></div>
+                <div class="detail-field"><span class="detail-field-label">E-post</span><span class="detail-field-val"><a href="mailto:${item.email}">${item.email}</a></span></div>
+            </div>`;
+        
+        if(tab === "requests"){
+            html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);">
+                <div class="detail-info-grid">
+                    <div class="detail-field"><span class="detail-field-label">Type</span><span class="detail-field-val" style="color:var(--brand-wood)">${item.type}</span></div>
+                    <div class="detail-field"><span class="detail-field-label">Dato</span><span class="detail-field-val">${item.date}</span></div>
+                    <div class="detail-field"><span class="detail-field-label">Tidspunkt</span><span class="detail-field-val">kl. ${item.slot}</span></div>
+                    <div class="detail-field"><span class="detail-field-label">Adresse</span><span class="detail-field-val">${item.addr}</span></div>
+                </div>
+                ${item.msg ? `<div style="margin-top:10px;"><span class="detail-field-label">Beskrivelse</span><p style="font-size:0.88rem;margin-top:4px;color:var(--text-secondary);">${item.msg}</p></div>` : ""}
+            </div>`;
+        } else {
+            html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);"><span class="detail-field-label">Melding</span><p style="font-size:0.88rem;margin-top:4px;color:var(--text-secondary);">${item.message}</p></div>`;
+        }
+        html += `</div>`;
+        
+        document.getElementById("reqDetailContent").innerHTML = html;
+        document.getElementById("reqDetailModal").classList.add("open");
+    }
+}
+
+function closeReqDetailModal(ev, force=false){
+    const m = document.getElementById("reqDetailModal");
+    if(force || ev?.target === m) m.classList.remove("open");
+}
+
+async function saveReqDetail(){
+    const id = document.getElementById("reqDetailId").value;
+    const tab = document.getElementById("reqDetailTab").value;
+    const notes = document.getElementById("reqDetailNotes").value;
+    
+    const key = tab === "requests" ? "snekker_bookings" : "snekker_messages";
+    const list = await fetchFromDb(key, []);
+    const item = list.find(i => i.id === id);
+    if(item){
+        item.adminNotes = notes;
+        const ok = await saveToDb(key, list);
+        if (ok) {
+            localStorage.setItem(key, JSON.stringify(list));
+            showToast("Notat ble lagret!", "success");
+            closeReqDetailModal(null, true);
+            renderReqTable();
+        }
+    }
+}
+
+// Lagrer notater gjort fra split-pane detaljvisning på høyre side
+async function saveInspectorNotes(id, tab) {
+    const notes = document.getElementById("insNotesText").value;
+    const key = tab === "requests" ? "snekker_bookings" : "snekker_messages";
+    
+    const list = await fetchFromDb(key, []);
+    const item = list.find(i => i.id === id);
+    if(item){
+        item.adminNotes = notes;
+        const ok = await saveToDb(key, list);
+        if (ok) {
+            localStorage.setItem(key, JSON.stringify(list));
+            showToast("Notat er lagret!", "success");
+            renderReqTable();
+        }
+    }
 }
 
 function renderReqTable(){
-    const el=document.getElementById("reqTabContent");
+    const el = document.getElementById("reqTabContent");
     updateReqBadgeCount();
 
-    if(activeRequestsTab==="settings"){
-        const key=localStorage.getItem("snekker_web3_key")||"";
-        const pin=localStorage.getItem("snekker_admin_pin")||"1234";
-        el.innerHTML=`
-        <div style="max-width:540px;display:flex;flex-direction:column;gap:24px;">
+    if(activeRequestsTab === "settings"){
+        const key = localStorage.getItem("snekker_web3_key") || "";
+        const pin = localStorage.getItem("snekker_admin_pin") || "1234";
+        el.innerHTML = `
+        <div class="settings-grid">
             <div class="settings-card">
-                <h4>📧 E-post varsling via Web3Forms</h4>
-                <p>Lim inn din gratis Web3Forms Access Key for å få kopi av alle forespørsler rett i e-posten din.</p>
+                <h4>📧 E-postvarsling via Web3Forms</h4>
+                <p>Nøkkelen lagres og synkroniseres direkte i databasen. Når du legger inn denne, vil kundenes henvendelser sendes til din e-postadresse fra alle enheter.</p>
                 <div class="settings-row">
-                    <input type="text" class="req-input" style="flex:1;" placeholder="Lim inn Access Key..." value="${key}" oninput="localStorage.setItem('snekker_web3_key',this.value.trim())">
+                    <input type="text" class="req-input" style="flex:1;" id="settingsWeb3Key" placeholder="Lim inn Web3Forms Access Key..." value="${key}" oninput="saveWeb3KeyLocal(this.value)">
                     <a href="https://web3forms.com/#start" target="_blank" style="font-size:0.85rem;color:var(--brand-copper);font-weight:700;white-space:nowrap;text-decoration:underline;">Hent gratis nøkkel →</a>
                 </div>
             </div>
             <div class="settings-card pin-change-section">
-                <h4>🔒 Endre PIN-kode</h4>
-                <p>Standard PIN er 1234. Endre den her for å beskytte din snekker-modus.</p>
+                <h4>🔒 Endre felles PIN-kode</h4>
+                <p>Standard PIN er 1234. Endre koden her for å beskytte snekker-innlogg og innboks på tvers av alle enheter.</p>
                 <div class="settings-row">
-                    <input type="password" class="req-input" id="newPinInput" placeholder="Ny PIN (min 4 siffer)" maxlength="10" style="flex:1;">
+                    <input type="password" class="req-input" id="newPinInput" placeholder="Ny PIN (minst 4 siffer)" maxlength="10" style="flex:1;">
                     <button class="req-submit-btn" style="width:auto;padding:10px 18px;background:var(--brand-spruce);" onclick="saveNewPin()">Lagre PIN</button>
                 </div>
-                <p style="margin-top:8px;font-size:0.8rem;">Nåværende PIN: ${pin.replace(/./g,"•")}</p>
+                <p style="margin-top:8px;font-size:0.8rem;">Gjeldende PIN: ${pin.replace(/./g,"•")}</p>
             </div>
         </div>`;
         return;
     }
 
-    const storageKey=activeRequestsTab==="requests"?"snekker_bookings":"snekker_messages";
-    const list=JSON.parse(localStorage.getItem(storageKey)||"[]").slice().reverse();
+    const storageKey = activeRequestsTab === "requests" ? "snekker_bookings" : "snekker_messages";
+    const list = JSON.parse(localStorage.getItem(storageKey) || "[]").slice().reverse();
 
-    if(list.length===0){
-        el.innerHTML=`<div class="req-empty-state"><div class="empty-icon">${activeRequestsTab==="requests"?"📅":"✉️"}</div><h3 style="margin-top:8px;">${activeRequestsTab==="requests"?"Ingen forespørsler mottatt ennå":"Ingen meldinger ennå"}</h3><p style="font-size:0.85rem;margin-top:8px;">${activeRequestsTab==="requests"?"Når kunder sender forespørsler via skjemaet, vises de her.":"Når kunder sender melding via kontaktskjemaet, vises de her."}</p></div>`;
+    if(list.length === 0){
+        el.innerHTML = `
+        <div class="req-empty-state">
+            <div class="empty-icon">${activeRequestsTab==="requests"?"📅":"✉️"}</div>
+            <h3 style="margin-top:8px;">${activeRequestsTab==="requests"?"Ingen forespørsler mottatt ennå":"Ingen meldinger ennå"}</h3>
+            <p style="font-size:0.85rem;margin-top:8px;">Når kunder sender henvendelser via kontaktskjemaene dine, vil de vises her i sanntid.</p>
+        </div>`;
         return;
     }
 
-    let html=`<div style="overflow-x:auto;"><table class="req-table"><thead><tr>`;
-    if(activeRequestsTab==="requests"){
-        html+=`<th>Dato &amp; Tid</th><th>Type</th><th>Navn</th><th>Kontakt</th><th>Adresse</th><th>Status</th><th>Handling</th>`;
-    } else {
-        html+=`<th>Dato</th><th>Navn</th><th>Kontakt</th><th>Melding</th><th>Status</th><th>Handling</th>`;
+    if(!selectedCrmItemId && list.length > 0) {
+        selectedCrmItemId = list[0].id;
     }
-    html+=`</tr></thead><tbody>`;
 
-    list.forEach(item=>{
-        const stat=item.status||"Ny";
-        const statusClass=stat==="Under arbeid"?"status-arbeid":stat==="Utført"?"status-utfort":"status-ny";
-        const notesBadge=item.adminNotes?.trim()?`<div class="note-badge">📝 Notat</div>`:"";
+    const selectedItem = list.find(i => i.id === selectedCrmItemId);
 
-        if(activeRequestsTab==="requests"){
-            html+=`<tr>
-                <td><strong>${item.date||"–"}</strong><br><span style="color:var(--brand-copper);font-weight:700;">kl. ${item.slot||"–"}</span></td>
-                <td><span style="background:rgba(139,90,43,0.1);color:var(--brand-wood);padding:3px 8px;border-radius:var(--radius-sm);font-weight:700;font-size:0.75rem;">${item.type}</span></td>
-                <td><strong>${item.name}</strong>${notesBadge}<br><span style="font-size:0.75rem;color:var(--text-secondary);">${item.timestamp}</span></td>
-                <td><a href="mailto:${item.email}" style="color:var(--brand-copper);text-decoration:underline;font-size:0.85rem;">${item.email}</a><br><span style="font-size:0.85rem;">Tlf: ${item.phone}</span></td>
-                <td style="max-width:130px;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.addr}">${item.addr}</td>
-                <td>
-                    <select class="req-status-select" onchange="changeReqStatus('${item.id}','requests',this.value)">
-                        <option value="Ny"${stat==="Ny"?" selected":""}>Ny</option>
-                        <option value="Under arbeid"${stat==="Under arbeid"?" selected":""}>Under arbeid</option>
-                        <option value="Utført"${stat==="Utført"?" selected":""}>Utført</option>
-                    </select>
-                </td>
-                <td>
-                    <button class="req-action-btn view" onclick="openReqDetail('${item.id}','requests')">
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Detaljer
-                    </button>
-                    <button class="req-action-btn del" onclick="deleteReq('${item.id}','requests')">
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Fjern
-                    </button>
-                </td>
-            </tr>`;
-        } else {
-            html+=`<tr>
-                <td style="white-space:nowrap;font-size:0.85rem;">${item.timestamp}</td>
-                <td><strong>${item.name}</strong>${notesBadge}</td>
-                <td><a href="mailto:${item.email}" style="color:var(--brand-copper);text-decoration:underline;font-size:0.85rem;">${item.email}</a><br><span style="font-size:0.85rem;">Tlf: ${item.phone}</span></td>
-                <td style="max-width:200px;font-size:0.85rem;line-height:1.4;">${item.message}</td>
-                <td>
-                    <select class="req-status-select" onchange="changeReqStatus('${item.id}','messages',this.value)">
-                        <option value="Ny"${stat==="Ny"?" selected":""}>Ny</option>
-                        <option value="Under arbeid"${stat==="Under arbeid"?" selected":""}>Under arbeid</option>
-                        <option value="Utført"${stat==="Utført"?" selected":""}>Utført</option>
-                    </select>
-                </td>
-                <td>
-                    <button class="req-action-btn view" onclick="openReqDetail('${item.id}','messages')">
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Detaljer
-                    </button>
-                    <button class="req-action-btn del" onclick="deleteReq('${item.id}','messages')">
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Fjern
-                    </button>
-                </td>
-            </tr>`;
-        }
-    });
+    let html = `
+    <div class="crm-workspace">
+        <!-- VENSTRE: Liste over henvendelser -->
+        <div class="crm-list-container">
+            <table class="req-table">
+                <thead>
+                    <tr>`;
+                    if(activeRequestsTab === "requests"){
+                        html += `<th>Dato &amp; Tid</th><th>Type</th><th>Navn</th><th>Status</th><th>Handling</th>`;
+                    } else {
+                        html += `<th>Dato</th><th>Navn</th><th>Status</th><th>Handling</th>`;
+                    }
+                    html += `
+                    </tr>
+                </thead>
+                <tbody>`;
 
-    html+=`</tbody></table></div>`;
-    el.innerHTML=html;
+                list.forEach(item => {
+                    const stat = item.status || "Ny";
+                    const isRowSelected = item.id === selectedCrmItemId ? "selected-row" : "";
+                    const statusClass = stat === "Under arbeid" ? "status-arbeid" : stat === "Utført" ? "status-utfort" : "status-ny";
+                    const notesBadge = item.adminNotes?.trim() ? `<div class="note-badge">📝 Notat</div>` : "";
+
+                    if(activeRequestsTab === "requests"){
+                        html += `
+                        <tr class="${isRowSelected}" onclick="openReqDetail('${item.id}', 'requests')">
+                            <td><strong>${item.date||"–"}</strong><br><span style="color:var(--brand-copper);font-weight:700;">kl. ${item.slot||"–"}</span></td>
+                            <td><span style="background:rgba(139,90,43,0.1);color:var(--brand-wood);padding:3px 8px;border-radius:var(--radius-sm);font-weight:700;font-size:0.75rem;">${item.type}</span></td>
+                            <td><strong>${item.name}</strong>${notesBadge}<br><span style="font-size:0.75rem;color:var(--text-secondary);">${item.timestamp}</span></td>
+                            <td><span class="status-badge ${statusClass}">${stat}</span></td>
+                            <td>
+                                <button class="req-action-btn del" onclick="event.stopPropagation(); deleteReq('${item.id}','requests')">Fjern</button>
+                            </td>
+                        </tr>`;
+                    } else {
+                        html += `
+                        <tr class="${isRowSelected}" onclick="openReqDetail('${item.id}', 'messages')">
+                            <td style="white-space:nowrap;font-size:0.85rem;">${item.timestamp}</td>
+                            <td><strong>${item.name}</strong>${notesBadge}</td>
+                            <td><span class="status-badge ${statusClass}">${stat}</span></td>
+                            <td>
+                                <button class="req-action-btn del" onclick="event.stopPropagation(); deleteReq('${item.id}','messages')">Fjern</button>
+                            </td>
+                        </tr>`;
+                    }
+                });
+
+                html += `
+                </tbody>
+            </table>
+        </div>
+
+        <!-- HØYRE: Detaljer & Inspektor -->
+        <div class="crm-inspector-container">`;
+            if (selectedItem) {
+                const stat = selectedItem.status || "Ny";
+                html += `
+                <div style="background:var(--white); padding:24px; border-radius:var(--radius-md); border:1px solid var(--border-color); display:flex; flex-direction:column; gap:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+                        <h3 style="font-size:1.25rem;">Henvendelse ${selectedItem.id}</h3>
+                        <div>
+                            <span style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); margin-right:8px;">STATUS:</span>
+                            <select class="req-status-select" onchange="changeReqStatus('${selectedItem.id}', '${activeRequestsTab}', this.value)">
+                                <option value="Ny"${stat==="Ny"?" selected":""}>Ny</option>
+                                <option value="Under arbeid"${stat==="Under arbeid"?" selected":""}>Under arbeid</option>
+                                <option value="Utført"${stat==="Utført"?" selected":""}>Utført</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-info-grid">
+                        <div class="detail-field"><span class="detail-field-label">Navn</span><span class="detail-field-val">${selectedItem.name}</span></div>
+                        <div class="detail-field"><span class="detail-field-label">Tid opprettet</span><span class="detail-field-val">${selectedItem.timestamp}</span></div>
+                        <div class="detail-field"><span class="detail-field-label">Telefon</span><span class="detail-field-val">${selectedItem.phone}</span></div>
+                        <div class="detail-field"><span class="detail-field-label">E-post</span><span class="detail-field-val"><a href="mailto:${selectedItem.email}">${selectedItem.email}</a></span></div>
+                    </div>`;
+
+                    if(activeRequestsTab === "requests"){
+                        html += `
+                        <div style="border-top:1px dashed var(--border-color); padding-top:16px; display:flex; flex-direction:column; gap:12px;">
+                            <div class="detail-info-grid">
+                                <div class="detail-field"><span class="detail-field-label">Valgt tjeneste</span><span class="detail-field-val" style="color:var(--brand-wood);">${selectedItem.type}</span></div>
+                                <div class="detail-field"><span class="detail-field-label">Ønsket dato</span><span class="detail-field-val">${selectedItem.date}</span></div>
+                                <div class="detail-field"><span class="detail-field-label">Klokkeslett</span><span class="detail-field-val">kl. ${selectedItem.slot}</span></div>
+                                <div class="detail-field"><span class="detail-field-label">Befaringsadresse</span><span class="detail-field-val">${selectedItem.addr}</span></div>
+                            </div>
+                            ${selectedItem.msg ? `<div style="margin-top:6px;"><span class="detail-field-label">Beskrivelse</span><p style="font-size:0.88rem; background:var(--bg-primary); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-color); margin-top:4px; line-height:1.5;">${selectedItem.msg}</p></div>` : ""}
+                        </div>`;
+                    } else {
+                        html += `
+                        <div style="border-top:1px dashed var(--border-color); padding-top:16px;">
+                            <span class="detail-field-label">Melding</span>
+                            <p style="font-size:0.88rem; background:var(--bg-primary); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-color); margin-top:4px; line-height:1.5;">${selectedItem.message}</p>
+                        </div>`;
+                    }
+
+                    html += `
+                </div>
+
+                <!-- Notat-seksjon i inspektor -->
+                <div style="background:var(--white); padding:24px; border-radius:var(--radius-md); border:1px solid var(--border-color); display:flex; flex-direction:column; gap:12px;">
+                    <h4 style="font-size:0.95rem; color:var(--brand-spruce);">Interne notater for deg:</h4>
+                    <textarea id="insNotesText" class="req-input" style="height:110px; resize:none;" placeholder="F.eks: Avtalt befaring på mandag, må ta med målebånd...">${selectedItem.adminNotes || ""}</textarea>
+                    <button class="req-submit-btn" style="background:var(--brand-spruce); width:100%;" onclick="saveInspectorNotes('${selectedItem.id}', '${activeRequestsTab}')">Lagre notat</button>
+                </div>`;
+            } else {
+                html += `<div style="text-align:center; padding:48px 0; color:var(--text-secondary);">Velg en henvendelse for å se detaljene her.</div>`;
+            }
+            html += `
+        </div>
+    </div>`;
+
+    el.innerHTML = html;
 }
 
-function saveNewPin(){
-    const val=document.getElementById("newPinInput")?.value?.trim();
-    if(!val||val.length<4){showToast("PIN må være minst 4 tegn.","error");return;}
-    localStorage.setItem("snekker_admin_pin",val);
-    document.getElementById("newPinInput").value="";
-    showToast("PIN-kode oppdatert!","success");
-    renderReqTable();
+async function saveWeb3KeyLocal(val){
+    const settings = await fetchFromDb("snekker_settings", {});
+    settings.web3_key = val.trim();
+    const ok = await saveToDb("snekker_settings", settings);
+    if(ok) {
+        localStorage.setItem("snekker_web3_key", val.trim());
+        showToast("Access-nøkkel oppdatert i skyen!", "success");
+    }
 }
 
-// ── ADMIN PROJECT MODAL ──
+async function saveNewPin(){
+    const val = document.getElementById("newPinInput")?.value?.trim();
+    if(!val || val.length < 4){ showToast("PIN må være minst 4 siffer.", "error"); return; }
+    
+    const settings = await fetchFromDb("snekker_settings", {});
+    settings.admin_pin = val;
+    const ok = await saveToDb("snekker_settings", settings);
+    if (ok) {
+        localStorage.setItem("snekker_admin_pin", val);
+        document.getElementById("newPinInput").value = "";
+        showToast("Felles PIN-kode endret!", "success");
+        renderReqTable();
+    }
+}
+
+// ── REDIGERING AV PROSJEKTER MODAL ──
 function openAddProjectModal(){
     document.getElementById("adminProjectForm").reset();
-    document.getElementById("editIndex").value="";
-    document.getElementById("adminModalTitle").textContent="Legg til nytt prosjekt";
-    tempUploadedImageBase64="";
-    document.getElementById("projImgPreview").style.display="none";
+    document.getElementById("editIndex").value = "";
+    document.getElementById("adminModalTitle").textContent = "Legg til nytt prosjekt";
+    tempUploadedImageBase64 = "";
+    document.getElementById("projImgPreview").style.display = "none";
     document.getElementById("adminModal").classList.add("open");
-    document.body.style.overflow="hidden";
+    document.body.style.overflow = "hidden";
 }
-function openEditProjectModal(idx,event){
+
+function openEditProjectModal(idx, event){
     event.stopPropagation();
-    const proj=projectsData[idx];if(!proj)return;
-    document.getElementById("adminModalTitle").textContent="Rediger prosjekt";
-    document.getElementById("editIndex").value=idx;
-    document.getElementById("projTitle").value=proj.title;
-    document.getElementById("projCat").value=proj.category;
-    document.getElementById("projYear").value=proj.year;
-    document.getElementById("projLoc").value=proj.loc;
-    document.getElementById("projWood").value=proj.wood;
-    document.getElementById("projShortDesc").value=proj.desc;
-    document.getElementById("projLongDesc").value=proj.longDesc;
-    document.getElementById("projImgUrl").value=proj.images?.[0]||"";
-    document.getElementById("projClientName").value=proj.client||"";
-    document.getElementById("projQuote").value=proj.quote||"";
-    tempUploadedImageBase64=proj.images?.[0]||"";
-    // Show preview if URL
+    const proj = projectsData[idx]; if(!proj) return;
+    document.getElementById("adminModalTitle").textContent = "Rediger prosjekt";
+    document.getElementById("editIndex").value = idx;
+    document.getElementById("projTitle").value = proj.title;
+    document.getElementById("projCat").value = proj.category;
+    document.getElementById("projYear").value = proj.year;
+    document.getElementById("projLoc").value = proj.loc;
+    document.getElementById("projWood").value = proj.wood;
+    document.getElementById("projShortDesc").value = proj.desc;
+    document.getElementById("projLongDesc").value = proj.longDesc;
+    document.getElementById("projImgUrl").value = proj.images?.[0] || "";
+    document.getElementById("projClientName").value = proj.client || "";
+    document.getElementById("projQuote").value = proj.quote || "";
+    tempUploadedImageBase64 = proj.images?.[0] || "";
+    
     if(proj.images?.[0]){
-        document.getElementById("projImgPreviewImg").src=proj.images[0];
-        document.getElementById("projImgPreview").style.display="block";
+        document.getElementById("projImgPreviewImg").src = proj.images[0];
+        document.getElementById("projImgPreview").style.display = "block";
     }
     document.getElementById("adminModal").classList.add("open");
-    document.body.style.overflow="hidden";
+    document.body.style.overflow = "hidden";
 }
-function closeAdminModal(ev,force=false){
-    const m=document.getElementById("adminModal");
-    if(force||ev?.target===m){m.classList.remove("open");document.body.style.overflow="auto";}
+
+function closeAdminModal(ev, force=false){
+    const m = document.getElementById("adminModal");
+    if(force || ev?.target === m){
+        m.classList.remove("open");
+        document.body.style.overflow = "auto";
+    }
 }
+
 function processAdminImageUpload(input){
-    const file=input.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=function(e){
-        tempUploadedImageBase64=e.target.result;
-        document.getElementById("projImgUrl").value="[Bilde lastet opp fra PC]";
-        document.getElementById("projImgPreviewImg").src=tempUploadedImageBase64;
-        document.getElementById("projImgPreview").style.display="block";
+    const file = input.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+        tempUploadedImageBase64 = e.target.result;
+        document.getElementById("projImgUrl").value = "[Bilde lastet opp fra PC]";
+        document.getElementById("projImgPreviewImg").src = tempUploadedImageBase64;
+        document.getElementById("projImgPreview").style.display = "block";
     };
     reader.readAsDataURL(file);
 }
+
 function pasteImageUrl(){
-    const url=prompt("Lim inn bilde-URL her:");
+    const url = prompt("Lim inn bilde-URL her:");
     if(url?.trim()){
-        document.getElementById("projImgUrl").value=url.trim();
-        document.getElementById("projImgPreviewImg").src=url.trim();
-        document.getElementById("projImgPreview").style.display="block";
-        tempUploadedImageBase64="";
+        document.getElementById("projImgUrl").value = url.trim();
+        document.getElementById("projImgPreviewImg").src = url.trim();
+        document.getElementById("projImgPreview").style.display = "block";
+        tempUploadedImageBase64 = "";
     }
 }
-function saveAdminProject(e){
+
+async function saveAdminProject(e){
     e.preventDefault();
-    const idxVal=document.getElementById("editIndex").value;
-    let imgUrl=document.getElementById("projImgUrl").value;
-    let finalImages=[];
-    if(tempUploadedImageBase64&&(imgUrl==="[Bilde lastet opp fra PC]"||imgUrl.startsWith("data:")))
+    const idxVal = document.getElementById("editIndex").value;
+    let imgUrl = document.getElementById("projImgUrl").value;
+    let finalImages = [];
+    
+    if(tempUploadedImageBase64 && (imgUrl === "[Bilde lastet opp fra PC]" || imgUrl.startsWith("data:"))) {
         finalImages.push(tempUploadedImageBase64);
-    else if(imgUrl&&imgUrl.startsWith("http")) finalImages.push(imgUrl);
-    else finalImages.push("https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80");
+    } else if(imgUrl && imgUrl.startsWith("http")) {
+        finalImages.push(imgUrl);
+    } else {
+        finalImages.push("https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80");
+    }
 
-    const newProj={
-        title:document.getElementById("projTitle").value,
-        category:document.getElementById("projCat").value,
-        desc:document.getElementById("projShortDesc").value,
-        longDesc:document.getElementById("projLongDesc").value,
-        year:parseInt(document.getElementById("projYear").value),
-        loc:document.getElementById("projLoc").value,
-        wood:document.getElementById("projWood").value,
-        client:document.getElementById("projClientName").value,
-        quote:document.getElementById("projQuote").value,
-        images:finalImages
+    const newProj = {
+        title: document.getElementById("projTitle").value,
+        category: document.getElementById("projCat").value,
+        desc: document.getElementById("projShortDesc").value,
+        longDesc: document.getElementById("projLongDesc").value,
+        year: parseInt(document.getElementById("projYear").value),
+        loc: document.getElementById("projLoc").value,
+        wood: document.getElementById("projWood").value,
+        client: document.getElementById("projClientName").value,
+        quote: document.getElementById("projQuote").value,
+        images: finalImages
     };
-    if(idxVal===""){projectsData.unshift(newProj);showToast("Prosjekt lagt til!","success");}
-    else{projectsData[parseInt(idxVal)]=newProj;showToast("Prosjekt oppdatert!","success");}
-    closeAdminModal(null,true);renderPortfolio();
-}
-function deleteProject(idx,event){
-    event.stopPropagation();
-    showConfirmDialog("Slette prosjekt?",`Er du sikker på at du vil slette "${projectsData[idx].title}"?`,()=>{
-        projectsData.splice(idx,1);renderPortfolio();showToast("Prosjekt slettet.","warning");
-    });
+
+    if(idxVal === ""){
+        projectsData.unshift(newProj);
+    } else {
+        projectsData[parseInt(idxVal)] = newProj;
+    }
+
+    const ok = await saveToDb("snekker_projects", projectsData);
+    if (ok) {
+        showToast(idxVal === "" ? "Prosjekt ble lagt til!" : "Prosjekt ble oppdatert!", "success");
+        closeAdminModal(null, true);
+        renderPortfolio();
+    }
 }
 
-// ── EXPORT ──
-function exportUpdatedSite(){
-    showConfirmDialog("Lagre og last ned nettside?","Dette laster ned en oppdatert index.html med alle dine endringer lagret.",()=>{
-        deactivateAdminMode();
-        const clone=document.documentElement.cloneNode(true);
-        ["adminBanner","adminModal","pinModal","confirmModal","detailModal","requestsModal","reqDetailModal"].forEach(id=>{
-            const el=clone.querySelector(`#${id}`);
-            if(el){el.classList.remove("open");if(id==="adminBanner")el.style.display="none";}
-        });
-        const bBox=clone.querySelector("#requestBox");if(bBox)bBox.style.display="block";
-        const bSuc=clone.querySelector("#bookingSuccess");if(bSuc)bSuc.style.display="none";
-        const ds=clone.querySelector("#snekker-projects-data");
-        if(ds) ds.textContent=`\nlet projectsData = ${JSON.stringify(projectsData,null,4)};\n`;
-        const ts=clone.querySelector("#snekker-testimonials-data");
-        if(ts) ts.textContent=`\nlet testimonialsData = ${JSON.stringify(testimonialsData,null,4)};\n`;
-        const html="<!DOCTYPE html>\n"+clone.outerHTML;
-        const blob=new Blob([html],{type:"text/html;charset=utf-8"});
-        const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="index.html";
-        document.body.appendChild(a);a.click();document.body.removeChild(a);
-        activateAdminMode();
-        showToast("Nettside lastet ned!","success");
+async function deleteProject(idx, event){
+    event.stopPropagation();
+    showConfirmDialog("Slette prosjekt?", `Er du sikker på at du vil slette "${projectsData[idx].title}"?`, async () => {
+        projectsData.splice(idx, 1);
+        const ok = await saveToDb("snekker_projects", projectsData);
+        if (ok) {
+            renderPortfolio();
+            showToast("Prosjektet ble slettet.", "warning");
+        }
     });
 }
 </script>
 </body>
-</html>
+</html>"""
+
