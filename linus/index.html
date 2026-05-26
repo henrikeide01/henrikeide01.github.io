@@ -10,24 +10,32 @@
     margin: 0;
     background: black;
     overflow: hidden;
-
-    /* Sentrerer bildet */
     display: flex;
-    justify-content: center;
+    flex-direction: column; /* viktig for å få tekst over */
+    justify-content: flex-start;
     align-items: center;
+  }
+
+  h1 {
+    color: white;
+    font-size: 24px;
+    margin: 10px 0;
+    text-align: center;
   }
 
   img {
     width: 100vw;
-    height: 100vh;
-    object-fit: contain; /* ✅ zoomer ut så hele vises */
+    height: calc(100vh - 50px); /* trekker fra plass til tekst */
+    object-fit: contain;
   }
 </style>
 </head>
 
 <body>
 
-<img src="https://media1.tenor.com/m/sOua8BEwJeYAAAAC/bosnov-67.gif" alt="gif">
+<h1>Gega få se en 67</h1>
+
+<img src="https://media1.tenor.com/m/sOua8BEwJeYAAAAC/bosnov-67.gif">
 
 </body>
 </html>
