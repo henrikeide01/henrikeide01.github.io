@@ -10,19 +10,24 @@
     margin: 0;
     background: black;
     overflow: hidden;
+
+    /* Sentrerer bildet */
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   img {
     width: 100vw;
     height: 100vh;
-    object-fit: cover;
+    object-fit: contain; /* ✅ zoomer ut så hele vises */
   }
 </style>
 </head>
 
 <body>
 
-<img src="https://media1.tenor.com/m/sOua8BEwJeYAAAAC/bosnov-67.gif" alt="GIF">
+<img src="https://media1.tenor.com/m/sOua8BEwJeYAAAAC/bosnov-67.gif" alt="gif">
 
 </body>
 </html>
