@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quizstigen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<style>
+:root{
+  --table:#1E3A5C; --table-2:#264A73; --paper:#F1F4F6; --ink:#17212E; --muted:#5B6878;
+  --line:#C9D2DB; --joker:#D63F78; --duel:#1F2933; --gold:#C9A227; --gold-hi:#F1D77A; --gold-deep:#8C6D0E;
+  --card:#FFFFFF; --ok:#2E8A4E; --bad:#C2412D;
+  --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--table:#0F2236;--table-2:#173252;--paper:#E4E9EE;--card:#F7F9FB}
+}
+:root[data-theme="dark"]{--table:#0F2236;--table-2:#173252;--paper:#E4E9EE;--card:#F7F9FB}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;min-height:100%;background:radial-gradient(ellipse at 30% 0%,var(--table-2),var(--table) 70%);background-color:var(--table);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold-hi);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#fff;margin-bottom:16px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2rem,5vw,3.2rem);margin:0;letter-spacing:-.02em;line-height:1}
+h1 span{display:inline-block;width:.55em;height:.55em;border-radius:50%;background:var(--gold);margin-left:.12em;vertical-align:.08em}
+.ghost{background:transparent;border:1.5px solid rgba(255,255,255,.45);color:#fff;border-radius:999px;padding:7px 16px}
+.ghost:hover{background:rgba(255,255,255,.1)}
+
+/* oppsett */
+.setup{background:var(--paper);border-radius:18px;padding:24px;max-width:560px;margin:30px auto}
+.setup h2{font-family:var(--display);margin:0 0 4px;font-size:1.6rem}
+.setup p{color:var(--muted);margin:0 0 18px}
+.count{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.count button{width:46px;height:46px;border-radius:12px;border:2px solid var(--line);background:#fff;font-family:var(--display);font-weight:700;font-size:1.2rem}
+.count button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.names{display:grid;gap:10px;margin-bottom:20px}
+.names label{display:flex;align-items:center;gap:10px}
+.names input{flex:1;padding:10px 12px;border:2px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+.dot{width:26px;height:26px;border-radius:50%;flex:none;border:3px solid #fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.25)}
+.primary{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:12px 22px;font-weight:700}
+.primary:hover{background:#2a3a4f}
+.gold-btn{background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#3b2d00;border:0;border-radius:12px;padding:12px 22px;font-weight:700}
+
+/* spill */
+.game{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+@media (max-width:900px){.game{grid-template-columns:1fr}}
+.boardbox{background:var(--paper);border-radius:20px;padding:14px}
+.goldrow{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:10px;border-radius:14px;margin-bottom:12px;
+  background:linear-gradient(135deg,#7A5B07,var(--gold) 35%,var(--gold-hi) 55%,var(--gold) 75%,#7A5B07)}
+.gcell{background:rgba(255,248,220,.92);border-radius:10px;min-height:74px;padding:6px;display:flex;flex-direction:column;justify-content:space-between;border:2px solid var(--gold-deep)}
+.gcell .n{font-family:var(--display);font-weight:700;font-size:.78rem;color:var(--gold-deep)}
+.gcell .c{font-weight:700;font-size:.85rem;line-height:1.1}
+.gcell.goal{background:var(--ink);color:var(--gold-hi);border-color:var(--gold-hi);align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:1.1rem}
+.board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(5,auto);gap:5px}
+.cell{position:relative;border-radius:10px;min-height:70px;padding:5px 6px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.cell .n{font-family:var(--display);font-weight:700;font-size:.8rem;opacity:.9}
+.cell .c{font-weight:700;font-size:.76rem;line-height:1.1}
+.cell .ic{position:absolute;right:5px;top:3px;font-size:1rem;opacity:.55}
+.cell.joker{background:var(--joker)}
+.cell.duel{background:var(--duel)}
+.cell.duel .c::before{content:"";}
+.cell.finish{background:linear-gradient(135deg,var(--gold),var(--gold-hi));color:#3b2d00}
+.cell.active{box-shadow:0 0 0 3px var(--gold-hi),0 0 0 6px var(--ink)}
+.tokens{display:flex;flex-wrap:wrap;gap:2px;min-height:18px}
+.tok{width:18px;height:18px;border-radius:50%;border:2px solid #fff;font-size:.62rem;font-weight:700;color:#fff;display:grid;place-items:center;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.startzone{margin-top:10px;display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:700;font-size:.9rem;min-height:26px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:.85rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+@media (max-width:620px){
+  .cell{min-height:52px;padding:3px 4px}.cell .c{font-size:.6rem}.cell .ic{display:none}
+  .tok{width:14px;height:14px;font-size:.5rem;border-width:1.5px}
+  .gcell{min-height:56px}.gcell .c{font-size:.66rem}
+}
+
+.side{display:grid;gap:14px}
+.panel{background:var(--paper);border-radius:18px;padding:16px}
+.turn h2{font-family:var(--display);margin:0;font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.status{margin:8px 0 14px;color:var(--muted);min-height:3em}
+.diebtn{width:100%;display:flex;align-items:center;justify-content:center;gap:14px;padding:12px;border-radius:14px;border:0;background:var(--ink);color:#fff;font-weight:700;font-size:1.05rem}
+.diebtn:disabled{opacity:.45;cursor:not-allowed}
+.die{width:52px;height:52px;background:#fff;border-radius:11px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:7px;gap:2px}
+.die b{border-radius:50%;background:var(--ink);visibility:hidden}
+.die.roll{animation:shake .45s linear}
+@keyframes shake{0%{transform:rotate(0)}25%{transform:rotate(18deg)}50%{transform:rotate(-14deg)}75%{transform:rotate(8deg)}100%{transform:rotate(0)}}
+@media (prefers-reduced-motion:reduce){.die.roll{animation:none}}
+.stand ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.stand li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:10px}
+.stand li.now{background:#fff;box-shadow:inset 0 0 0 2px var(--ink)}
+.stand .pos{margin-left:auto;font-family:var(--display);font-weight:700;font-size:.9rem;color:var(--muted)}
+.stand .pos.final{color:var(--gold-deep)}
+.stand h3,.rules h3{font-family:var(--display);margin:0 0 10px;font-size:1.05rem}
+.rules details{font-size:.9rem;color:var(--muted)}
+.rules summary{font-family:var(--display);font-weight:700;color:var(--ink);cursor:pointer}
+.rules ul{padding-left:18px;margin:8px 0 0}
+.rules li{margin-bottom:5px}
+
+/* kort */
+dialog{border:0;border-radius:20px;padding:0;width:min(560px,94vw);background:var(--card);color:var(--ink);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+dialog::backdrop{background:rgba(8,18,30,.65)}
+.qhead{padding:16px 20px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.qhead h3{margin:0;font-family:var(--display);font-size:1.3rem}
+.qhead small{font-weight:700;opacity:.9}
+.qhead.gold{background:linear-gradient(135deg,#7A5B07,var(--gold) 40%,var(--gold-hi));color:#2a1f00}
+.qbody{padding:20px}
+.qbody .q{font-family:var(--display);font-size:1.35rem;font-weight:700;line-height:1.25;margin:0 0 16px}
+.ans{background:#EEF2F5;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:1.1rem}
+.ans strong{display:block;font-size:.8rem;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>button{flex:1;min-width:120px}
+.btn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:11px 14px;font-weight:700}
+.btn:hover{border-color:var(--ink)}
+.btn.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.lvl{display:grid;gap:10px}
+.lvl button{text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px}
+.lvl button span{font-weight:400;color:var(--muted);font-size:.88rem}
+.catpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.catpick button{border:3px solid transparent;color:#fff;border-radius:12px;padding:12px;font-weight:700}
+.catpick button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
+.catpick button:disabled{opacity:.3;cursor:not-allowed}
+.guess{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.guess label{display:grid;gap:4px;font-weight:700;font-size:.9rem}
+.guess input{padding:10px;border:2px solid var(--line);border-radius:10px;font:inherit}
+.verdict{font-weight:700;margin:0 0 14px}
+.order{list-style:none;padding:0;margin:0 0 18px;display:grid;gap:8px;counter-reset:o}
+.order li{display:flex;align-items:center;gap:10px;font-size:1.1rem;font-weight:700;counter-increment:o}
+.order li::before{content:counter(o);font-family:var(--display);width:28px;color:var(--muted)}
+.win{text-align:center;padding:30px 20px}
+.win h3{font-family:var(--display);font-size:2rem;margin:10px 0}
+.hidden{display:none!important}
+
+.join{background:var(--paper);border-radius:18px;padding:24px;max-width:480px;margin:30px auto}
+.join h2{font-family:var(--display);margin:0 0 6px;font-size:1.6rem}
+.join p{color:var(--muted);margin:0 0 16px}
+.join label{display:grid;gap:6px;font-weight:700;margin-bottom:14px}
+.join input{padding:12px;border:2px solid var(--line);border-radius:10px;font:inherit;font-size:1.05rem}
+#codeIn{text-transform:uppercase;letter-spacing:.2em;font-family:var(--display);font-weight:700}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);margin:18px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.err{background:#FDE5E1;color:#8C2414;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-weight:700}
+.banner{background:#FDE5E1;color:#8C2414;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-weight:700}
+#action{background:var(--card);border-radius:18px;overflow:hidden}
+.bigcode{font-family:var(--display);font-weight:800;letter-spacing:.15em;font-size:2rem;background:var(--ink);color:var(--gold-hi);padding:2px 12px;border-radius:10px}
+.logp ul{list-style:none;padding:0;margin:0;display:grid;gap:6px;font-size:.88rem;color:var(--muted)}
+.logp ul li:first-child{color:var(--ink);font-weight:700}
+.code-small{color:rgba(255,255,255,.75);font-weight:700}
+.code-small b{color:#fff;letter-spacing:.12em}
+.game{grid-template-areas:"board side"}
+.boardbox{grid-area:board}.side{grid-area:side}
+@media (max-width:900px){.game{grid-template-areas:"side" "board"}}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><h1>Quizstigen<span></span></h1><span class="code-small hidden" id="codeTop">Kode: <b id="codeShow"></b></span></header>
+  <div class="banner hidden" id="banner"></div>
+
+  <section class="join" id="join">
+    <h2>Bli med i spillet</h2>
+    <p>Hver spiller bruker sin egen mobil eller PC. Én lager spillet, de andre blir med med koden.</p>
+    <div class="err hidden" id="joinErr"></div>
+    <label>Navnet ditt<input id="nameIn" maxlength="16" autocomplete="nickname" placeholder="For eksempel Henrik"></label>
+    <label>Spillkode<input id="codeIn" maxlength="4" autocomplete="off" placeholder="ABCD"></label>
+    <button class="primary" id="joinBtn" style="width:100%">Bli med</button>
+    <div class="or">eller</div>
+    <button class="btn" id="hostBtn" style="width:100%">Lag nytt spill</button>
+  </section>
+
+  <section class="game hidden" id="game">
+    <div class="boardbox hidden" id="boardbox">
+      <div class="goldrow" id="goldrow"></div>
+      <div class="board" id="board"></div>
+      <div class="startzone" id="startzone"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <aside class="side">
+      <div id="action" aria-live="polite"></div>
+      <div class="panel stand"><h3>Spillere</h3><ol id="standings"></ol></div>
+      <div class="panel logp"><h3 style="font-family:var(--display);margin:0 0 10px;font-size:1.05rem">Siste hendelser</h3><ul id="logList"></ul></div>
+      <div class="panel rules"><details><summary>Slik spiller dere</summary><ul>
+        <li>Kast terningen og flytt. På et kategorifelt velger du nivå.</li>
+        <li>Riktig svar: enkel gir ingen flytt, middels 1 til 2 felt frem, vanskelig 3 til 4 felt frem.</li>
+        <li>Feil svar: enkel 3 felt tilbake, middels 2 tilbake, vanskelig 1 tilbake.</li>
+        <li>Du skriver svaret ditt og sender det. Først da ser de andre fasiten og stemmer over om svaret er riktig. Flertallet avgjør, og står det likt, regnes svaret som riktig.</li>
+        <li>Joker: du velger både kategori og nivå.</li>
+        <li>Duell: du utfordrer en motstander, begge gjetter et tall, og den som er nærmest går 3 felt frem. Er dere like nærme, kommer et ekstra spørsmål.</li>
+        <li>På felt 40 går du opp i gullraden med fem tilfeldige kategorier. Ett vanskelig spørsmål per tur, riktig svar gir ett gullfelt frem. Første i mål vinner.</li>
+        <li>Den som lager spillet må holde siden åpen til spillet er ferdig.</li>
+      </ul></details></div>
+    </aside>
+  </section>
+</div>
+<script>
+const CATS = [
+  {id:'rom', name:'Verdensrommet', color:'#3A4FA8', icon:'☾'},
+  {id:'tek', name:'Teknologi', color:'#0F7C8C', icon:'⚙'},
+  {id:'film', name:'Film og serier', color:'#8E44AD', icon:'▶'},
+  {id:'sport', name:'Sport', color:'#2E8B3E', icon:'⚽'},
+  {id:'mat', name:'Mat og drikke', color:'#C97420', icon:'☕'},
+  {id:'norge', name:'Norge', color:'#B83227', icon:'⛰'},
+  {id:'nord', name:'Nord-Norge og Tromsø', color:'#1F6FB2', icon:'❄'},
+  {id:'folk', name:'Kjente personer', color:'#8A6A3A', icon:'☺'},
+  {id:'merker', name:'Merkevarer', color:'#5D6D7E', icon:'®'}
+];
+
+const BANK = {
+rom: {
+e: [["Hvilken planet bor vi på?","Jorda"],["Hvilken planet er nærmest sola?","Merkur"],["Hvilken planet kalles den røde planeten?","Mars"],["Hva er den største planeten i solsystemet?","Jupiter"],["Hvor mange planeter er det i solsystemet?","Åtte"],["Hvilken planet har de mest kjente ringene?","Saturn"],["Hva heter stjernen i midten av solsystemet vårt?","Sola"],["Hvem var den første som gikk på månen?","Neil Armstrong"],["Hva kalles en person som reiser ut i verdensrommet?","Astronaut"],["Hva heter galaksen vi bor i?","Melkeveien"]],
+m: [["Hvilket år landet mennesker på månen for første gang?","1969"],["Hvem var det første mennesket i verdensrommet?","Jurij Gagarin"],["Hvilken planet er den varmeste i solsystemet?","Venus"],["Hva heter den nærmeste stjernen etter sola?","Proxima Centauri"],["Hva heter romstasjonen der astronauter bor og jobber i dag?","Den internasjonale romstasjonen (ISS)"],["Hva heter USAs romfartsorganisasjon?","NASA"],["Hvilken planet har den store røde flekken?","Jupiter"],["Hva kalles en stein fra rommet som treffer jordoverflaten?","Meteoritt"],["Hva er et lysår?","Avstanden lyset går på ett år"],["Hvilken planet roterer nesten liggende på siden?","Uranus"]],
+h: [["Hva heter romteleskopet som ble skutt opp i desember 2021?","James Webb-teleskopet"],["Hvor gammelt er universet, omtrent?","13,8 milliarder år"],["Hva heter de to månene til Mars?","Fobos og Deimos"],["Hva heter den største månen til Jupiter?","Ganymedes"],["Hva kalles et område med så sterk tyngdekraft at ikke engang lys slipper ut?","Et sort hull"],["Hva heter den største månen til Saturn?","Titan"],["Hva het den første kunstige satellitten?","Sputnik 1"],["Hva heter den nærmeste store galaksen til Melkeveien?","Andromedagalaksen"],["Hvilket år ble Pluto omklassifisert til dvergplanet?","2006"],["Hva er en eksoplanet?","En planet som går rundt en annen stjerne enn sola"]],
+f: [["Hva kalles grensen rundt et sort hull der ingenting kan slippe ut?","Hendelseshorisonten"],["Hvem formulerte lovene for hvordan planetene beveger seg rundt sola?","Johannes Kepler"],["Hva heter teorien om hvordan universet startet?","Big bang"],["Hva heter den norske romhavnen på Andøya?","Andøya Spaceport"],["Hvilket år ble Sputnik 1 skutt opp?","1957"],["Hvem var den første kvinnen i verdensrommet?","Valentina Teresjkova"],["Hvilken planet har kortest døgn?","Jupiter"],["Hva heter den største vulkanen i solsystemet, som ligger på Mars?","Olympus Mons"],["Hva heter området med steiner mellom Mars og Jupiter?","Asteroidebeltet"],["Hva heter skyen av iskalde objekter helt ytterst i solsystemet?","Oortskyen"],["Hvilken romsonde er lengst unna jorda?","Voyager 1"],["Hvilket år ble Voyager 1 skutt opp?","1977"],["Hvem ble den første nordmannen i verdensrommet, i 2025?","Jannicke Mikkelsen"],["Hvilket grunnstoff består sola mest av?","Hydrogen"],["Hva kalles det når en stor stjerne eksploderer?","Supernova"]]
+},
+tek: {
+e: [["Hvem fikk lyspæren til å bli en kommersiell suksess?","Thomas Edison"],["Hva står «www» for?","World Wide Web"],["Hvilket selskap lager iPhone?","Apple"],["Hva kalles hjernen i en datamaskin?","Prosessoren (CPU)"],["Hvem regnes som oppfinneren av telefonen?","Alexander Graham Bell"],["Hvilket selskap står bak Windows?","Microsoft"],["Hvem fløy det første motorflyet i 1903?","Brødrene Wright"],["Hva kalles trådløst internett i hjemmet?","Wi-Fi"],["Hvem grunnla Microsoft sammen med Paul Allen?","Bill Gates"],["Hvem grunnla Facebook?","Mark Zuckerberg"]],
+m: [["Hvem oppfant boktrykkerkunsten i Europa?","Johannes Gutenberg"],["Hvem regnes som oppfinneren av World Wide Web?","Tim Berners-Lee"],["Hvilket år ble World Wide Web gjort tilgjengelig for alle?","1991"],["Hva står AI for?","Artificial intelligence (kunstig intelligens)"],["Hvem oppfant dynamitten?","Alfred Nobel"],["Hvilke to siffer bruker det binære tallsystemet?","0 og 1"],["Hvem forbedret dampmaskinen så den fikk stor betydning i industrien?","James Watt"],["Hva står GPS for?","Global Positioning System"],["Hvilket selskap utvikler operativsystemet Android?","Google"],["Hvem grunnla Apple sammen med Steve Wozniak?","Steve Jobs"]],
+h: [["Hvem fikk patent på radioen og sendte signaler over Atlanterhavet?","Guglielmo Marconi"],["Hvilken oppfinner er kjent for vekselstrøm og har gitt navn til et bilmerke?","Nikola Tesla"],["Hvilken kontorgjenstand regnes ofte som en norsk oppfinnelse av Johan Vaaler?","Binderset"],["Hvem oppfant ostehøvelen?","Thor Bjørklund"],["Hvilket år fikk ostehøvelen patent?","1925"],["Hva står HTML for?","HyperText Markup Language"],["Hva sier Moores lov?","At antall transistorer på en brikke dobles omtrent hvert andre år"],["Hva het den første elektroniske, programmerbare allmenne datamaskinen fra 1945?","ENIAC"],["Hvilket programmeringsspråk er oppkalt etter en britisk komigruppe?","Python"],["Hvilken nordmann oppfant sprayboksen?","Erik Rotheim"]],
+f: [["Hvem regnes som verdens første programmerer?","Ada Lovelace"],["Hvilket år ble transistoren oppfunnet?","1947"],["Hvem laget Linux-kjernen?","Linus Torvalds"],["Hva heter det norske programmeringsspråket som innførte objektorientert programmering?","Simula"],["Hvem utviklet Simula?","Ole-Johan Dahl og Kristen Nygaard"],["Hva står CPU for?","Central processing unit"],["Hva betyr «open source»?","At kildekoden er åpen for alle å se, bruke og endre"],["Hvilket år kom ChatGPT?","2022"],["Hvem utviklet koden med prikker og streker for telegrafen?","Samuel Morse"],["Hvilken brite utviklet glødelampen samtidig med Edison?","Joseph Swan"],["Hvilket selskap lager grafikkprosessorene som brukes mest til kunstig intelligens?","Nvidia"],["Hva står LED for?","Light-emitting diode"],["Hvilket år ble den første e-posten sendt?","1971"],["Hva kalles den minste enheten for informasjon i en datamaskin?","Bit"],["Hvor mange bit er det i en byte?","Åtte"]]
+},
+film: {
+e: [["Hvilket selskap står bak Mikke Mus?","Disney"],["Hva heter trollmannsgutten i bøkene til J.K. Rowling?","Harry Potter"],["Hvilken film fra 1997 med Leonardo DiCaprio handler om et skip som synker?","Titanic"],["Hva heter det grønne trollet i den animerte filmen fra 2001?","Shrek"],["Hva heter løveungen i Løvenes konge?","Simba"],["Hvilken strømmetjeneste har en rød N som logo?","Netflix"],["Hva heter skolen i Harry Potter på norsk?","Galtvort"],["Hva heter snømannen i Frost?","Olaf"],["Hva heter den gule tegnefilmfamilien med Homer og Bart?","Simpsons"],["Hvilken superhelt fikk kreftene sine av et edderkoppbitt?","Spider-Man"]],
+m: [["Hvem regisserte både Titanic og Avatar?","James Cameron"],["Hvilken serie handler om en kjemilærer som begynner å lage narkotika?","Breaking Bad"],["Hvilken norsk serie om ungdommer på Hartvig Nissen skole ble en internasjonal suksess?","Skam"],["Hva heter kontinentet der det meste av Game of Thrones foregår?","Westeros"],["Hvilken film har tjent mest på kino gjennom tidene?","Avatar"],["Hvem spilte Jack Sparrow i Pirates of the Caribbean?","Johnny Depp"],["Hva heter skurken med svart maske i Star Wars?","Darth Vader"],["Hva heter den mest kjente filmprisen i USA?","Oscar"],["I hvilken by ligger Hollywood?","Los Angeles"],["Hvilken sørkoreansk serie om dødelige barneleker ble en stor Netflix-suksess i 2021?","Squid Game"]],
+h: [["Hvilken film ble den første på et annet språk enn engelsk som vant Oscar for beste film?","Parasitt"],["Hvem regisserte Oppenheimer?","Christopher Nolan"],["Hvilken norsk film vant Oscar for beste dokumentar i 1951?","Kon-Tiki"],["Hvem regisserte «Verdens verste menneske»?","Joachim Trier"],["Hvilken norsk skuespiller vant prisen for beste kvinnelige skuespiller i Cannes i 2021?","Renate Reinsve"],["Hvem spilte James Bond i flest offisielle filmer?","Roger Moore"],["Hvem skapte Star Wars?","George Lucas"],["Hvilket år kom den første Star Wars-filmen?","1977"],["Hva heter hobbiten som bærer ringen i Ringenes herre?","Frodo"],["Hvem regisserte Ringenes herre-filmene?","Peter Jackson"]],
+f: [["Hvilket år ble den første Oscar-utdelingen holdt?","1929"],["Hvilken film fra 2003 vant 11 Oscar, like mange som Titanic og Ben-Hur?","Ringenes herre: Atter en konge"],["Hva het Disneys første animerte langfilm?","Snøhvit og de syv dvergene"],["Hvilket år kom Snøhvit og de syv dvergene?","1937"],["Hvilken norsk serie handler om en amerikansk mafiamann på Lillehammer?","Lilyhammer"],["Hvem spilte hovedrollen i Lilyhammer?","Steven Van Zandt"],["Hvem regisserte «Psycho» fra 1960?","Alfred Hitchcock"],["Hvilken film fra 1994 handler om en mann som forteller livshistorien sin på en benk?","Forrest Gump"],["Hvilket studio laget Toy Story?","Pixar"],["Hvilket år kom Toy Story?","1995"],["Hvem regisserte «Pulp Fiction» og «Kill Bill»?","Quentin Tarantino"],["Hvilken norsk katastrofefilm fra 2015 handler om en flodbølge i Geirangerfjorden?","Bølgen"],["Hvem spilte Walter White i Breaking Bad?","Bryan Cranston"],["I hvilken by foregår serien Friends?","New York"],["Hva heter sjefen i den amerikanske versjonen av The Office?","Michael Scott"]]
+},
+sport: {
+e: [["Hvor mange spillere har et fotballag på banen?","11"],["Hvor ofte arrangeres sommer-OL?","Hvert fjerde år"],["Hvilket land vant fotball-VM for herrer i 2022?","Argentina"],["Hvilken idrett spilles med kølle og puck?","Ishockey"],["Hvilken norsk spiss er kjent for målrekorder i Manchester City?","Erling Braut Haaland"],["Hvor mange poeng gir en touchdown i amerikansk fotball?","Seks"],["Hvilken idrett spilles i Wimbledon?","Tennis"],["I hvilken idrett er Johannes Høsflot Klæbo verdensstjerne?","Langrenn"],["Hvor mange ringer er det i det olympiske flagget?","Fem"],["Hvor lenge varer en vanlig fotballkamp, uten tilleggstid?","90 minutter"]],
+m: [["Hvilket land har vunnet fotball-VM for herrer flest ganger?","Brasil"],["Hvor mange spillere har et håndballag på banen?","Sju"],["Hvilken norsk by arrangerte vinter-OL i 1994?","Lillehammer"],["Hvem har verdensrekorden på 100 meter for menn?","Usain Bolt"],["Hvor høyt henger en basketballkurv?","3,05 meter"],["Hvilken engelsk klubb har Martin Ødegaard vært kaptein for?","Arsenal"],["Hvilken øvelse er Karsten Warholm kjent for?","400 meter hekk"],["Hva er etternavnet til den norske golfstjernen Viktor?","Hovland"],["Hvor mange hull har en vanlig golfbane?","18"],["I hvilken idrett snakker man om en «slam dunk»?","Basketball"]],
+h: [["Hva er Usain Bolts verdensrekord på 100 meter?","9,58 sekunder"],["Hvilket år vant Norges kvinner VM i fotball?","1995"],["Hva er Karsten Warholms verdensrekord på 400 meter hekk?","45,94 sekunder"],["Hvilket land arrangerte det første fotball-VM i 1930?","Uruguay"],["Hvem har vunnet Ballon d'Or flest ganger?","Lionel Messi"],["Hvor mange OL-gull har Michael Phelps?","23"],["I hvilken by ble de første moderne olympiske lekene holdt i 1896?","Athen"],["Hvor lang er et olympisk svømmebasseng?","50 meter"],["Hvilken klubb har vunnet Champions League flest ganger?","Real Madrid"],["Hvilke fire turneringer utgjør Grand Slam i tennis?","Australian Open, French Open, Wimbledon og US Open"]],
+f: [["Hvem vant gull på 400 meter hekk i OL i Tokyo?","Karsten Warholm"],["Hvilket år arrangerte Oslo vinter-OL?","1952"],["Hvor mange OL-gull vant Bjørn Dæhlie?","Åtte"],["Hvilket land har vunnet flest medaljer i vinter-OL gjennom tidene?","Norge"],["Hvem satte rekorden med 36 mål på en Premier League-sesong?","Erling Braut Haaland"],["Hvilken klubb vant Premier League uten tap i sesongen 2003/04?","Arsenal"],["Hva kalles det når en spiller scorer tre mål i samme kamp?","Hat trick"],["Hvilken norsk alpinist har flest OL-gull?","Kjetil Andre Aamodt"],["Hvilket år ble den første Super Bowl spilt?","1967"],["Hvilket land vant det første fotball-VM?","Uruguay"],["I hvilken golfturnering får vinneren en grønn jakke?","The Masters"],["Hvilket år vant Jakob Ingebrigtsen OL-gull på 1500 meter?","2021 (Tokyo-OL)"],["Hva er en «birdie» i golf?","Ett slag under par på et hull"],["Hvor mange spillere har et volleyballag på banen?","Seks"],["Mellom hvilke to steder går Birkebeinerrennet?","Rena og Lillehammer"]]
+},
+mat: {
+e: [["Hvilket land kommer pizzaen fra?","Italia"],["Hva er hovedingrediensen i guacamole?","Avokado"],["Hva heter den søte, brune osten som er typisk norsk?","Brunost"],["Hvilket land kommer sushi fra?","Japan"],["Hva lages popcorn av?","Mais"],["Hva heter julematen laget av saltet og tørket lammeribbe?","Pinnekjøtt"],["Hva heter det halvmåneformede franske bakverket?","Croissant"],["Hvilket land kommer taco opprinnelig fra?","Mexico"],["Hva lages tofu av?","Soyabønner"],["Hvilken grønnsak lages pommes frites av?","Potet"]],
+m: [["Hva heter den italienske risretten som røres kremet?","Risotto"],["Hva heter den spanske risretten med sjømat og safran?","Paella"],["Hvilket land er kjent for retten fish and chips?","Storbritannia"],["Hva er lutefisk laget av?","Tørrfisk som er lagt i lut"],["Hva regnes som verdens dyreste krydder?","Safran"],["Hva heter den japanske nudelsuppen?","Ramen"],["Hvilken sveitsisk ost er kjent for de store hullene?","Emmentaler"],["Hvilket land kommer gulasj fra?","Ungarn"],["Hvilket land kommer kimchi fra?","Korea"],["Hva er hovedingrediensen i hummus?","Kikerter"]],
+h: [["Hvilken rett ble kåret til Norges nasjonalrett i 2014?","Fårikål"],["Hva heter den japanske drikken som lages av ris?","Sake"],["Hva kalles det å koke mat vakuumpakket ved lav, nøyaktig temperatur?","Sous vide"],["Hvilken italiensk dessert lages med mascarpone, kaffe og kjeks?","Tiramisu"],["Fra hvilket land kommer champagne?","Frankrike"],["Hvilken skotsk rett lages tradisjonelt i en sauemage?","Haggis"],["Hvilket krydder gir karri den gule fargen?","Gurkemeie"],["Hva er umami?","Den femte grunnsmaken, en fyldig og kjøttaktig smak"],["Hvilken peruansk rett består av rå fisk marinert i sitrussaft?","Ceviche"],["Hvilken asiatisk frukt er kjent for en svært sterk lukt?","Durian"]],
+f: [["Hvor mange stjerner kan en restaurant få i Michelinguiden?","Tre"],["Hva heter undervannsrestauranten i Lindesnes?","Under"],["Hvilken restaurant i Oslo ble den første i Norden med tre Michelinstjerner?","Maaemo"],["Hvilket land har vunnet kokkekonkurransen Bocuse d'Or flest ganger?","Norge"],["Hva får brøddeigen til å heve?","Gjær"],["Hva kalles det når sukker blir brunt ved oppvarming?","Karamellisering"],["Hva heter den kjemiske reaksjonen som gjør stekt mat brun og smakfull?","Maillardreaksjonen"],["Hvilket land kommer fetaosten fra?","Hellas"],["Hva er wasabi?","En japansk plante med sterk rot, i slekt med pepperrot"],["Hvilken kaffedrikk med melkeskum er oppkalt etter en munkeorden?","Cappuccino"],["Fra hvilken by kommer pizza margherita?","Napoli"],["Hvilken saus lages av eggeplommer, smør og estragon?","Bearnaisesaus"],["Hvilket land produserer mest kaffe i verden?","Brasil"],["Hva heter den nordnorske retten med torsk, lever og rogn?","Mølje"],["Hva er rakfisk?","Fermentert ferskvannsfisk, oftest ørret"]]
+},
+norge: {
+e: [["Hva er Norges hovedstad?","Oslo"],["Hvilken dato er Norges nasjonaldag?","17. mai"],["Hvilke farger har det norske flagget?","Rødt, hvitt og blått"],["Hva er Norges høyeste fjell?","Galdhøpiggen"],["Hva heter Norges nasjonalsang?","Ja, vi elsker"],["Hvilket land har Norge lengst grense mot?","Sverige"],["Hva er Norges lengste fjord?","Sognefjorden"],["Hva er Norges største innsjø?","Mjøsa"],["Hva heter Norges valuta?","Norske kroner"],["Hvilket dyr er det et stort antall av på Svalbard, og som er farlig for mennesker?","Isbjørn"]],
+m: [["Hvem skrev teksten til «Ja, vi elsker»?","Bjørnstjerne Bjørnson"],["Hva er Norges nest største by?","Bergen"],["Hvor mange fylker har Norge fra 2024?","15"],["Hva er Norges lengste elv?","Glomma"],["Hvilke tre land grenser Norge til på land?","Sverige, Finland og Russland"],["Hvem malte «Skrik»?","Edvard Munch"],["Hvem skrev «Et dukkehjem»?","Henrik Ibsen"],["I hvilken by ligger Bryggen, som står på UNESCOs verdensarvliste?","Bergen"],["Hvilket år ble Ekofisk-feltet funnet?","1969"],["Hva er Norges største øy utenom Svalbard?","Hinnøya"]],
+h: [["Hva kalles Statens pensjonsfond utland i dagligtale?","Oljefondet"],["Hvem komponerte «I Dovregubbens hall»?","Edvard Grieg"],["Hvem ledet den første ekspedisjonen som nådde Sydpolen?","Roald Amundsen"],["Hvilket år nådde Amundsen Sydpolen?","1911"],["Hva heter det nordligste punktet på det europeiske fastlandet, i Finnmark?","Kinnarodden"],["Hvor mange fylker hadde Norge før regionreformen i 2020?","19"],["Hva er Norges største nasjonalpark på fastlandet?","Hardangervidda nasjonalpark"],["Hva heter verdens lengste veitunnel, som ligger i Norge?","Lærdalstunnelen"],["Hvor lang er Lærdalstunnelen?","24,5 km"],["Hvilken by var en av Norges viktigste kongsbyer og hovedsete i middelalderen?","Bergen"]],
+f: [["Hvem ble Norges første kvinnelige stortingspresident?","Kirsti Kolle Grøndahl"],["Hvilken norsk forfatter fikk nobelprisen i litteratur i 2023?","Jon Fosse"],["Hvor mange nordmenn har fått nobelprisen i litteratur?","Fire"],["Hvilket år åpnet Oslo lufthavn Gardermoen?","1998"],["Hvilken by regnes som Norges eldste?","Tønsberg"],["Hva heter Norges helårsåpne forskningsstasjon i Antarktis?","Troll"],["Hvilken ubebodd norsk øy i Sør-Atlanteren regnes som en av verdens mest avsidesliggende?","Bouvetøya"],["Hvilket arkitektkontor tegnet Operaen i Oslo?","Snøhetta"],["Hvilket år åpnet Operaen i Oslo?","2008"],["Hvem var Norges første statsminister fra Arbeiderpartiet?","Christopher Hornsrud"],["Hvilket år gikk det første barnetoget 17. mai i Christiania?","1870"],["Hvilken dikter tok initiativet til det første barnetoget?","Bjørnstjerne Bjørnson"],["Hva heter prinsessen som er nummer to i arverekkefølgen til tronen?","Ingrid Alexandra"],["Hvilken norsk krimforfatter skrev bøkene om Harry Hole?","Jo Nesbø"],["Hvilket år ble Tønsberg grunnlagt, ifølge Snorre?","Før år 871"]]
+},
+nord: {
+e: [["Hva kalles Tromsø ofte, med et nikk til Paris?","Nordens Paris"],["Hva heter den trekantede kirken på fastlandssiden i Tromsø?","Ishavskatedralen"],["Hva heter fotballklubben i Tromsø?","Tromsø IL (TIL)"],["Hva kalles lyset som danser over himmelen i nord om vinteren?","Nordlys"],["Hva kalles perioden da sola ikke kommer over horisonten?","Mørketid"],["Hva kalles det når sola ikke går ned om sommeren?","Midnattssol"],["Hva heter universitetet i Tromsø?","UiT Norges arktiske universitet"],["Hvilken øy ligger Tromsø sentrum på?","Tromsøya"],["Hvilket dyr driver mange samer tradisjonelt med?","Reinsdyr"],["Hva heter øygruppen i Nordland med Reine og Henningsvær?","Lofoten"]],
+m: [["Hva heter fjellet på fastlandssiden av Tromsø der Fjellheisen går opp?","Storsteinen"],["Hva heter bryggeriet i Tromsø?","Mack"],["Hvilket år ble Mack-bryggeriet grunnlagt?","1877"],["Hva heter brua mellom Tromsøya og Tromsdalen?","Tromsøbrua"],["Hvilket fylke ligger Tromsø i fra 2024?","Troms"],["Hvilket berømt platå regnes som Europas nordligste turistmål?","Nordkapp"],["Hvilken dato er samenes nasjonaldag?","6. februar"],["Hva heter den gytende torsken som kommer til Lofoten om vinteren?","Skrei"],["Hva kalles det store vinterfisket i Lofoten?","Lofotfisket"],["I hvilket sted ligger Sametinget?","Karasjok"]],
+h: [["Hvilket år ble Ishavskatedralen innviet?","1965"],["Hva heter museet i Tromsø om fangst og polarekspedisjoner?","Polarmuseet"],["Hva heter opplevelsessenteret i Tromsø med sel og arktisk akvarium?","Polaria"],["Hvilket år fikk Tromsø bystatus?","1794"],["Hva heter filmfestivalen som arrangeres i Tromsø hver januar?","Tromsø Internasjonale Filmfestival (TIFF)"],["Hvilken polfarer fløy fra Tromsø i 1928 og ble aldri funnet?","Roald Amundsen"],["Hva heter tunnelen under sundet mellom Tromsøya og fastlandet?","Tromsøysundtunnelen"],["Hva er den største byen i Finnmark?","Alta"],["Hvilken nordnorsk by var europeisk kulturhovedstad i 2024?","Bodø"],["Hva heter den kraftige tidevannsstrømmen like ved Bodø?","Saltstraumen"]],
+f: [["Hva ble Tromsø kalt fordi så mange polarekspedisjoner startet der?","Porten til Ishavet"],["Hvilken kirke i Tromsø sentrum er en av Norges største trekirker?","Tromsø domkirke"],["Hvilket tysk slagskip ble senket ved Tromsø i november 1944?","Tirpitz"],["Ved hvilken øy utenfor Tromsø ble Tirpitz senket?","Håkøya"],["Hvilket år ble Sametinget åpnet?","1989"],["Hva heter den samiske nasjonalsangen?","Sámi soga lávlla"],["Hvorfor er 6. februar samenes nasjonaldag?","Det første samiske landsmøtet ble holdt i Trondheim 6. februar 1917"],["Hva er nordligste vendepunkt for Hurtigruten?","Kirkenes"],["Hva heter Troms' høyeste fjell?","Jiehkkevárri"],["I hvilken kommune ligger Hamsunsenteret?","Hamarøy"],["Hva heter musikkfestivalen i Tromsø med nordlys i navnet?","Nordlysfestivalen"],["Hvilket år ble Troms og Finnmark delt i to fylker igjen?","2024"],["Hva heter flyplassen i Tromsø?","Tromsø lufthavn, Langnes"],["Hvem grunnla Mack-bryggeriet?","Ludwig Mack"],["I hvilken bydel i Tromsø ligger Ishavskatedralen?","Tromsdalen"]]
+},
+folk: {
+e: [["Hvem malte Mona Lisa?","Leonardo da Vinci"],["Hvem skrev «Romeo og Julie»?","William Shakespeare"],["Hvilken fysiker er kjent for relativitetsteorien?","Albert Einstein"],["Hvem var USAs første svarte president?","Barack Obama"],["Hvem leder både Tesla og SpaceX?","Elon Musk"],["Hvem ble kalt «Kongen av pop»?","Michael Jackson"],["Hvilken norsk sjakkspiller er verdenskjent?","Magnus Carlsen"],["Hvem skrev Harry Potter-bøkene?","J.K. Rowling"],["Hvilken britisk dronning satt på tronen i over 70 år?","Elizabeth II"],["Hvilken norsk produsent er kjent for låten «Faded»?","Alan Walker"]],
+m: [["Hvem er kjent for tyngdeloven og historien om eplet?","Isaac Newton"],["Hvem malte «Stjernenatt»?","Vincent van Gogh"],["Hvem var den første kvinnen som fikk nobelpris?","Marie Curie"],["Hvem ble Sør-Afrikas president etter 27 år i fengsel?","Nelson Mandela"],["Hvem skrev bøkene om Pippi Langstrømpe?","Astrid Lindgren"],["Hvilken artist sto bak The Eras Tour?","Taylor Swift"],["Hvem fikk Nobels fredspris i 2014 som 17-åring?","Malala Yousafzai"],["Hvem er den svenske klimaaktivisten som startet skolestreik for klimaet?","Greta Thunberg"],["Hvem krysset Grønland på ski i 1888?","Fridtjof Nansen"],["Hva er artistnavnet til Kyrre Gørvell-Dahll?","Kygo"]],
+h: [["Hvem malte taket i Det sixtinske kapell?","Michelangelo"],["Hvem skrev boken «Om artenes opprinnelse»?","Charles Darwin"],["Hvem var den første kvinnen som fløy alene over Atlanterhavet?","Amelia Earhart"],["Hvilken nordmann fikk Nobels fredspris i 1922 for arbeid med flyktninger?","Fridtjof Nansen"],["Hvem komponerte «Måneskinnssonaten»?","Ludwig van Beethoven"],["Hvilken sovjetisk leder innførte glasnost og perestrojka?","Mikhail Gorbatsjov"],["Hvem skrev «Sofies verden»?","Jostein Gaarder"],["Hvem grunnla Amazon?","Jeff Bezos"],["Hvem holdt talen «I Have a Dream»?","Martin Luther King jr."],["Hvem skrev bokserien «Min kamp»?","Karl Ove Knausgård"]],
+f: [["Hvem skrev «Krig og fred»?","Lev Tolstoj"],["Hvem malte «Guernica»?","Pablo Picasso"],["Hvem var Storbritannias første kvinnelige statsminister?","Margaret Thatcher"],["Hvem komponerte «De fire årstider»?","Antonio Vivaldi"],["Hvilken norsk kunstløper vant tre OL-gull og ble filmstjerne i Hollywood?","Sonja Henie"],["Hvem regnes som Kinas første keiser?","Qin Shi Huang"],["Hvem tok over som leder av Sovjetunionen etter Lenin?","Josef Stalin"],["Hvem nådde toppen av Mount Everest først, sammen med Tenzing Norgay?","Edmund Hillary"],["Hvem skrev romanen «Sult» fra 1890?","Knut Hamsun"],["Hvilken nordmann ble FNs første generalsekretær?","Trygve Lie"],["Hvem grunnla Wikipedia sammen med Larry Sanger?","Jimmy Wales"],["Hvilken italiensk astronom ble dømt for å si at jorda går rundt sola?","Galileo Galilei"],["Hvem skrev «Kristin Lavransdatter»?","Sigrid Undset"],["Hvilken makedonsk konge bygde et rike fra Hellas til India?","Aleksander den store"],["Hvem seilte flåten Kon-Tiki over Stillehavet i 1947?","Thor Heyerdahl"]]
+},
+merker: {
+e: [["Hvilket selskap har et eple med et bitt i som logo?","Apple"],["Hvilken hamburgerkjede har gule buer i logoen?","McDonald's"],["Hvilket sportsmerke har en «swoosh» som logo?","Nike"],["Hvilket svensk møbelvarehus er kjent for flatpakkede møbler?","IKEA"],["Hvilket italiensk bilmerke har en steilende hest i logoen?","Ferrari"],["Hvilket dansk selskap lager plastklosser?","LEGO"],["Hvilken brus har en hemmelig oppskrift og rød og hvit logo?","Coca-Cola"],["Hvilket norsk sjokolademerke lager Kvikk Lunsj?","Freia"],["Hvilket selskap eier Instagram?","Meta"],["Hvilket bilmerke lager elbilene Model 3 og Model Y?","Tesla"]],
+m: [["Hvilket land kommer Samsung fra?","Sør-Korea"],["Hvilket selskap lager PlayStation?","Sony"],["Hvilken norsk dagligvarekjede eies av Reitangruppen?","Rema 1000"],["Hvilket land kommer Volvo fra?","Sverige"],["Hvilket tysk bilkonsern eier blant annet Audi og Porsche?","Volkswagen"],["Hvilket land kommer Nokia fra?","Finland"],["Hvilket selskap eier både Android og YouTube?","Google (Alphabet)"],["Hva het Equinor tidligere?","Statoil"],["Hvilket italiensk selskap lager Kinderegg og Nutella?","Ferrero"],["Hvilket land kommer H&M fra?","Sverige"]],
+h: [["Hvilket år ble Apple grunnlagt?","1976"],["Hvilket år ble Google grunnlagt?","1998"],["Hva står bokstavene i IKEA for?","Ingvar Kamprad, Elmtaryd, Agunnaryd"],["Hvilket norsk industriselskap ble grunnlagt i 1905 og lager aluminium?","Norsk Hydro"],["Hvilket konsern eier merkene Freia og Oreo?","Mondelez International"],["Hva betyr navnet LEGO?","«Leg godt», dansk for «lek godt»"],["Hvem grunnla Nike sammen med Bill Bowerman?","Phil Knight"],["Hvilket japansk selskap startet i 1889 med å lage spillkort?","Nintendo"],["Hvilket bilmerke har fire ringer i logoen?","Audi"],["Hvilket norsk selskap het tidligere Televerket?","Telenor"]],
+f: [["Hvilket år ble Coca-Cola laget for første gang?","1886"],["Hvilket selskap ble i 2022 det første med en markedsverdi over 3000 milliarder dollar?","Apple"],["Hva er Norges største selskap målt i omsetning?","Equinor"],["Hvilken bilprodusent har solgt flest biler i verden de siste årene?","Toyota"],["Hvem grunnla Rema 1000?","Odd Reitan"],["Hvilket år åpnet IKEA sitt første varehus i Norge?","1963"],["Hvilket år ble Amazon grunnlagt?","1994"],["Hvilket år ble Microsoft grunnlagt?","1975"],["Hvilken norsk betalingsapp ble startet av DNB i 2015?","Vipps"],["Hvilket kinesisk selskap eier TikTok?","ByteDance"],["Hva het Google i starten?","BackRub"],["Hvem kjøpte Twitter i 2022?","Elon Musk"],["Hva heter Twitter nå?","X"],["Hvilket år ble Freia grunnlagt?","1889"],["Hvem grunnla LEGO?","Ole Kirk Christiansen"]]
+}
+};
+
+const DUEL = [
+["Hvor høyt er Mount Everest?",8849,"meter"],["Hvilket år landet Apollo 11 på månen?",1969,""],["Hvor mange land er medlemmer av FN?",193,"land"],["Hvor lang er Nilen?",6650,"km"],["Hvor høyt er Galdhøpiggen?",2469,"meter"],["Hvilket år sto Eiffeltårnet ferdig?",1889,""],["Hvor høyt er Eiffeltårnet i dag?",330,"meter"],["Hvor mange tenner har et voksent menneske med visdomstenner?",32,"tenner"],["Hvor dyp er Sognefjorden på det dypeste?",1308,"meter"],["Hvilket år ble Universitetet i Tromsø opprettet?",1968,""],["Hvor lang er et maraton?",42195,"meter"],["Hvor mange land grenser Kina til på land?",14,"land"],["Hvilket år kom den første iPhone?",2007,""],["Hvor mange minutter tar det for lyset fra sola å nå jorda, omtrent?",8,"minutter"],["Hvor mange innbyggere har Tromsø kommune, omtrent?",78000,"innbyggere"],["Hvor lang er Norges kystlinje medregnet alle øyer?",100915,"km"],["Hvor langt er det rundt jorda ved ekvator?",40075,"km"],["Hvor høyt er Burj Khalifa?",828,"meter"],["Hvor mange land deltok i fotball-VM 2026?",48,"land"],["Hvor mange øyer og holmer har Norge, ifølge Kartverket?",239057,"øyer"],["Hvor mange kommuner har Norge fra 2024?",357,"kommuner"],["Hvor høyt er Mont Blanc?",4806,"meter"],["Hvor langt er det i gjennomsnitt fra jorda til månen?",384400,"km"],["Hva er kokepunktet til vann i grader Fahrenheit?",212,"grader"],["Hvilket år ble Universitetet i Oslo grunnlagt?",1811,""],["Hvor mange tangenter har et vanlig piano?",88,"tangenter"],["Hvor lang er Mjøsa?",117,"km"],["Hvor høyt over Lysefjorden ligger Prekestolen?",604,"meter"],["Hvor mange innbyggere har Norge, i millioner?",5.6,"millioner"],["Hvor høy er Fjellheisens øvre stasjon på Storsteinen i Tromsø?",421,"meter over havet"]
+];
+
+/* ===== Quizstigen online ===== */
+const PCOLORS = ['#E4572E','#2B9FD9','#F2B705','#6C4AB6','#17A673','#E94F8B'];
+const JOKERS = [7,15,22,29,36], DUELS = [4,11,19,26,33], LAST = 40, GOLD = 5;
+const LVL = {
+  e:{name:'Enkel', win:'står stille', lose:'3 felt tilbake', back:3},
+  m:{name:'Middels', win:'1 til 2 felt frem', lose:'2 felt tilbake', back:2},
+  h:{name:'Vanskelig', win:'3 til 4 felt frem', lose:'1 felt tilbake', back:1}
+};
+const catById = Object.fromEntries(CATS.map(c=>[c.id,c]));
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const rnd = (a,b) => a+Math.floor(Math.random()*(b-a+1));
+const fmt = n => Number(n).toLocaleString('nb-NO');
+
+const params = new URLSearchParams(location.search);
+const PEER_OPTS = params.get('server') ? {host:params.get('server').split(':')[0], port:+(params.get('server').split(':')[1]||9000), path:'/', secure:false} : {};
+const ID_PREFIX = 'quizstigen-tromso-';
+
+/* ---------- trekkbunker (bare hos verten) ---------- */
+let decks = {};
+try { decks = JSON.parse(localStorage.getItem('quizstigen-online-decks')) || {}; } catch(e){}
+function drawFrom(key, pool){
+  key += '_' + pool.length;
+  let d = decks[key];
+  if(!Array.isArray(d) || !d.length) d = shuffle([...pool.keys()]);
+  const i = d.pop(); decks[key] = d;
+  try { localStorage.setItem('quizstigen-online-decks', JSON.stringify(decks)); } catch(e){}
+  return pool[i];
+}
+
+/* ---------- nettverk ---------- */
+let peer = null, isHost = false, myId = null, hostConn = null;
+const conns = new Map();      // vert: peerId -> conn
+let S = null;                 // vertens fulle tilstand
+let V = null;                 // det denne enheten ser
+
+function makeCode(){ const L='ABCDEFGHJKLMNPQRSTUVWXYZ'; let s=''; for(let i=0;i<4;i++) s+=L[Math.floor(Math.random()*L.length)]; return s; }
+
+function showJoinError(msg){ $('joinErr').textContent = msg; $('joinErr').classList.remove('hidden'); $('hostBtn').disabled=false; $('joinBtn').disabled=false; }
+
+function hostGame(){
+  const name = $('nameIn').value.trim();
+  if(!name) return showJoinError('Skriv inn navnet ditt først.');
+  $('hostBtn').disabled = true;
+  const code = makeCode();
+  peer = new Peer(ID_PREFIX + code, PEER_OPTS);
+  peer.on('open', () => {
+    isHost = true; myId = 'host';
+    S = { code, phase:'lobby', players:[{id:'host', name, color:PCOLORS[0], pos:0, inFinal:false, gold:0, online:true}],
+          turn:0, boardCats:{}, goldOrder:[], die:0, q:null, given:null, votes:{}, duel:null, log:[], winner:null };
+    history.replaceState(null,'','?kode='+code + (params.get('server')?'&server='+params.get('server'):''));
+    peer.on('connection', c => { c.on('data', d => onClientMsg(c, d)); c.on('close', () => onClientClose(c)); });
+    broadcast();
+  });
+  peer.on('error', e => { if(e.type==='unavailable-id'){ peer.destroy(); hostGame(); } else showJoinError('Fikk ikke kontakt med spilltjeneren ('+e.type+'). Prøv igjen.'); });
+}
+
+function joinGame(){
+  const name = $('nameIn').value.trim(), code = $('codeIn').value.trim().toUpperCase();
+  if(!name) return showJoinError('Skriv inn navnet ditt først.');
+  if(code.length!==4) return showJoinError('Spillkoden har fire bokstaver.');
+  $('joinBtn').disabled = true;
+  peer = new Peer(PEER_OPTS);
+  peer.on('open', () => {
+    hostConn = peer.connect(ID_PREFIX + code, {reliable:true});
+    const t = setTimeout(()=>showJoinError('Fant ikke spillet. Sjekk koden.'), 8000);
+    hostConn.on('open', () => { clearTimeout(t); hostConn.send({t:'join', name}); });
+    hostConn.on('data', d => {
+      if(d.t==='state'){ myId = d.you; V = d.s; render(); }
+      if(d.t==='error'){ showJoinError(d.msg); }
+    });
+    hostConn.on('close', () => { setBanner('Forbindelsen til verten ble brutt. Last inn siden på nytt for å koble til igjen.'); });
+  });
+  peer.on('error', e => { if(e.type==='peer-unavailable') showJoinError('Fant ikke spillet med den koden.'); else showJoinError('Nettverksfeil ('+e.type+').'); });
+}
+
+function send(action){ if(isHost) handle('host', action); else if(hostConn && hostConn.open) hostConn.send({t:'act', ...action}); }
+
+/* ---------- vert: meldinger ---------- */
+function onClientMsg(c, d){
+  if(d.t==='join'){
+    const name = String(d.name||'').trim().slice(0,16);
+    if(!name){ c.send({t:'error', msg:'Ugyldig navn.'}); return; }
+    let p = S.players.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(p){
+      if(p.online){ c.send({t:'error', msg:'Navnet er allerede i bruk. Velg et annet.'}); return; }
+      p.online = true; p.id = c.peer;               // koble til på nytt
+    } else {
+      if(S.phase!=='lobby'){ c.send({t:'error', msg:'Spillet er allerede i gang.'}); return; }
+      if(S.players.length>=6){ c.send({t:'error', msg:'Spillet er fullt (maks 6).'}); return; }
+      S.players.push({id:c.peer, name, color:PCOLORS[S.players.length], pos:0, inFinal:false, gold:0, online:true});
+      log(`${name} ble med.`);
+    }
+    conns.set(c.peer, c); broadcast(); return;
+  }
+  if(d.t==='act') handle(c.peer, d);
+}
+function onClientClose(c){
+  conns.delete(c.peer);
+  const p = S.players.find(x=>x.id===c.peer);
+  if(!p) return;
+  if(S.phase==='lobby'){ S.players = S.players.filter(x=>x!==p); S.players.forEach((x,i)=>x.color=PCOLORS[i]); }
+  else {
+    p.online = false;
+    log(`${p.name} mistet forbindelsen.`);
+    const cur = curP();
+    if(S.phase!=='win' && (p===cur || (S.phase==='duel' && (S.duel.a===p.id||S.duel.b===p.id)))) nextTurn();
+    else if(S.phase==='judge'){ const n=others().length, yes=Object.values(S.votes).filter(v=>v).length, no=Object.values(S.votes).length-yes;
+      if(!n||yes>n/2) finishJudge(true); else if(no>n/2) finishJudge(false); else if(yes+no>=n) finishJudge(true); }
+    broadcast(); return;
+  }
+  log(`${p.name} mistet forbindelsen.`); broadcast();
+}
+
+function viewFor(pid){
+  const v = JSON.parse(JSON.stringify(S));
+  const cur = S.players[S.turn];
+  // fasit vises bare for de andre spillerne mens de vurderer
+  if(v.q){ if(!(S.phase==='judge' && cur && pid!==cur.id)) delete v.q.answer; }
+  if(v.duel && S.phase==='duel'){ delete v.duel.answer; v.duel.ga = v.duel.ga!=null; v.duel.gb = v.duel.gb!=null; }
+  return v;
+}
+function broadcast(){
+  for(const [id,c] of conns) if(c.open) c.send({t:'state', you:id, s:viewFor(id)});
+  myId='host'; V = viewFor('host'); render();
+}
+function log(t){ S.log.unshift(t); S.log = S.log.slice(0,8); }
+
+/* ---------- vert: spillregler ---------- */
+function curP(){ return S.players[S.turn]; }
+function cellType(n){ if(n===LAST) return 'finish'; if(JOKERS.includes(n)) return 'joker'; if(DUELS.includes(n)) return 'duel'; return 'cat'; }
+
+function startGame(){
+  shuffle(S.players); S.players.forEach(p=>{p.pos=0;p.inFinal=false;p.gold=0;});
+  const plain=[]; for(let i=1;i<LAST;i++) if(cellType(i)==='cat') plain.push(i);
+  const pool = shuffle(plain.map((_,k)=>CATS[k%CATS.length].id));
+  S.boardCats = {}; plain.forEach((f,k)=>S.boardCats[f]=pool[k]);
+  S.goldOrder = shuffle(CATS.map(c=>c.id)).slice(0,GOLD);
+  S.turn = 0; S.log = []; S.winner = null;
+  log('Rekkefølge: ' + S.players.map(p=>p.name).join(', ') + '.');
+  beginTurn();
+}
+function beginTurn(){
+  S.q=null; S.given=null; S.votes={}; S.duel=null;
+  const p = curP();
+  if(!p.online && S.players.some(x=>x.online)){ log(`${p.name} er ikke tilkoblet og står over.`); return nextTurn(); }
+  if(p.inFinal) return askQuestion(S.goldOrder[p.gold], 'f');
+  S.phase='roll';
+}
+function nextTurn(){ S.turn = (S.turn+1)%S.players.length; beginTurn(); }
+function move(p, d){ p.pos = Math.max(0, Math.min(LAST, p.pos+d)); if(p.pos>=LAST && !p.inFinal){ p.inFinal=true; p.gold=0; log(`${p.name} har nådd felt 40 og går opp i gullraden!`); } }
+function askQuestion(cat, lvl){
+  const [text, answer] = drawFrom(cat+'_'+lvl, BANK[cat][lvl]);
+  S.q = {cat, lvl, text, answer}; S.given=null; S.votes={}; S.phase='answer';
+}
+function others(){ const c=curP(); return S.players.filter(p=>p!==c && p.online); }
+
+function handle(pid, a){
+  const me = S.players.find(p=>p.id===pid);
+  if(a.a==='start'){ if(pid==='host' && S.phase==='lobby' && S.players.length>=2){ startGame(); } return broadcast(); }
+  if(a.a==='restart'){ if(pid==='host'){ S.phase='lobby'; S.log=[]; S.players=S.players.filter(p=>p.online); S.players.forEach((p,i)=>{p.color=PCOLORS[i];p.pos=0;p.inFinal=false;p.gold=0;}); } return broadcast(); }
+  if(!me) return;
+  const cur = curP(), isCur = me===cur;
+  switch(a.a){
+    case 'roll':
+      if(S.phase!=='roll'||!isCur) return;
+      S.die = rnd(1,6); log(`${me.name} kastet ${S.die}.`); move(me, S.die);
+      if(me.inFinal) return nextTurn(), broadcast();
+      { const t = cellType(me.pos);
+        if(t==='cat') S.phase='level';
+        else if(t==='joker') S.phase='joker';
+        else if(t==='duel'){ if(others().filter(o=>!o.inFinal).length){ S.phase='opponent'; } else { log('Ingen å utfordre. Turen går videre.'); nextTurn(); } } }
+      break;
+    case 'level':
+      if(!isCur || !LVL[a.lvl]) return;
+      if(S.phase==='level') askQuestion(S.boardCats[me.pos], a.lvl);
+      else if(S.phase==='joker' && catById[a.cat]) askQuestion(a.cat, a.lvl);
+      break;
+    case 'answer':
+      if(S.phase!=='answer'||!isCur) return;
+      S.given = String(a.text||'').trim().slice(0,200) || '(ikke noe svar)';
+      S.phase='judge'; S.votes={};
+      if(!others().length) finishJudge(true);
+      break;
+    case 'vote':
+      if(S.phase!=='judge'||isCur) return;
+      S.votes[pid] = !!a.ok;
+      { const n = others().length, yes = Object.values(S.votes).filter(v=>v).length, no = Object.values(S.votes).length-yes;
+        if(yes>n/2) finishJudge(true); else if(no>n/2) finishJudge(false); else if(yes+no>=n) finishJudge(true); }
+      break;
+    case 'opponent':
+      if(S.phase!=='opponent'||!isCur) return;
+      { const o = S.players.find(p=>p.id===a.id && p!==me && !p.inFinal && p.online); if(!o) return; startDuel(me, o, 1); }
+      break;
+    case 'guess':
+      if(S.phase!=='duel') return;
+      { const v = parseFloat(String(a.value).replace(/\s/g,'').replace(',','.')); if(isNaN(v)) return;
+        if(pid===S.duel.a) S.duel.ga=v; else if(pid===S.duel.b) S.duel.gb=v; else return;
+        if(S.duel.ga!=null && S.duel.gb!=null) finishDuel(); }
+      break;
+  }
+  broadcast();
+}
+
+function finishJudge(ok){
+  const p = curP(), q = S.q;
+  log(`${p.name} svarte «${S.given}». Fasit: ${q.answer}. ${ok?'Riktig!':'Feil.'}`);
+  if(q.lvl==='f'){
+    if(ok){ p.gold++; if(p.gold>=GOLD){ S.phase='win'; S.winner=p.name; log(`${p.name} vant spillet!`); return; } log(`${p.name} går til gullfelt ${p.gold+1}.`); }
+    else log(`${p.name} prøver igjen neste tur.`);
+    return nextTurn();
+  }
+  let d = 0;
+  if(ok) d = q.lvl==='e'?0 : q.lvl==='m'?rnd(1,2):rnd(3,4); else d = -LVL[q.lvl].back;
+  if(d) { move(p,d); log(`${p.name} går ${Math.abs(d)} felt ${d>0?'frem':'tilbake'}.`); }
+  nextTurn();
+}
+function startDuel(a, b, round){
+  const [text, answer, unit] = drawFrom('duel', DUEL);
+  S.duel = {a:a.id, b:b.id, text, answer, unit, ga:null, gb:null, round};
+  S.phase='duel'; log(`${a.name} utfordrer ${b.name} til duell!`);
+}
+function finishDuel(){
+  const D = S.duel, A = S.players.find(p=>p.id===D.a), B = S.players.find(p=>p.id===D.b);
+  const da = Math.abs(D.ga-D.answer), db = Math.abs(D.gb-D.answer);
+  log(`Duell: ${A.name} ${fmt(D.ga)}, ${B.name} ${fmt(D.gb)}. Svar: ${fmt(D.answer)} ${D.unit}.`);
+  if(da===db){ log('Like nærme! Ekstra spørsmål.'); return startDuel(A, B, D.round+1); }
+  const w = da<db?A:B; move(w,3); log(`${w.name} vant duellen og går 3 felt frem.`);
+  nextTurn();
+}
+
+/* ---------- visning ---------- */
+function setBanner(t){ $('banner').textContent=t; $('banner').classList.toggle('hidden',!t); }
+function tok(list){ return `<div class="tokens">${list.map(p=>`<span class="tok" style="background:${p.color}" title="${esc(p.name)}">${esc(p.name[0].toUpperCase())}</span>`).join('')}</div>`; }
+function gridPos(n){ const r=Math.floor((n-1)/8), c=(n-1)%8; return {row:5-r, col:r%2===0?c+1:8-c}; }
+
+function render(){
+  if(!V) return;
+  $('join').classList.add('hidden'); $('game').classList.remove('hidden');
+  const me = V.players.find(p=>p.id===myId), cur = V.players[V.turn];
+  const nm = id => (V.players.find(p=>p.id===id)||{}).name||'?';
+
+  // brett
+  if(V.phase!=='lobby'){
+    let b='';
+    for(let n=1;n<=LAST;n++){
+      const t=cellType(n), g=gridPos(n), here=V.players.filter(p=>!p.inFinal&&p.pos===n);
+      let cls='cell '+(t==='cat'?'':t), st=`grid-row:${g.row};grid-column:${g.col};`, lab='', ic='';
+      if(t==='cat'){ const c=catById[V.boardCats[n]]; st+=`background:${c.color};`; lab=c.name; ic=c.icon; }
+      if(t==='joker'){lab='Joker';ic='★';} if(t==='duel'){lab='Duell';ic='⚔';} if(t==='finish'){lab='Til finalen';ic='♛';}
+      if(cur&&!cur.inFinal&&cur.pos===n) cls+=' active';
+      b+=`<div class="${cls}" style="${st}"><span class="n">${n}</span><span class="ic">${ic}</span>${tok(here)}<span class="c">${lab}</span></div>`;
+    }
+    $('board').innerHTML=b;
+    let g='';
+    V.goldOrder.forEach((id,i)=>{ g+=`<div class="gcell"><span class="n">Gull ${i+1}</span>${tok(V.players.filter(p=>p.inFinal&&p.gold===i))}<span class="c" style="color:${catById[id].color}">${catById[id].name}</span></div>`; });
+    const done=V.players.filter(p=>p.inFinal&&p.gold>=GOLD);
+    g+=`<div class="gcell goal">${done.length?tok(done):''}Mål</div>`;
+    $('goldrow').innerHTML=g;
+    const st=V.players.filter(p=>!p.inFinal&&p.pos===0);
+    $('startzone').innerHTML='Start '+(st.length?tok(st):'');
+    $('legend').innerHTML=CATS.map(c=>`<span><i style="background:${c.color}"></i>${c.name}</span>`).join('')+`<span><i style="background:var(--joker)"></i>Joker</span><span><i style="background:var(--duel)"></i>Duell</span>`;
+  }
+  $('boardbox').classList.toggle('hidden', V.phase==='lobby');
+
+  // stilling
+  $('standings').innerHTML = V.players.map((p,i)=>`<li class="${V.phase!=='lobby'&&i===V.turn?'now':''}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id===myId?' (deg)':''}${p.online?'':' <small>(frakoblet)</small>'}<span class="pos ${p.inFinal?'final':''}">${V.phase==='lobby'?'':p.inFinal?(p.gold>=GOLD?'I mål':'Gull '+(p.gold+1)):(p.pos?'Felt '+p.pos:'Start')}</span></li>`).join('');
+  $('logList').innerHTML = V.log.map(l=>`<li>${esc(l)}</li>`).join('');
+  $('codeShow').textContent = V.code; $('codeTop').classList.remove('hidden');
+
+  // handlingsfelt
+  const A = $('action'); let h='';
+  const myTurn = me && cur && me.id===cur.id;
+  const head = (cat, sub, gold) => `<div class="qhead ${gold?'gold':''}" style="${gold?'':'background:'+catById[cat].color}"><h3>${catById[cat].name}</h3><small>${sub}</small></div>`;
+  if(V.phase==='lobby'){
+    const link = location.origin + location.pathname + '?kode=' + V.code;
+    h = `<div class="qbody"><p class="q">Spillkode: <span class="bigcode">${V.code}</span></p>
+      <p class="who">Andre blir med ved å åpne siden og skrive inn koden, eller med denne lenken:</p>
+      <div class="row" style="margin-bottom:14px"><input class="myans" id="linkIn" readonly value="${esc(link)}" style="margin:0"><button class="btn" id="copyBtn" style="flex:0 0 auto;min-width:0">Kopier</button></div>
+      <p class="who">${V.players.length} av 6 spillere er med.</p>
+      ${isHost ? `<button class="primary" id="startBtn" ${V.players.length<2?'disabled':''}>Start spillet</button>${V.players.length<2?'<p class="who" style="margin-top:10px">Venter på minst en spiller til.</p>':''}` : `<p class="who">Venter på at verten starter spillet.</p>`}</div>`;
+  }
+  else if(V.phase==='roll'){
+    h = `<div class="qbody"><p class="q">${myTurn?'Din tur!':esc(cur.name)+' sin tur'}</p>${myTurn?`<button class="diebtn" id="rollBtn"><div class="die" id="die"></div><span>Kast terningen</span></button>`:`<p class="who">Venter på at ${esc(cur.name)} kaster terningen.</p>`}</div>`;
+  }
+  else if(V.phase==='level' || V.phase==='joker'){
+    const joker = V.phase==='joker';
+    if(myTurn){
+      h = `${joker?`<div class="qhead" style="background:var(--joker)"><h3>Joker</h3><small>Felt ${cur.pos}</small></div>`:head(V.boardCats[cur.pos],'Felt '+cur.pos)}<div class="qbody">
+        ${joker?`<p class="q">Velg kategori og nivå</p><div class="catpick">${CATS.map(c=>`<button style="background:${c.color}" aria-pressed="${pickCat===c.id}" data-c="${c.id}">${c.name}</button>`).join('')}</div>`:`<p class="q">Velg vanskelighetsgrad</p>`}
+        <div class="lvl">${Object.entries(LVL).map(([k,l])=>`<button class="btn" data-l="${k}" ${joker&&!pickCat?'disabled':''}>${l.name}<span>Riktig: ${l.win}. Feil: ${l.lose}.</span></button>`).join('')}</div></div>`;
+    } else h = `<div class="qbody"><p class="q">${esc(cur.name)} velger ${joker?'kategori og ':''}nivå</p><p class="who">${joker?'Jokerfelt':'Kategori: '+catById[V.boardCats[cur.pos]].name}.</p></div>`;
+  }
+  else if(V.phase==='answer' || V.phase==='judge'){
+    const q=V.q, fin=q.lvl==='f';
+    h = head(q.cat, fin?'Finale, gullfelt '+(cur.gold+1)+' av '+GOLD:LVL[q.lvl].name, fin) + `<div class="qbody"><p class="q">${esc(q.text)}</p><p class="who">Svarer: <b>${esc(cur.name)}</b></p>`;
+    if(V.phase==='answer'){
+      h += myTurn ? `<input class="myans" id="myans" placeholder="Skriv svaret ditt her" autocomplete="off" maxlength="200"><button class="${fin?'gold-btn':'primary'}" id="sendAns">Send svaret</button>`
+                  : `<p class="who">Venter på svaret fra ${esc(cur.name)}.</p>`;
+    } else {
+      h += `<div class="ans"><strong>${esc(cur.name)} svarte</strong>${esc(V.given)}</div>`;
+      if(myTurn) h += `<p class="who">De andre spillerne vurderer svaret ditt.</p>`;
+      else {
+        h += `<div class="ans"><strong>Fasit</strong>${esc(q.answer)}</div>`;
+        const voted = V.votes[myId];
+        h += voted===undefined ? `<p class="who">Er svaret riktig?</p><div class="row"><button class="btn ok" data-v="1">Riktig</button><button class="btn bad" data-v="0">Feil</button></div>`
+                               : `<p class="who">Du stemte ${voted?'riktig':'feil'}. Venter på de andre.</p>`;
+      }
+      const n = Object.keys(V.votes).length; h += `<p class="who" style="margin-top:10px">${n} stemme${n===1?'':'r'} avgitt.</p>`;
+    }
+    h += `</div>`;
+  }
+  else if(V.phase==='opponent'){
+    h = myTurn ? `<div class="qhead" style="background:var(--duel)"><h3>Duell</h3><small>Felt ${cur.pos}</small></div><div class="qbody"><p class="q">Hvem vil du utfordre?</p><div class="lvl">${V.players.filter(p=>p.id!==myId&&!p.inFinal&&p.online).map(p=>`<button class="btn" data-o="${esc(p.id)}"><span style="display:flex;gap:10px;align-items:center;color:var(--ink);font-weight:700"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span><span>${p.pos?'Felt '+p.pos:'Start'}</span></button>`).join('')}</div></div>`
+               : `<div class="qbody"><p class="q">${esc(cur.name)} velger motstander til duell</p></div>`;
+  }
+  else if(V.phase==='duel'){
+    const D=V.duel, inDuel = myId===D.a||myId===D.b, mine = myId===D.a?D.ga:D.gb;
+    h = `<div class="qhead" style="background:var(--duel)"><h3>Duell${D.round>1?' (ekstra spørsmål)':''}</h3><small>${esc(nm(D.a))} mot ${esc(nm(D.b))}</small></div><div class="qbody"><p class="q">${esc(D.text)}</p><p class="who">Nærmest vinner og går 3 felt frem.</p>`;
+    if(inDuel && !mine) h += `<input class="myans" id="guessIn" inputmode="decimal" placeholder="Din gjetning${D.unit?' ('+esc(D.unit)+')':''}" autocomplete="off"><button class="primary" id="sendGuess">Send gjetning</button>`;
+    else h += `<p class="who">${inDuel?'Gjetningen din er sendt. ':''}Venter på ${[D.ga?null:nm(D.a), D.gb?null:nm(D.b)].filter(Boolean).map(esc).join(' og ')}.</p>`;
+    h += `</div>`;
+  }
+  else if(V.phase==='win'){
+    h = `<div class="qhead gold"><h3>Vi har en vinner</h3></div><div class="win"><h3>${esc(V.winner)}</h3><p>kom først i mål.</p>${isHost?`<button class="primary" id="restart">Tilbake til lobbyen</button>`:'<p class="who">Verten kan starte et nytt spill.</p>'}</div>`;
+  }
+  // behold det spilleren holder på å skrive
+  const keep = {}; ['myans','guessIn'].forEach(id=>{ const el=$(id); if(el) keep[id]=el.value; });
+  const sig = V.phase+'|'+V.turn+'|'+(V.q?V.q.text:'')+'|'+(V.duel?V.duel.text+V.duel.ga+V.duel.gb:'')+'|'+JSON.stringify(V.votes)+'|'+pickCat+'|'+V.players.length;
+  if(A.dataset.sig!==sig){ A.innerHTML=h; A.dataset.sig=sig;
+    Object.entries(keep).forEach(([id,v])=>{ const el=$(id); if(el){ el.value=v; } });
+    wire(); }
+  const st = {lobby:'Lobby', roll:'Kast', level:'Velger nivå', joker:'Joker', answer:'Svarer', judge:'Vurdering', opponent:'Duell', duel:'Duell', win:'Ferdig'}[V.phase];
+  document.title = (myTurn && ['roll','level','joker','answer','opponent'].includes(V.phase) ? 'Din tur! ' : '') + 'Quizstigen';
+}
+let pickCat = null;
+function wire(){
+  const on=(id,f)=>{const el=$(id); if(el) el.onclick=f;};
+  on('startBtn',()=>send({a:'start'})); on('restart',()=>send({a:'restart'}));
+  on('copyBtn',()=>{ const i=$('linkIn'); i.select(); navigator.clipboard?.writeText(i.value); $('copyBtn').textContent='Kopiert'; });
+  on('rollBtn',()=>{ $('rollBtn').disabled=true; send({a:'roll'}); });
+  document.querySelectorAll('#action [data-c]').forEach(b=>b.onclick=()=>{ pickCat=b.dataset.c; render(); });
+  document.querySelectorAll('#action [data-l]').forEach(b=>b.onclick=()=>{ const c=pickCat; pickCat=null; send({a:'level', lvl:b.dataset.l, cat:c}); });
+  document.querySelectorAll('#action [data-o]').forEach(b=>b.onclick=()=>send({a:'opponent', id:b.dataset.o}));
+  document.querySelectorAll('#action [data-v]').forEach(b=>b.onclick=()=>send({a:'vote', ok:b.dataset.v==='1'}));
+  const sa=()=>{ const v=$('myans').value; if(!v.trim()) { $('myans').focus(); return; } $('sendAns').disabled=true; send({a:'answer', text:v}); };
+  on('sendAns',sa); const ma=$('myans'); if(ma){ ma.onkeydown=e=>{ if(e.key==='Enter') sa(); }; ma.focus(); }
+  const sg=()=>{ const v=$('guessIn').value; if(isNaN(parseFloat(v.replace(/\s/g,'').replace(',','.')))){ $('guessIn').focus(); return; } send({a:'guess', value:v}); };
+  on('sendGuess',sg); const gi=$('guessIn'); if(gi){ gi.onkeydown=e=>{ if(e.key==='Enter') sg(); }; gi.focus(); }
+}
+
+/* ---------- oppstart ---------- */
+if(params.get('kode')) $('codeIn').value = params.get('kode').toUpperCase();
+try { $('nameIn').value = localStorage.getItem('quizstigen-name') || ''; } catch(e){}
+$('nameIn').addEventListener('change', ()=>{ try{ localStorage.setItem('quizstigen-name', $('nameIn').value.trim()); }catch(e){} });
+$('hostBtn').onclick = hostGame;
+$('joinBtn').onclick = joinGame;
+$('codeIn').onkeydown = e=>{ if(e.key==='Enter') joinGame(); };
+window.addEventListener('beforeunload', e=>{ if(isHost && S && S.phase!=='lobby'){ e.preventDefault(); e.returnValue=''; } });
+if(typeof Peer==='undefined') showJoinError('Klarte ikke å laste nettverksbiblioteket. Sjekk internettforbindelsen.');
+
+</script>
+</body>
+</html>
