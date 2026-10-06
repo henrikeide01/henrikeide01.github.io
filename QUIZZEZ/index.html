@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.16.0/dist/mqtt.min.js"></script>
 <style>
 :root{
   --table:#1E3A5C; --table-2:#264A73; --paper:#F1F4F6; --ink:#17212E; --muted:#5B6878;
@@ -214,7 +214,7 @@ dialog::backdrop{background:rgba(8,18,30,.65)}
 
   <section class="join" id="join">
     <h2>Bli med i spillet</h2>
-    <p>Hver spiller bruker sin egen mobil eller PC. Én lager spillet, de andre blir med med koden.</p>
+    <p>Hver spiller bruker sin egen mobil eller PC. En lager spillet, de andre blir med med koden.</p>
     <div class="err hidden" id="joinErr"></div>
     <label>Navnet ditt<input id="nameIn" maxlength="16" autocomplete="nickname" placeholder="For eksempel Henrik"></label>
     <label>Spillkode<input id="codeIn" maxlength="4" autocomplete="off" placeholder="ABCD"></label>
@@ -272,8 +272,9 @@ const rnd = (a,b) => a+Math.floor(Math.random()*(b-a+1));
 const fmt = n => Number(n).toLocaleString('nb-NO');
 
 const params = new URLSearchParams(location.search);
-const PEER_OPTS = params.get('server') ? {host:params.get('server').split(':')[0], port:+(params.get('server').split(':')[1]||9000), path:'/', secure:false} : {};
-const ID_PREFIX = 'quizstigen-tromso-';
+const BROKERS = params.get('mqtt') ? [params.get('mqtt')] : ['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081'];
+const TOPIC = code => 'quizstigen-tromso/v2/' + code;
+const clientId = Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
 
 /* ---------- trekkbunker (bare hos verten) ---------- */
 let decks = {};
@@ -288,7 +289,7 @@ function drawFrom(key, pool){
 }
 
 /* ---------- nettverk ---------- */
-let peer = null, isHost = false, myId = null, hostConn = null;
+let mq = null, isHost = false, myId = null, hostConn = null;
 const conns = new Map();      // vert: peerId -> conn
 let S = null;                 // vertens fulle tilstand
 let V = null;                 // det denne enheten ser
@@ -297,41 +298,93 @@ function makeCode(){ const L='ABCDEFGHJKLMNPQRSTUVWXYZ'; let s=''; for(let i=0;i
 
 function showJoinError(msg){ $('joinErr').textContent = msg; $('joinErr').classList.remove('hidden'); $('hostBtn').disabled=false; $('joinBtn').disabled=false; }
 
+function mqConnect(idx, will, onOk, onFail){
+  let done = false;
+  const c = mqtt.connect(BROKERS[idx], {clientId:'qs_'+clientId+'_'+idx, keepalive:20, reconnectPeriod:2000, connectTimeout:6000, clean:true, will});
+  const t = setTimeout(()=>{ if(!done){ done=true; try{ c.end(true); }catch(e){} onFail(); } }, 7000);
+  c.on('connect', ()=>{ if(!done){ done=true; clearTimeout(t); onOk(c); } });
+  c.on('error', ()=>{});
+}
+function pub(topic, obj){ if(mq) try{ mq.publish(topic, JSON.stringify(obj), {qos:1}); }catch(e){} }
+function parse(buf){ try{ return JSON.parse(buf.toString()); }catch(e){ return null; } }
+
+/* ---------- vert ---------- */
 function hostGame(){
   const name = $('nameIn').value.trim();
   if(!name) return showJoinError('Skriv inn navnet ditt først.');
   $('hostBtn').disabled = true;
-  const code = makeCode();
-  peer = new Peer(ID_PREFIX + code, PEER_OPTS);
-  peer.on('open', () => {
-    isHost = true; myId = 'host';
+  try{ localStorage.setItem('quizstigen-name', name); }catch(e){}
+  tryHost(0, name, makeCode());
+}
+function tryHost(idx, name, code){
+  if(idx>=BROKERS.length) return showJoinError('Fikk ikke kontakt med spilltjeneren. Sjekk internett og prøv igjen.');
+  const T = TOPIC(code);
+  mqConnect(idx, {topic:T+'/down/all', payload:JSON.stringify({t:'hostgone'}), qos:1}, c=>{
+    mq = c; isHost = true; myId = 'host';
     S = { code, phase:'lobby', players:[{id:'host', name, color:PCOLORS[0], pos:0, inFinal:false, gold:0, online:true}],
           turn:0, cats:[...DEFAULT_CATS], boardCats:{}, goldOrder:[], die:0, rollSeq:0, dieBy:null, flash:null, q:null, given:null, votes:{}, duel:null, log:[], winner:null };
-    history.replaceState(null,'','?kode='+code + (params.get('server')?'&server='+params.get('server'):''));
-    peer.on('connection', c => { c.on('data', d => onClientMsg(c, d)); c.on('close', () => onClientClose(c)); });
+    const keep = (params.get('mqtt')?'&mqtt='+encodeURIComponent(params.get('mqtt')):'');
+    history.replaceState(null,'','?kode='+code+keep);
+    c.subscribe(T+'/up', {qos:1});
+    c.on('connect', ()=>{ c.subscribe(T+'/up', {qos:1}, ()=>broadcast()); });   // etter gjenoppkobling
+    c.on('message', (topic, buf)=>{ const d = parse(buf); if(d && d.from) onUp(d); });
+    setInterval(heartbeatCheck, 4000);
+    keepAwake();
     broadcast();
-  });
-  peer.on('error', e => { if(e.type==='unavailable-id'){ peer.destroy(); hostGame(); } else showJoinError('Fikk ikke kontakt med spilltjeneren ('+e.type+'). Prøv igjen.'); });
+  }, ()=>tryHost(idx+1, name, code));
+}
+function makeConn(id){
+  const c = {peer:id, open:true, send:m=>pub(TOPIC(S.code)+'/down/'+id, m), close(){ c.open=false; }};
+  return c;
+}
+function onUp(d){
+  const id = String(d.from);
+  if(d.t==='bye'){ const c = conns.get(id); if(c){ c.open=false; onClientClose(c); } return; }
+  let c = conns.get(id);
+  if(!c){
+    if(d.t==='join') c = makeConn(id);
+    else { pub(TOPIC(S.code)+'/down/'+id, {t:'rejoin'}); return; }   // ukjent avsender: be om ny innmelding
+  }
+  onClientMsg(c, d);
 }
 
+/* ---------- klient ---------- */
+let joinName = '', joinCode = '', pingTimer = null, everJoined = false, gotReply = false, joinTimer = null;
 function joinGame(){
   const name = $('nameIn').value.trim(), code = $('codeIn').value.trim().toUpperCase();
   if(!name) return showJoinError('Skriv inn navnet ditt først.');
   if(code.length!==4) return showJoinError('Spillkoden har fire bokstaver.');
-  $('joinBtn').disabled = true;
-  peer = new Peer(PEER_OPTS);
-  peer.on('open', () => {
-    hostConn = peer.connect(ID_PREFIX + code, {reliable:true});
-    const t = setTimeout(()=>showJoinError('Fant ikke spillet. Sjekk koden.'), 8000);
-    hostConn.on('open', () => { clearTimeout(t); hostConn.send({t:'join', name}); });
-    hostConn.on('data', d => {
-      if(d.t==='state'){ myId = d.you; onState(d.s); }
-      if(d.t==='error'){ showJoinError(d.msg); }
-      if(d.t==='end'){ ended=true; goHome('Verten avsluttet spillet.'); }
+  $('joinBtn').disabled = true; $('joinErr').classList.add('hidden');
+  joinName = name; joinCode = code; gotReply = false;
+  try{ localStorage.setItem('quizstigen-name', name); }catch(e){}
+  tryJoin(0);
+}
+function tryJoin(idx){
+  if(idx>=BROKERS.length) return showJoinError('Fant ikke spillet. Sjekk koden og at verten har siden åpen.');
+  const T = TOPIC(joinCode);
+  if(mq){ try{ mq.end(true); }catch(e){} mq = null; }
+  mqConnect(idx, {topic:T+'/up', payload:JSON.stringify({t:'bye', from:clientId}), qos:1}, c=>{
+    mq = c;
+    hostConn = {open:true, send:m=>pub(T+'/up', {...m, from:clientId})};
+    const sendJoin = () => hostConn.send({t:'join', name:joinName});
+    const sub = cb => c.subscribe([T+'/down/'+clientId, T+'/down/all'], {qos:1}, cb);
+    sub(sendJoin);
+    c.on('connect', ()=>{ if(everJoined) sub(sendJoin); });
+    c.on('offline', ()=>{ if(everJoined && !ended) setBanner('Mistet nettet. Kobler til igjen...'); });
+    c.on('message', (topic, buf)=>{
+      const d = parse(buf); if(!d) return;
+      if(d.t==='state'){ gotReply = true; everJoined = true; setBanner(''); myId = d.you; onState(d.s); }
+      else if(d.t==='error'){ gotReply = true; showJoinError(d.msg); }
+      else if(d.t==='rejoin'){ sendJoin(); }
+      else if(d.t==='end'){ ended = true; goHome('Verten avsluttet spillet.'); }
+      else if(d.t==='kicked'){ ended = true; goHome('Du ble koblet til fra en annen fane eller enhet med samme navn.'); }
+      else if(d.t==='hostgone'){ if(everJoined) setBanner('Verten mistet forbindelsen. Venter på at verten kommer tilbake...'); }
     });
-    hostConn.on('close', () => { if(ended) return; setBanner('Forbindelsen til verten ble brutt. Last inn siden på nytt for å koble til igjen.'); });
-  });
-  peer.on('error', e => { if(e.type==='peer-unavailable') showJoinError('Fant ikke spillet med den koden.'); else showJoinError('Nettverksfeil ('+e.type+').'); });
+    clearInterval(pingTimer);
+    pingTimer = setInterval(()=>{ if(c.connected) hostConn.send({t:'ping'}); }, 4000);
+    clearTimeout(joinTimer);
+    joinTimer = setTimeout(()=>{ if(!gotReply){ tryJoin(idx+1); } }, 6000);
+  }, ()=>tryJoin(idx+1));
 }
 
 function send(action){ if(isHost) handle('host', action); else if(hostConn && hostConn.open) hostConn.send({t:'act', ...action}); }
@@ -341,22 +394,44 @@ function onClientMsg(c, d){
   if(d.t==='join'){
     const name = String(d.name||'').trim().slice(0,16);
     if(!name){ c.send({t:'error', msg:'Ugyldig navn.'}); return; }
+    if(name.toLowerCase()===S.players.find(x=>x.id==='host').name.toLowerCase()){ c.send({t:'error', msg:'Det navnet bruker verten. Velg et annet.'}); return; }
     let p = S.players.find(x=>x.name.toLowerCase()===name.toLowerCase());
     if(p){
-      if(p.online){ c.send({t:'error', msg:'Navnet er allerede i bruk. Velg et annet.'}); return; }
-      p.online = true; p.id = c.peer;               // koble til på nytt
+      // samme navn: ta over plassen (for eksempel etter at mobilen sovnet eller siden ble lastet inn på nytt)
+      const old = conns.get(p.id);
+      if(old && old!==c){ conns.delete(p.id); try{ old.send({t:'kicked'}); }catch(e){} setTimeout(()=>{ try{ old.close(); }catch(e){} }, 300); }
+      const oldId = p.id; p.id = c.peer;
+      if(S.votes && S.votes[oldId]!==undefined){ S.votes[c.peer]=S.votes[oldId]; delete S.votes[oldId]; }
+      if(S.duel){ if(S.duel.a===oldId) S.duel.a=c.peer; if(S.duel.b===oldId) S.duel.b=c.peer; }
+      if(!p.online) log(`${p.name} er tilbake.`);
+      p.online = true;
     } else {
-      if(S.phase!=='lobby'){ c.send({t:'error', msg:'Spillet er allerede i gang.'}); return; }
-      if(S.players.length>=6){ c.send({t:'error', msg:'Spillet er fullt (maks 6).'}); return; }
-      S.players.push({id:c.peer, name, color:PCOLORS[S.players.length], pos:0, inFinal:false, gold:0, online:true});
-      log(`${name} ble med.`);
+      if(S.players.length>=6){ c.send({t:'error', msg:'Spillet er fullt (maks 6 spillere).'}); return; }
+      const used = new Set(S.players.map(x=>x.color));
+      const color = PCOLORS.find(x=>!used.has(x)) || PCOLORS[S.players.length%6];
+      S.players.push({id:c.peer, name, color, pos:0, inFinal:false, gold:0, done:false, place:0, online:true});
+      log(S.phase==='lobby' ? `${name} ble med.` : `${name} ble med underveis og starter på Start.`);
     }
+    lastSeen.set(c.peer, Date.now());
     conns.set(c.peer, c); broadcast(); return;
   }
+  lastSeen.set(c.peer, Date.now());
+  if(d.t==='ping') return;
   if(d.t==='act') handle(c.peer, d);
 }
+const lastSeen = new Map();
+function heartbeatCheck(){
+  const now = Date.now();
+  for(const [id,c] of [...conns]){ const t = lastSeen.get(id)||now; if(now-t > 15000){ try{ c.close(); }catch(e){} onClientClose(c); } }
+}
+let wakeLock = null;
+async function keepAwake(){
+  try{ if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); } }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState!=='visible') return; if(isHost) keepAwake(); try{ if(mq && !mq.connected) mq.reconnect(); }catch(e){} if(!isHost && everJoined && hostConn) hostConn.send({t:'join', name:joinName}); });
 function onClientClose(c){
-  conns.delete(c.peer);
+  if(conns.get(c.peer)!==c && !S.players.some(x=>x.id===c.peer && x.online)) { conns.delete(c.peer); return; }
+  conns.delete(c.peer); lastSeen.delete(c.peer);
   const p = S.players.find(x=>x.id===c.peer);
   if(!p) return;
   if(S.phase==='lobby'){ S.players = S.players.filter(x=>x!==p); S.players.forEach((x,i)=>x.color=PCOLORS[i]); }
@@ -747,8 +822,8 @@ function openMenu(){
 }
 function goHome(msg){
   try{ if(msg) sessionStorage.setItem('quizstigen-msg', msg); }catch(e){}
-  const keep = params.get('server') ? '?server='+params.get('server') : '';
-  try{ peer && peer.destroy(); }catch(e){}
+  const keep = params.get('mqtt') ? '?mqtt='+encodeURIComponent(params.get('mqtt')) : '';
+  try{ if(mq){ if(!isHost && hostConn) hostConn.send({t:'bye'}); setTimeout(()=>{ try{ mq.end(false); }catch(e){} },100); } }catch(e){}
   location.href = location.pathname + keep;
 }
 
@@ -762,7 +837,7 @@ try{ const m=sessionStorage.getItem('quizstigen-msg'); if(m){ showJoinError(m); 
 $('joinBtn').onclick = joinGame;
 $('codeIn').onkeydown = e=>{ if(e.key==='Enter') joinGame(); };
 window.addEventListener('beforeunload', e=>{ if(isHost && S && S.phase!=='lobby' && !ended){ e.preventDefault(); e.returnValue=''; } });
-if(typeof Peer==='undefined') showJoinError('Klarte ikke å laste nettverksbiblioteket. Sjekk internettforbindelsen.');
+if(typeof mqtt==='undefined') showJoinError('Klarte ikke å laste nettverksbiblioteket. Sjekk internettforbindelsen.');
 
 </script>
 </body>
