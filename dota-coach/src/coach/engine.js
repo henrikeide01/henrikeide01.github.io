@@ -9,7 +9,7 @@ import { percentileOf } from './percentile.js';
 import { fightAdvice } from './fight.js';
 import { MatchRecorder } from './recorder.js';
 import { SPIKE_ITEMS } from '../../data/knowledge.js';
-import { nextSkillPoint, talentAdvice, neutralAdvice } from './skills.js';
+import { nextSkillPoint, talentAdvice, neutralAdvice, neutralByTier } from './skills.js';
 
 export { percentileOf };
 
@@ -292,12 +292,11 @@ export class Coach {
         console.error('Nøytral-råd feilet:', err.message);
       }
     }
-    // No craft choice open: show which artifacts pros use in the current tier.
-    if (!out.neutral && stats?.neutrals?.length) {
-      const tierNow = [60, 35, 25, 15, 0].findIndex((m) => c.clock >= m * 60);
-      const tier = tierNow < 0 ? 1 : 5 - tierNow;
-      const list = stats.neutrals.filter((n) => n.tier === tier).slice(0, 4);
-      if (list.length) out.proNeutrals = { tier, items: list };
+    // No craft choice from the game: the best artifacts and enchantments for the tier that is open now
+    // (pro pick rates when OpenDota has them, otherwise by what the stats give this hero and role).
+    if (!out.neutral && ['laning', 'mid', 'late'].includes(c.phase)) {
+      const tier = [...(this.T.neutralTiers || [])].reverse().find((t) => c.clock >= t.at)?.tier || 1;
+      out.proNeutrals = neutralByTier({ tier, stats, itemDb: c.db, role: c.role, attr: c.heroAttr });
     }
     return out;
   }
@@ -487,7 +486,8 @@ export class Coach {
       inventory: { items: inv.inventory, backpack: inv.backpack, stash: inv.stash, neutral: inv.neutral },
       build: build ? { ...build, owned: [...inv.owned] } : null,
       buildStatus: heroName ? (meta ? (build ? 'ok' : 'none') : 'loading') : null,
-      skillsStatus: heroName ? (meta ? (meta.skills ? (meta.skills.games ? 'ok' : 'none') : 'error') : 'loading') : null,
+      skillsStatus: heroName ? (meta ? (meta.skills ? (meta.skills.games ? 'ok' : 'none') : meta.skillsError ? 'error' : 'loading') : 'loading') : null,
+      skillsError: meta?.skillsError || null,
       next,
       situational: situationalItems(enemies, role, d.itemDb).map((s) => ({ ...s, owned: inv.owned.has(s.item) })),
       enemies: enemies.map((e) => ({ name: e.name, dname: e.dname })),

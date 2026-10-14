@@ -1,7 +1,18 @@
 {
-  "version": "1.3.1",
+  "version": "1.3.2",
   "date": "2026-10-14",
   "changes": [
+    {
+      "version": "1.3.2",
+      "date": "2026-10-14",
+      "notes": [
+        "Skjermlesingen av draften er mye lettere: mindre skjermbilder, bare under draften og de første minuttene av kampen, og spillet hakker ikke.",
+        "Fungerer med to skjermer: appen leter på alle skjermene og husker hvilken Dota står på.",
+        "Nøytrale items vises alltid: beste artefakter og fortryllelse for helten og rollen din når en ny tier åpner.",
+        "Skill-data fra OpenDota hentes i egen kø med tidsgrense og prøves på nytt, så builds og draft-forslag ikke venter på dem.",
+        "Fikset at statsene til nøytrale items forsvant når appen hentet ferske item-data."
+      ]
+    },
     {
       "version": "1.3.1",
       "date": "2026-10-14",

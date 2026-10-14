@@ -333,6 +333,34 @@ export function neutralAdvice({ gsiNeutral, team, teamSlot, stats, itemDb, role,
   };
 }
 
+// Without a craft choice from the game (or without pro data): the artifacts of the current tier that fit the
+// hero best (pro pick rate first, then the stats), and the enchantments for the role.
+export function neutralByTier({ tier, stats, itemDb, role, attr }) {
+  const profile = enchantProfile(role, attr);
+  const pro = new Map((stats?.neutrals || []).map((n) => [n.name, n]));
+  const artifacts = Object.entries(itemDb.items)
+    .filter(([name, it]) => it.tier === tier && !name.startsWith('enhancement_') && !name.startsWith('recipe_'))
+    .map(([name, it]) => ({ name, dname: it.dname || name, pct: pro.get(name)?.pct ?? null, winPct: pro.get(name)?.winPct ?? null, score: artifactScore(it, profile, attr), stats: stat(it) }))
+    .filter((a) => a.pct != null || a.score > 0)
+    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || b.score - a.score)
+    .slice(0, 4);
+  const level = Math.min(4, Math.max(1, tier - 1));
+  const enchantments = Object.entries(itemDb.items)
+    .filter(([name]) => name.startsWith('enhancement_'))
+    .map(([name, it]) => ({ name, dname: it.dname || name, score: enchantScore(it, profile, level), stats: stat(it, level) }))
+    .filter((e) => e.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+  if (!artifacts.length && !enchantments.length) return null;
+  return {
+    tier,
+    items: artifacts,
+    enchantments,
+    source: artifacts.some((a) => a.pct != null) ? 'pro' : 'stats',
+    enchantmentReason: { core: 'gir mest skade og overlevelse for en kjerne', caster: 'gir mest til en spell-caster', offlane: 'gjør deg tøffest som offlaner', support: 'gir mest til en support (fart, liv og mana)' }[profile],
+  };
+}
+
 export function findMyNeutral(gsiNeutral, team, teamSlot) {
   if (!gsiNeutral) return null;
   const side = gsiNeutral[team === 'dire' ? 'team3' : 'team2'] || {};

@@ -242,3 +242,23 @@ test('the live coach names one talent everywhere, and gives time to skill after 
   assert.equal(s.skills.unspent, 1);
   assert.equal(s.skills.spent, 10);
 });
+
+test('neutral items without a choice from the game or pro data: best artifacts and enchantments for the tier', async () => {
+  const { neutralByTier } = await import('../src/coach/skills.js');
+  const n = neutralByTier({ tier: 2, stats: null, itemDb: db, role: 1, attr: 'agi' });
+  assert.equal(n.tier, 2);
+  assert.equal(n.source, 'stats');
+  assert.ok(n.items.length > 0 && n.items.every((a) => items[a.name]?.tier === 2));
+  assert.ok(n.enchantments.length > 0 && n.enchantments.every((e) => e.name.startsWith('enhancement_')));
+  // With pro data the pro favourites come first.
+  const p = neutralByTier({ tier: 3, stats, itemDb: db, role: 1, attr: 'agi' });
+  assert.equal(p.source, 'pro');
+  assert.equal(p.items[0].name, 'cloak_of_flames');
+});
+
+test('fresh item data from OpenDota keeps the neutral item stats', async () => {
+  const { compactItems } = await import('../src/opendota.js');
+  const c = compactItems({ enhancement_tough: { id: 1586, dname: 'Tough', attrib: [{ key: 'armor', display: '+ {value} Armor', value: '0 / 4' }] }, blink: { id: 1, dname: 'Blink Dagger', cost: 2250 } });
+  assert.deepEqual(c.enhancement_tough.attrib, [{ key: 'armor', display: '+ {value} Armor', value: '0 / 4' }]);
+  assert.equal(c.blink.attrib, undefined);
+});

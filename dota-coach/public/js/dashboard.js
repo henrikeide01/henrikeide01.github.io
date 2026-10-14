@@ -393,7 +393,8 @@ function renderSkills() {
     const msg = {
       loading: '<span class="spinner"></span> Henter skill-builds fra pro-kamper …',
       none: 'Ingen pro-data for skill-rekkefølge på denne helten ennå.',
-    }[state.skillsStatus] || 'Fant ingen skill-data for helten akkurat nå (OpenDota er utilgjengelig). Prøver igjen om litt.';
+    }[state.skillsStatus] ||
+      `Fant ingen skill-data for helten akkurat nå${state.skillsError ? ` (${esc(state.skillsError)})` : ''}. Prøver igjen om noen minutter.`;
     return patch(card, `<h3>Evner og talenter</h3><div class="muted">${msg}</div>`);
   }
   const n = sk.next;
@@ -443,11 +444,16 @@ function renderNeutral() {
     );
   }
   if (pro) {
+    const arts = (pro.items || [])
+      .map((x, i) => choiceRow(itemImg(x.name, x.dname, 'sm'), x.dname, [x.stats, x.winPct != null ? `${x.winPct} % seier` : ''].filter(Boolean).join(' · '), x.pct, i === 0, false))
+      .join('');
+    const ench = (pro.enchantments || []).map((e, i) => choiceRow(itemImg(e.name, e.dname, 'sm'), e.dname, e.stats, null, i === 0, false)).join('');
     return patch(
       card,
-      `<h3>Nøytrale items <span class="right faint">tier ${pro.tier} · pro-spillere</span></h3>${pro.items
-        .map((x) => choiceRow(itemImg(x.name, x.dname, 'sm'), x.dname, x.winPct != null ? `${x.winPct} % seier` : '', x.pct, false, false))
-        .join('')}<div class="muted" style="font-size:12.5px;margin-top:6px">Valgene dukker opp her når du kan lage et nøytralt item.</div>`,
+      `<h3>Nøytrale items <span class="right faint">tier ${pro.tier}${pro.source === 'pro' ? ' · pro-spillere' : ''}</span></h3>
+       ${arts ? `<div class="subhead">Beste artefakter for helten din${pro.source === 'pro' ? ' <span class="faint">(% = andel pro-spillere)</span>' : ''}</div>${arts}` : ''}
+       ${ench ? `<div class="subhead">Fortryllelse</div>${ench}` : ''}
+       <div class="muted" style="font-size:12.5px;margin-top:6px">${pro.source === 'pro' ? 'Artefaktene er sortert etter hva pro-spillere bruker.' : 'Sortert etter hva statsene gir helten og rollen din.'}${pro.enchantmentReason ? ` Fortryllelsen ${esc(pro.enchantmentReason)}.` : ''} Valgene fra spillet dukker opp her når du lager et nøytralt item.</div>`,
     );
   }
   patch(card, '');
@@ -1138,8 +1144,8 @@ function popList(title, list) {
     .join('')}</div>`;
 }
 
-function skillsHtml(sk) {
-  if (!sk?.games) return '';
+function skillsHtml(sk, err) {
+  if (!sk?.games) return err ? `<div class="notice warn" style="margin-top:12px">Fikk ikke hentet skill-rekkefølge og talenter fra OpenDota: ${esc(err)}</div>` : '';
   const strip = `<div class="subhead">Vanlig skill-rekkefølge <span class="faint">(${sk.games} pro-kamper)</span></div><div class="skill-strip">${sk.typical
     .map((t, i) => `<div class="st" title="${esc(`${i + 1}: ${t.dname} (${t.pct} %)`)}">${skillImg(t, 'sm')}<span>${i + 1}</span></div>`)
     .join('')}</div>`;
@@ -1180,7 +1186,7 @@ async function loadHeroBuild(name) {
       <div style="display:flex;gap:12px;align-items:center">${heroImg(name, h?.dname, 'lg')}<div><div class="hero-name">${esc(h?.dname || name)}</div>
       <div class="pos-badges" style="margin-top:6px">${(h?.positions || []).map((p, i) => `<span class="${i === 0 ? 'main' : ''}">Pos ${p}</span>`).join('')}</div></div></div>
       ${bench}
-      ${skillsHtml(data.skills)}
+      ${skillsHtml(data.skills, data.skillsError)}
       ${b ? popList('Startitems', b.start) + popList('Tidlig (0–10 min)', b.early) + popList('Midgame (10–25 min)', b.mid) + popList('Lategame (25+ min)', b.late) : `<div class="notice warn" style="margin-top:12px">Ingen build-data: ${esc(data.error || 'ukjent feil')}</div>`}`;
   } catch (err) {
     $('meta-build').innerHTML = `<h3>Build</h3><div class="notice warn">${esc(err.message)}</div>`;

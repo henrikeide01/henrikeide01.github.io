@@ -83,26 +83,59 @@ export async function startServer(opts = {}) {
 
   const heroMeta = new Map(); // name -> { build, benchmarks }
   const heroMetaPending = new Map();
-  function loadHeroMeta(name) {
-    if (heroMeta.has(name)) return Promise.resolve(heroMeta.get(name));
+  function loadHeroMeta(name, { force = false } = {}) {
+    if (!force && heroMeta.has(name)) return Promise.resolve(heroMeta.get(name));
     if (heroMetaPending.has(name)) return heroMetaPending.get(name);
     const hero = heroes.get(name);
     if (!hero) return Promise.resolve(null);
     const job = (async () => {
-      const [pop, bench, skillRows] = await Promise.allSettled([od.itemPopularity(hero.id), od.benchmarks(hero.id), od.heroSkillRows(hero.id)]);
-      const abilities = abilityData.heroes[name];
+      const [pop, bench] = await Promise.allSettled([od.itemPopularity(hero.id), od.benchmarks(hero.id)]);
+      const old = heroMeta.get(name);
       const meta = {
         build: pop.status === 'fulfilled' ? buildFromPopularity(pop.value, itemDb) : null,
         benchmarks: bench.status === 'fulfilled' ? bench.value?.result || null : null,
-        skills: skillRows.status === 'fulfilled' && abilities ? computeHeroSkills(skillRows.value, abilities, abilityData.ids, itemDb) : null,
+        // Pro skill builds come from the slow SQL explorer: loaded on the side, the build does not wait for them.
+        skills: old?.skills || null,
+        skillsError: old?.skillsError || null,
       };
       // Offline? Use what we got, but try again in a minute.
-      if (!meta.build || !meta.benchmarks || !meta.skills) meta.retryAt = Date.now() + 60000;
+      if (!meta.build || !meta.benchmarks) meta.retryAt = Date.now() + 60000;
       heroMeta.set(name, meta);
+      if (!meta.skills) loadHeroSkills(name, hero, meta);
       return meta;
     })().finally(() => heroMetaPending.delete(name));
     heroMetaPending.set(name, job);
     return job;
+  }
+
+  // Pro skill builds for a hero (skill order, talents, neutral items). Retries after 2, 5, 15, 30 … minutes.
+  const skillsTry = new Map(); // name -> { tries, nextAt, pending }
+  function loadHeroSkills(name, hero, meta) {
+    const t = skillsTry.get(name) || { tries: 0, nextAt: 0, pending: null };
+    if (t.pending) return t.pending;
+    if (Date.now() < t.nextAt) return Promise.resolve();
+    skillsTry.set(name, t);
+    t.pending = od
+      .heroSkillRows(hero.id)
+      .then((rows) => {
+        const abilities = abilityData.heroes[name];
+        if (!abilities) throw new Error('ukjente evner for helten');
+        meta.skills = computeHeroSkills(rows, abilities, abilityData.ids, itemDb);
+        meta.skillsError = null;
+        t.tries = 0;
+        recompute();
+      })
+      .catch((err) => {
+        t.tries++;
+        t.nextAt = Date.now() + [2, 5, 15, 30, 60][Math.min(t.tries - 1, 4)] * 60000;
+        meta.skillsError = err.message;
+        console.error(`Skill-data for ${name} feilet: ${err.message}`);
+        recompute();
+      })
+      .finally(() => {
+        t.pending = null;
+      });
+    return t.pending;
   }
 
   const matchupCache = new Map(); // enemy name -> rows
@@ -141,9 +174,11 @@ export async function startServer(opts = {}) {
     heroes,
     getHeroMeta: (name) => {
       const cached = heroMeta.get(name);
-      if (cached && !(cached.retryAt && Date.now() > cached.retryAt)) return cached;
-      if (cached) heroMeta.delete(name);
-      loadHeroMeta(name)
+      if (cached) {
+        if (!cached.skills && heroes.has(name)) loadHeroSkills(name, heroes.get(name), cached);
+        if (!(cached.retryAt && Date.now() > cached.retryAt)) return cached;
+      }
+      loadHeroMeta(name, { force: !!cached })
         .then(() => recompute())
         .catch(() => {});
       return cached || null;
@@ -550,12 +585,15 @@ export async function startServer(opts = {}) {
       const name = heroMatch[1];
       if (!heroes.has(name)) return send(res, 404, { error: 'Ukjent hero' });
       const meta = await loadHeroMeta(name).catch(() => null);
+      // The meta tab waits a little for the pro skill builds (they come from a slow query).
+      if (meta && !meta.skills) await Promise.race([loadHeroSkills(name, heroes.get(name), meta), new Promise((r) => setTimeout(r, 12000))]);
       const sk = meta?.skills;
       return send(res, 200, {
         hero: heroes.get(name),
         build: meta?.build || null,
         benchmarks: meta?.benchmarks || null,
         skills: sk ? { games: sk.games, typical: sk.typical, talents: sk.talents, neutrals: sk.neutrals.slice(0, 15) } : null,
+        skillsError: sk ? null : meta?.skillsError || null,
         error: meta?.build ? null : od.lastError,
       });
     }
@@ -746,7 +784,12 @@ export async function startServer(opts = {}) {
   if (!opts.noWarmup) od.items()
     .then((raw) => {
       const items = compactItems(raw);
-      if (Object.keys(items).length > 100) itemDb = new ItemDb({ ...bundledItems.items, ...items });
+      // Item by item, so fields the fresh data lacks (e.g. neutral item stats) are kept from the bundled data.
+      if (Object.keys(items).length > 100) {
+        const merged = { ...bundledItems.items };
+        for (const [name, it] of Object.entries(items)) merged[name] = { ...merged[name], ...it };
+        itemDb = new ItemDb(merged);
+      }
     })
     .catch(() => {});
 

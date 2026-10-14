@@ -154,6 +154,14 @@ export function mountOverlay(root) {
       if (a) rows.push(`<div class="ov-skill">${itemImg(a.name, a.dname, 'sm')}<div><span class="ov-muted">Artefakt T${nu.tier}:</span> <b>${esc(a.dname)}</b></div><span class="ov-pct">${a.pct != null ? `${a.pct} %` : ''}</span></div>`);
       if (e) rows.push(`<div class="ov-skill">${itemImg(e.name, e.dname, 'sm')}<div><span class="ov-muted">Fortryllelse:</span> <b>${esc(e.dname)}</b>${e.stats ? `<div class="ov-sub">${esc(e.stats)}</div>` : ''}</div><span class="ov-pct"></span></div>`);
     }
+    // A new neutral tier just opened (and the game shows no choice): the best picks for this hero.
+    const pn = sk?.proNeutrals;
+    const tierAt = { 1: 0, 2: 900, 3: 1500, 4: 2100, 5: 3600 }[pn?.tier];
+    if (!nu && pn && tierAt != null && state.clock - tierAt < 180 && state.clock >= tierAt) {
+      const a = pn.items?.[0];
+      const e = pn.enchantments?.[0];
+      if (a || e) rows.push(`<div class="ov-skill">${a ? itemImg(a.name, a.dname, 'sm') : itemImg(e.name, e.dname, 'sm')}<div><span class="ov-muted">Nøytralt T${pn.tier}:</span> <b>${esc([a?.dname, e?.dname].filter(Boolean).join(' + '))}</b></div><span class="ov-pct">${a?.pct != null ? `${a.pct} %` : ''}</span></div>`);
+    }
     patch(els.skills, rows.join(''));
 
     const n = state.next;

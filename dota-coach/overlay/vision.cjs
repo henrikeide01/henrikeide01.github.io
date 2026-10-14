@@ -11,7 +11,9 @@ const { pathToFileURL } = require('node:url');
 const CDN = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes';
 const DRAFT_PHASES = ['draft', 'strategy'];
 const GAME_PHASES = ['pregame', 'laning', 'mid', 'late'];
-const MAX_GAME_SCANS = 40; // in game: stop looking after ~3 minutes if not all heroes are found
+const MAX_GAME_SCANS = 12; // in game: only the first minutes (until all heroes are found), so the game stays smooth
+const GAME_SCAN_UNTIL = 150; // game clock seconds
+const MAX_CAPTURE_WIDTH = 1920; // portraits are big enough at 1080p; larger captures only cost time
 const KEEP_DEBUG = 6;
 
 const readJson = (file) => {
@@ -66,7 +68,6 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
   // Downloads go through Electron's network stack when available (uses the Windows proxy and certificates).
   const download = (url) => (net?.fetch ? net.fetch(url) : fetch(url));
   let preferredScreen = null; // the source where heroes were found this match (more than one monitor)
-  let tryScreen = 0;
 
   let PickTracker = null;
   let tracker = null;
@@ -150,12 +151,15 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
     if (failed.length) log(`  Bildegjenkjenning: mangler bilder for ${failed.length} helter (${failed.slice(0, 5).join(', ')} …)`);
   }
 
-  // All screens are captured at full resolution; returns the one to look at first, and the others.
+  // All screens are captured (at most 1920 px wide); returns the one to look at first, and the others.
   async function capture() {
     const displays = screen.getAllDisplays();
     status.displays = displays.length;
-    const width = Math.max(...displays.map((d) => Math.round(d.size.width * d.scaleFactor)));
-    const height = Math.max(...displays.map((d) => Math.round(d.size.height * d.scaleFactor)));
+    const fullW = Math.max(...displays.map((d) => Math.round(d.size.width * d.scaleFactor)));
+    const fullH = Math.max(...displays.map((d) => Math.round(d.size.height * d.scaleFactor)));
+    const k = Math.min(1, MAX_CAPTURE_WIDTH / fullW);
+    const width = Math.round(fullW * k);
+    const height = Math.round(fullH * k);
     const sources = (await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } })).filter((s) => !s.thumbnail.isEmpty());
     if (!sources.length) throw new Error('Fikk ikke tatt skjermbilde');
     const displayOf = (src) => displays.find((d) => String(d.id) === String(src.display_id)) || (sources.length === 1 ? displays[0] : null);
@@ -216,16 +220,18 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
     const shots = await capture();
     let shot = shots.first;
     let r = await detectOn(shot, phaseGroup);
-    // Nothing on this screen during the draft: try another monitor now and then (one per scan).
-    if (!r.result.heroes.length && phaseGroup === 'draft' && shots.others.length) {
-      const other = shots.others[tryScreen++ % shots.others.length];
-      const r2 = await detectOn(other, phaseGroup);
-      if (r2.result.heroes.length) {
-        shot = other;
-        r = r2;
-        preferredScreen = other.src.id;
+    // Nothing on this screen: look at the other monitors right away, and remember the one Dota is on.
+    if (!r.result.heroes.length && shots.others.length) {
+      for (const other of shots.others) {
+        const r2 = await detectOn(other, phaseGroup);
+        if (r2.result.heroes.length) {
+          shot = other;
+          r = r2;
+          break;
+        }
       }
-    } else if (r.result.heroes.length) preferredScreen = shot.src.id;
+    }
+    if (r.result.heroes.length) preferredScreen = shot.src.id;
     const { thumb, key, opts, result, layout } = r;
     status.screen = `${result.width}x${result.height}`;
     status.hint = r.flat
@@ -279,15 +285,16 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
         // A new match (or back in the menu): start over.
         if (tracker.confirmed.size) tracker.reset();
         gameScans = 0;
-        preferredScreen = null;
       }
       if (id) matchKey = id;
       const inDraft = DRAFT_PHASES.includes(st.phase);
-      const inGame = GAME_PHASES.includes(st.phase) && (st.draft?.enemies?.length || 0) < 5 && gameScans < MAX_GAME_SCANS;
+      const inGame =
+        GAME_PHASES.includes(st.phase) && (st.clock ?? 0) <= GAME_SCAN_UNTIL && (st.draft?.enemies?.length || 0) < 5 && gameScans < MAX_GAME_SCANS;
       if (inDraft || inGame || saveDebug) {
         if (inGame) gameScans++;
         await scan(inDraft ? 'draft' : 'game');
-        delay = inDraft ? 2000 : 5000;
+        // Once the slots are known a scan takes a few milliseconds, so the draft can be followed closely.
+        delay = inDraft ? (status.searched === 'layout' ? 1000 : 2000) : 8000;
       }
       status.error = null;
     } catch (err) {

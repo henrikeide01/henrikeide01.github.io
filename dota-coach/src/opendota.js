@@ -49,16 +49,30 @@ export class OpenDota {
     return run;
   }
 
-  async request(p) {
+  async request(p, timeoutMs = 20000) {
     const url = new URL(BASE + p);
     if (this.apiKey) url.searchParams.set('api_key', this.apiKey);
-    const res = await fetch(url, { headers: { 'User-Agent': 'dota-coach/1.0' }, signal: AbortSignal.timeout(20000) });
-    if (!res.ok) throw new Error(`OpenDota ${res.status} for ${p}`);
+    const res = await fetch(url, { headers: { 'User-Agent': 'dota-coach/1.0' }, signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) {
+      let detail = '';
+      try {
+        detail = (await res.json())?.err || '';
+      } catch {}
+      throw new Error(`OpenDota ${res.status}${detail ? ` (${String(detail).slice(0, 120)})` : ''} for ${p.slice(0, 60)}`);
+    }
     return res.json();
   }
 
+  // The SQL explorer is slow (seconds) and must not hold up builds and matchups: it gets its own queue.
+  explorerThrottled(fn) {
+    const run = (this.explorerChain || Promise.resolve()).then(fn);
+    this.explorerChain = run.catch(() => {});
+    return run;
+  }
+
   // key: name of the cache/fixture file (defaults to a name derived from the path).
-  async get(p, ttl, { key = null } = {}) {
+  // valid(data): false = an error answer that must not be cached. explorer: use the explorer queue.
+  async get(p, ttl, { key = null, valid = null, explorer = false } = {}) {
     const name = key || safeName(p);
     if (this.fixturesDir) {
       const file = path.join(this.fixturesDir, `${name}.json`);
@@ -70,8 +84,9 @@ export class OpenDota {
     if (cached && Date.now() - cached.fetchedAt < ttl) return cached.data;
 
     if (this.inflight.has(p)) return this.inflight.get(p);
-    const job = this.throttled(() => this.request(p))
+    const job = (explorer ? this.explorerThrottled(() => this.request(p, 35000)) : this.throttled(() => this.request(p)))
       .then((data) => {
+        if (valid && !valid(data)) throw new Error(`OpenDota ga et ugyldig svar for ${p.slice(0, 60)}: ${String(data?.err || 'ingen rader').slice(0, 120)}`);
         this.online = true;
         this.lastError = null;
         fs.writeFileSync(file, JSON.stringify({ fetchedAt: Date.now(), data }));
@@ -109,13 +124,29 @@ export class OpenDota {
   }
 
   // Skill orders, talents and neutral items from recent pro games with this hero (OpenDota SQL explorer).
-  heroSkillRows(heroId) {
+  // The newest 400 games are picked first (cheap: by hero and match id), then joined for the result. If that
+  // query fails, a simpler one without the win/loss is tried.
+  async heroSkillRows(heroId) {
     const id = Number(heroId);
-    const sql = `SELECT pm.ability_upgrades_arr AS a, pm.item_neutral AS n, ((pm.player_slot < 128) = m.radiant_win) AS w
-      FROM player_matches pm JOIN matches m USING(match_id)
-      WHERE pm.hero_id = ${id} AND pm.ability_upgrades_arr IS NOT NULL AND m.start_time > extract(epoch from now() - interval '150 days')
-      ORDER BY pm.match_id DESC LIMIT 400`;
-    return this.get(`/explorer?sql=${encodeURIComponent(sql.replace(/\s+/g, ' '))}`, TTL.skills, { key: `explorer_skills_${id}` }).then((r) => r?.rows || []);
+    const queries = [
+      `WITH pm AS (SELECT match_id, player_slot, ability_upgrades_arr, item_neutral FROM player_matches
+         WHERE hero_id = ${id} AND ability_upgrades_arr IS NOT NULL ORDER BY match_id DESC LIMIT 400)
+       SELECT pm.ability_upgrades_arr AS a, pm.item_neutral AS n, ((pm.player_slot < 128) = m.radiant_win) AS w
+       FROM pm JOIN matches m USING(match_id)`,
+      `SELECT ability_upgrades_arr AS a, item_neutral AS n FROM player_matches
+       WHERE hero_id = ${id} AND ability_upgrades_arr IS NOT NULL ORDER BY match_id DESC LIMIT 300`,
+    ];
+    const valid = (r) => Array.isArray(r?.rows) && r.rows.length > 0 && !r.err;
+    let lastErr = null;
+    for (const [i, sql] of queries.entries()) {
+      try {
+        const r = await this.get(`/explorer?sql=${encodeURIComponent(sql.replace(/\s+/g, ' '))}`, TTL.skills, { key: `explorer_skills${i ? `_simple` : ''}_${id}`, valid, explorer: true });
+        if (r?.rows?.length) return r.rows;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error('Ingen skill-data fra OpenDota');
   }
 
   match(matchId) {
@@ -147,6 +178,10 @@ export function compactItems(raw) {
       ...(it.tier ? { tier: it.tier } : {}),
       ...(it.created ? { created: true } : {}),
       ...(Array.isArray(it.components) && it.components.some(Boolean) ? { comp: it.components.filter(Boolean) } : {}),
+      // Stats of neutral artifacts and enchantments, used to recommend them (same as tools/build-data.js).
+      ...((it.tier || name.startsWith('enhancement_')) && Array.isArray(it.attrib)
+        ? { attrib: it.attrib.map((a) => ({ key: a.key, display: a.display, value: a.value })).filter((a) => a.key) }
+        : {}),
     };
   }
   return items;
