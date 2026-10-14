@@ -196,14 +196,10 @@ function drawPortrait(scr, img, x, y, w, h, rand, dead) {
   }
 }
 
-// A fake screen: dark textured "game world" with noise, a top bar with a clock in the middle and 5 + 5 portrait
-// slots (with health and mana bars) left and right of it. slots: 10 hero images or null (empty), left side first.
-// scale: portrait height / screen height. Returns the screen (rgba) and the slot rectangles.
-function makeScreen(W, H, { slots, scale = 0.033, gapFrac = 0.07, clockFrac = 1.5, dead = -1, seed = 1 }) {
-  const rand = mulberry32(seed);
-  const scr = { width: W, height: H, data: new Uint8Array(W * H * 4), format: 'rgba' };
-  // Game world: a coarse grid of dark random colours, interpolated, plus noise. Blobs about portrait-sized, which
-  // makes it a hard background for a detector of smooth images.
+// The default game world: a coarse grid of dark random colours, interpolated, plus noise. Blobs about
+// portrait-sized, which makes it a hard background for a detector of smooth images.
+function darkWorld(scr, rand) {
+  const { width: W, height: H } = scr;
   const cell = Math.max(16, Math.round(H / 30));
   const gw = Math.ceil(W / cell) + 2;
   const gh = Math.ceil(H / cell) + 2;
@@ -226,6 +222,161 @@ function makeScreen(W, H, { slots, scale = 0.033, gapFrac = 0.07, clockFrac = 1.
       scr.data[o + 3] = 255;
     }
   }
+}
+
+// A bright, busy game world (snow map, spell effects, a crowded team fight): bright saturated colour cells with
+// hard edges, smooth blobs, thin lines and strong noise. Only the top 15% of the screen is drawn busy (the
+// detector never looks lower); the rest stays a flat mid grey.
+function brightWorld(scr, rand) {
+  const { width: W, height: H } = scr;
+  const yMax = Math.min(H, Math.ceil(H * 0.15));
+  fillRect(scr, 0, 0, W, H, [128, 128, 128]);
+  const cell = Math.max(6, Math.round(H / 70));
+  for (let y = 0; y < yMax; y += cell) {
+    for (let x = 0; x < W; x += cell) {
+      const c = [70 + rand() * 185, 70 + rand() * 185, 70 + rand() * 185];
+      fillRect(scr, x, y, cell, cell, c, 14, rand);
+    }
+  }
+  const area = W * yMax;
+  const count = Math.round(area / (H * H * 0.002));
+  for (let i = 0; i < count; i++) {
+    const s = shape(rand);
+    const cx = rand() * W;
+    const cy = rand() * yMax;
+    const sz = H * (0.01 + rand() * 0.05);
+    const col = [120 + rand() * 135, 120 + rand() * 135, 120 + rand() * 135];
+    const ca = Math.cos(s.rot);
+    const sa = Math.sin(s.rot);
+    for (let y = Math.max(0, Math.floor(cy - sz)); y < Math.min(yMax, Math.ceil(cy + sz)); y++) {
+      for (let x = Math.max(0, Math.floor(cx - sz)); x < Math.min(W, Math.ceil(cx + sz)); x++) {
+        const u = ((x - cx) * ca + (y - cy) * sa) / sz;
+        const v = (-(x - cx) * sa + (y - cy) * ca) / sz;
+        const inside = s.kind === 'stripe' ? Math.abs(v) < 0.08 : s.kind === 'rect' ? Math.max(Math.abs(u), Math.abs(v) * 1.6) < 0.8 : u * u + v * v * 2 < 0.8;
+        if (inside) put(scr, x, y, col[0], col[1], col[2]);
+      }
+    }
+  }
+}
+
+// Standard JPEG quantisation tables (luma, chroma).
+const JPEG_Y = [
+  16, 11, 10, 16, 24, 40, 51, 61, 12, 12, 14, 19, 26, 58, 60, 55, 14, 13, 16, 24, 40, 57, 69, 56, 14, 17, 22, 29, 51, 87, 80, 62, 18, 22, 37, 56,
+  68, 109, 103, 77, 24, 35, 55, 64, 81, 104, 113, 92, 49, 64, 78, 87, 103, 121, 120, 101, 72, 92, 95, 98, 112, 100, 103, 99,
+];
+const JPEG_C = [17, 18, 24, 47, 99, 99, 99, 99, 18, 21, 26, 66, 99, 99, 99, 99, 24, 26, 56, 99, 99, 99, 99, 99, 47, 66, 99, 99, ...Array(36).fill(99)];
+const DCT = Float64Array.from({ length: 64 }, (_, i) => {
+  const [u, x] = [i >> 3, i & 7];
+  return (u ? Math.sqrt(2 / 8) : Math.sqrt(1 / 8)) * Math.cos(((2 * x + 1) * u * Math.PI) / 16);
+});
+
+// 8x8 DCT, quantise with table q, inverse DCT, for every block of a w x h plane (in place).
+function quantiseBlocks(plane, w, h, q) {
+  const blk = new Float64Array(64);
+  const tmp = new Float64Array(64);
+  for (let by = 0; by < h; by += 8) {
+    for (let bx = 0; bx < w; bx += 8) {
+      for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) blk[j * 8 + i] = plane[Math.min(h - 1, by + j) * w + Math.min(w - 1, bx + i)] - 128;
+      // Forward: rows then columns.
+      for (let j = 0; j < 8; j++) for (let u = 0; u < 8; u++) {
+        let s = 0;
+        for (let x = 0; x < 8; x++) s += DCT[u * 8 + x] * blk[j * 8 + x];
+        tmp[j * 8 + u] = s;
+      }
+      for (let u = 0; u < 8; u++) for (let v = 0; v < 8; v++) {
+        let s = 0;
+        for (let y = 0; y < 8; y++) s += DCT[v * 8 + y] * tmp[y * 8 + u];
+        blk[v * 8 + u] = Math.round(s / q[v * 8 + u]) * q[v * 8 + u];
+      }
+      // Inverse.
+      for (let v = 0; v < 8; v++) for (let x = 0; x < 8; x++) {
+        let s = 0;
+        for (let u = 0; u < 8; u++) s += DCT[u * 8 + x] * blk[v * 8 + u];
+        tmp[v * 8 + x] = s;
+      }
+      for (let y = 0; y < 8 && by + y < h; y++) for (let x = 0; x < 8 && bx + x < w; x++) {
+        let s = 0;
+        for (let v = 0; v < 8; v++) s += DCT[v * 8 + y] * tmp[v * 8 + x];
+        plane[(by + y) * w + bx + x] = s + 128;
+      }
+    }
+  }
+}
+
+// JPEG-like compression of the top rows [0, yMax) of an rgba screen at the given quality (1..100): YCbCr, chroma
+// averaged over 2x2 pixels (4:2:0), 8x8 DCT blocks quantised with the standard tables. Blocky, with ringing.
+function jpegify(scr, yMax, quality) {
+  const W = scr.width;
+  const H = Math.min(scr.height, yMax);
+  const f = quality < 50 ? 5000 / quality : 200 - 2 * quality;
+  const table = (t) => t.map((v) => Math.max(1, Math.floor((v * f + 50) / 100)));
+  const Y = new Float64Array(W * H);
+  const cw = Math.ceil(W / 2);
+  const ch = Math.ceil(H / 2);
+  const Cb = new Float64Array(cw * ch);
+  const Cr = new Float64Array(cw * ch);
+  const cn = new Float64Array(cw * ch);
+  const d = scr.data;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 4;
+      const [R, G, B] = [d[o], d[o + 1], d[o + 2]];
+      Y[y * W + x] = 0.299 * R + 0.587 * G + 0.114 * B;
+      const c = (y >> 1) * cw + (x >> 1);
+      Cb[c] += 128 - 0.168736 * R - 0.331264 * G + 0.5 * B;
+      Cr[c] += 128 + 0.5 * R - 0.418688 * G - 0.081312 * B;
+      cn[c]++;
+    }
+  }
+  for (let i = 0; i < cn.length; i++) {
+    Cb[i] /= cn[i];
+    Cr[i] /= cn[i];
+  }
+  quantiseBlocks(Y, W, H, table(JPEG_Y));
+  quantiseBlocks(Cb, cw, ch, table(JPEG_C));
+  quantiseBlocks(Cr, cw, ch, table(JPEG_C));
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 4;
+      const c = (y >> 1) * cw + (x >> 1);
+      const [l, cb, cr] = [Y[y * W + x], Cb[c] - 128, Cr[c] - 128];
+      d[o] = clamp255(Math.round(l + 1.402 * cr));
+      d[o + 1] = clamp255(Math.round(l - 0.344136 * cb - 0.714136 * cr));
+      d[o + 2] = clamp255(Math.round(l + 1.772 * cb));
+    }
+  }
+}
+
+// A fake screen: dark textured "game world" with noise, a top bar with a clock in the middle and 5 + 5 portrait
+// slots (with health and mana bars) left and right of it. slots: 10 hero images or null (empty), left side first.
+// scale: portrait height / screen height. Returns the screen (rgba) and the slot rectangles.
+// Harder variants (all off by default; they draw from their own random sequence, so a screen with none of them is
+// the same as before they existed):
+//   top: y of the portraits as a fraction of the height (the HUD sits lower, game world above it)
+//   titleBar: px of a light window title bar at the very top (windowed mode); the HUD starts below it
+//   yJitter: every portrait shifted down by 0..yJitter px, independently
+//   frame: px of HUD frame drawn over the edge of every portrait, with a dark line around it
+//   background: 'dark' (default) or 'bright' (bright, saturated and busy)
+//   jpeg: JPEG quality (e.g. 35): the top of the screen gets 8x8 DCT blocks and 4:2:0 chroma
+//   extras: [{ image, x, y, h }] hero art drawn outside the bar (x, y: top left as fractions of the screen; h: px)
+function makeScreen(W, H, opts) {
+  const { slots, scale = 0.033, gapFrac = 0.07, clockFrac = 1.5, dead = -1, seed = 1 } = opts;
+  const { top: topFrac, titleBar = 0, yJitter = 0, frame = 0, background = 'dark', jpeg = 0, extras = [] } = opts;
+  const rand = mulberry32(seed);
+  const rand2 = mulberry32(seed ^ 0x5bd1e995);
+  const scr = { width: W, height: H, data: new Uint8Array(W * H * 4), format: 'rgba' };
+  if (background === 'bright') brightWorld(scr, rand);
+  else darkWorld(scr, rand);
+  if (titleBar) {
+    // Windowed mode: a light title bar with dark "text" and window buttons.
+    fillRect(scr, 0, 0, W, titleBar, [236, 236, 240], 1, rand2);
+    for (let x = 12; x < W * 0.3; x += 9 + Math.round(rand2() * 6)) fillRect(scr, x, titleBar * 0.3, 6, titleBar * 0.4, [40, 40, 40]);
+    for (let i = 1; i <= 3; i++) fillRect(scr, W - i * titleBar * 1.6, titleBar * 0.25, titleBar * 0.5, titleBar * 0.5, [90, 90, 90]);
+  }
+  for (const e of extras) {
+    const ew = Math.round((e.h * 16) / 9);
+    drawPortrait(scr, e.image, Math.round(e.x * W), Math.round(e.y * H), ew, Math.round(e.h), rand2, false);
+  }
 
   const ph = Math.round(scale * H);
   const pw = Math.round((ph * 16) / 9);
@@ -233,14 +384,16 @@ function makeScreen(W, H, { slots, scale = 0.033, gapFrac = 0.07, clockFrac = 1.
   const pitch = pw + gap;
   const clockW = Math.round(clockFrac * pw);
   const cx = W / 2;
-  const top = Math.max(1, Math.round(0.002 * H));
+  const inset = Math.max(1, Math.round(0.002 * H));
+  const top = topFrac != null ? Math.round(topFrac * H) : titleBar + inset;
+  const barY = top - inset;
   const barH = Math.round(ph * 1.45);
   const barHalf = clockW / 2 + 5 * pitch + gap * 3;
-  fillRect(scr, cx - barHalf, 0, barHalf * 2, barH, [24, 28, 34], 3, rand);
-  fillRect(scr, cx - clockW / 2, 0, clockW, barH * 1.3, [44, 48, 58], 3, rand);
+  fillRect(scr, cx - barHalf, barY, barHalf * 2, barH, [24, 28, 34], 3, rand);
+  fillRect(scr, cx - clockW / 2, barY, clockW, barH * 1.3, [44, 48, 58], 3, rand);
   const dh = Math.round(ph * 0.45);
   const dw = Math.max(3, Math.round(dh * 0.55));
-  for (let i = 0; i < 4; i++) digit(scr, Math.round(cx - 2 * (dw + 2) + i * (dw + 2) + (i > 1 ? 3 : 0)), Math.round(barH * 0.75), dw, dh, [230, 230, 220]);
+  for (let i = 0; i < 4; i++) digit(scr, Math.round(cx - 2 * (dw + 2) + i * (dw + 2) + (i > 1 ? 3 : 0)), Math.round(barY + barH * 0.75), dw, dh, [230, 230, 220]);
   fillRect(scr, cx - ph * 0.2, top, ph * 0.4, ph * 0.4, [230, 200, 80]); // day/night sun
 
   const rects = [];
@@ -248,13 +401,27 @@ function makeScreen(W, H, { slots, scale = 0.033, gapFrac = 0.07, clockFrac = 1.
     const left = k < 5;
     const slot = k % 5;
     const x = Math.round(left ? cx - clockW / 2 - (5 - slot) * pitch : cx + clockW / 2 + gap + slot * pitch);
-    rects.push({ x, y: top, w: pw, h: ph, side: left ? 'left' : 'right', slot });
+    const y = top + (yJitter ? Math.floor(rand2() * (yJitter + 1)) : 0);
+    rects.push({ x, y, w: pw, h: ph, side: left ? 'left' : 'right', slot });
     const hp = Math.max(2, Math.round(ph * 0.09));
-    fillRect(scr, x, top + ph + 1, pw, hp, [40, 170, 60]);
-    fillRect(scr, x, top + ph + 2 + hp, pw, Math.max(2, Math.round(ph * 0.07)), [50, 90, 200]);
-    if (slots[k]) drawPortrait(scr, slots[k], x, top, pw, ph, rand, k === dead);
-    else fillRect(scr, x, top, pw, ph, [16, 18, 22], 2, rand);
+    fillRect(scr, x, y + ph + 1, pw, hp, [40, 170, 60]);
+    fillRect(scr, x, y + ph + 2 + hp, pw, Math.max(2, Math.round(ph * 0.07)), [50, 90, 200]);
+    if (slots[k]) drawPortrait(scr, slots[k], x, y, pw, ph, rand, k === dead);
+    else fillRect(scr, x, y, pw, ph, [16, 18, 22], 2, rand);
+    if (frame) {
+      // HUD frame: a bevelled gold-ish border over the outer `frame` px of the portrait, a dark line around it.
+      const col = [150 + rand2() * 30, 120 + rand2() * 20, 60];
+      fillRect(scr, x - 1, y - 1, pw + 2, 1, [8, 8, 10]);
+      fillRect(scr, x - 1, y + ph, pw + 2, 1, [8, 8, 10]);
+      fillRect(scr, x - 1, y - 1, 1, ph + 2, [8, 8, 10]);
+      fillRect(scr, x + pw, y - 1, 1, ph + 2, [8, 8, 10]);
+      fillRect(scr, x, y, pw, frame, col, 6, rand2);
+      fillRect(scr, x, y + ph - frame, pw, frame, col.map((v) => v * 0.6), 6, rand2);
+      fillRect(scr, x, y, frame, ph, col, 6, rand2);
+      fillRect(scr, x + pw - frame, y, frame, ph, col.map((v) => v * 0.6), 6, rand2);
+    }
   }
+  if (jpeg) jpegify(scr, Math.min(H, Math.ceil((H * 0.16) / 16) * 16), jpeg);
   return { screen: scr, rects };
 }
 

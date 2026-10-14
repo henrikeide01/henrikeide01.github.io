@@ -42,13 +42,28 @@ export const DEFAULTS = {
   maxCandidates: 40, // candidates (best 16x9 score first) that get the fine pass
   minContrast: 6, // windows flatter than this (std of luma, 0..255) are skipped: empty bar, plain UI
   jitter: 0.12, // layout path: how far (fraction of the portrait height) a portrait may have moved
-  fallback: true, // layout path: run a full search when no slot holds a hero (the layout is stale)
+  // Layout path: with fewer heroes than minLayoutHeroes at the learned slots the layout may be stale (another game
+  // mode's draft screen, a moved HUD) and a patch of whatever is there now can pass for a hero, so a full search runs
+  // too and the answer with more heroes (then more total score) is used. fallback: false turns this off.
+  fallback: true,
+  minLayoutHeroes: 3,
   debug: false, // full search: add result.debug (candidate counts, time per stage, best candidates)
 };
 
 const SHORTLIST = 6; // heroes per window that the position/size refinement optimises for
 const ROBUST_TOP = 12; // heroes per window that get the robust (overlay-tolerant) score at a known slot
 const CLEAR_MATCH = 0.9; // plain score above which that robust second look is skipped (it only helps weak matches)
+// Robust score (known slots only): fit ** ROBUST_POWER, scaled by how far the hero is ahead of the best hero that
+// does not look like it (full credit from a lead of DISTINCT_LEAD in robust NCC). Ignoring the pixels that do not
+// fit lets almost any hero fit a patch of game world or an unknown hero's portrait fairly well, but then many
+// unrelated heroes fit about equally well; under a respawn timer the right hero still stands out clearly.
+const ROBUST_POWER = 1.5;
+const DISTINCT_LEAD = 0.2;
+// Two heroes whose grey 32x18 images correlate above this are look-alikes: they do not count against each other's
+// lead (either may be the one on screen; the better fit wins).
+const RELATED = 0.7;
+// Least weight of a pixel outside the overlay areas (overlayMask) in the robust NCC.
+const OVERLAY_FLOOR = 1;
 // A window with less than this share of the hero image's contrast (luma std) is scored down: portraits are
 // full-contrast UI images, a dim patch of game world is not. Lower at a known slot: dead heroes are darkened.
 const MIN_CONTRAST_RATIO = 0.5;
@@ -255,11 +270,41 @@ function colourfulness(r, g, b, y, n) {
   return Math.sqrt(c / n) / Math.sqrt(Math.max(varY, 1));
 }
 
+// The k-th smallest (0-based) of the first n values of a, by quickselect (a stays as it is).
+let selBuf = new Float32Array(0);
+function kth(a, n, k) {
+  if (selBuf.length < n) selBuf = new Float32Array(n);
+  const v = selBuf;
+  for (let i = 0; i < n; i++) v[i] = a[i];
+  let lo = 0;
+  let hi = n - 1;
+  while (lo < hi) {
+    const pivot = v[(lo + hi) >> 1];
+    let i = lo;
+    let j = hi;
+    while (i <= j) {
+      while (v[i] < pivot) i++;
+      while (v[j] > pivot) j--;
+      if (i <= j) {
+        const t = v[i];
+        v[i++] = v[j];
+        v[j--] = t;
+      }
+    }
+    if (k <= j) hi = j;
+    else if (k >= i) lo = i;
+    else break;
+  }
+  return v[k];
+}
+
 // NCC that ignores pixels which do not fit: iteratively reweighted least squares with Tukey's biweight on the
-// residuals of the best linear fit x ~ a + b*t (scale from the median absolute residual). A respawn timer, a cursor
-// or another overlay on part of a portrait then barely lowers the score. Writes the pixel weights (0..1) into w and
-// returns { ncc, coverage } (coverage = mean weight, 1 when every pixel fits). x, t: zero-mean unit vectors.
-function robustNcc(x, t, off, n, w, res) {
+// residuals of the best linear fit x ~ a + b*t (scale from the median absolute residual). A respawn timer or a HUD
+// frame over part of a portrait then barely lowers the score. floor (optional): per pixel, the least weight it may
+// get; 1 where no overlay can be, so the fit cannot explain away the parts in which two heroes differ. Writes the
+// pixel weights (0..1) into w and returns { ncc, coverage } (coverage = mean weight, 1 when every pixel fits).
+// x, t: zero-mean unit vectors.
+function robustNcc(x, t, off, n, w, res, floor = null) {
   for (let i = 0; i < n; i++) w[i] = 1;
   let ncc = 0;
   for (let it = 0; it < 4; it++) {
@@ -288,11 +333,11 @@ function robustNcc(x, t, off, n, w, res) {
     if (it === 3) break;
     const beta = ctt > 0 ? cxt / ctt : 0;
     for (let i = 0; i < n; i++) res[i] = Math.abs(x[i] - mx - beta * (t[off + i] - mt));
-    const sorted = res.slice(0, n).sort();
-    const c = 4.685 * 1.4826 * Math.max(sorted[n >> 1], 1e-4);
+    const c = 4.685 * 1.4826 * Math.max(kth(res, n, n >> 1), 1e-4);
     for (let i = 0; i < n; i++) {
       const u = res[i] / c;
       w[i] = u < 1 ? (1 - u * u) ** 2 : 0;
+      if (floor && w[i] < floor[i]) w[i] = floor[i];
     }
   }
   let sw = 0;
@@ -332,12 +377,17 @@ function weightedNcc(x, t, off, n, planes, w) {
   return cxx > 0 && ctt > 0 ? cxt / Math.sqrt(cxx * ctt) : 0;
 }
 
-// Pixels of a w x h patch that a respawn timer (centred text on a dead hero's portrait) may cover: the middle half
-// of the width and 70% of the height.
-function centreMask(w, h) {
+// Pixels of a w x h patch that an overlay may cover: the respawn timer (centred text on a dead hero's portrait: the
+// middle half of the width and 70% of the height) and the outermost pixel ring (a HUD frame, or the edge of the
+// slot reaching into the portrait).
+function overlayMask(w, h) {
   const mask = new Uint8Array(w * h);
-  for (let y = Math.floor(h * 0.15); y < Math.ceil(h * 0.85); y++) {
-    for (let x = Math.floor(w * 0.25); x < Math.ceil(w * 0.75); x++) mask[y * w + x] = 1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const centre = y >= Math.floor(h * 0.15) && y < Math.ceil(h * 0.85) && x >= Math.floor(w * 0.25) && x < Math.ceil(w * 0.75);
+      const edge = x === 0 || y === 0 || x === w - 1 || y === h - 1;
+      mask[y * w + x] = centre || edge ? 1 : 0;
+    }
   }
   return mask;
 }
@@ -421,7 +471,9 @@ export function prepareTemplates(heroes, opts = {}) {
   const nf = fine.n;
   coarse.sigma = new Float32Array(list.length);
   coarse.colour = new Float32Array(list.length * coarse.n * 3);
-  fine.mask = centreMask(fine.w, fine.h);
+  fine.mask = overlayMask(fine.w, fine.h);
+  // Least weight per pixel in the robust NCC: 0 where an overlay may be, OVERLAY_FLOOR elsewhere.
+  fine.floor = Float32Array.from(fine.mask, (m) => (m ? 0 : OVERLAY_FLOOR));
   fine.masked = new Float32Array(list.length * nf);
   fine.colour = new Float32Array(list.length * nf * 3);
   fine.rho = new Float32Array(list.length);
@@ -464,7 +516,18 @@ export function prepareTemplates(heroes, opts = {}) {
     normalise(cv);
   });
 
-  return { names: list.map((h) => h.name), count: list.length, aspect, crop: cropFrac, coarse, medium, fine };
+  // Look-alikes (grey NCC above RELATED), as a count x count matrix of 0/1.
+  const K = list.length;
+  fine.related = new Uint8Array(K * K);
+  for (let a = 0; a < K; a++) {
+    fine.related[a * K + a] = 1;
+    const ta = fine.gray.subarray(a * nf, (a + 1) * nf);
+    for (let b = a + 1; b < K; b++) {
+      if (dot(ta, fine.gray, b * nf, nf) > RELATED) fine.related[a * K + b] = fine.related[b * K + a] = 1;
+    }
+  }
+
+  return { names: list.map((h) => h.name), count: K, aspect, crop: cropFrac, coarse, medium, fine };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -679,33 +742,42 @@ class Matcher {
     return this.rs.apply(P.y, this.buf.get(L));
   }
 
-  // Best grey NCC among the heroes ks for this window (-1 for a flat window).
-  fit(L, cx, cy, h, ks) {
+  // The grey window at (cx, cy, h) as a zero-mean unit vector and the templates to compare it with, or null for a
+  // flat window. masked (fine level only): only the pixels outside the overlay areas (overlayMask) count.
+  unit(L, cx, cy, h, masked) {
     const v = this.sample(L, cx, cy, h);
-    if (normalise(v) < 1e-3) return -1;
+    if (normalise(v) < 1e-3) return null;
+    if (!masked) return { v, tpl: L.gray };
+    return { v: maskedUnit(v, L.mask, (this.mv ||= new Float32Array(L.n))), tpl: L.masked };
+  }
+
+  // Best grey NCC among the heroes ks for this window (-1 for a flat window).
+  fit(L, cx, cy, h, ks, masked = false) {
+    const u = this.unit(L, cx, cy, h, masked);
+    if (!u) return -1;
     let best = -1;
     for (const k of ks) {
-      const s = dot(v, L.gray, k * L.n, L.n);
+      const s = dot(u.v, u.tpl, k * L.n, L.n);
       if (s > best) best = s;
     }
     return best;
   }
 
   // Grey NCC at level L against every hero: { fit, ks } with the best score and the indices of the best `top`.
-  rank(L, c, top) {
-    const v = this.sample(L, c.cx, c.cy, c.h);
-    if (normalise(v) < 1e-3) return { fit: -1, ks: [] };
+  rank(L, c, top, masked = false) {
+    const u = this.unit(L, c.cx, c.cy, c.h, masked);
+    if (!u) return { fit: -1, ks: [] };
     const scores = [];
-    for (let k = 0; k < this.T.count; k++) scores.push([dot(v, L.gray, k * L.n, L.n), k]);
+    for (let k = 0; k < this.T.count; k++) scores.push([dot(u.v, u.tpl, k * L.n, L.n), k]);
     scores.sort((a, b) => b[0] - a[0]);
     return { fit: scores[0][0], ks: scores.slice(0, top).map((s) => s[1]) };
   }
 
   // Hill climbing on position and size: steps of `step` level pixels and `size` (relative), halved whenever no move
-  // helps. limits (optional): { cx, cy, h, dxy, ds } keeps the window near a known slot.
-  refine(L, c, ks, { step = 1, minStep = 0.25, size = 0.06, maxIter = 40, limits = null } = {}) {
+  // helps. limits (optional): { cx, cy, h, dxy, ds } keeps the window near a known slot. masked: see unit().
+  refine(L, c, ks, { step = 1, minStep = 0.25, size = 0.06, maxIter = 40, limits = null, masked = false } = {}) {
     let { cx, cy, h } = c;
-    let best = this.fit(L, cx, cy, h, ks);
+    let best = this.fit(L, cx, cy, h, ks, masked);
     const px = (h * this.T.crop) / L.h;
     let d = step * px;
     let ds = size;
@@ -723,7 +795,7 @@ class Matcher {
       let bestMove = null;
       for (const m of moves) {
         if (!ok(...m)) continue;
-        const s = this.fit(L, m[0], m[1], m[2], ks);
+        const s = this.fit(L, m[0], m[1], m[2], ks, masked);
         if (s > best + 1e-4) {
           best = s;
           bestMove = m;
@@ -785,17 +857,24 @@ class Matcher {
           look.push(o);
         }
       }
-      for (const o of look) {
-        const { ncc, coverage } = robustNcc(gy, gray, o.k * n, n, w, res);
+      const fits = look.map((o) => {
+        const { ncc, coverage } = robustNcc(gy, gray, o.k * n, n, w, res, L.floor);
         const cs = weightedNcc(this.cv, colour, o.k * n * 3, n, 3, w);
         // Colour counts less when the window is less colourful than the hero image (dead heroes are shown grey),
         // and the contrast bar is lower (they are darkened too).
         const alpha = 0.5 * Math.min(1, rhoW / Math.max(rho[o.k], 0.05));
         const faint = Math.min(1, sigmaW / (SLOT_CONTRAST_RATIO * Math.max(sigma[o.k], 1)));
-        // Cubed: ignoring the worst pixels makes almost anything fit somewhat, so only a near-perfect fit of the
-        // rest (a dead hero's portrait under its timer: ~0.99) should score high; background reaches ~0.85.
-        const score = Math.max(0, (1 - alpha) * ncc + alpha * cs) ** 3 * (0.4 + 0.6 * coverage) * faint;
-        if (score > o.score) o.score = score;
+        return { o, fit: (1 - alpha) * ncc + alpha * cs, coverage, faint };
+      });
+      const { related } = L;
+      for (const f of fits) {
+        // Lead over the best hero that is not a look-alike of this one (ratio test): a dead hero under its timer
+        // fits ~0.2-0.6 better than any other hero, game world or an unknown hero's portrait at most ~0.15.
+        let rival = 0;
+        for (const g of fits) if (!related[f.o.k * T.count + g.o.k] && g.fit > rival) rival = g.fit;
+        const distinct = clamp((f.fit - rival) / DISTINCT_LEAD, 0, 1);
+        const score = Math.max(0, f.fit) ** ROBUST_POWER * (0.4 + 0.6 * f.coverage) * f.faint * distinct;
+        if (score > f.o.score) f.o.score = score;
       }
       out.sort((a, b) => b.score - a.score);
     }
@@ -803,19 +882,19 @@ class Matcher {
   }
 
   // Fine pass for one candidate: refine on a grey shortlist, classify, and if the winner was not on the
-  // shortlist refine again for it. With limits (a known slot: grid fill-in, layout) scoring is robust, and the
-  // unrefined box is classified too and the better answer kept, because an overlay (respawn timer) can pull the
-  // hill climbing off the portrait.
+  // shortlist refine again for it. With limits (a known slot: grid fill-in, layout) scoring is robust, position and
+  // size are fitted outside the overlay areas only (a respawn timer would pull the window off a dead hero's
+  // portrait), and the unrefined box is classified too and the better answer kept.
   examine(c, limits = null) {
     const L = this.T.fine;
     const robust = !!limits;
     const start = { ...c };
-    const { ks } = this.rank(L, c, SHORTLIST);
+    const { ks } = this.rank(L, c, SHORTLIST, robust);
     if (!ks.length) return { ...c, top: [] };
-    this.refine(L, c, ks, { step: 1, size: 0.03, minStep: 0.2, limits });
+    this.refine(L, c, ks, { step: 1, size: 0.03, minStep: 0.2, limits, masked: robust });
     let top = this.classify(c, robust);
     if (top.length && !ks.includes(top[0].k)) {
-      this.refine(L, c, [top[0].k], { step: 0.5, size: 0.02, minStep: 0.2, limits });
+      this.refine(L, c, [top[0].k], { step: 0.5, size: 0.02, minStep: 0.2, limits, masked: robust });
       top = this.classify(c, robust);
     }
     if (limits && !(top[0]?.score >= CLEAR_MATCH)) {
@@ -1007,7 +1086,8 @@ function fullSearch(screen, T, o) {
 
   // 1. Coarse: every window at every size. The best maxRefine go on, shared out between the sizes (details inside
   //    big portraits match small heroes well and would otherwise crowd out the big ones); a peak that repeats a
-  //    better one (same hero) at the next size is skipped.
+  //    better one (same hero, same size) is skipped. Not across sizes: a detail of a portrait at the next size down
+  //    often ranks above the whole portrait, and the medium pass cannot grow it by 20% to the right size.
   const t0 = performance.now();
   const perScale = o.scales.map((s) => coarseScan(T, P, x0, x1, s * H, o, rs).sort((a, b) => b.coarse - a.coarse));
   const t1 = performance.now();
@@ -1021,7 +1101,7 @@ function fullSearch(screen, T, o) {
         q.ks[0] === p.ks[0] &&
         Math.abs(q.cx - p.cx) <= 0.2 * Math.min(p.h, q.h) * T.aspect &&
         Math.abs(q.cy - p.cy) <= 0.2 * Math.min(p.h, q.h) &&
-        Math.max(p.h, q.h) / Math.min(p.h, q.h) < 1.3,
+        Math.max(p.h, q.h) / Math.min(p.h, q.h) < 1.1,
     );
     if (!dup) distinct.push(p);
   };
@@ -1175,7 +1255,14 @@ export function detectTopBar(screen, templates, opts = {}) {
   if (L && L.slots?.length && L.width === screen.width && L.height === screen.height) {
     res = layoutSearch(screen, T, o);
     searched = 'layout';
-    if (!res.heroes.length && o.fallback) res = null;
+    if (o.fallback && res.heroes.length < o.minLayoutHeroes) {
+      const full = fullSearch(screen, T, o);
+      const total = (r) => r.heroes.reduce((t, h) => t + h.score, 0);
+      if (full.heroes.length > res.heroes.length || (full.heroes.length === res.heroes.length && total(full) >= total(res))) {
+        res = full;
+        searched = 'full';
+      }
+    }
   }
   if (!res) {
     res = fullSearch(screen, T, o);
@@ -1187,19 +1274,42 @@ export function detectTopBar(screen, templates, opts = {}) {
   return out;
 }
 
-// From a full detection with >= 8 confident heroes in one row, the 10 slot rectangles (missing slots filled in from
-// the even spacing: centre x = start(side) + slot * pitch). Returns null when the detection is not good enough.
-export function learnLayout(result) {
-  const all = (result && result.heroes) || [];
+// From a full detection with >= 8 confident heroes (score >= opts.minScore, default rowScore: dead heroes and other
+// weak matches do not count) in one row, the 10 slot rectangles (missing slots filled in from the even spacing:
+// centre x = start(side) + slot * pitch). Heroes off that spacing (a wrong slot number) are dropped, worst first,
+// as long as 8 remain. Returns null when the detection is not good enough.
+export function learnLayout(result, { minScore = DEFAULTS.rowScore } = {}) {
+  const all = ((result && result.heroes) || []).filter((h) => h.score >= minScore && h.slot != null);
   if (all.length < 8 || !result.width || !result.height) return null;
   const hMed = median(all.map((h) => h.h));
   const cyMed = median(all.map((h) => h.y + h.h / 2));
-  const list = all.filter((h) => Math.abs(h.h / hMed - 1) <= 0.12 && Math.abs(h.y + h.h / 2 - cyMed) <= 0.25 * hMed && h.slot != null);
-  if (list.length < 8) return null;
+  let list = all.filter((h) => Math.abs(h.h / hMed - 1) <= 0.12 && Math.abs(h.y + h.h / 2 - cyMed) <= 0.25 * hMed);
   const sides = ['left', 'right'];
-  if (sides.some((s) => !list.some((h) => h.side === s))) return null;
+  const w = median(list.map((h) => h.w));
+  let fit = null;
+  for (;;) {
+    if (list.length < 8 || sides.some((s) => !list.some((h) => h.side === s))) return null;
+    fit = fitSlots(list);
+    if (!fit || !(fit.pitch >= 0.9 * w && fit.pitch <= 2 * w)) return null;
+    const err = (h) => Math.abs(h.x + h.w / 2 - ((h.side === 'left' ? fit.aL : fit.aR) + h.slot * fit.pitch));
+    const worst = list.reduce((a, b) => (err(b) > err(a) ? b : a));
+    if (err(worst) <= 0.3 * fit.pitch) break;
+    list = list.filter((h) => h !== worst);
+  }
+  const { aL, aR, pitch } = fit;
+  const y = median(list.map((h) => h.y));
+  const slots = [];
+  for (const side of sides) {
+    for (let k = 0; k < 5; k++) {
+      const cx = (side === 'left' ? aL : aR) + k * pitch;
+      slots.push({ side, slot: k, x: round1(cx - w / 2), y: round1(y), w: round1(w), h: round1(hMed) });
+    }
+  }
+  return { width: result.width, height: result.height, scale: Math.round((hMed / result.height) * 10000) / 10000, pitch: round1(pitch), slots };
+}
 
-  // Least squares for cx = a_side + slot * pitch, pitch shared by both sides: unknowns [aL, aR, pitch].
+// Least squares for cx = a_side + slot * pitch, pitch shared by both sides: { aL, aR, pitch } or null.
+function fitSlots(list) {
   const A = [
     [0, 0, 0],
     [0, 0, 0],
@@ -1215,23 +1325,7 @@ export function learnLayout(result) {
     }
   }
   const sol = solve3(A, v);
-  if (!sol) return null;
-  const [aL, aR, pitch] = sol;
-  const w = median(list.map((h) => h.w));
-  if (!(pitch >= 0.9 * w && pitch <= 2 * w)) return null;
-  for (const h of list) {
-    const pred = (h.side === 'left' ? aL : aR) + h.slot * pitch;
-    if (Math.abs(h.x + h.w / 2 - pred) > 0.3 * pitch) return null;
-  }
-  const y = median(list.map((h) => h.y));
-  const slots = [];
-  for (const side of sides) {
-    for (let k = 0; k < 5; k++) {
-      const cx = (side === 'left' ? aL : aR) + k * pitch;
-      slots.push({ side, slot: k, x: round1(cx - w / 2), y: round1(y), w: round1(w), h: round1(hMed) });
-    }
-  }
-  return { width: result.width, height: result.height, scale: Math.round((hMed / result.height) * 10000) / 10000, pitch: round1(pitch), slots };
+  return sol && { aL: sol[0], aR: sol[1], pitch: sol[2] };
 }
 
 // Solves the 3x3 system A x = v (Gaussian elimination with partial pivoting); null when singular.

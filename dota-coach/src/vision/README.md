@@ -62,7 +62,8 @@ Full search 0.4-0.75 s for 1280x720 up to 3440x1440 (coarse pass ~60%). Layout p
 
 - **Real art and rendering**: the in-game portraits may be cropped, tinted, vignetted or shaded differently from the
   official images. If true portraits score < 0.82 no row is found; lower `rowScore`/`minScore`/`loneScore`, adjust
-  `crop`, or pass `aspect` if the portrait shape differs from 16:9.
+  `crop`, or pass `aspect` if the portrait shape differs from 16:9. Candidates are ranked with colour too, so a
+  strong tint or desaturation of all portraits pushes them down the list (raise `maxRefine` if that happens).
 - **Dead heroes** are recognised from grey structure only. Heroes whose art differs mostly in colour (low luma
   contrast) can be missed or confused while dead. `picks.js` keeps heroes confirmed earlier.
 - **Slot numbers in a partly filled draft**: if the slot next to the clock is empty on both sides, the grid cannot
