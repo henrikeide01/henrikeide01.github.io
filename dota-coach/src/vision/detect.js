@@ -7,14 +7,16 @@
 // Pure functions on plain image objects { width, height, data, format }: data holds 4 bytes per pixel and format is
 // 'rgba' or 'bgra' (Electron's nativeImage.toBitmap() is BGRA on Windows). Node built-ins only, no dependencies.
 //
-// How it works (more in README.md next to this file):
-//   1. Coarse pass: the top band of the screen is shrunk once per portrait size in opts.scales so that a portrait
-//      becomes 12x7 grey pixels, and every window is compared with every hero by normalised cross-correlation
-//      (NCC: insensitive to brightness and contrast). Local maxima become candidates.
-//   2. Fine pass: each candidate's position and size are refined by hill climbing at 32x18, then it is classified
-//      against all heroes with a grey + colour NCC score (grey only when the portrait is greyed out: dead hero).
-//   3. Portraits do not overlap, each hero is shown once, at most 5 per side, and all portraits share one row.
-//   4. learnLayout() remembers the 10 slot rectangles, so later frames only classify those (a few milliseconds).
+// How it works (more in README.md next to this file). All matching is normalised cross-correlation (NCC: the same
+// picture brighter or with more contrast still scores 1) against the central part of every hero image.
+//   1. Coarse: the top band of the screen is shrunk once per portrait size in opts.scales so that a portrait becomes
+//      12x7 grey pixels, and every window is compared with every hero. Local maxima become candidates.
+//   2. Medium: the best candidates get their position and size refined at 16x9.
+//   3. Fine: the best of those are refined at 32x18 and classified against every hero (grey + colour).
+//   4. The row: the portraits sit in one row of 5 + 5 evenly spaced slots mirrored around the screen centre. Once 3
+//      portraits agree on that grid, only candidates on it count, and every empty slot is classified directly with
+//      a score that ignores an overlay (finds dead heroes: grey, with the respawn timer on top).
+//   5. learnLayout() remembers the 10 slot rectangles, so later frames only classify those (tens of milliseconds).
 
 const CHANNELS = { rgba: [0, 1, 2], bgra: [2, 1, 0] };
 
@@ -34,13 +36,24 @@ export const DEFAULTS = {
   rowScore: 0.82,
   loneScore: 0.88,
   coarseMin: 0.55, // 12x7 NCC a window needs to become a candidate
-  maxVerify: 1500, // at most this many coarse peaks (best first) get the 16x9 check
-  verifyMin: 0.6, // 16x9 NCC a candidate needs after the check
+  maxRefine: 150, // the best this many coarse candidates get a 16x9 position/size refinement
+  verifyMin: 0.6, // 16x9 NCC a candidate needs after it
   maxCandidates: 40, // candidates (best 16x9 score first) that get the fine pass
   minContrast: 6, // windows flatter than this (std of luma, 0..255) are skipped: empty bar, plain UI
   jitter: 0.12, // layout path: how far (fraction of the portrait height) a portrait may have moved
   fallback: true, // layout path: run a full search when no slot holds a hero (the layout is stale)
+  debug: false, // full search: add result.debug (candidate counts, time per stage, best candidates)
 };
+
+const SHORTLIST = 6; // heroes per window that the position/size refinement optimises for
+const ROBUST_TOP = 12; // heroes per window that get the robust (overlay-tolerant) score at a known slot
+const CLEAR_MATCH = 0.9; // plain score above which that robust second look is skipped (it only helps weak matches)
+// A window with less than this share of the hero image's contrast (luma std) is scored down: portraits are
+// full-contrast UI images, a dim patch of game world is not. Lower at a known slot: dead heroes are darkened.
+const MIN_CONTRAST_RATIO = 0.5;
+const SLOT_CONTRAST_RATIO = 0.35;
+// The usual distance between neighbouring portraits, in portrait widths (they sit close together).
+const TYPICAL_PITCH = 1.08;
 
 const median = (xs) => {
   if (!xs.length) return NaN;
@@ -318,6 +331,36 @@ function weightedNcc(x, t, off, n, planes, w) {
   return cxx > 0 && ctt > 0 ? cxt / Math.sqrt(cxx * ctt) : 0;
 }
 
+// Pixels of a w x h patch that a respawn timer (centred text on a dead hero's portrait) may cover: the middle half
+// of the width and 70% of the height.
+function centreMask(w, h) {
+  const mask = new Uint8Array(w * h);
+  for (let y = Math.floor(h * 0.15); y < Math.ceil(h * 0.85); y++) {
+    for (let x = Math.floor(w * 0.25); x < Math.ceil(w * 0.75); x++) mask[y * w + x] = 1;
+  }
+  return mask;
+}
+
+// Copy of v with the masked pixels set to 0 and the others zero-mean with unit length.
+function maskedUnit(v, mask, out) {
+  let s = 0;
+  let n = 0;
+  for (let i = 0; i < v.length; i++) {
+    if (mask[i]) continue;
+    s += v[i];
+    n++;
+  }
+  const mean = s / n;
+  let ss = 0;
+  for (let i = 0; i < v.length; i++) {
+    out[i] = mask[i] ? 0 : v[i] - mean;
+    ss += out[i] * out[i];
+  }
+  const len = Math.sqrt(ss);
+  if (len > 1e-6) for (let i = 0; i < v.length; i++) out[i] /= len;
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Public image helpers
 
@@ -363,8 +406,9 @@ export function resize(img, width, height) {
 
 // heroes: [{ name, image }] with the official landscape hero images (256x144). Precomputes, for the central
 // opts.crop part of every image (default 0.9, so a slightly different crop in game still lines up):
-//   coarse: 12x7 grey (opts.coarseSize), medium: 16x9 grey (opts.mediumSize), all zero-mean with unit length
-//   fine:   32x18 grey and colour (r, g, b planes normalised together), plus how colourful it is (opts.fineSize)
+//   coarse: 12x7 grey and colour (opts.coarseSize), medium: 16x9 grey (opts.mediumSize), zero-mean, unit length
+//   fine:   32x18 grey and colour (r, g, b planes normalised together), grey without the centre (where a respawn
+//           timer goes), plus contrast and how colourful it is (opts.fineSize)
 export function prepareTemplates(heroes, opts = {}) {
   const list = (heroes || []).filter((h) => h && h.name && h.image);
   if (!list.length) throw new Error('prepareTemplates: no hero images');
@@ -374,6 +418,10 @@ export function prepareTemplates(heroes, opts = {}) {
   const medium = level(opts.mediumSize || [16, 9]);
   const fine = level(opts.fineSize || [32, 18]);
   const nf = fine.n;
+  coarse.sigma = new Float32Array(list.length);
+  coarse.colour = new Float32Array(list.length * coarse.n * 3);
+  fine.mask = centreMask(fine.w, fine.h);
+  fine.masked = new Float32Array(list.length * nf);
   fine.colour = new Float32Array(list.length * nf * 3);
   fine.rho = new Float32Array(list.length);
   fine.sigma = new Float32Array(list.length);
@@ -393,7 +441,12 @@ export function prepareTemplates(heroes, opts = {}) {
     const ry = (image.height - rh) / 2;
     for (const L of [coarse, medium]) {
       rs.setup(P.w, P.h, rx, ry, rw, rh, L.w, L.h);
-      normalise(rs.apply(P.y, L.gray.subarray(k * L.n, (k + 1) * L.n)));
+      const sigma = normalise(rs.apply(P.y, L.gray.subarray(k * L.n, (k + 1) * L.n))) / Math.sqrt(L.n);
+      if (L !== coarse) continue;
+      coarse.sigma[k] = sigma;
+      const cv = coarse.colour.subarray(k * L.n * 3, (k + 1) * L.n * 3);
+      [P.r, P.g, P.b].forEach((plane, c) => rs.apply(plane, cv.subarray(c * L.n, (c + 1) * L.n)));
+      normalise(cv);
     }
     rs.setup(P.w, P.h, rx, ry, rw, rh, fine.w, fine.h);
     const gy = rs.apply(P.y, fine.gray.subarray(k * nf, (k + 1) * nf));
@@ -402,6 +455,7 @@ export function prepareTemplates(heroes, opts = {}) {
     rs.apply(P.b, fb);
     fine.rho[k] = colourfulness(fr, fg, fb, gy, nf);
     fine.sigma[k] = normalise(gy) / Math.sqrt(nf);
+    maskedUnit(gy, fine.mask, fine.masked.subarray(k * nf, (k + 1) * nf));
     const cv = fine.colour.subarray(k * nf * 3, (k + 1) * nf * 3);
     cv.set(fr, 0);
     cv.set(fg, nf);
@@ -415,28 +469,24 @@ export function prepareTemplates(heroes, opts = {}) {
 // ---------------------------------------------------------------------------------------------------------------
 // Coarse pass
 
-// All windows of one portrait height (screen px) in the band. Returns the local maxima of the best-hero NCC as
-// candidates { cx, cy, h, coarse, ks } (portrait centre and height in screen px; ks = the best heroes there).
-const SHORTLIST = 6;
-const ROBUST_TOP = 12; // heroes per window that get the robust score
-// A window with less than this share of the hero image's contrast (luma std) is scored down: in the open search,
-// and (lower, dead heroes are darkened) at a known slot.
-const MIN_CONTRAST_RATIO = 0.5;
-const SLOT_CONTRAST_RATIO = 0.35;
-function coarseScan(T, P, ph, o, rs) {
+// All windows of one portrait height (screen px) between plane columns sx0 and sx1. Returns the local maxima of
+// the best-hero NCC as candidates { cx, cy, h, coarse, ks } (portrait centre and height in screen px; coarse = the
+// ranking score: grey and colour NCC times the contrast prior; ks = the best heroes there).
+function coarseScan(T, P, sx0, sx1, ph, o, rs) {
   const { w: cw, h: ch, n, gray: tpl } = T.coarse;
   const K = T.count;
   const rw = ph * T.aspect * T.crop;
   const rh = ph * T.crop;
   const fx = rw / cw; // screen px per coarse pixel
   const fy = rh / ch;
-  const bw = Math.floor(P.w / fx);
+  const bw = Math.floor((sx1 - sx0) / fx);
   const bh = Math.floor(P.h / fy);
   if (bw < cw || bh < ch) return [];
 
   // The band shrunk so that the crop part of a portrait of this height is exactly cw x ch pixels.
-  rs.setup(P.w, P.h, 0, 0, bw * fx, bh * fy, bw, bh);
+  rs.setup(P.w, P.h, sx0, 0, bw * fx, bh * fy, bw, bh);
   const D = rs.apply(P.y, new Float32Array(bw * bh));
+  const DC = [P.r, P.g, P.b].map((plane) => rs.apply(plane, new Float32Array(bw * bh)));
 
   // Integral images for the mean and contrast of every window.
   const iw = bw + 1;
@@ -457,17 +507,20 @@ function coarseScan(T, P, ph, o, rs) {
   const nu = bw - cw + 1;
   const nv = bh - ch + 1;
   const score = new Float32Array(nu * nv).fill(-1);
+  const arg = new Int32Array(nu * nv).fill(-1); // best hero per window
+  const sig = new Float32Array(nu * nv); // contrast (luma std) per window
   const minNorm = o.minContrast * Math.sqrt(n);
-  const gather = (u, v, out, at) => {
+  const gather = (u, v, out, at, src = D) => {
     for (let j = 0; j < ch; j++) {
       const s = (v + j) * bw + u;
-      for (let i = 0; i < cw; i++) out[at + j * cw + i] = D[s + i];
+      for (let i = 0; i < cw; i++) out[at + j * cw + i] = src[s + i];
     }
   };
   // Four neighbouring windows are matched together: each template value is loaded once for four dot products.
   const buf = new Float32Array(4 * n);
   const inv = new Float64Array(4);
   const best = new Float64Array(4);
+  const bestK = new Int32Array(4);
   for (let v = 0; v < nv; v++) {
     for (let u = 0; u < nu; u += 4) {
       let any = false;
@@ -491,6 +544,10 @@ function coarseScan(T, P, ph, o, rs) {
       let b1 = -Infinity;
       let b2 = -Infinity;
       let b3 = -Infinity;
+      let k0 = 0;
+      let k1 = 0;
+      let k2 = 0;
+      let k3 = 0;
       for (let k = 0, off = 0; k < K; k++, off += n) {
         let s0 = 0;
         let s1 = 0;
@@ -503,22 +560,46 @@ function coarseScan(T, P, ph, o, rs) {
           s2 += t * buf[2 * n + i];
           s3 += t * buf[3 * n + i];
         }
-        if (s0 > b0) b0 = s0;
-        if (s1 > b1) b1 = s1;
-        if (s2 > b2) b2 = s2;
-        if (s3 > b3) b3 = s3;
+        if (s0 > b0) {
+          b0 = s0;
+          k0 = k;
+        }
+        if (s1 > b1) {
+          b1 = s1;
+          k1 = k;
+        }
+        if (s2 > b2) {
+          b2 = s2;
+          k2 = k;
+        }
+        if (s3 > b3) {
+          b3 = s3;
+          k3 = k;
+        }
       }
       best[0] = b0;
       best[1] = b1;
       best[2] = b2;
       best[3] = b3;
-      for (let q = 0; q < 4; q++) if (inv[q]) score[v * nu + u + q] = best[q] * inv[q];
+      bestK[0] = k0;
+      bestK[1] = k1;
+      bestK[2] = k2;
+      bestK[3] = k3;
+      for (let q = 0; q < 4; q++) {
+        if (!inv[q]) continue;
+        score[v * nu + u + q] = best[q] * inv[q];
+        arg[v * nu + u + q] = bestK[q];
+        sig[v * nu + u + q] = 1 / inv[q] / Math.sqrt(n);
+      }
     }
   }
 
-  // Local maxima (ties go to the first one) above the coarse threshold, with their best heroes.
+  // Local maxima (ties go to the first one) above the coarse threshold, with their best heroes. Only a neighbour
+  // with the same best hero can suppress a window: at 12x7 a window shifted by a pixel or two often matches some
+  // other hero slightly better than the aligned window matches the right one.
   const peaks = [];
   const win = new Float32Array(n);
+  const cwin = new Float32Array(n * 3);
   for (let v = 0; v < nv; v++) {
     for (let u = 0; u < nu; u++) {
       const i = v * nu + u;
@@ -531,7 +612,7 @@ function coarseScan(T, P, ph, o, rs) {
           const vv = v + dv;
           if ((!dv && !du) || uu < 0 || vv < 0 || uu >= nu || vv >= nv) continue;
           const j = vv * nu + uu;
-          if (score[j] > s || (score[j] === s && j < i)) {
+          if (arg[j] === arg[i] && (score[j] > s || (score[j] === s && j < i))) {
             peak = false;
             break;
           }
@@ -548,7 +629,14 @@ function coarseScan(T, P, ph, o, rs) {
           if (top.length > SHORTLIST) top.pop();
         }
       }
-      peaks.push({ cx: P.x0 + (u + cw / 2) * fx, cy: P.y0 + (v + ch / 2) * fy, h: ph, coarse: s, ks: top.map((t) => t[1]) });
+      // Ranked like the final score: grey and colour NCC with the contrast prior. Patches of game world that happen
+      // to have a hero's shapes rarely have its colours too, and are dimmer than a portrait.
+      DC.forEach((plane, c) => gather(u, v, cwin, c * n, plane));
+      normalise(cwin);
+      const colour = dot(cwin, T.coarse.colour, arg[i] * n * 3, n * 3);
+      const faint = Math.min(1, sig[i] / (MIN_CONTRAST_RATIO * Math.max(T.coarse.sigma[arg[i]], 1)));
+      const rank = (0.5 * s + 0.5 * colour) * faint;
+      peaks.push({ cx: P.x0 + sx0 + (u + cw / 2) * fx, cy: P.y0 + (v + ch / 2) * fy, h: ph, coarse: rank, ks: top.map((t) => t[1]) });
     }
   }
   return peaks;
@@ -564,10 +652,6 @@ function overlap(a, b) {
   const iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
   return ix > 0 && iy > 0 ? ix * iy : 0;
 }
-const iou = (a, b) => {
-  const i = overlap(a, b);
-  return i / (a.w * a.h + b.w * b.h - i);
-};
 
 // Matches portrait-sized windows of one set of planes against the templates, at the medium or fine level.
 class Matcher {
@@ -606,15 +690,14 @@ class Matcher {
     return best;
   }
 
-  // Grey NCC at the fine level against every hero; the indices of the best `top`.
-  shortlist(c, top) {
-    const L = this.T.fine;
+  // Grey NCC at level L against every hero: { fit, ks } with the best score and the indices of the best `top`.
+  rank(L, c, top) {
     const v = this.sample(L, c.cx, c.cy, c.h);
-    if (normalise(v) < 1e-3) return [];
+    if (normalise(v) < 1e-3) return { fit: -1, ks: [] };
     const scores = [];
     for (let k = 0; k < this.T.count; k++) scores.push([dot(v, L.gray, k * L.n, L.n), k]);
     scores.sort((a, b) => b[0] - a[0]);
-    return scores.slice(0, top).map((s) => s[1]);
+    return { fit: scores[0][0], ks: scores.slice(0, top).map((s) => s[1]) };
   }
 
   // Hill climbing on position and size: steps of `step` level pixels and `size` (relative), halved whenever no move
@@ -654,11 +737,11 @@ class Matcher {
     return Object.assign(c, { cx, cy, h, fit: best });
   }
 
-  // Final score against every hero: grey NCC blended with colour NCC. The colour part counts up to 50%, less when
-  // the window is less colourful than the hero image (dead heroes are shown grey). With robust, the best few are
-  // scored again with the robust NCC (an overlay such as the respawn timer ignored, scaled down by how much was
-  // ignored). Robust scoring is only used where a portrait is known to be (grid slots, layout): in the open search
-  // it would also let random background match. Returns the best 5 as [{ k, score }].
+  // Final score against every hero: grey and colour NCC averaged, scored down for a window with much less contrast
+  // than the hero image. With robust, weak results get a second look: the best heroes are scored again with the
+  // robust NCC (an overlay such as the respawn timer ignored), with less weight on colour for a grey window and a
+  // lower contrast bar (dead heroes). Only used where a portrait is known to be (grid slots, layout): in the open
+  // search it would also let random background match. Returns the best 5 as [{ k, score }].
   classify(c, robust = false) {
     const { T } = this;
     const L = T.fine;
@@ -674,28 +757,43 @@ class Matcher {
     this.cv.set(this.g, n);
     this.cv.set(this.b, n * 2);
     normalise(this.cv);
-    const alphaOf = robust ? (k) => 0.5 * Math.min(1, rhoW / Math.max(rho[k], 0.05)) : () => 0.5;
     const out = [];
     for (let k = 0; k < T.count; k++) {
       const gs = dot(gy, gray, k * n, n);
       if (gs < 0.2) continue;
       const cs = dot(this.cv, colour, k * n * 3, n * 3);
-      const alpha = alphaOf(k);
-      // Portraits are full-contrast UI images; a dim patch of game world that happens to have the right shape is
-      // not. At a known slot (robust) the bar is lower: dead heroes are darkened, and an empty slot is nearly flat.
-      const faint = Math.min(1, sigmaW / ((robust ? SLOT_CONTRAST_RATIO : MIN_CONTRAST_RATIO) * Math.max(sigma[k], 1)));
-      out.push({ k, score: ((1 - alpha) * gs + alpha * cs) * faint });
+      // Portraits are full-contrast UI images; a dim patch of game world that happens to have the right shape is not.
+      const faint = Math.min(1, sigmaW / (MIN_CONTRAST_RATIO * Math.max(sigma[k], 1)));
+      out.push({ k, score: (0.5 * gs + 0.5 * cs) * faint });
     }
     out.sort((a, b) => b.score - a.score);
-    if (robust) {
+    if (robust && !(out[0]?.score >= CLEAR_MATCH)) {
       const w = (this.w ||= new Float32Array(n));
       const res = (this.res ||= new Float32Array(n));
-      for (const o of out.slice(0, ROBUST_TOP)) {
+      // Second look at the best plain matches and the best matches without the centre of the portrait (a timer
+      // over a dead hero's portrait can push the right hero far down the plain ranking).
+      const mv = maskedUnit(gy, L.mask, (this.mv ||= new Float32Array(n)));
+      const byMask = [];
+      for (let k = 0; k < T.count; k++) byMask.push([dot(mv, L.masked, k * n, n), k]);
+      byMask.sort((a, b) => b[0] - a[0]);
+      const look = out.slice(0, ROBUST_TOP);
+      for (const [, k] of byMask.slice(0, ROBUST_TOP)) {
+        if (!look.some((o) => o.k === k)) {
+          const o = { k, score: -1 };
+          out.push(o);
+          look.push(o);
+        }
+      }
+      for (const o of look) {
         const { ncc, coverage } = robustNcc(gy, gray, o.k * n, n, w, res);
         const cs = weightedNcc(this.cv, colour, o.k * n * 3, n, 3, w);
-        const alpha = alphaOf(o.k);
+        // Colour counts less when the window is less colourful than the hero image (dead heroes are shown grey),
+        // and the contrast bar is lower (they are darkened too).
+        const alpha = 0.5 * Math.min(1, rhoW / Math.max(rho[o.k], 0.05));
         const faint = Math.min(1, sigmaW / (SLOT_CONTRAST_RATIO * Math.max(sigma[o.k], 1)));
-        const score = ((1 - alpha) * ncc + alpha * cs) * (0.4 + 0.6 * coverage) * faint;
+        // Cubed: ignoring the worst pixels makes almost anything fit somewhat, so only a near-perfect fit of the
+        // rest (a dead hero's portrait under its timer: ~0.99) should score high; background reaches ~0.85.
+        const score = Math.max(0, (1 - alpha) * ncc + alpha * cs) ** 3 * (0.4 + 0.6 * coverage) * faint;
         if (score > o.score) o.score = score;
       }
       out.sort((a, b) => b.score - a.score);
@@ -711,7 +809,7 @@ class Matcher {
     const L = this.T.fine;
     const robust = !!limits;
     const start = { ...c };
-    const ks = this.shortlist(c, 6);
+    const { ks } = this.rank(L, c, 6);
     if (!ks.length) return { ...c, top: [] };
     this.refine(L, c, ks, { step: 1, size: 0.03, minStep: 0.2, limits });
     let top = this.classify(c, robust);
@@ -719,7 +817,7 @@ class Matcher {
       this.refine(L, c, [top[0].k], { step: 0.5, size: 0.02, minStep: 0.2, limits });
       top = this.classify(c, robust);
     }
-    if (limits) {
+    if (limits && !(top[0]?.score >= CLEAR_MATCH)) {
       const still = this.classify(start, robust);
       if (still.length && (!top.length || still[0].score > top[0].score)) return { ...start, top: still };
     }
@@ -760,7 +858,6 @@ function assign(cands, T, W, minScore) {
 // well as 3 narrow ones) go to the pitch closest to TYPICAL_PITCH portrait widths (the portraits sit close
 // together), then to the grid that puts the portrait nearest the clock in the slot next to it (always true in
 // game; during the draft that slot may still be empty on both sides). Null when no two candidates agree.
-const TYPICAL_PITCH = 1.08;
 function fitRowGrid(cands, W, aspect) {
   const mid = W / 2;
   const items = cands.map((c) => ({ c, d: Math.abs(c.cx - mid), left: c.cx < mid, score: bestScore(c) }));
@@ -825,12 +922,19 @@ function fitRowGrid(cands, W, aspect) {
   };
 }
 
-// Slot (0..4 left to right on each side) of a candidate on the grid's row, or null if it is not on the grid.
-function gridSlot(grid, c) {
+// How many slots out from the clock a candidate on the grid's row sits (d = g + m * pitch, may be negative or
+// above 4 when extrapolating), or null when it is off the row or between slots.
+function latticeIndex(grid, c) {
   if (Math.abs(c.h / grid.h - 1) > 0.2 || Math.abs(c.cy - grid.cy) > 0.3 * grid.h) return null;
   const m = (Math.abs(c.cx - grid.mid) - grid.g) / grid.p;
-  const r = Math.round(m);
-  if (r < 0 || r > 4 || Math.abs(m - r) * grid.p > 0.2 * grid.p + 1) return null;
+  const r = Math.round(m) || 0; // no -0
+  return Math.abs(m - r) * grid.p > 0.2 * grid.p + 1 ? null : r;
+}
+
+// Slot (0..4 left to right on each side) of a candidate on the grid, or null if it is not on the grid.
+function gridSlot(grid, c) {
+  const r = latticeIndex(grid, c);
+  if (r == null || r < 0 || r > 4) return null;
   return c.cx < grid.mid ? 4 - r : r;
 }
 
@@ -849,40 +953,104 @@ function toHero(a, T) {
   };
 }
 
+// Classifies every empty slot of the grid directly (robust scoring, like the layout path) and assigns again.
+// The grid takes the portrait nearest the clock as the slot next to it. If both of those were missed (dead heroes,
+// empty in the draft) everything sits one slot further out, so slots inside it are tried as well, as far as the 5
+// slots per side allow; a portrait found there moves the grid inwards. A slot between portraits already found
+// (either side: the bar is mirrored) needs minScore, one beyond them rowScore, as the grid may reach past the end
+// of the bar there; with strict set every slot needs rowScore. Returns { grid, accepted, cands } with slots set.
+function fillIn(m, T, W, o, grid, accepted, cands, strict) {
+  const found = accepted.map((a) => latticeIndex(grid, a.c));
+  const [lo, hi] = [Math.min(...found), Math.max(...found)];
+  const w = grid.h * T.aspect;
+  for (const side of ['left', 'right']) {
+    for (let r = hi - 4; r <= 4; r++) {
+      const d = grid.g + r * grid.p;
+      if (d < 0.45 * w || accepted.some((a) => a.side === side && latticeIndex(grid, a.c) === r)) continue;
+      const c = { cx: side === 'left' ? grid.mid - d : grid.mid + d, cy: grid.cy, h: grid.h };
+      if (c.cx - w / 2 < 0 || c.cx + w / 2 > W) continue;
+      const need = strict || r < lo || r > hi ? o.rowScore : o.minScore;
+      cands.push({ ...m.examine(c, { ...c, dxy: o.jitter * c.h, ds: 0.08 }), need });
+    }
+  }
+  cands = cands.filter((c) => latticeIndex(grid, c) != null && bestScore(c) >= (c.need ?? o.minScore));
+  accepted = assign(cands, T, W, o.minScore);
+  // Only 5 slots per side: keep the 5-slot window (the grid as found, or moved inwards) with the most score.
+  let shift = 0;
+  let bestSum = -1;
+  for (let sh = Math.min(0, ...accepted.map((a) => latticeIndex(grid, a.c))); sh <= 0; sh++) {
+    const sum = accepted.reduce((t, a) => {
+      const r = latticeIndex(grid, a.c);
+      return r >= sh && r <= sh + 4 ? t + a.score : t;
+    }, 0);
+    if (sum > bestSum + 1e-6 || (sum > bestSum - 1e-6 && sh === 0)) [shift, bestSum] = [sh, sum];
+  }
+  grid = { ...grid, g: grid.g + shift * grid.p };
+  if (accepted.some((a) => gridSlot(grid, a.c) == null)) {
+    cands = cands.filter((c) => gridSlot(grid, c) != null);
+    accepted = assign(cands, T, W, o.minScore);
+  }
+  for (const a of accepted) a.slot = gridSlot(grid, a.c);
+  return { grid, accepted, cands };
+}
+
 function fullSearch(screen, T, o) {
   const W = screen.width;
   const H = screen.height;
   const x0 = clamp(Math.floor(o.xFrom * W), 0, W - 1);
   const x1 = clamp(Math.ceil(o.xTo * W), x0 + 1, W);
   const y1 = clamp(Math.ceil(o.bandBottom * H), 1, H);
-  const P = toPlanes(screen, x0, 0, x1 - x0, y1);
+  // The whole width of the band: the search covers [x0, x1), but a grid slot outside it may still be classified.
+  const P = toPlanes(screen, 0, 0, W, y1);
   const rs = new Resampler();
 
-  // 1. Coarse: every window at every size; drop peaks that repeat a better one at the neighbouring size.
-  let peaks = [];
-  for (const s of o.scales) peaks = peaks.concat(coarseScan(T, P, s * H, o, rs));
-  peaks.sort((a, b) => b.coarse - a.coarse);
+  // 1. Coarse: every window at every size. The best maxRefine go on, shared out between the sizes (details inside
+  //    big portraits match small heroes well and would otherwise crowd out the big ones); a peak that repeats a
+  //    better one (same hero) at the next size is skipped.
+  const t0 = performance.now();
+  const perScale = o.scales.map((s) => coarseScan(T, P, x0, x1, s * H, o, rs).sort((a, b) => b.coarse - a.coarse));
+  const t1 = performance.now();
+  const peaks = perScale.flat().sort((a, b) => b.coarse - a.coarse);
+  const quota = Math.ceil(o.maxRefine / (2 * o.scales.length));
   const distinct = [];
-  for (const p of peaks) {
+  const take = (p) => {
+    if (distinct.length >= o.maxRefine || distinct.includes(p)) return;
     const dup = distinct.some(
-      (q) => Math.abs(q.cx - p.cx) <= 0.2 * Math.min(p.h, q.h) * T.aspect && Math.abs(q.cy - p.cy) <= 0.2 * Math.min(p.h, q.h) && Math.max(p.h, q.h) / Math.min(p.h, q.h) < 1.3,
+      (q) =>
+        q.ks[0] === p.ks[0] &&
+        Math.abs(q.cx - p.cx) <= 0.2 * Math.min(p.h, q.h) * T.aspect &&
+        Math.abs(q.cy - p.cy) <= 0.2 * Math.min(p.h, q.h) &&
+        Math.max(p.h, q.h) / Math.min(p.h, q.h) < 1.3,
     );
     if (!dup) distinct.push(p);
-    if (distinct.length >= o.maxVerify) break;
+  };
+  for (const list of perScale) list.slice(0, quota).forEach(take);
+  for (const p of peaks) {
+    if (distinct.length >= o.maxRefine) break;
+    take(p);
   }
 
-  // 2. Medium: a quick position/size refinement of every peak against its best heroes at 16x9. The textured
-  //    game world fools the 12x7 pass now and then; at 16x9 real portraits stand out.
+  // 2. Medium: the best maxRefine peaks (by coarse score) get a quick position/size refinement at 16x9 on their
+  //    best heroes. Textured game world fools the 12x7 pass now and then; at 16x9 real portraits stand out.
   const m = new Matcher(T, P);
   const verified = [];
   for (const p of distinct) {
-    const c = m.refine(T.medium, { cx: p.cx, cy: p.cy, h: p.h }, p.ks, { step: 1, size: 0.07, minStep: 0.3, maxIter: 12 });
+    // Start from the best of three sizes: the coarse sizes are ~20% apart.
+    let h = p.h;
+    let fit = -2;
+    for (const f of [1, 1.1, 1 / 1.1]) {
+      const s = m.fit(T.medium, p.cx, p.cy, p.h * f, p.ks);
+      if (s > fit) [fit, h] = [s, p.h * f];
+    }
+    const c = m.refine(T.medium, { cx: p.cx, cy: p.cy, h }, p.ks, { step: 1, size: 0.05, minStep: 0.3, maxIter: 12 });
     if (c.fit >= o.verifyMin) verified.push({ ...c, box: box(c, T.aspect) });
   }
   verified.sort((a, b) => b.fit - a.fit);
+  const t2 = performance.now();
   const kept = [];
   for (const c of verified) {
-    if (kept.some((k) => iou(k.box, c.box) > 0.5)) continue;
+    // Portraits do not overlap: skip a box mostly covered by a better one (also a detail inside a big portrait).
+    if (kept.some((k) => overlap(k.box, c.box) > 0.5 * Math.min(k.box.w * k.box.h, c.box.w * c.box.h))) continue;
     kept.push(c);
     if (kept.length >= o.maxCandidates) break;
   }
@@ -890,35 +1058,57 @@ function fullSearch(screen, T, o) {
   // 3. Fine: refine and classify the best ones.
   let cands = kept.map((c) => m.examine({ cx: c.cx, cy: c.cy, h: c.h }));
 
-  // 4. The row: with 3+ strong candidates on one evenly spaced row, only candidates on it count, and every empty slot of
-  //    the row is classified directly (robust scoring, like the layout path). That finds what the coarse passes
-  //    ranked too low, such as dead heroes (grey, with a respawn timer on top).
+  // 4. The row: with 3+ strong candidates on one evenly spaced row, only candidates on it count, and every empty
+  //    slot of the row is classified directly (robust scoring, like the layout path). That finds what the coarse
+  //    passes ranked too low, such as dead heroes (grey, with a respawn timer on top).
   let grid = fitRowGrid(cands.filter((c) => bestScore(c) >= o.rowScore), W, T.aspect);
   let accepted;
   if (grid && grid.count >= 3) {
-    cands = cands.filter((c) => gridSlot(grid, c) != null);
+    cands = cands.filter((c) => { const r = latticeIndex(grid, c); return r != null && r >= 0 && r <= 4; });
     accepted = assign(cands, T, W, o.minScore);
-    for (const side of ['left', 'right']) {
-      for (let slot = 0; slot < 5; slot++) {
-        if (accepted.some((a) => a.side === side && gridSlot(grid, a.c) === slot)) continue;
-        const d = grid.g + (side === 'left' ? 4 - slot : slot) * grid.p;
-        const c = { cx: side === 'left' ? grid.mid - d : grid.mid + d, cy: grid.cy, h: grid.h };
-        if (c.cx - (c.h * T.aspect) / 2 < P.x0 || c.cx + (c.h * T.aspect) / 2 > P.x0 + P.w) continue;
-        cands.push(m.examine(c, { ...c, dxy: o.jitter * c.h, ds: 0.08 }));
+    ({ grid, accepted, cands } = fillIn(m, T, W, o, grid, accepted, cands, false));
+  } else {
+    // 5. No row of three (empty bar, first picks of the draft): only very confident portraits, in the row of the
+    //    best one. If two of them agree on the spacing, the other slots are tried too (needing rowScore).
+    accepted = assign(cands, T, W, o.loneScore);
+    if (accepted.length) {
+      const row = accepted[0].c;
+      accepted = accepted.filter((a) => Math.abs(a.c.h / row.h - 1) <= 0.15 && Math.abs(a.c.cy - row.cy) <= 0.25 * row.h);
+    }
+    grid = fitRowGrid(accepted.map((a) => a.c), W, T.aspect);
+    if (grid) {
+      accepted = accepted.filter((a) => gridSlot(grid, a.c) != null);
+      cands = accepted.map((a) => a.c);
+      ({ grid, accepted, cands } = fillIn(m, T, W, o, grid, accepted, cands, true));
+    } else {
+      // Slots counted from the clock outwards.
+      for (const side of ['left', 'right']) {
+        const mine = accepted.filter((a) => a.side === side).sort((a, b) => Math.abs(a.c.cx - W / 2) - Math.abs(b.c.cx - W / 2));
+        mine.forEach((a, i) => (a.slot = side === 'left' ? 4 - i : i));
       }
     }
-    accepted = assign(cands, T, W, o.minScore);
-  } else {
-    // 5. No row of three (empty bar, first picks of the draft): only very confident portraits, in one row.
-    accepted = assign(cands, T, W, o.loneScore);
-    grid = fitRowGrid(accepted.map((a) => a.c), W, T.aspect);
-    if (grid) accepted = accepted.filter((a) => gridSlot(grid, a.c) != null);
-    else if (accepted.length > 1) accepted = [accepted[0]];
   }
-  for (const a of accepted) a.slot = grid ? gridSlot(grid, a.c) : a.side === 'left' ? 4 : 0;
   const heroes = accepted.map((a) => toHero(a, T)).sort((a, b) => a.x - b.x);
-  globalThis.__visionDebug = { peaks, distinct, verified, kept, cands };
-  return { heroes, scale: heroes.length ? Math.round((median(heroes.map((h) => h.h)) / H) * 10000) / 10000 : null, evals: m.evals };
+  const res = { heroes, scale: heroes.length ? Math.round((median(heroes.map((h) => h.h)) / H) * 10000) / 10000 : null };
+  if (o.debug) {
+    // For tuning on real screenshots: how many candidates each stage kept, where the time went, and the best
+    // candidates whether accepted or not.
+    const t3 = performance.now();
+    res.debug = {
+      peaks: peaks.length,
+      refined: distinct.length,
+      examined: cands.length,
+      evals: m.evals,
+      ms: { coarse: Math.round(t1 - t0), medium: Math.round(t2 - t1), fine: Math.round(t3 - t2) },
+      grid: grid && { g: round1(grid.g), pitch: round1(grid.p), cy: round1(grid.cy), h: round1(grid.h), count: grid.count },
+      candidates: cands
+        .filter((c) => c.top.length)
+        .sort((a, b) => bestScore(b) - bestScore(a))
+        .slice(0, 20)
+        .map((c) => ({ name: T.names[c.top[0].k], score: Math.round(bestScore(c) * 1000) / 1000, cx: round1(c.cx), cy: round1(c.cy), h: round1(c.h) })),
+    };
+  }
+  return res;
 }
 
 // Fast path: classify only at the learned slot rectangles (with a little position/size search).
@@ -963,7 +1153,9 @@ function layoutSearch(screen, T, o) {
     heroes.push(toHero(a, T));
   });
   heroes.sort((a, b) => a.x - b.x);
-  return { heroes, missing, scale: L.scale, evals: m.evals };
+  const res = { heroes, missing, scale: L.scale };
+  if (o.debug) res.debug = { evals: m.evals };
+  return res;
 }
 
 // screen: { width, height, data, format }; templates: from prepareTemplates(). See DEFAULTS for opts.
@@ -972,6 +1164,7 @@ function layoutSearch(screen, T, o) {
 export function detectTopBar(screen, templates, opts = {}) {
   const t0 = performance.now();
   checkImage(screen, 'screen');
+  if (!templates || !templates.count || !templates.fine) throw new Error('detectTopBar: templates must come from prepareTemplates()');
   const o = { ...DEFAULTS, ...opts };
   const T = templates;
   let res = null;
@@ -988,6 +1181,7 @@ export function detectTopBar(screen, templates, opts = {}) {
   }
   const out = { heroes: res.heroes, scale: res.scale, ms: Math.round(performance.now() - t0), searched, width: screen.width, height: screen.height };
   if (res.missing) out.missing = res.missing;
+  if (res.debug) out.debug = res.debug;
   return out;
 }
 

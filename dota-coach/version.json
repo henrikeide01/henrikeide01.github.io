@@ -1,7 +1,19 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "date": "2026-10-14",
   "changes": [
+    {
+      "version": "1.3.0",
+      "date": "2026-10-14",
+      "notes": [
+        "Automatisk draft: desktop-appen kjenner igjen heroene fra skjermen, og overlayet viser hva du bør picke mens draften pågår.",
+        "Live råd om neste evne å skille, med prosent fra pro-kamper.",
+        "Talentvalg med pro-fordeling, og et defensivt hint hvis du dør mye.",
+        "Nøytrale items: artefakter med pro-prosent og anbefalt fortryllelse for rollen din.",
+        "Dota Plus-statistikk etter kampen: skade tatt fra hvem og hvilke evner, skadetype, skade gitt, gull- og XP-kilder og konkrete råd.",
+        "Meta-fanen viser skill-rekkefølge, talenter og nøytrale items for hver hero."
+      ]
+    },
     {
       "version": "1.2.0",
       "date": "2026-10-14",
@@ -22,7 +34,9 @@
     {
       "version": "1.0.0",
       "date": "2026-10-14",
-      "notes": ["Første versjon: draft-hjelp, meta og builds, live-tips og overlay."]
+      "notes": [
+        "Første versjon: draft-hjelp, meta og builds, live-tips og overlay."
+      ]
     }
   ]
 }
