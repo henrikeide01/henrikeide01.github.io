@@ -277,7 +277,7 @@ export async function startServer(opts = {}) {
   // Saves our settings without losing a skipVersion written by tools/rollback.js meanwhile.
   function persistSettings() {
     const disk = loadSettings();
-    settings = { ...settings, skipVersion: maxVersion(settings.skipVersion, disk.skipVersion) };
+    settings = { ...disk, ...publicSettings(settings), skipVersion: maxVersion(settings.skipVersion, disk.skipVersion) };
     saveSettings(settings);
   }
 
@@ -303,7 +303,15 @@ export async function startServer(opts = {}) {
     return update;
   }
 
+  const canRestart = () => !!opts.onRestart || !!process.env.DOTACOACH_LAUNCHER;
+
   function restart() {
+    if (!canRestart()) {
+      // Started some other way (npm start, demo): nothing would start us again, so don't exit.
+      setUpdate({ state: 'installed' });
+      log('  Start Dota Coach på nytt for å bruke den nye versjonen.');
+      return;
+    }
     setUpdate({ state: 'restarting' });
     setTimeout(() => {
       if (opts.onRestart) opts.onRestart();
@@ -336,7 +344,7 @@ export async function startServer(opts = {}) {
   function status() {
     return {
       version: appVersion(),
-      canRestart: !!opts.onRestart || !!process.env.DOTACOACH_LAUNCHER,
+      canRestart: canRestart(),
       gsiConnected: Date.now() - lastGsiAt < 35000,
       lastGsiAt,
       everConnected: lastGsiAt > 0,
@@ -408,6 +416,10 @@ export async function startServer(opts = {}) {
   async function route(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const p = url.pathname;
+
+    if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) {
+      return send(res, 403, { error: 'Ikke tillatt' });
+    }
 
     if (req.method === 'POST' && (p === '/gsi' || p === '/')) {
       const body = await readBody(req);
@@ -508,6 +520,7 @@ export async function startServer(opts = {}) {
       }
     }
     if (p === '/api/update/rollback' && req.method === 'POST') {
+      if (updater.busy || ['downloading', 'restarting'].includes(update.state)) return send(res, 200, { ok: false, error: 'En oppdatering pågår. Vent litt.' });
       try {
         const r = updater.rollback();
         // Don't install the version we just left (or anything older) again automatically.
@@ -603,15 +616,16 @@ export async function startServer(opts = {}) {
   // then every three hours.
   let updateTimer = null;
   if (!opts.noUpdate && !od.fixturesDir) {
+    // Wait > one GSI heartbeat (10 s) so we know whether a game is running before installing anything.
     setTimeout(async () => {
       await checkForUpdate();
-      if (update.available && settings.autoUpdate !== false && wantsAutoInstall(update.latest) && !inGameNow()) {
+      if (update.available && settings.autoUpdate !== false && canRestart() && wantsAutoInstall(update.latest) && !inGameNow()) {
         log(`  Ny versjon ${update.latest} funnet – installerer …`);
         installUpdate().catch((err) => log(`  Oppdateringen feilet: ${err.message}`));
       } else if (update.available) {
         log(`  Ny versjon ${update.latest} er klar. Trykk «Oppdater» i appen.`);
       }
-    }, 2500).unref();
+    }, 12000).unref();
     updateTimer = setInterval(checkForUpdate, 3 * 3600 * 1000);
     updateTimer.unref();
   }

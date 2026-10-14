@@ -148,7 +148,7 @@ export class Updater {
   // Downloads and installs the newest version. onProgress({ step, done, total })
   async apply({ branch, onProgress = () => {} } = {}) {
     if (this.busy) throw new Error('En oppdatering pågår allerede.');
-    if (fs.existsSync(path.join(this.root, '.git'))) throw new Error('Denne mappen er en git-kopi. Bruk «git pull» for å oppdatere.');
+    if (insideGit(this.root)) throw new Error('Denne mappen er en git-kopi. Bruk «git pull» for å oppdatere.');
     this.busy = true;
     try {
       const target = branch || (await this.check()).branch || this.channel.branches[0];
@@ -318,6 +318,7 @@ export class Updater {
 
   // Puts back the most recent backup (undoes the last update).
   rollback() {
+    if (this.busy) throw new Error('En oppdatering pågår. Vent til den er ferdig.');
     const latest = listBackups(this.root)[0];
     if (!latest) throw new Error('Fant ingen backup å gå tilbake til.');
     const from = this.localVersion().version;
@@ -377,6 +378,14 @@ export function parseTar(buf) {
     else if (type === '5') entries.push({ path: full, type: 'dir' });
   }
   return { entries, comment };
+}
+
+// The app folder, or any folder above it, is a git checkout (e.g. a clone of the whole repo).
+export function insideGit(root) {
+  for (let d = path.resolve(root); ; d = path.dirname(d)) {
+    if (fs.existsSync(path.join(d, '.git'))) return true;
+    if (path.dirname(d) === d) return false;
+  }
 }
 
 export function listBackups(root) {

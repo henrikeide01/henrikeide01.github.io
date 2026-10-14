@@ -12,9 +12,23 @@ const fail = (msg) => {
   process.exit(1);
 };
 
-// The Electron main file can only run inside Electron, so just syntax-check it.
-const check = spawnSync(process.execPath, ['--check', path.join(root, 'overlay', 'main.cjs')], { encoding: 'utf8', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
-if (check.status !== 0) fail(`overlay/main.cjs: ${check.stderr.trim().split('\n').pop()}`);
+// Files that are not imported below (browser code, the Electron main file, rollback) are at least
+// syntax-checked, so a release can never break the UI or the «Angre» button unnoticed.
+const toCheck = [path.join(root, 'overlay', 'main.cjs'), path.join(root, 'tools', 'rollback.js')];
+for (const dir of ['public/js', 'overlay']) {
+  for (const f of fs.readdirSync(path.join(root, dir))) if (/\.(c?js|mjs)$/.test(f)) toCheck.push(path.join(root, dir, f));
+}
+for (const file of new Set(toCheck)) {
+  const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
+  if (check.status !== 0) fail(`${path.relative(root, file)}: ${(check.stderr || '').trim().split('\n').slice(0, 4).join(' ')}`);
+}
+// Inline module scripts in the HTML pages: check they still import what exists.
+for (const page of ['public/index.html', 'public/overlay.html']) {
+  const html = fs.readFileSync(path.join(root, page), 'utf8');
+  for (const m of html.matchAll(/(?:src|from)\s*=?\s*["'](\.?\/?js\/[^"']+)["']/g)) {
+    if (!fs.existsSync(path.join(root, 'public', m[1].replace(/^\.\//, '')))) fail(`${page} viser til ${m[1]}, som ikke finnes`);
+  }
+}
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dotacoach-selftest-'));
 try {

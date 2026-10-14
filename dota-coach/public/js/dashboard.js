@@ -860,6 +860,8 @@ function renderUpdate() {
     const p = u.progress;
     const step = p ? `${p.step}${p.total ? ` ${p.done}/${p.total} filer` : ''}` : 'Starter …';
     html = `<span class="spinner"></span><div class="ub-text"><b>Oppdaterer til versjon ${esc(u.latest || '')} …</b><span>${esc(step)}</span></div>`;
+  } else if (u?.state === 'installed') {
+    html = `<span>✅</span><div class="ub-text"><b>Versjon ${esc(u.installed?.to || u.latest || '')} er installert</b><span>Lukk Dota Coach og start den på nytt for å ta i bruk den nye versjonen.</span></div>`;
   } else if (u?.state === 'restarting') {
     html = `<span class="spinner"></span><div class="ub-text"><b>Starter den nye versjonen …</b><span>${
       status?.canRestart === false ? 'Hvis ingenting skjer, lukk vinduet og start Dota Coach på nytt.' : 'Siden lastes inn på nytt av seg selv om noen sekunder.'
