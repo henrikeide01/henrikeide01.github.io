@@ -367,8 +367,8 @@ test('resize averages areas, handles bgra and mild enlarging', () => {
   [0, 1, 2].forEach((c) => assert.ok(Math.abs(centre[c] - mean(c)) <= 1));
 });
 
-test('templates are prepared for every hero', () => {
-  console.log(`# prepareTemplates: ${heroes.length} heroes in ${prepareMs} ms`);
+test('templates are prepared for every hero', (t) => {
+  t.diagnostic(`prepareTemplates: ${heroes.length} heroes in ${prepareMs} ms`);
   assert.equal(templates.count, heroes.length);
   assert.deepEqual(templates.names, names);
   assert.ok(Math.abs(templates.aspect - 16 / 9) < 1e-9);
@@ -377,9 +377,9 @@ test('templates are prepared for every hero', () => {
 });
 
 for (const s of inGame) {
-  test(`in game ${s.W}x${s.H}: all 10 heroes, sides and order (one dead)`, () => {
+  test(`in game ${s.W}x${s.H}: all 10 heroes, sides and order (one dead)`, (t) => {
     const r = detectTopBar(s.screen, templates);
-    console.log(`# full search ${s.W}x${s.H}: ${r.ms} ms, scores ${r.heroes.map((h) => h.score).join(' ')}`);
+    t.diagnostic(`full search ${s.W}x${s.H}: ${r.ms} ms, scores ${r.heroes.map((h) => h.score).join(' ')}`);
     assertHeroes(r, s.pick, `${s.W}x${s.H}`);
     assert.equal(r.searched, 'full');
     assert.ok(Math.abs(r.scale - s.scale * 1.05) < 0.004, `scale ${r.scale}`); // boxes cover the 5% zoomed art
@@ -388,19 +388,19 @@ for (const s of inGame) {
   });
 }
 
-test('an empty top bar gives no heroes', () => {
+test('an empty top bar gives no heroes', (t) => {
   for (const [W, H] of [
     [1920, 1080],
     [3440, 1440],
   ]) {
     const { screen } = makeScreen(W, H, { slots: Array(10).fill(null), seed: 300 + W });
     const r = detectTopBar(screen, templates);
-    console.log(`# empty bar ${W}x${H}: ${r.ms} ms`);
+    t.diagnostic(`empty bar ${W}x${H}: ${r.ms} ms`);
     assert.deepEqual(r.heroes, [], `${W}x${H}: ${JSON.stringify(r.heroes)}`);
   }
 });
 
-test('draft screen with 3 + 2 picks finds exactly those, in their slots', () => {
+test('draft screen with 3 + 2 picks finds exactly those, in their slots', (t) => {
   const pick = pickHeroes(400);
   const cases = [
     { W: 1920, H: 1080, slots: [1, 2, 4, 5, 8], scale: 0.05 },
@@ -417,7 +417,7 @@ test('draft screen with 3 + 2 picks finds exactly those, in their slots', () => 
       seed: 500 + c.W,
     });
     const r = detectTopBar(screen, templates);
-    console.log(`# draft ${c.W}x${c.H}: ${r.ms} ms`);
+    t.diagnostic(`draft ${c.W}x${c.H}: ${r.ms} ms`);
     assertHeroes(r, expected, `draft ${c.W}x${c.H}`);
   }
 });
@@ -438,7 +438,7 @@ test('bgra input gives the same answer', () => {
   assertHeroes(r, s.pick, 'bgra');
 });
 
-test('learnLayout + layout path: same answer, fast, empty slots reported', () => {
+test('learnLayout + layout path: same answer, fast, empty slots reported', (t) => {
   for (const s of [inGame[1], inGame[5]]) {
     const key = `${s.W}x${s.H}`;
     const full = fullResults.get(key) || detectTopBar(s.screen, templates);
@@ -466,7 +466,7 @@ test('learnLayout + layout path: same answer, fast, empty slots reported', () =>
       r = detectTopBar(toBgra(next.screen), templates, { layout });
       times.push(r.ms);
     }
-    console.log(`# layout path ${key}: ${times.join(', ')} ms (full search was ${full.ms} ms)`);
+    t.diagnostic(`layout path ${key}: ${times.join(', ')} ms (full search was ${full.ms} ms)`);
     const expected = [...s.pick];
     expected[6] = null;
     assert.equal(r.searched, 'layout');

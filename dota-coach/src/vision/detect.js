@@ -10,8 +10,9 @@
 // How it works (more in README.md next to this file). All matching is normalised cross-correlation (NCC: the same
 // picture brighter or with more contrast still scores 1) against the central part of every hero image.
 //   1. Coarse: the top band of the screen is shrunk once per portrait size in opts.scales so that a portrait becomes
-//      12x7 grey pixels, and every window is compared with every hero. Local maxima become candidates.
-//   2. Medium: the best candidates get their position and size refined at 16x9.
+//      12x7 grey pixels, and every window is compared with every hero. Local maxima become candidates, ranked by
+//      grey + colour match and contrast (a dim patch of game world with the right shapes ranks low).
+//   2. Medium: the best candidates (a share for every size) get their position and size refined at 16x9.
 //   3. Fine: the best of those are refined at 32x18 and classified against every hero (grey + colour).
 //   4. The row: the portraits sit in one row of 5 + 5 evenly spaced slots mirrored around the screen centre. Once 3
 //      portraits agree on that grid, only candidates on it count, and every empty slot is classified directly with
@@ -35,7 +36,7 @@ export const DEFAULTS = {
   minScore: 0.7,
   rowScore: 0.82,
   loneScore: 0.88,
-  coarseMin: 0.55, // 12x7 NCC a window needs to become a candidate
+  coarseMin: 0.55, // 12x7 grey NCC a window needs to become a candidate
   maxRefine: 150, // the best this many coarse candidates get a 16x9 position/size refinement
   verifyMin: 0.6, // 16x9 NCC a candidate needs after it
   maxCandidates: 40, // candidates (best 16x9 score first) that get the fine pass
@@ -809,7 +810,7 @@ class Matcher {
     const L = this.T.fine;
     const robust = !!limits;
     const start = { ...c };
-    const { ks } = this.rank(L, c, 6);
+    const { ks } = this.rank(L, c, SHORTLIST);
     if (!ks.length) return { ...c, top: [] };
     this.refine(L, c, ks, { step: 1, size: 0.03, minStep: 0.2, limits });
     let top = this.classify(c, robust);
