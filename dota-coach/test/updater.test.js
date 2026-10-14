@@ -4,12 +4,53 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import { Updater, gitBlobSha, normalize, compareVersions, safeRel, isProtected, listBackups } from '../src/updater.js';
+import zlib from 'node:zlib';
+import { Updater, gitBlobSha, normalize, compareVersions, safeRel, isProtected, listBackups, parseTar } from '../src/updater.js';
+
+// Builds a GitHub-style .tar.gz: a pax global header with the commit id, a top folder, then the files.
+function tarGz(files, { commit = 'a'.repeat(40), top = 'repo-main' } = {}) {
+  const blocks = [];
+  const header = (name, size, type) => {
+    const h = Buffer.alloc(512);
+    const long = name.length > 100;
+    h.write(long ? name.slice(-100) : name, 0);
+    h.write('0000644\0', 100);
+    h.write('0000000\0', 108);
+    h.write('0000000\0', 116);
+    h.write(size.toString(8).padStart(11, '0') + '\0', 124);
+    h.write('00000000000\0', 136);
+    h.write('        ', 148);
+    h.write(type, 156);
+    h.write('ustar\0' + '00', 257);
+    let sum = 0;
+    for (const b of h) sum += b;
+    h.write(sum.toString(8).padStart(6, '0') + '\0 ', 148);
+    return h;
+  };
+  const add = (name, data, type = '0') => {
+    blocks.push(header(name, data.length, type), data, Buffer.alloc((512 - (data.length % 512)) % 512));
+  };
+  const paxRecord = (k, v) => {
+    const body = ` ${k}=${v}\n`;
+    let len = body.length + 1;
+    while (`${len}${body}`.length !== len) len++;
+    return Buffer.from(`${len}${body}`);
+  };
+  add('pax_global_header', paxRecord('comment', commit), 'g');
+  add(`${top}/`, Buffer.alloc(0), '5');
+  for (const [rel, content] of files) {
+    const name = `${top}/${rel}`;
+    if (name.length > 100) add('PaxHeader', paxRecord('path', name), 'x');
+    add(name, Buffer.isBuffer(content) ? content : Buffer.from(content));
+  }
+  blocks.push(Buffer.alloc(1024));
+  return zlib.gzipSync(Buffer.concat(blocks));
+}
 
 // ---------- A fake GitHub: raw files, the commits API and the trees API ----------
 let server;
 let base;
-const remote = { commit: 'c1', tree: 't1', files: new Map(), corrupt: new Set() };
+const remote = { commit: 'c1', tree: 't1', files: new Map(), corrupt: new Set(), archive: false, archiveHits: 0, apiHits: 0 };
 
 before(async () => {
   server = http.createServer((req, res) => {
@@ -19,7 +60,16 @@ before(async () => {
       res.writeHead(code, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(body));
     };
-    if (p === '/api/repos/o/r/commits/main') return json(200, { sha: remote.commit, commit: { tree: { sha: remote.tree } } });
+    if (p === '/codeload/o/r/tar.gz/refs/heads/main') {
+      if (!remote.archive) return json(404, {});
+      remote.archiveHits++;
+      res.writeHead(200, { 'Content-Type': 'application/x-gzip' });
+      return res.end(tarGz([...remote.files].map(([rel, buf]) => [`app/${rel}`, buf]).concat([['other/site.html', '<html>'], ['app/../evil.js', 'x']])));
+    }
+    if (p === '/api/repos/o/r/commits/main') {
+      remote.apiHits++;
+      return json(200, { sha: remote.commit, commit: { tree: { sha: remote.tree } } });
+    }
     if (p === `/api/repos/o/r/git/trees/${remote.tree}`) {
       const tree = [...remote.files].map(([rel, buf]) => ({ path: `app/${rel}`, type: 'blob', sha: gitBlobSha(buf) }));
       tree.push({ path: 'app/../evil.js', type: 'blob', sha: gitBlobSha(Buffer.from('x')) }, { path: 'other/readme.md', type: 'blob', sha: 'x' });
@@ -39,7 +89,7 @@ before(async () => {
 
 after(() => server.close());
 
-const channel = () => ({ repo: 'o/r', branches: ['main'], path: 'app', apiBase: `${base}/api`, rawBase: `${base}/raw` });
+const channel = () => ({ repo: 'o/r', branches: ['main'], path: 'app', apiBase: `${base}/api`, rawBase: `${base}/raw`, codeloadBase: `${base}/codeload` });
 const version = (v, notes = ['noe nytt']) => Buffer.from(JSON.stringify({ version: v, changes: [{ version: v, notes }] }));
 
 function makeLocal(files) {
@@ -51,11 +101,14 @@ function makeLocal(files) {
   return root;
 }
 
-function setRemote(files, commit = 'c1') {
+function setRemote(files, commit = 'c1', { archive = false } = {}) {
   remote.files = new Map(Object.entries(files).map(([k, v]) => [k, Buffer.isBuffer(v) ? v : Buffer.from(v)]));
   remote.commit = commit;
   remote.tree = `t-${commit}`;
   remote.corrupt = new Set();
+  remote.archive = archive;
+  remote.archiveHits = 0;
+  remote.apiHits = 0;
 }
 
 const read = (root, rel) => fs.readFileSync(path.join(root, rel), 'utf8');
@@ -180,4 +233,36 @@ test('a git checkout is left to git', async () => {
   const root = makeLocal({ 'version.json': version('1.0.0'), 'src/server.js': 'a', '.git/HEAD': 'ref' });
   setRemote({ 'version.json': version('1.1.0'), 'src/server.js': 'b' }, 'c8');
   await assert.rejects(new Updater({ root, channel: channel(), selfTest: () => ({ ok: true }) }).apply({ branch: 'main' }), /git pull/);
+});
+
+test('the tar reader handles GitHub archives (pax headers, long paths, folders)', () => {
+  const longRel = `${'deep/'.repeat(25)}file.js`;
+  const { entries, comment } = parseTar(zlib.gunzipSync(tarGz([['a.txt', 'hei'], [longRel, 'lang sti']], { commit: 'b'.repeat(40) })));
+  assert.equal(comment, 'b'.repeat(40));
+  const files = entries.filter((e) => e.type === 'file');
+  assert.deepEqual(files.map((e) => e.path), ['repo-main/a.txt', `repo-main/${longRel}`]);
+  assert.equal(files[1].data.toString(), 'lang sti');
+});
+
+test('updates come from the archive when it is available (no API calls)', async () => {
+  const root = makeLocal({ 'version.json': version('1.2.0'), 'src/server.js': 'old', 'start.bat': '@echo off\r\n', 'settings.json': '{"mine":1}' });
+  setRemote({ 'version.json': version('1.3.0'), 'src/server.js': 'new', 'start.bat': '@echo off\n', 'settings.json': '{}', 'src/added.js': 'x' }, 'c9', { archive: true });
+  const u = new Updater({ root, channel: channel(), selfTest: () => ({ ok: true }) });
+  const res = await u.apply({ branch: 'main' });
+  assert.equal(remote.archiveHits, 1);
+  assert.equal(remote.apiHits, 0);
+  assert.deepEqual(res.updated.sort(), ['src/added.js', 'src/server.js', 'version.json']);
+  assert.equal(read(root, 'src/server.js'), 'new');
+  assert.equal(read(root, 'settings.json'), '{"mine":1}');
+  assert.ok(!fs.existsSync(path.join(root, '..', 'evil.js')));
+  assert.equal(JSON.parse(read(root, '.installed.json')).commit, 'a'.repeat(40));
+});
+
+test('if the archive is unavailable the API is used instead', async () => {
+  const root = makeLocal({ 'version.json': version('1.2.0'), 'src/server.js': 'old' });
+  setRemote({ 'version.json': version('1.3.0'), 'src/server.js': 'new' }, 'c10', { archive: false });
+  const u = new Updater({ root, channel: channel(), selfTest: () => ({ ok: true }) });
+  await u.apply({ branch: 'main' });
+  assert.equal(remote.apiHits, 1);
+  assert.equal(read(root, 'src/server.js'), 'new');
 });

@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 
 export const DEFAULT_CHANNEL = {
@@ -16,6 +17,7 @@ export const DEFAULT_CHANNEL = {
   path: 'dota-coach',
   apiBase: 'https://api.github.com',
   rawBase: 'https://raw.githubusercontent.com',
+  codeloadBase: 'https://codeload.github.com',
 };
 
 // Never touched by an update: the user's own data, downloaded packages and the updater's own state.
@@ -149,46 +151,19 @@ export class Updater {
     if (fs.existsSync(path.join(this.root, '.git'))) throw new Error('Denne mappen er en git-kopi. Bruk «git pull» for å oppdatere.');
     this.busy = true;
     try {
-      const { repo, apiBase, path: sub } = this.channel;
       const target = branch || (await this.check()).branch || this.channel.branches[0];
       onProgress({ step: 'Finner nyeste versjon …' });
-      const commit = await this.getJson(`${apiBase}/repos/${repo}/commits/${encodeURIComponent(target)}`);
-      const tree = await this.getJson(`${apiBase}/repos/${repo}/git/trees/${commit.commit.tree.sha}?recursive=1`);
-      if (tree.truncated) throw new Error('Repoet er for stort til å oppdatere fil for fil.');
-
-      const prefix = `${sub}/`;
-      const remote = new Map();
-      for (const e of tree.tree || []) {
-        if (e.type !== 'blob' || !e.path.startsWith(prefix)) continue;
-        const rel = safeRel(e.path.slice(prefix.length));
-        if (!rel || isProtected(rel)) continue;
-        remote.set(rel, e.sha);
+      // Preferred: one archive download (no API rate limit). Fallback: the API + single files.
+      let snap;
+      try {
+        snap = await this.snapshotFromArchive(target, onProgress);
+      } catch (err) {
+        this.log(`(Arkiv-nedlasting feilet: ${err.message}. Prøver fil for fil.)`);
+        snap = await this.snapshotFromApi(target, onProgress);
       }
-      if (!remote.has('version.json') || !remote.has('src/server.js')) throw new Error('Fant ikke appen på GitHub.');
-
-      // What differs from what we have?
-      const changed = [];
-      for (const [rel, sha] of remote) {
-        const file = path.join(this.root, rel);
-        let local = null;
-        try {
-          local = gitBlobSha(normalize(rel, fs.readFileSync(file)));
-        } catch {
-          // missing locally
-        }
-        if (local !== sha) changed.push({ rel, sha });
-      }
+      const { remote, downloads, commit } = snap;
       const manifest = readJson(path.join(this.root, '.installed.json'), null);
       const removed = manifest ? Object.keys(manifest.files || {}).filter((rel) => !remote.has(rel) && safeRel(rel) && !isProtected(rel) && fs.existsSync(path.join(this.root, rel))) : [];
-
-      // Download everything first (nothing is written until all files are verified).
-      let done = 0;
-      const downloads = await pool(changed, 4, async ({ rel, sha }) => {
-        const buf = await this.getBuffer(this.rawUrl(commit.sha, rel));
-        if (gitBlobSha(buf) !== sha) throw new Error(`Filen ${rel} ble ikke lastet ned riktig. Prøv igjen.`);
-        onProgress({ step: 'Laster ned', done: ++done, total: changed.length });
-        return { rel, buf };
-      });
 
       const fromVersion = this.localVersion().version;
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -230,7 +205,7 @@ export class Updater {
         throw new Error(`Den nye versjonen startet ikke riktig, så den gamle er satt tilbake. (${test.error})`);
       }
 
-      fs.writeFileSync(path.join(this.root, '.installed.json'), JSON.stringify({ version: this.localVersion().version, commit: commit.sha, branch: target, files: Object.fromEntries(remote) }));
+      fs.writeFileSync(path.join(this.root, '.installed.json'), JSON.stringify({ version: this.localVersion().version, commit, branch: target, files: Object.fromEntries(remote) }));
       const needsInstall = depsChanged(backupDir, this.root);
       if (needsInstall) fs.writeFileSync(path.join(this.root, '.needs-install'), 'npm install\n');
       pruneBackups(this.root);
@@ -242,6 +217,73 @@ export class Updater {
     }
   }
 
+  // Files of the app (rel -> git blob sha) and which of them differ from what we have locally.
+  localSha(rel) {
+    try {
+      return gitBlobSha(normalize(rel, fs.readFileSync(path.join(this.root, rel))));
+    } catch {
+      return null; // missing locally
+    }
+  }
+
+  appEntry(fullPath) {
+    const prefix = `${this.channel.path}/`;
+    if (!fullPath.startsWith(prefix)) return null;
+    const rel = safeRel(fullPath.slice(prefix.length));
+    return rel && !isProtected(rel) ? rel : null;
+  }
+
+  checkSnapshot(remote) {
+    if (!remote.has('version.json') || !remote.has('src/server.js')) throw new Error('Fant ikke appen på GitHub.');
+  }
+
+  // The whole branch as one .tar.gz from codeload.github.com (not limited like the API).
+  async snapshotFromArchive(branch, onProgress) {
+    const { codeloadBase, repo } = this.channel;
+    onProgress({ step: 'Laster ned …' });
+    const gz = await this.getBuffer(`${codeloadBase}/${repo}/tar.gz/refs/heads/${branch}`);
+    const { entries, comment } = parseTar(zlib.gunzipSync(gz));
+    const remote = new Map();
+    const downloads = [];
+    for (const e of entries) {
+      if (e.type !== 'file') continue;
+      // Strip the top folder GitHub adds ("<repo>-<branch>/").
+      const rel = this.appEntry(e.path.slice(e.path.indexOf('/') + 1));
+      if (!rel) continue;
+      const buf = normalize(rel, e.data);
+      const sha = gitBlobSha(buf);
+      remote.set(rel, sha);
+      if (this.localSha(rel) !== sha) downloads.push({ rel, buf });
+    }
+    this.checkSnapshot(remote);
+    onProgress({ step: 'Laster ned', done: downloads.length, total: downloads.length });
+    return { remote, downloads, commit: /^[0-9a-f]{40}$/.test(comment || '') ? comment : null };
+  }
+
+  // Fallback: list the files with the GitHub API, then fetch only the changed ones (verified by hash).
+  async snapshotFromApi(branch, onProgress) {
+    const { repo, apiBase } = this.channel;
+    const commit = await this.getJson(`${apiBase}/repos/${repo}/commits/${encodeURIComponent(branch)}`);
+    const tree = await this.getJson(`${apiBase}/repos/${repo}/git/trees/${commit.commit.tree.sha}?recursive=1`);
+    if (tree.truncated) throw new Error('Repoet er for stort til å oppdatere fil for fil.');
+    const remote = new Map();
+    for (const e of tree.tree || []) {
+      if (e.type !== 'blob') continue;
+      const rel = this.appEntry(e.path);
+      if (rel) remote.set(rel, e.sha);
+    }
+    this.checkSnapshot(remote);
+    const changed = [...remote].filter(([rel, sha]) => this.localSha(rel) !== sha);
+    let done = 0;
+    const downloads = await pool(changed, 4, async ([rel, sha]) => {
+      const buf = await this.getBuffer(this.rawUrl(commit.sha, rel));
+      if (gitBlobSha(buf) !== sha) throw new Error(`Filen ${rel} ble ikke lastet ned riktig. Prøv igjen.`);
+      onProgress({ step: 'Laster ned', done: ++done, total: changed.length });
+      return { rel, buf };
+    });
+    return { remote, downloads, commit: commit.sha };
+  }
+
   // Puts back the most recent backup (undoes the last update).
   rollback() {
     const latest = listBackups(this.root)[0];
@@ -251,6 +293,58 @@ export class Updater {
     fs.rmSync(latest.dir, { recursive: true, force: true });
     return { from, to: info.from };
   }
+}
+
+// Minimal reader for the (ustar/pax) tar files GitHub produces. Returns files, folders and the
+// global "comment" header, which holds the commit id.
+export function parseTar(buf) {
+  const entries = [];
+  let comment = null;
+  let nextPath = null;
+  const str = (start, len) => buf.toString('utf8', start, start + len).replace(/\0[\s\S]*$/, '');
+  const pax = (data) => {
+    const out = {};
+    let i = 0;
+    while (i < data.length) {
+      const sp = data.indexOf(0x20, i);
+      const len = parseInt(data.toString('utf8', i, sp), 10);
+      if (!len || sp < 0) break;
+      const rec = data.toString('utf8', sp + 1, i + len - 1);
+      const eq = rec.indexOf('=');
+      out[rec.slice(0, eq)] = rec.slice(eq + 1);
+      i += len;
+    }
+    return out;
+  };
+  let off = 0;
+  while (off + 512 <= buf.length) {
+    const header = buf.subarray(off, off + 512);
+    if (header.every((b) => b === 0)) break;
+    const size = parseInt(str(off + 124, 12).trim() || '0', 8);
+    const type = String.fromCharCode(header[156] || 0x30);
+    const prefix = str(off + 345, 155);
+    const name = str(off, 100);
+    const data = buf.subarray(off + 512, off + 512 + size);
+    if (data.length < size) throw new Error('Arkivet er ufullstendig.');
+    off += 512 + Math.ceil(size / 512) * 512;
+    if (type === 'g') {
+      comment = pax(data).comment ?? comment;
+      continue;
+    }
+    if (type === 'x') {
+      nextPath = pax(data).path ?? null;
+      continue;
+    }
+    if (type === 'L') {
+      nextPath = data.toString('utf8').replace(/\0[\s\S]*$/, '');
+      continue;
+    }
+    const full = nextPath || (prefix ? `${prefix}/${name}` : name);
+    nextPath = null;
+    if (type === '0' || type === '\0' || type === '7') entries.push({ path: full, type: 'file', data: Buffer.from(data) });
+    else if (type === '5') entries.push({ path: full, type: 'dir' });
+  }
+  return { entries, comment };
 }
 
 export function listBackups(root) {
