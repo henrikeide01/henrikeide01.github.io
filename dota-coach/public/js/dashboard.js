@@ -13,6 +13,9 @@ let heroes = [];
 let heroByName = new Map();
 let pipUpdate = null;
 let openReportId = null;
+let update = null;
+let knownVersion = null;
+let updateRequested = false;
 const speaker = new Speaker('dotacoach.tts.dashboard', true);
 
 function toast(msg, ms = 3500) {
@@ -33,7 +36,10 @@ function showTab(name) {
   $('page-title').textContent = TAB_TITLE[name];
   if (name === 'draft') initDraft();
   if (name === 'meta') loadMeta();
-  if (name === 'setup') renderSetup();
+  if (name === 'setup') {
+    renderSetup();
+    renderUpdateCard();
+  }
   if (name === 'matches') {
     $('new-report').classList.add('hidden');
     if (!openReportId) loadMatches();
@@ -135,7 +141,11 @@ connect({
     speaker.handleTips(s.tips);
   },
   onStatus: (s) => {
+    // A new version is running (after an update): load the new pages.
+    if (knownVersion && s.version && s.version !== knownVersion) return location.reload();
+    knownVersion = knownVersion || s.version;
     status = s;
+    renderUpdate();
     settings = { ...settings, ...s.settings };
     Object.assign(speaker.settings, s.settings || {});
     $('patch').textContent = s.patch ? `patch ${s.patch}` : '';
@@ -157,6 +167,11 @@ connect({
       showTab('matches');
       openReport(summary.matchId);
     }
+  },
+  onUpdate: (u) => {
+    update = u;
+    renderUpdate();
+    if (activeTab === 'setup') renderUpdateCard();
   },
   onConnection: (ok) => {
     if (!ok) {
@@ -830,6 +845,136 @@ $('voice').addEventListener('change', (e) => saveSettings({ voice: e.target.valu
 $('rate').addEventListener('change', (e) => saveSettings({ ttsRate: Number(e.target.value) }));
 $('voice-test').addEventListener('click', () => speaker.say('Du har råd til Black King Bar. Kjøp den nå!'));
 
+// ---------------- Updates ----------------
+function changeNotes(changes) {
+  return (changes || []).flatMap((c) => c.notes || []);
+}
+
+function renderUpdate() {
+  $('app-version').textContent = status?.version ? `Versjon ${status.version}` : '';
+  const box = $('update-banner');
+  const u = update;
+  let html = '';
+  let error = false;
+  if (u?.state === 'downloading') {
+    const p = u.progress;
+    const step = p ? `${p.step}${p.total ? ` ${p.done}/${p.total} filer` : ''}` : 'Starter …';
+    html = `<span class="spinner"></span><div class="ub-text"><b>Oppdaterer til versjon ${esc(u.latest || '')} …</b><span>${esc(step)}</span></div>`;
+  } else if (u?.state === 'restarting') {
+    html = `<span class="spinner"></span><div class="ub-text"><b>Starter den nye versjonen …</b><span>${
+      status?.canRestart === false ? 'Hvis ingenting skjer, lukk vinduet og start Dota Coach på nytt.' : 'Siden lastes inn på nytt av seg selv om noen sekunder.'
+    }</span></div>`;
+  } else if (u?.available) {
+    const notes = changeNotes(u.changes);
+    html = `<div class="ub-text"><b>🆕 Versjon ${esc(u.latest)} er klar</b><span>${esc(notes[0] || 'Forbedringer og feilrettinger.')}${notes.length > 1 ? ` (+${notes.length - 1} til)` : ''}</span></div>
+      <button class="btn primary" data-update="apply">Oppdater nå</button><button class="btn" data-goto="setup">Hva er nytt?</button>`;
+  } else if (u?.error && updateRequested) {
+    error = true;
+    html = `<span>⚠️</span><div class="ub-text"><b>Oppdateringen feilet</b><span>${esc(u.error)}</span></div><button class="btn" data-update="dismiss">Lukk</button>`;
+  }
+  box.className = `update-banner${error ? ' error' : ''}${html ? '' : ' hidden'}`;
+  patch(box, html);
+}
+
+async function applyUpdate() {
+  updateRequested = true;
+  if (state?.phase && ['laning', 'mid', 'late'].includes(state.phase) && !confirm('Du er midt i en kamp. Vil du oppdatere nå likevel? Coachen er borte i noen sekunder.')) return;
+  try {
+    const res = await api('/api/update/apply', {});
+    if (!res.ok) {
+      update = { ...update, error: res.error, state: 'idle' };
+      renderUpdate();
+      toast(res.error, 6000);
+    }
+  } catch {
+    // The server restarts right after a successful update, so a dropped request is expected.
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-update]');
+  if (!b) return;
+  if (b.dataset.update === 'apply') applyUpdate();
+  if (b.dataset.update === 'dismiss') {
+    updateRequested = false;
+    renderUpdate();
+  }
+  if (b.dataset.update === 'check') checkUpdateNow();
+  if (b.dataset.update === 'rollback') rollbackUpdate();
+});
+
+async function checkUpdateNow() {
+  updateRequested = true;
+  const card = $('update-card');
+  card.querySelector('[data-update=check]')?.setAttribute('disabled', '');
+  try {
+    update = await api('/api/update/check', {});
+    if (!update.available && !update.error) toast('Du har nyeste versjon.');
+  } catch (err) {
+    toast(err.message);
+  }
+  renderUpdate();
+  renderUpdateCard();
+}
+
+async function rollbackUpdate() {
+  if (!confirm('Vil du gå tilbake til versjonen du hadde før forrige oppdatering?')) return;
+  const res = await api('/api/update/rollback', {}).catch((err) => ({ ok: false, error: err.message }));
+  if (!res.ok) toast(res.error, 6000);
+  else toast(`Går tilbake til versjon ${res.to} …`);
+}
+
+async function renderUpdateCard() {
+  const card = $('update-card');
+  let info;
+  try {
+    info = await api('/api/update');
+  } catch {
+    return;
+  }
+  const checked = info.checkedAt ? new Date(info.checkedAt).toLocaleString('nb-NO', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : 'aldri';
+  const upcoming = info.available
+    ? `<div class="notice" style="margin-top:10px"><b>Versjon ${esc(info.latest)} er klar:</b><ul style="margin:6px 0 0;padding-left:18px">${changeNotes(info.changes).map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`
+    : '';
+  const log = (info.log || []).slice(0, 4).map((c) => `<div><div class="ver">${esc(c.version)}<small>${esc(c.date || '')}</small></div><ul>${(c.notes || []).map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`).join('');
+  patch(
+    card,
+    `<h3>Oppdateringer</h3>
+     <div class="kv"><span class="muted">Din versjon</span><b>${esc(info.current)}</b>
+       <span class="muted">Sist sjekket</span><span>${checked}${info.error ? ` <span class="faint">(${esc(info.error)})</span>` : ''}</span></div>
+     ${upcoming}
+     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+       ${info.available ? '<button class="btn primary" data-update="apply">Oppdater nå</button>' : ''}
+       <button class="btn" data-update="check">↻ Se etter oppdateringer</button>
+       ${info.backups?.length ? `<button class="btn" data-update="rollback">↩ Angre siste oppdatering</button>` : ''}
+     </div>
+     <label class="switch" style="margin-top:12px"><input type="checkbox" id="auto-update" ${settings.autoUpdate !== false ? 'checked' : ''}> Installer oppdateringer automatisk når appen starter</label>
+     <div class="changelog"><span class="label-sm">Hva er nytt</span>${log}</div>`,
+  );
+  $('auto-update').addEventListener('change', (e) => saveSettings({ autoUpdate: e.target.checked }));
+}
+
+$('copy-diag').addEventListener('click', async () => {
+  let text;
+  try {
+    const d = await api('/api/diagnostics');
+    text = `Dota Coach – diagnose (${new Date().toLocaleString('nb-NO')})\n\`\`\`json\n${JSON.stringify(d, null, 1)}\n\`\`\``;
+  } catch (err) {
+    return toast(`Klarte ikke å lage diagnose: ${err.message}`);
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Diagnosen er kopiert. Lim den inn i chatten med Claude.', 5000);
+  } catch {
+    // No clipboard access (e.g. opened over the network): show the text so it can be copied by hand.
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.cssText = 'width:100%;height:220px;margin-top:10px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:8px;font:12px var(--mono)';
+    $('copy-diag').after(area);
+    area.select();
+  }
+});
+
 // ---------------- Start ----------------
 // In the desktop app the overlay window handles speech and is always on top already.
 if (/Electron/.test(navigator.userAgent)) {
@@ -848,6 +993,12 @@ api('/api/settings')
   })
   .catch(() => {});
 loadHeroes().catch(() => {});
+api('/api/update')
+  .then((u) => {
+    update = u;
+    renderUpdate();
+  })
+  .catch(() => {});
 try {
   const t = localStorage.getItem('dotacoach.tab');
   if (t && t !== 'live') showTab(t);

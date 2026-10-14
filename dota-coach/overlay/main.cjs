@@ -5,6 +5,7 @@
 const { app, BrowserWindow, globalShortcut, screen, Menu, Tray, nativeImage, dialog } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const BOUNDS_FILE = path.join(ROOT, 'overlay-window.json');
@@ -91,11 +92,23 @@ function updateTray() {
   );
 }
 
+// Restart after an update. If the update changed the npm packages, go through «Dota Coach.bat»
+// so they get installed first.
+function restartApp() {
+  quitting = true;
+  if (process.platform === 'win32' && fs.existsSync(path.join(ROOT, '.needs-install'))) {
+    spawn(`start "" "${path.join(ROOT, 'Dota Coach.bat')}"`, { shell: true, cwd: ROOT, detached: true, stdio: 'ignore' }).unref();
+  } else {
+    app.relaunch();
+  }
+  app.exit(0);
+}
+
 async function startCoachServer() {
   try {
     const { startServer } = await import('../src/server.js');
     // After a match, bring the app window up with the analysis (like Blitz does).
-    const srv = await startServer({ onReport: () => showMain(false) });
+    const srv = await startServer({ onReport: () => showMain(false), onRestart: restartApp });
     return srv.port;
   } catch (err) {
     if (err.code !== 'EADDRINUSE') throw err;

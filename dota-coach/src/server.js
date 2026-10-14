@@ -14,6 +14,7 @@ import { ItemDb, buildFromPopularity } from './coach/items.js';
 import { tierList, suggestHeroes, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
 import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
+import { Updater, listBackups } from './updater.js';
 import { positionsFor } from '../data/positions.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -29,6 +30,18 @@ const MIME = {
 };
 
 const readJson = (f) => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+
+// The last errors, so «Kopier diagnose» can include them.
+const recentErrors = [];
+if (!console.error.dotaCoachWrapped) {
+  const original = console.error;
+  console.error = (...args) => {
+    recentErrors.push({ at: new Date().toISOString(), text: args.map((a) => (a instanceof Error ? a.stack : String(a))).join(' ').slice(0, 600) });
+    if (recentErrors.length > 30) recentErrors.shift();
+    original(...args);
+  };
+  console.error.dotaCoachWrapped = true;
+}
 
 export async function startServer(opts = {}) {
   let settings = loadSettings();
@@ -259,8 +272,55 @@ export async function startServer(opts = {}) {
   }, 5000);
   pingTimer.unref();
 
+  // ---------- Self-update ----------
+  const updater = new Updater({ root: opts.root || ROOT, channel: opts.updateChannel || null, log });
+  const appVersion = () => updater.localVersion().version;
+  let update = { state: 'idle', current: appVersion(), available: false, checkedAt: null };
+  const setUpdate = (patchObj) => {
+    update = { ...update, ...patchObj };
+    broadcast('update', update);
+  };
+  const inGameNow = () => Date.now() - lastGsiAt < 60000 && state && !['menu', 'post'].includes(state.phase);
+
+  async function checkForUpdate() {
+    if (update.state === 'downloading' || update.state === 'restarting') return update;
+    setUpdate({ state: 'checking' });
+    try {
+      const res = await updater.check();
+      setUpdate({ state: 'idle', ...res, error: null, checkedAt: Date.now() });
+    } catch (err) {
+      setUpdate({ state: 'idle', error: err.message, checkedAt: Date.now() });
+    }
+    return update;
+  }
+
+  function restart() {
+    setUpdate({ state: 'restarting' });
+    setTimeout(() => {
+      if (opts.onRestart) opts.onRestart();
+      else process.exit(75); // start.bat starts the server again on exit code 75
+    }, 600);
+  }
+
+  async function installUpdate() {
+    if (update.state === 'downloading') throw new Error('En oppdatering pågår allerede.');
+    setUpdate({ state: 'downloading', progress: null, error: null });
+    try {
+      const res = await updater.apply({ branch: update.branch, onProgress: (p) => setUpdate({ progress: p }) });
+      log(`✔ Oppdatert til versjon ${res.to}. Starter på nytt …`);
+      setUpdate({ installed: res });
+      restart();
+      return res;
+    } catch (err) {
+      setUpdate({ state: 'idle', error: err.message, progress: null });
+      throw err;
+    }
+  }
+
   function status() {
     return {
+      version: appVersion(),
+      canRestart: !!opts.onRestart || !!process.env.DOTACOACH_LAUNCHER,
       gsiConnected: Date.now() - lastGsiAt < 35000,
       lastGsiAt,
       everConnected: lastGsiAt > 0,
@@ -417,6 +477,59 @@ export async function startServer(opts = {}) {
     }
 
     if (p === '/api/settings' && req.method === 'GET') return send(res, 200, publicSettings(settings));
+    if (p === '/api/update' && req.method === 'GET') {
+      return send(res, 200, { ...update, current: appVersion(), backups: listBackups(updater.root).map((b) => ({ name: b.name, from: b.info.from })), changes: update.changes, log: updater.localVersion().changes || [] });
+    }
+    if (p === '/api/update/check' && req.method === 'POST') return send(res, 200, await checkForUpdate());
+    if (p === '/api/update/apply' && req.method === 'POST') {
+      try {
+        if (!update.available) await checkForUpdate();
+        if (!update.available) return send(res, 200, { ok: false, error: 'Du har allerede nyeste versjon.' });
+        const result = await installUpdate();
+        return send(res, 200, { ok: true, result });
+      } catch (err) {
+        return send(res, 200, { ok: false, error: err.message });
+      }
+    }
+    if (p === '/api/update/rollback' && req.method === 'POST') {
+      try {
+        const r = updater.rollback();
+        // Don't install the version we just left again automatically.
+        settings = { ...settings, skipVersion: r.from };
+        saveSettings(settings);
+        log(`↩ Rullet tilbake til versjon ${r.to}. Starter på nytt …`);
+        restart();
+        return send(res, 200, { ok: true, to: r.to });
+      } catch (err) {
+        return send(res, 200, { ok: false, error: err.message });
+      }
+    }
+    if (p === '/api/diagnostics') {
+      const reports = listReports().slice(0, 5);
+      return send(res, 200, {
+        app: appVersion(),
+        patch: bundledHeroes.patch,
+        platform: `${process.platform} ${process.arch}`,
+        node: process.version,
+        electron: process.versions.electron || null,
+        settings: publicSettings(settings),
+        gsi: { connected: Date.now() - lastGsiAt < 35000, everConnected: lastGsiAt > 0, phase: state?.phase || null },
+        opendota: { online: od.online, lastError: od.lastError },
+        update: { available: update.available, latest: update.latest || null, error: update.error || null },
+        errors: recentErrors.slice(-15),
+        matches: reports.map((r) => ({
+          hero: r.hero?.name,
+          role: r.role,
+          result: r.result,
+          duration: r.duration,
+          score: r.score,
+          categories: Object.fromEntries(r.categories.map((c) => [c.id, c.score])),
+          tags: r.tags,
+          stats: { kda: [r.stats.kills, r.stats.deaths, r.stats.assists], lhAt10: r.stats.lhAt10, gpm: r.stats.gpm, kp: r.stats.kp },
+        })),
+      });
+    }
+
     if (p === '/api/settings' && req.method === 'POST') {
       settings = applyPublicSettings(settings, await readBody(req));
       saveSettings(settings);
@@ -452,8 +565,8 @@ export async function startServer(opts = {}) {
   port = server.address().port;
 
   // Warm up: hero stats for the draft/meta pages and fresh item data for the current patch.
-  loadHeroStats().catch((err) => log(`(Meta fra OpenDota er ikke tilgjengelig akkurat nå: ${err.message})`));
-  od.items()
+  if (!opts.noWarmup) loadHeroStats().catch((err) => log(`(Meta fra OpenDota er ikke tilgjengelig akkurat nå: ${err.message})`));
+  if (!opts.noWarmup) od.items()
     .then((raw) => {
       const items = compactItems(raw);
       if (Object.keys(items).length > 100) itemDb = new ItemDb({ ...bundledItems.items, ...items });
@@ -461,7 +574,7 @@ export async function startServer(opts = {}) {
     .catch(() => {});
 
   const url = `http://localhost:${port}`;
-  log(`\n  Dota Coach kjører på ${url}`);
+  log(`\n  Dota Coach ${appVersion()} kjører på ${url}`);
   log(`  Overlay (kompakt):   ${url}/overlay.html`);
   if (opts.lan) {
     for (const ifs of Object.values(os.networkInterfaces())) {
@@ -470,12 +583,30 @@ export async function startServer(opts = {}) {
   }
   log('\n  Venter på data fra Dota 2 … (start en kamp, eller kjør "npm run simulate" for en demo)\n');
 
+  // Look for updates at start-up (and install them straight away if allowed and no game is running),
+  // then every three hours.
+  let updateTimer = null;
+  if (!opts.noUpdate && !od.fixturesDir) {
+    setTimeout(async () => {
+      await checkForUpdate();
+      if (update.available && settings.autoUpdate !== false && update.latest !== settings.skipVersion && !inGameNow()) {
+        log(`  Ny versjon ${update.latest} funnet – installerer …`);
+        installUpdate().catch((err) => log(`  Oppdateringen feilet: ${err.message}`));
+      } else if (update.available) {
+        log(`  Ny versjon ${update.latest} er klar. Trykk «Oppdater» i appen.`);
+      }
+    }, 2500).unref();
+    updateTimer = setInterval(checkForUpdate, 3 * 3600 * 1000);
+    updateTimer.unref();
+  }
+
   const close = () => {
+    clearInterval(updateTimer);
     clearInterval(pingTimer);
     for (const res of clients) res.end();
     return new Promise((r) => server.close(r));
   };
-  return { server, port, url, close, handleGsi, getState: () => state };
+  return { server, port, url, close, handleGsi, getState: () => state, updater, checkForUpdate };
 }
 
 function openBrowser(url) {

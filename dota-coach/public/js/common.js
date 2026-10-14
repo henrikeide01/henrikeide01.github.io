@@ -65,13 +65,14 @@ export function throttle(fn, ms = 120) {
 }
 
 // Live connection to the coach server (Server-Sent Events, reconnects by itself).
-export function connect({ onState, onStatus, onConnection, onReport }) {
+export function connect({ onState, onStatus, onConnection, onReport, onUpdate }) {
   let es;
   const open = () => {
     es = new EventSource('/api/stream');
     es.addEventListener('state', (e) => onState?.(JSON.parse(e.data)));
     es.addEventListener('status', (e) => onStatus?.(JSON.parse(e.data)));
     es.addEventListener('report', (e) => onReport?.(JSON.parse(e.data)));
+    es.addEventListener('update', (e) => onUpdate?.(JSON.parse(e.data)));
     es.onopen = () => onConnection?.(true);
     es.onerror = () => onConnection?.(false);
   };

@@ -61,6 +61,23 @@ Tipsene leses opp med Windows-stemmen. For norsk uttale: *Innstillinger → Tid 
 
 ---
 
+## Oppdateringer – du trenger aldri laste ned på nytt
+
+Dota Coach oppdaterer seg selv fra GitHub:
+
+- Når appen starter, ser den etter en ny versjon. Finnes det en, og du ikke er i en kamp, installeres den automatisk, og appen starter på nytt i løpet av noen sekunder.
+- Mens appen kjører, sjekker den hver tredje time. Kommer det noe nytt, får du et banner med **Oppdater nå**. Den oppdaterer aldri av seg selv midt i en kamp.
+- Bare filene som er endret, lastes ned, og hver fil sjekkes mot GitHub før den tas i bruk.
+- Før noe byttes ut, tas det backup (mappen `backup/`). Den nye versjonen testes før den startes. Feiler testen, settes den gamle versjonen tilbake automatisk.
+- Under **Oppsett → Oppdateringer** ser du hva som er nytt. Der kan du også se etter oppdateringer selv, slå av automatisk installering, eller **angre siste oppdatering**. Starter ikke appen i det hele tatt, kjør `rollback.bat`.
+- Innstillingene dine og kamphistorikken din blir aldri rørt av en oppdatering.
+
+> **Har du egne endringer i filene?** De blir overskrevet når en ny versjon kommer, men en kopi ligger i `backup/`.
+
+### Hjelp coachen å bli bedre
+
+Under **Oppsett** finner du **📋 Kopier diagnose**. Den kopierer versjon, status, eventuelle feilmeldinger og de siste kampanalysene (ingen passord eller personlig info). Lim teksten inn i chatten med Claude sammen med det du vil ha endret. Da kan forbedringen sendes ut som en oppdatering, og du får den automatisk.
+
 ## Fight-meteret: når du bør kjempe og når du bør farme
 
 Øverst i live-coachen og i overlayet står det hele tiden én av disse:
@@ -114,6 +131,8 @@ Coachen bruker bare **Valves offisielle Game State Integration** (den samme som 
 | Overlayet vises ikke over spillet | Dota må stå i *Borderless Window*, ikke vanlig fullskjerm. |
 | Ingen tale | Trykk <kbd>Alt+Shift+S</kbd>, og velg en stemme under *Oppsett*. |
 | Ingen kampanalyse | Analysen lages for kamper som varer minst 5 minutter, og bare når coachen kjørte under kampen. |
+| En oppdatering ødela noe | Oppsett → **Angre siste oppdatering**, eller kjør `rollback.bat`. Si fra, så blir det fikset i neste versjon. |
+| «Oppdateringen feilet» | Sjekk internett. GitHub begrenser antall sjekker i timen, så prøv igjen senere. |
 
 ## Tilpass selv
 
@@ -134,6 +153,8 @@ npm test              # tester (node:test, ingen avhengigheter)
 npm run server        # bare serveren
 npm run simulate      # simulert kamp mot en kjørende server (--speed 15 --hero juggernaut --start 600)
 npm run overlay       # desktop-appen (Electron) – starter serveren selv
+node src/selftest.js  # selvtesten som kjøres etter hver oppdatering
+node tools/release.js patch "Hva er nytt"   # ny versjon (se CLAUDE.md)
 ```
 
 Serveren (`src/server.js`) har ingen avhengigheter utover Node. Den tar imot GSI på `POST /gsi`, regner ut coach-tilstanden (`src/coach/`) og sender den til appen og overlayet med Server-Sent Events (`/api/stream`). Kamper analyseres i `src/coach/analysis.js` og lagres i `matches/`. OpenDota-svar lagres i `cache/`, slik at appen holder seg godt under rate-limiten.

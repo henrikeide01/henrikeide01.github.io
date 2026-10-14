@@ -13,7 +13,7 @@ const arg = (name, def) => {
 const settings = loadSettings();
 let port = settings.port;
 try {
-  ({ port } = await startServer({ quiet: true }));
+  ({ port } = await startServer({ quiet: true, noUpdate: true }));
 } catch (err) {
   if (err.code !== 'EADDRINUSE') throw err;
 }

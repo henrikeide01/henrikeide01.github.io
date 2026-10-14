@@ -18,7 +18,7 @@
         <button class="nav-item" data-tab="matches"><span class="ni">📜</span><span>Kamper</span><span class="nav-badge hidden" id="new-report">Ny</span></button>
         <button class="nav-item" data-tab="setup"><span class="ni">⚙️</span><span>Oppsett</span></button>
       </nav>
-      <div class="sidebar-foot"><span class="pill" id="conn"><span class="dot"></span><span>Kobler til …</span></span></div>
+      <div class="sidebar-foot"><span class="pill" id="conn"><span class="dot"></span><span>Kobler til …</span></span><div class="app-version" id="app-version"></div></div>
     </aside>
 
     <div class="content">
@@ -47,6 +47,7 @@
       </header>
 
       <main>
+        <div id="update-banner" class="update-banner hidden"></div>
         <!-- LIVE -->
         <section id="tab-live">
           <div id="live-waiting" class="waiting"></div>
@@ -128,6 +129,12 @@
               </div>
             </div>
             <div class="col">
+              <div class="card" id="update-card"><h3>Oppdateringer</h3><div class="muted">Laster …</div></div>
+              <div class="card">
+                <h3>Hjelp coachen å bli bedre</h3>
+                <p class="muted" style="margin:0 0 10px;font-size:13px">Har noe vært feil eller irriterende? Trykk på knappen, og lim inn teksten i chatten med Claude sammen med det du vil ha endret. Den inneholder versjon, status, feilmeldinger og de siste kampanalysene (ingen passord eller personlig info).</p>
+                <button class="btn" id="copy-diag">📋 Kopier diagnose</button>
+              </div>
               <div class="card">
                 <h3>Tale (opplesning av tips)</h3>
                 <div class="kv">

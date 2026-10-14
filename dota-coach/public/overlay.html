@@ -20,6 +20,7 @@
     const speaker = new Speaker('dotacoach.tts.overlay', true, { alwaysAllowed: params.has('electron') });
     let state = null;
     let status = null;
+    let knownVersion = null;
 
     api('/api/settings').then((s) => Object.assign(speaker.settings, s)).catch(() => {});
 
@@ -31,6 +32,9 @@
         speaker.handleTips(s.tips);
       },
       onStatus: (s) => {
+        // Reload after an update so the overlay runs the new version too.
+        if (knownVersion && s.version && s.version !== knownVersion) return location.reload();
+        knownVersion = knownVersion || s.version;
         status = s;
         Object.assign(speaker.settings, s.settings || {});
         update(state, status);

@@ -13,9 +13,10 @@ export const DEFAULTS = {
   voice: '', // name of the speech-synthesis voice (empty = automatic)
   ttsRate: 1.05,
   opendotaApiKey: '',
+  autoUpdate: true, // install new versions automatically when the app starts
 };
 
-const PUBLIC_KEYS = ['role', 'bracket', 'voice', 'ttsRate'];
+const PUBLIC_KEYS = ['role', 'bracket', 'voice', 'ttsRate', 'autoUpdate'];
 
 export function loadSettings() {
   try {
@@ -40,5 +41,6 @@ export function applyPublicSettings(s, patch) {
   if (patch.bracket !== undefined) out.bracket = Math.min(8, Math.max(1, Number(patch.bracket) || 5));
   if (typeof patch.voice === 'string') out.voice = patch.voice.slice(0, 200);
   if (patch.ttsRate !== undefined) out.ttsRate = Math.min(2, Math.max(0.5, Number(patch.ttsRate) || 1));
+  if (typeof patch.autoUpdate === 'boolean') out.autoUpdate = patch.autoUpdate;
   return out;
 }

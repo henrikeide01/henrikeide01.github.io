@@ -10,5 +10,16 @@ if errorlevel 1 (
   exit /b 1
 )
 title Dota Coach
-node src\server.js --open %*
+set DOTACOACH_LAUNCHER=1
+set OPEN=--open
+:run
+node src\server.js %OPEN% %*
+if errorlevel 76 goto end
+if errorlevel 75 (
+  set OPEN=
+  echo.
+  echo  Starter den oppdaterte versjonen ...
+  goto run
+)
+:end
 pause

@@ -102,3 +102,70 @@ test('a finished match is analysed and shows up in the match history', async () 
   assert.ok(report.tips.length >= 1);
   assert.equal((await fetch(`${base}/api/matches/finnes-ikke`)).status, 404);
 });
+
+test('update API: check, install into a copy of the app, then restart', async () => {
+  const { gitBlobSha, normalize } = await import('../src/updater.js');
+  const http = await import('node:http');
+  // A copy of the app that is one version behind.
+  const appRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dotacoach-app-'));
+  const src = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+  fs.cpSync(src, appRoot, { recursive: true, filter: (f) => !/[\\/](node_modules|matches|cache|backup|\.git)([\\/]|$)/.test(f) && !/settings\.json$/.test(f) });
+  fs.writeFileSync(path.join(appRoot, 'version.json'), JSON.stringify({ version: '0.9.0', changes: [] }));
+
+  // "GitHub" serves the real app files plus a newer version.json.
+  const files = new Map();
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name);
+      const rel = path.relative(appRoot, full).split(path.sep).join('/');
+      if (e.isDirectory()) walk(full);
+      else files.set(`app/${rel}`, normalize(rel, fs.readFileSync(full)));
+    }
+  };
+  walk(appRoot);
+  files.set('app/version.json', Buffer.from(JSON.stringify({ version: '9.9.9', changes: [{ version: '9.9.9', notes: ['Test'] }] })));
+  const gh = http.createServer((req, res) => {
+    const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (p === '/api/repos/o/r/commits/main') return res.end(JSON.stringify({ sha: 'c', commit: { tree: { sha: 't' } } }));
+    if (p === '/api/repos/o/r/git/trees/t') return res.end(JSON.stringify({ tree: [...files].map(([f, b]) => ({ path: f, type: 'blob', sha: gitBlobSha(b) })) }));
+    const m = p.match(/^\/raw\/o\/r\/(?:refs\/heads\/main|c)\/(.+)$/);
+    if (m && files.has(m[1])) return res.end(files.get(m[1]));
+    res.writeHead(404);
+    res.end('{}');
+  });
+  await new Promise((r) => gh.listen(0, '127.0.0.1', r));
+  const ghBase = `http://127.0.0.1:${gh.address().port}`;
+
+  let restarted = false;
+  const s2 = await startServer({
+    port: 0,
+    quiet: true,
+    noWarmup: true,
+    noUpdate: true,
+    root: appRoot,
+    matchesDir: path.join(appRoot, 'matches'),
+    updateChannel: { repo: 'o/r', branches: ['main'], path: 'app', apiBase: `${ghBase}/api`, rawBase: `${ghBase}/raw` },
+    onRestart: () => (restarted = true),
+  });
+  const b2 = `http://127.0.0.1:${s2.port}`;
+  try {
+    const chk = await (await fetch(`${b2}/api/update/check`, { method: 'POST' })).json();
+    assert.equal(chk.available, true);
+    assert.equal(chk.latest, '9.9.9');
+    const res = await (await fetch(`${b2}/api/update/apply`, { method: 'POST' })).json();
+    assert.equal(res.ok, true, res.error);
+    assert.deepEqual(res.result.updated, ['version.json']);
+    await new Promise((r) => setTimeout(r, 800));
+    assert.equal(restarted, true);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(appRoot, 'version.json'), 'utf8')).version, '9.9.9');
+    const info = await (await fetch(`${b2}/api/update`)).json();
+    assert.equal(info.backups.length, 1);
+    const diag = await (await fetch(`${b2}/api/diagnostics`)).json();
+    assert.equal(diag.app, '9.9.9');
+    assert.ok(!JSON.stringify(diag).includes('dotacoach-local'), 'the GSI token is not in the diagnostics');
+  } finally {
+    await s2.close();
+    gh.close();
+    fs.rmSync(appRoot, { recursive: true, force: true });
+  }
+});

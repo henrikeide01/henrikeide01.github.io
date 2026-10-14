@@ -7,9 +7,18 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-if not exist node_modules\electron (
-  echo  Installerer overlay-komponenten ^(kun forste gang, tar et minutt^) ...
-  call npm install
+if not exist node_modules\electron goto install
+if exist .needs-install goto install
+goto launch
+:install
+echo  Installerer app-komponenten ^(tar et minutt^) ...
+call npm install
+if errorlevel 1 (
+  echo  Installasjonen feilet. Sjekk internett og start filen igjen.
+  pause
+  exit /b 1
 )
+if exist .needs-install del .needs-install
+:launch
 title Dota Coach
-call npx electron overlay\main.cjs
+call node_modules\.bin\electron.cmd overlay\main.cjs
