@@ -175,10 +175,12 @@ export async function runSimulation({ port, token, speed = 15, hero = 'antimage'
   const tick = 250;
 
   if (start === null) {
-    log('Simulerer hero-valg …');
-    await fetch(`http://127.0.0.1:${port}/api/draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enemies, allies: [] }) }).catch(() => {});
-    for (let i = 0; i < 12; i++) {
+    log('Simulerer hero-valg (fiendene «gjenkjennes» én etter én, som desktop-appen gjør) …');
+    const post = (p, body) => fetch(`http://127.0.0.1:${port}${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+    await post('/api/draft', { reset: true, enemies: [], allies: [] });
+    for (let i = 0; i < 18; i++) {
       await send(s);
+      if (i % 3 === 2) await post('/api/draft/auto', { left: [], right: enemies.slice(0, Math.floor(i / 3) + 1) });
       await sleep(tick);
     }
     s.phase = 'STRATEGY';

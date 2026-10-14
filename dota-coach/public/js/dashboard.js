@@ -90,6 +90,22 @@ $('tts').addEventListener('click', () => {
 
 $('popout').addEventListener('click', openPopout);
 
+// After an update the page reloads and the pop-out overlay closes; it needs a click to come back.
+try {
+  if (sessionStorage.getItem('dotacoach.reopenPip')) {
+    sessionStorage.removeItem('dotacoach.reopenPip');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = 'Dota Coach ble oppdatert, og overlay-vinduet ble lukket. <button class="btn primary">⧉ Åpne overlay-vinduet igjen</button>';
+    el.querySelector('button').addEventListener('click', () => {
+      el.remove();
+      openPopout();
+    });
+    document.body.append(el);
+    setTimeout(() => el.remove(), 60000);
+  }
+} catch {}
+
 async function openPopout() {
   if (!('documentPictureInPicture' in window)) {
     window.open('overlay.html', 'dotacoach-overlay', 'width=380,height=560');
@@ -144,7 +160,13 @@ connect({
   },
   onStatus: (s) => {
     // A new version is running (after an update): load the new pages.
-    if (knownVersion && s.version && s.version !== knownVersion) return location.reload();
+    if (knownVersion && s.version && s.version !== knownVersion) {
+      // The pop-out overlay closes with the reload and needs a click to open again: remind the user.
+      try {
+        if (pipUpdate) sessionStorage.setItem('dotacoach.reopenPip', '1');
+      } catch {}
+      return location.reload();
+    }
     knownVersion = knownVersion || s.version;
     status = s;
     renderUpdate();
@@ -1042,13 +1064,15 @@ function renderUpdate() {
     html = `<span class="spinner"></span><div class="ub-text"><b>Starter den nye versjonen …</b><span>${
       status?.canRestart === false ? 'Hvis ingenting skjer, lukk vinduet og start Dota Coach på nytt.' : 'Siden lastes inn på nytt av seg selv om noen sekunder.'
     }</span></div>`;
+  } else if (u?.error && updateRequested) {
+    // Shown before «version X is ready», otherwise a failed install looks like nothing happened.
+    error = true;
+    const title = u.available ? 'Oppdateringen feilet' : 'Fikk ikke sjekket etter oppdateringer';
+    html = `<span>⚠️</span><div class="ub-text"><b>${title}</b><span>${esc(u.error)}</span></div>${u.available ? '<button class="btn primary" data-update="apply">Prøv igjen</button>' : ''}<button class="btn" data-update="dismiss">Lukk</button>`;
   } else if (u?.available) {
     const notes = changeNotes(u.changes);
     html = `<div class="ub-text"><b>🆕 Versjon ${esc(u.latest)} er klar</b><span>${esc(notes[0] || 'Forbedringer og feilrettinger.')}${notes.length > 1 ? ` (+${notes.length - 1} til)` : ''}</span></div>
       <button class="btn primary" data-update="apply">Oppdater nå</button><button class="btn" data-goto="setup">Hva er nytt?</button>`;
-  } else if (u?.error && updateRequested) {
-    error = true;
-    html = `<span>⚠️</span><div class="ub-text"><b>Oppdateringen feilet</b><span>${esc(u.error)}</span></div><button class="btn" data-update="dismiss">Lukk</button>`;
   }
   box.className = `update-banner${error ? ' error' : ''}${html ? '' : ' hidden'}`;
   patch(box, html);
@@ -1056,7 +1080,13 @@ function renderUpdate() {
 
 async function applyUpdate() {
   updateRequested = true;
-  if (state?.phase && ['laning', 'mid', 'late'].includes(state.phase) && !confirm('Du er midt i en kamp. Vil du oppdatere nå likevel? Coachen er borte i noen sekunder.')) return;
+  if (
+    state?.phase &&
+    ['draft', 'strategy', 'pregame', 'laning', 'mid', 'late'].includes(state.phase) &&
+    !confirm('Du er i en kamp eller draft. Oppdaterer du nå, starter coachen på nytt og er borte i noen sekunder. Vil du oppdatere likevel?')
+  )
+    return;
+  if (update) update = { ...update, error: null };
   try {
     const res = await api('/api/update/apply', {});
     if (!res.ok) {

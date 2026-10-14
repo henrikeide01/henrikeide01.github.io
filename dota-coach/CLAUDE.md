@@ -42,6 +42,11 @@ Never edit files the updater treats as user data: `settings.json`, `matches/`, `
   generated `heroes.json` / `items.json` (`npm run build-data` from the `dotaconstants` package).
 - `public/` – dashboard (`index.html`, `js/dashboard.js`) and overlay (`overlay.html`, `js/overlay-view.js`).
 - `overlay/main.cjs` – Electron app (app window + click-through overlay + tray, restarts after updates).
+- `overlay/vision.cjs` + `vision-worker.mjs` + `src/vision/` – reads the hero portraits from the screen during the
+  draft (`detect.js`: template matching against the hero images, `picks.js`: confirms picks over several scans) and
+  posts them to `/api/draft/auto`. Tuning input: «📸 Lagre skjermbilde» writes `debug/draft-*.png` + `.json`, and
+  `/api/diagnostics` has the last detection (`vision`). Test detection changes against such screenshots.
+- `src/coach/skills.js` – skill order / talent / neutral item stats from OpenDota explorer rows, and the live advice.
 - `tools/` – `simulate.js` / `demo.js` (fake match), `make-fixtures.js` (fake OpenDota data for tests),
   `release.js`, `rollback.js`.
 

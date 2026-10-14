@@ -2,10 +2,11 @@
 
 Dota Coach er en coach for Dota 2 som kjører på din egen PC, litt som Blitz for League of Legends:
 
-- **Før kampen – draft-hjelp:** legg inn fiendene, så får du forslag til hero for din posisjon og rank. Hvert forslag har en forklaring, f.eks. «Sterk mot Axe +6 %».
+- **Før kampen – automatisk draft-hjelp:** desktop-appen kjenner igjen heroene i draften fra skjermen, og overlayet viser hva du bør picke for din posisjon og rank, mens du picker. Hvert forslag har en forklaring, f.eks. «Sterk mot Axe +6 %». Du kan også legge inn eller rette heroer selv.
 - **I kampen – live-coach og overlay:**
   - **Fight-meter** som sier om du bør *kjempe*, *presse*, *farme* eller *trekke deg* akkurat nå, og hvorfor.
   - Neste item, hvor mye gull du mangler, og items mot akkurat dette fiendelaget.
+  - **Neste evne å skille**, **talentvalg** med prosent fra pro-kamper, og hvilket **nøytralt item** og hvilken **fortryllelse** du bør velge.
   - Varsler som lav HP, ingen TP, items i stashen, ubrukte skill-poeng og at du står dypt på fiendens side.
   - Timere for runer, stacks, neutral items, Tormentor og Roshan.
   - Hvor du bør farme, og tips som leses opp med stemme.
@@ -14,7 +15,7 @@ Dota Coach er en coach for Dota 2 som kjører på din egen PC, litt som Blitz fo
   - Hva som gikk bra, hva som gikk dårlig, og 3–5 konkrete ting å jobbe med til neste kamp.
   - Grafer, kart over hvor du døde (og hvorfor), item-timinger og viktige øyeblikk.
 - **Kamphistorikk og trender:** snittscore, vinnerrate og feilene du gjør oftest over de siste kampene.
-- **Meta og builds:** tier-liste per posisjon og rank, og populære builds for hver hero.
+- **Meta og builds:** tier-liste per posisjon og rank, og populære builds, skill-rekkefølge, talenter og nøytrale items for hver hero.
 
 Alt er laget for patch **7.41**. Meta og builds hentes fra OpenDota, så de oppdateres av seg selv.
 
@@ -100,6 +101,26 @@ Det regnes ut fra blant annet:
 
 Du ser alltid hvorfor, f.eks. «+25 Nytt powerspike: Battle Fury» og «−20 Ultimaten er på cooldown». Når meteret skifter, får du beskjed med tale.
 
+## Automatisk draft
+
+Dota gir ikke andre apper beskjed om hvilke heroer fiendene picker. Desktop-appen (`Dota Coach.bat`) ser derfor på heroportrettene øverst på skjermen under draften, og tidlig i kampen til alle 10 er funnet:
+
+- Heroer den har kjent igjen, havner automatisk i draften (merket **AUTO** under *Draft-hjelp*).
+- Overlayet viser de 5 beste pickene for deg mens draften pågår, og oppdaterer dem for hver ny pick.
+- Feil hero? Klikk på den under *Draft-hjelp* for å fjerne den. Den kommer ikke tilbake i denne kampen.
+- Første gang laster appen ned bildene av heroene (lagres i `cache/heroimg`).
+- Bildene behandles bare på din PC. Ingenting lagres, med mindre du trykker **📸 Lagre skjermbilde** (for feilsøking). Da havner bildet i mappen `debug/`.
+
+Gjenkjenningen virker best når Dota står i *Borderless Window*. Bommer den, trykk **📸 Lagre skjermbilde** under draften, og send bildet og «Kopier diagnose» til Claude, så blir den justert i neste oppdatering.
+
+## Evner, talenter og nøytrale items
+
+Coachen henter skill-rekkefølgen, talentene og de nøytrale itemene fra de siste ~400 pro-kampene med heroen din (OpenDota), og bruker dem live:
+
+- **Neste evne:** når du har et ubrukt poeng, sier den hva du bør skille, f.eks. «Skill Blink (nivå 3) – 82 % av pro-spillerne gjør det her». Den foreslår aldri noe du ikke kan skille ennå.
+- **Talenter:** ved nivå 10, 15, 20 og 25 ser du hvor mange som velger hver side, og hvilket som er anbefalt. Dør du mye, får du et hint om det defensive valget.
+- **Nøytrale items:** når du kan lage et nøytralt item, viser den artefaktene med andelen pro-spillere som bruker dem, og anbefaler en fortryllelse ut fra rollen din (carry, mid, offlane eller support). Pro-kampene viser bare nøytralt item i sluttbuilden, så for tidlige tiers velges artefakten ofte etter hva statsene gir helten din.
+
 ## Kampanalyse etter kampen
 
 Coachen tar opp kampen underveis (hvert 10. sekund, pluss hendelser). Når kampen er ferdig, åpnes analysen automatisk under **Kamper**:
@@ -118,6 +139,7 @@ Rapportene lagres i mappen `matches/` på din PC.
 Coachen bruker bare **Valves offisielle Game State Integration** (den samme som brukes av blant annet strømmeverktøy). Den:
 
 - ser bare det du selv ser: din hero, gull, items, klokke og posisjon,
+- leser draften fra **skjermbildet** (det du selv ser på skjermen), ikke fra spillet,
 - leser **ikke** minnet til spillet og endrer ingenting i Dota,
 - viser **ingen** info om motspillerne som profiler, MMR eller historikk (det har Valve forbudt i overlays).
 
@@ -129,6 +151,8 @@ Coachen bruker bare **Valves offisielle Game State Integration** (den samme som 
 | «Porten er allerede i bruk» | Coachen kjører allerede (sjekk ikonet ved klokka). |
 | Ingen builds eller meta | Coachen trenger internett for å hente fra OpenDota. Etterpå lagres dataene i `cache/`. |
 | Overlayet vises ikke over spillet | Dota må stå i *Borderless Window*, ikke vanlig fullskjerm. |
+| Draften fylles ikke inn av seg selv | Bruk desktop-appen (`Dota Coach.bat`) og *Borderless Window*. Se at «🤖 Automatisk» står under *Draft-hjelp*. Bommer den, trykk **📸 Lagre skjermbilde** og send bildet til Claude. Heroene kan alltid legges inn for hånd. |
+| Ingen råd om evner eller talenter | Rådene kommer fra OpenDota. Uten internett, eller for helt nye heroer, finnes det ikke data ennå. |
 | Ingen tale | Trykk <kbd>Alt+Shift+S</kbd>, og velg en stemme under *Oppsett*. |
 | Ingen kampanalyse | Analysen lages for kamper som varer minst 5 minutter, og bare når coachen kjørte under kampen. |
 | En oppdatering ødela noe | Oppsett → **Angre siste oppdatering**, eller kjør `rollback.bat`. Si fra, så blir det fikset i neste versjon. |
