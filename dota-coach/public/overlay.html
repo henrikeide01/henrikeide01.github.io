@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dota Coach – Overlay</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/overlay.css">
+</head>
+<body class="overlay-page">
+  <div id="root"></div>
+  <script type="module">
+    import { connect, api, Speaker } from './js/common.js';
+    import { mountOverlay } from './js/overlay-view.js';
+
+    const params = new URLSearchParams(location.search);
+    if (params.has('electron')) document.documentElement.classList.add('transparent');
+
+    const update = mountOverlay(document.getElementById('root'));
+    const speaker = new Speaker('dotacoach.tts.overlay', true, { alwaysAllowed: params.has('electron') });
+    let state = null;
+    let status = null;
+
+    api('/api/settings').then((s) => Object.assign(speaker.settings, s)).catch(() => {});
+
+    connect({
+      onState: (s) => {
+        state = s;
+        update(state, status);
+        speaker.handleTips(s.tips);
+      },
+      onStatus: (s) => {
+        status = s;
+        Object.assign(speaker.settings, s.settings || {});
+        update(state, status);
+      },
+    });
+
+    // Electron toggles these from the main process.
+    window.dotaCoach = {
+      setEditMode: (on) => document.body.classList.toggle('edit', on),
+      setSpeech: (on) => speaker.setEnabled(on),
+      speechEnabled: () => speaker.enabled,
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,358 @@
+// Turns raw Game State Integration payloads into coaching state for the UI.
+import { TIMINGS, FOCUS } from '../../data/knowledge.js';
+import { RULES, expectedSkillPoints } from './rules.js';
+import { readInventory, nextItem } from './items.js';
+import { locate, safeLane, offLane } from './map.js';
+import { computeTimers, fmtGameClock } from './timers.js';
+import { situationalItems, enemyTips } from './situational.js';
+
+const LEVEL_ORDER = { alert: 0, warn: 1, good: 2, info: 3 };
+
+// Tip keys must stay unique across matches and server restarts (clients remember what they have read aloud).
+const BOOT_ID = Math.random().toString(36).slice(2, 7);
+let tipCounter = 0;
+
+export const PHASE_LABEL = {
+  menu: 'I menyen',
+  loading: 'Laster inn',
+  draft: 'Hero-valg',
+  strategy: 'Strategitid',
+  pregame: 'Før hornet',
+  laning: 'Laning (0–10 min)',
+  mid: 'Midgame (10–25 min)',
+  late: 'Lategame (25+ min)',
+  post: 'Kampen er over',
+};
+
+export const ROLE_LABEL = { 1: 'Pos 1 – Carry', 2: 'Pos 2 – Mid', 3: 'Pos 3 – Offlane', 4: 'Pos 4 – Soft support', 5: 'Pos 5 – Hard support' };
+
+export function phaseOf(gsi) {
+  const map = gsi?.map;
+  if (!map || gsi?.player?.activity === 'menu') return 'menu';
+  switch (map.game_state) {
+    case 'DOTA_GAMERULES_STATE_HERO_SELECTION':
+      return 'draft';
+    case 'DOTA_GAMERULES_STATE_STRATEGY_TIME':
+    case 'DOTA_GAMERULES_STATE_TEAM_SHOWCASE':
+    case 'DOTA_GAMERULES_STATE_WAIT_FOR_MAP_TO_LOAD':
+      return 'strategy';
+    case 'DOTA_GAMERULES_STATE_PRE_GAME':
+      return 'pregame';
+    case 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS': {
+      const t = map.clock_time || 0;
+      return t < 600 ? 'laning' : t < 1500 ? 'mid' : 'late';
+    }
+    case 'DOTA_GAMERULES_STATE_POST_GAME':
+      return 'post';
+    default:
+      return 'loading';
+  }
+}
+
+export function percentileOf(points, value) {
+  if (!Array.isArray(points) || !points.length || typeof value !== 'number') return null;
+  const pts = [...points].sort((a, b) => a.value - b.value);
+  if (value <= pts[0].value) return pts[0].value > 0 ? Math.max(0, (pts[0].percentile * value) / pts[0].value) : 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    if (value <= b.value) {
+      const f = b.value === a.value ? 1 : (value - a.value) / (b.value - a.value);
+      return a.percentile + f * (b.percentile - a.percentile);
+    }
+  }
+  return pts[pts.length - 1].percentile;
+}
+
+// Keeps tips stable between updates and decides which ones may be read aloud.
+// A tip keeps the same `key` while it stays active; clients read `say` aloud once per key.
+export class TipTracker {
+  constructor() {
+    this.active = new Map(); // id -> { key, say, since }
+    this.lastSaid = new Map(); // id -> clock
+  }
+
+  process(tips, clock) {
+    const now = new Map();
+    const out = [];
+    for (const t of tips) {
+      let entry = this.active.get(t.id);
+      if (!entry) {
+        entry = { key: `${t.id}#${BOOT_ID}${++tipCounter}`, say: null, since: Date.now() };
+        const last = this.lastSaid.get(t.id);
+        const cooldown = t.cooldown ?? 60;
+        if (t.say && (last === undefined || clock - last >= cooldown || clock < last)) {
+          entry.say = t.say;
+          this.lastSaid.set(t.id, clock);
+        }
+      }
+      now.set(t.id, entry);
+      out.push({ key: entry.key, id: t.id, level: t.level, icon: t.icon, text: t.text, say: entry.say, since: entry.since });
+    }
+    this.active = now;
+    return out.sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]);
+  }
+}
+
+export class Coach {
+  // deps: { itemDb, heroes (Map name -> hero), getHeroMeta(name) -> {build, benchmarks}|null, getDraft(), getSettings() }
+  constructor(deps) {
+    this.deps = deps;
+    this.T = deps.timings || TIMINGS;
+    this.reset(null);
+  }
+
+  reset(matchId) {
+    this.matchId = matchId;
+    this.tips = new TipTracker();
+    this.holds = new Map();
+    this.events = [];
+    this.seenGsiEvents = new Set();
+    this.deathClocks = [];
+    this.lastDeaths = null;
+    this.lastDaytime = null;
+    this.roshanKilledAt = null;
+    this.aegisAt = null;
+    this.lhAt10 = null;
+    this.clock = 0;
+  }
+
+  held(id, cond, secs) {
+    if (!cond) {
+      this.holds.delete(id);
+      return false;
+    }
+    if (!this.holds.has(id)) this.holds.set(id, this.clock);
+    return this.clock - this.holds.get(id) >= secs;
+  }
+
+  pushEvent(type, data = {}) {
+    this.events.push({ type, clock: this.clock, data });
+    if (this.events.length > 200) this.events.shift();
+  }
+
+  recentEvent(type, secs) {
+    for (let i = this.events.length - 1; i >= 0; i--) {
+      const e = this.events[i];
+      if (this.clock - e.clock > secs) return null;
+      if (e.type === type) return e;
+    }
+    return null;
+  }
+
+  trackHistory(gsi, phase) {
+    const map = gsi.map || {};
+    const player = gsi.player || {};
+    const playingNow = ['pregame', 'laning', 'mid', 'late'].includes(phase);
+
+    if (typeof player.deaths === 'number') {
+      if (this.lastDeaths !== null && player.deaths > this.lastDeaths) {
+        this.deathClocks.push(this.clock);
+        this.pushEvent('death');
+      }
+      this.lastDeaths = player.deaths;
+    }
+    if (typeof map.daytime === 'boolean') {
+      if (playingNow && this.lastDaytime !== null && map.daytime !== this.lastDaytime) this.pushEvent('daynight', { daytime: map.daytime });
+      this.lastDaytime = map.daytime;
+    }
+    if (this.lhAt10 === null && this.clock >= 600 && typeof player.last_hits === 'number') this.lhAt10 = player.last_hits;
+
+    // GSI "events" (Roshan, Aegis …) use game_time; convert to the in-game clock.
+    const offset = (map.game_time ?? 0) - (map.clock_time ?? 0);
+    for (const ev of Array.isArray(gsi.events) ? gsi.events : []) {
+      const k = `${ev.event_type}@${ev.game_time}`;
+      if (this.seenGsiEvents.has(k)) continue;
+      this.seenGsiEvents.add(k);
+      const at = typeof ev.game_time === 'number' ? ev.game_time - offset : this.clock;
+      if (ev.event_type === 'roshan_killed') this.roshanKilledAt = at;
+      if (ev.event_type === 'aegis_picked_up') this.aegisAt = at;
+    }
+  }
+
+  unspentPoints(gsi) {
+    const hero = gsi.hero;
+    const abilities = gsi.abilities;
+    if (!hero?.level || !abilities) return 0;
+    let used = 0;
+    for (const a of Object.values(abilities)) {
+      if (a && typeof a.level === 'number' && !String(a.name || '').startsWith('special_bonus')) used += a.level;
+    }
+    for (let i = 1; i <= 8; i++) if (hero[`talent_${i}`]) used += 1;
+    return Math.max(0, expectedSkillPoints(hero.level) - used);
+  }
+
+  farmAdvice(c) {
+    const safe = `${safeLane(c.team)} lane`;
+    const off = `${offLane(c.team)} lane`;
+    const r = c.role;
+    if (['draft', 'strategy', 'pregame'].includes(c.phase)) {
+      return {
+        1: `Du skal i ${safe} (safe lane) sammen med pos 5.`,
+        2: 'Du skal mid. Kjøp gjerne Bottle tidlig.',
+        3: `Du skal i ${off} (offlane) sammen med pos 4.`,
+        4: `Start i ${off} med offlaneren, eller roter tidlig til mid.`,
+        5: `Start i ${safe} med carryen din.`,
+      }[r];
+    }
+    if (!['laning', 'mid', 'late'].includes(c.phase)) return null;
+    if (c.hero && c.hero.alive === false) return 'Bruk tiden mens du er død: se hvor bølgene og fiendene er, og bestem hvor du skal når du spawner.';
+    if (c.phase === 'laning') {
+      return {
+        1: `Bli i ${safe}. Ta small- eller medium-leiren i egen jungel hvis bølgen er pushet eller lanen er for farlig.`,
+        2: 'Bli mid. Ta en leir på egen side når bølgen er pushet, og vær ved runen når den spawner.',
+        3: `Hold deg i ${off}. Trekk leiren hvis bølgen presses mot tårnet ditt, og få nivåer.`,
+        4: 'Roter mellom lanene, stack leirer ved :53 og ta runer.',
+        5: 'Pull leiren når lanen presses mot carryen, og stack ved :53.',
+      }[r];
+    }
+
+    let eta = '';
+    if (c.next && c.next.remaining > c.player.gold && c.player.gpm > 0) {
+      const mins = (c.next.remaining - c.player.gold) / c.player.gpm;
+      eta = ` Du trenger ${c.next.remaining - c.player.gold} gull til ${c.next.dname} (ca. ${Math.max(1, Math.round(mins))} min med din GPM).`;
+    }
+    const lostSafeT1 = c.towerDown(1, safeLane(c.team));
+    if (r === 1 || r === 2) {
+      const lane = lostSafeT1 ? `${safe}-bølgen ved T2-tårnet` : `${safe}-bølgen`;
+      const base = c.phase === 'late'
+        ? 'Farm bølgene som kommer til egne tårn, og jungelen på egen side. Ikke farm alene i fiendens jungel uten vision.'
+        : `Farm-rute: ${lane}, så egen jungel (stack en leir på veien), så neste bølge som nærmer seg.`;
+      return base + eta;
+    }
+    if (r === 3) return `Lag space: press ${off} og motsatt side av kartet fra carryen. Ta leirene i offlane-jungelen mellom fightene.${eta}`;
+    return 'Ikke ta farm fra kjernene. Ta bølger ingen andre rekker, stack leirer og plasser vision foran laget.';
+  }
+
+  update(gsi) {
+    const d = this.deps;
+    const settings = d.getSettings();
+    const map = gsi.map || {};
+    const matchId = map.matchid || null;
+    if (matchId && matchId !== this.matchId) this.reset(matchId);
+
+    const phase = phaseOf(gsi);
+    this.clock = typeof map.clock_time === 'number' ? map.clock_time : 0;
+    this.trackHistory(gsi, phase);
+
+    const hero = gsi.hero || {};
+    const player = gsi.player || {};
+    const heroName = hero.name ? hero.name.replace('npc_dota_hero_', '') : null;
+    const heroInfo = heroName ? d.heroes.get(heroName) : null;
+    const role = Number(settings.role) || 1;
+    const team = player.team_name === 'dire' ? 'dire' : 'radiant';
+    const meta = heroName ? d.getHeroMeta(heroName) : null;
+    const inv = readInventory(gsi.items, d.itemDb);
+    const build = meta?.build || null;
+
+    let next = nextItem(build, inv, this.clock);
+    if (next) next = { ...next, remaining: d.itemDb.remainingCost(next.name, inv.pool) };
+
+    const draft = d.getDraft();
+    const enemies = draft.enemies.map((n) => d.heroes.get(n)).filter(Boolean);
+
+    const perf = {};
+    if (meta?.benchmarks && this.clock >= 600) {
+      perf.gpmPct = percentileOf(meta.benchmarks.gold_per_min, player.gpm);
+      perf.xpmPct = percentileOf(meta.benchmarks.xp_per_min, player.xpm);
+      perf.lhPct = percentileOf(meta.benchmarks.last_hits_per_min, player.last_hits / (this.clock / 60));
+    }
+
+    const ownBuildings = gsi.buildings?.[team];
+    const prefix = team === 'dire' ? 'dota_badguys' : 'dota_goodguys';
+    const c = {
+      gsi,
+      phase,
+      clock: this.clock,
+      role,
+      team,
+      hero,
+      player,
+      heroName: heroInfo?.dname || heroName || 'helten din',
+      inv,
+      build,
+      next,
+      loc: locate(hero.xpos, hero.ypos, team),
+      T: this.T,
+      db: d.itemDb,
+      perf,
+      unspent: this.unspentPoints(gsi),
+      roshanKilledAt: this.roshanKilledAt,
+      lhAt10: this.lhAt10,
+      held: (id, cond, secs) => this.held(id, cond, secs),
+      recentEvent: (type, secs) => this.recentEvent(type, secs),
+      deathsSince: (secs) => this.deathClocks.filter((t) => this.clock - t <= secs).length,
+      towerDown: (tier, lane) => {
+        if (!ownBuildings) return false;
+        const b = ownBuildings[`${prefix}_tower${tier}_${lane}`];
+        return !b || b.health <= 0;
+      },
+    };
+
+    const raw = [];
+    for (const rule of RULES) {
+      try {
+        const r = rule(c);
+        if (r) raw.push(...(Array.isArray(r) ? r : [r]));
+      } catch (err) {
+        console.error(`Regel ${rule.name} feilet:`, err.message);
+      }
+    }
+    const tips = this.tips.process(raw, this.clock);
+
+    const focusPhase = ['laning', 'mid', 'late', 'strategy'].includes(phase) ? phase : phase === 'pregame' ? 'strategy' : null;
+
+    return {
+      phase,
+      phaseLabel: PHASE_LABEL[phase],
+      matchId,
+      clock: this.clock,
+      clockText: fmtGameClock(this.clock),
+      daytime: map.daytime ?? null,
+      paused: !!map.paused,
+      team,
+      score: { radiant: map.radiant_score ?? null, dire: map.dire_score ?? null },
+      role,
+      roleLabel: ROLE_LABEL[role],
+      hero: heroName
+        ? {
+            name: heroName,
+            dname: heroInfo?.dname || heroName,
+            level: hero.level,
+            alive: hero.alive !== false,
+            respawn: hero.respawn_seconds || 0,
+            hpPct: hero.health_percent,
+            manaPct: hero.mana_percent,
+            buybackCost: hero.buyback_cost,
+          }
+        : null,
+      player: {
+        kills: player.kills ?? 0,
+        deaths: player.deaths ?? 0,
+        assists: player.assists ?? 0,
+        lastHits: player.last_hits ?? 0,
+        denies: player.denies ?? 0,
+        gold: player.gold ?? 0,
+        unreliable: player.gold_unreliable ?? 0,
+        gpm: player.gpm ?? 0,
+        xpm: player.xpm ?? 0,
+      },
+      location: c.loc ? { label: c.loc.label, side: c.loc.side } : null,
+      focus: focusPhase ? FOCUS[focusPhase][role] : null,
+      farm: this.farmAdvice(c),
+      tips,
+      timers: ['pregame', 'laning', 'mid', 'late'].includes(phase)
+        ? computeTimers(this.clock, this.T, { daytime: map.daytime, roshanKilledAt: this.roshanKilledAt, aegisAt: this.aegisAt })
+        : [],
+      inventory: { items: inv.inventory, backpack: inv.backpack, stash: inv.stash, neutral: inv.neutral },
+      build: build ? { ...build, owned: [...inv.owned] } : null,
+      buildStatus: heroName ? (meta ? (build ? 'ok' : 'none') : 'loading') : null,
+      next,
+      situational: situationalItems(enemies, role, d.itemDb).map((s) => ({ ...s, owned: inv.owned.has(s.item) })),
+      enemies: enemies.map((e) => ({ name: e.name, dname: e.dname })),
+      enemyTips: enemyTips(enemies),
+      perf: { ...perf, lhAt10: this.lhAt10 },
+      updatedAt: Date.now(),
+    };
+  }
+}
