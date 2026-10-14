@@ -168,6 +168,15 @@ connect({
       return location.reload();
     }
     knownVersion = knownVersion || s.version;
+    // Dota only reads its GSI config at start-up: after the app asked for more data, say so once.
+    if (s.gsiConfigUpdated && s.gsiConnected && !status?.gsiConnected) {
+      try {
+        if (!sessionStorage.getItem('dotacoach.gsiRestart')) {
+          sessionStorage.setItem('dotacoach.gsiRestart', '1');
+          toast('Coachen ber nå Dota om mer data (bl.a. nøytrale items). Start Dota på nytt når det passer, så kommer alt med.', 9000);
+        }
+      } catch {}
+    }
     status = s;
     renderUpdate();
     settings = { ...settings, ...s.settings };

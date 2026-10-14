@@ -1,7 +1,14 @@
 {
-  "version": "1.3.0",
+  "version": "1.3.1",
   "date": "2026-10-14",
   "changes": [
+    {
+      "version": "1.3.1",
+      "date": "2026-10-14",
+      "notes": [
+        "Appen finner Dota-mappen selv og ber Dota om data om nøytrale items, uten at du må kjøre setup.bat på nytt."
+      ]
+    },
     {
       "version": "1.3.0",
       "date": "2026-10-14",

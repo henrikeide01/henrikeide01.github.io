@@ -15,7 +15,7 @@ import { tierList, suggestHeroes, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
 import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
 import { computeHeroSkills } from './coach/skills.js';
-import { gsiConfig, install as installGsiConfig } from './setup.js';
+import { gsiConfig, install as installGsiConfig, findDota } from './setup.js';
 import { Updater, listBackups, compareVersions } from './updater.js';
 
 const maxVersion = (a, b) => (!a ? b || null : !b ? a : compareVersions(a, b) >= 0 ? a : b);
@@ -49,6 +49,7 @@ if (!console.error.dotaCoachWrapped) {
 
 export async function startServer(opts = {}) {
   let settings = loadSettings();
+  let gsiConfigUpdated = false; // the GSI config in the Dota folder was rewritten at start-up (Dota needs a restart)
   let port = Number(opts.port ?? settings.port);
   const host = opts.lan ? '0.0.0.0' : '127.0.0.1';
   const log = opts.quiet ? () => {} : (...a) => console.log(...a);
@@ -371,6 +372,7 @@ export async function startServer(opts = {}) {
       patch: bundledHeroes.patch,
       settings: publicSettings(settings),
       tokenIsDefault: settings.token === 'dotacoach-local',
+      gsiConfigUpdated,
       vision: {
         active: Date.now() - (vision.reportedAt || 0) < 15000,
         ready: !!vision.ready,
@@ -758,12 +760,22 @@ export async function startServer(opts = {}) {
   }
   log('\n  Venter på data fra Dota 2 … (start en kamp, eller kjør "npm run simulate" for en demo)\n');
 
-  // Keep the GSI config in the Dota folder current: new versions can ask Dota for more data.
-  if (settings.dotaDir && !opts.noWarmup) {
+  // Keep the GSI config in the Dota folder current: new versions can ask Dota for more data. The Dota folder is
+  // found the same way setup.bat finds it (older versions of setup.bat did not remember it).
+  if (!opts.noWarmup) {
     try {
-      const file = path.join(settings.dotaDir, 'game', 'dota', 'cfg', 'gamestate_integration', 'gamestate_integration_dotacoach.cfg');
-      if (fs.existsSync(path.join(settings.dotaDir, 'game', 'dota')) && (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== gsiConfig(settings))) {
-        installGsiConfig({ dotaDir: settings.dotaDir, port: settings.port, token: settings.token });
+      let dotaDir = settings.dotaDir;
+      if (!dotaDir || !fs.existsSync(path.join(dotaDir, 'game', 'dota'))) {
+        dotaDir = findDota();
+        if (dotaDir) {
+          saveSettings({ ...loadSettings(), dotaDir });
+          settings = { ...settings, dotaDir };
+        }
+      }
+      const file = dotaDir && path.join(dotaDir, 'game', 'dota', 'cfg', 'gamestate_integration', 'gamestate_integration_dotacoach.cfg');
+      if (file && (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== gsiConfig(settings))) {
+        installGsiConfig({ dotaDir, port: settings.port, token: settings.token });
+        gsiConfigUpdated = true;
         log('  Oppdaterte GSI-oppsettet i Dota-mappen (mer data til coachen). Start Dota på nytt hvis det kjører.');
       }
     } catch (err) {
