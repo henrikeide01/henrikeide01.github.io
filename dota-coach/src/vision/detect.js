@@ -419,8 +419,10 @@ export function prepareTemplates(heroes, opts = {}) {
 // candidates { cx, cy, h, coarse, ks } (portrait centre and height in screen px; ks = the best heroes there).
 const SHORTLIST = 6;
 const ROBUST_TOP = 12; // heroes per window that get the robust score
-// Open search: a window with less than this share of the hero image's contrast (luma std) is scored down.
+// A window with less than this share of the hero image's contrast (luma std) is scored down: in the open search,
+// and (lower, dead heroes are darkened) at a known slot.
 const MIN_CONTRAST_RATIO = 0.5;
+const SLOT_CONTRAST_RATIO = 0.35;
 function coarseScan(T, P, ph, o, rs) {
   const { w: cw, h: ch, n, gray: tpl } = T.coarse;
   const K = T.count;
@@ -680,8 +682,8 @@ class Matcher {
       const cs = dot(this.cv, colour, k * n * 3, n * 3);
       const alpha = alphaOf(k);
       // Portraits are full-contrast UI images; a dim patch of game world that happens to have the right shape is
-      // not. Only in the open search: a dead hero's darkened portrait is scored at its slot.
-      const faint = robust ? 1 : Math.min(1, sigmaW / (MIN_CONTRAST_RATIO * Math.max(sigma[k], 1)));
+      // not. At a known slot (robust) the bar is lower: dead heroes are darkened, and an empty slot is nearly flat.
+      const faint = Math.min(1, sigmaW / ((robust ? SLOT_CONTRAST_RATIO : MIN_CONTRAST_RATIO) * Math.max(sigma[k], 1)));
       out.push({ k, score: ((1 - alpha) * gs + alpha * cs) * faint });
     }
     out.sort((a, b) => b.score - a.score);
@@ -692,7 +694,8 @@ class Matcher {
         const { ncc, coverage } = robustNcc(gy, gray, o.k * n, n, w, res);
         const cs = weightedNcc(this.cv, colour, o.k * n * 3, n, 3, w);
         const alpha = alphaOf(o.k);
-        const score = ((1 - alpha) * ncc + alpha * cs) * (0.4 + 0.6 * coverage);
+        const faint = Math.min(1, sigmaW / (SLOT_CONTRAST_RATIO * Math.max(sigma[o.k], 1)));
+        const score = ((1 - alpha) * ncc + alpha * cs) * (0.4 + 0.6 * coverage) * faint;
         if (score > o.score) o.score = score;
       }
       out.sort((a, b) => b.score - a.score);
@@ -753,9 +756,11 @@ function assign(cands, T, W, minScore) {
 // The top bar is one row of 5 + 5 evenly spaced slots mirrored around the screen centre: every portrait has the
 // same height and vertical centre, and its distance from the screen centre is d = g + m * pitch, with m = 0..4
 // counting outwards from the clock. Finds the row (cy, h) and (g, pitch) that explain the most candidates (sum of
-// the best score per slot), from every pair of candidates; on a tie the one that puts the portrait nearest the
-// clock in the slot next to it (always true in game; during the draft that slot may still be empty on both
-// sides). Returns null when no two candidates agree.
+// the best score per slot), from every pair of candidates. Ties (two portraits 3 slots apart fit 2 wide gaps as
+// well as 3 narrow ones) go to the pitch closest to TYPICAL_PITCH portrait widths (the portraits sit close
+// together), then to the grid that puts the portrait nearest the clock in the slot next to it (always true in
+// game; during the draft that slot may still be empty on both sides). Null when no two candidates agree.
+const TYPICAL_PITCH = 1.08;
 function fitRowGrid(cands, W, aspect) {
   const mid = W / 2;
   const items = cands.map((c) => ({ c, d: Math.abs(c.cx - mid), left: c.cx < mid, score: bestScore(c) }));
@@ -788,7 +793,12 @@ function fitRowGrid(cands, W, aspect) {
           if (g < 0.45 * w) continue;
           const on = support({ ...base, g, p });
           const sum = on.reduce((s, x) => s + x.it.score, 0);
-          if (!best || sum > best.sum + 1e-6 || (sum > best.sum - 1e-6 && g > best.g)) best = { g, p, sum, on };
+          const gapErr = Math.abs(p / w - TYPICAL_PITCH);
+          const better =
+            !best ||
+            sum > best.sum + 1e-6 ||
+            (sum > best.sum - 1e-6 && (gapErr < best.gapErr - 0.05 || (gapErr < best.gapErr + 0.05 && g > best.g)));
+          if (better) best = { g, p, sum, on, gapErr };
         }
       }
     }
