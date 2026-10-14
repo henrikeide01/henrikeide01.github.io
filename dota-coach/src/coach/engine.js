@@ -5,6 +5,12 @@ import { readInventory, nextItem } from './items.js';
 import { locate, safeLane, offLane } from './map.js';
 import { computeTimers, fmtGameClock } from './timers.js';
 import { situationalItems, enemyTips } from './situational.js';
+import { percentileOf } from './percentile.js';
+import { fightAdvice } from './fight.js';
+import { MatchRecorder } from './recorder.js';
+import { SPIKE_ITEMS } from '../../data/knowledge.js';
+
+export { percentileOf };
 
 const LEVEL_ORDER = { alert: 0, warn: 1, good: 2, info: 3 };
 
@@ -49,21 +55,6 @@ export function phaseOf(gsi) {
   }
 }
 
-export function percentileOf(points, value) {
-  if (!Array.isArray(points) || !points.length || typeof value !== 'number') return null;
-  const pts = [...points].sort((a, b) => a.value - b.value);
-  if (value <= pts[0].value) return pts[0].value > 0 ? Math.max(0, (pts[0].percentile * value) / pts[0].value) : 0;
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    if (value <= b.value) {
-      const f = b.value === a.value ? 1 : (value - a.value) / (b.value - a.value);
-      return a.percentile + f * (b.percentile - a.percentile);
-    }
-  }
-  return pts[pts.length - 1].percentile;
-}
-
 // Keeps tips stable between updates and decides which ones may be read aloud.
 // A tip keeps the same `key` while it stays active; clients read `say` aloud once per key.
 export class TipTracker {
@@ -99,11 +90,21 @@ export class Coach {
   constructor(deps) {
     this.deps = deps;
     this.T = deps.timings || TIMINGS;
+    this.finished = [];
     this.reset(null);
   }
 
   reset(matchId) {
+    // A match that was cut short (new match / back to menu) still gets analysed.
+    if (this.rec && !this.rec.done && this.rec.length >= 30) this.finishMatch('unknown');
     this.matchId = matchId;
+    this.rec = matchId ? new MatchRecorder(matchId) : null;
+    this.roshanKills = [];
+    this.aegisTeam = null;
+    this.prevInventory = null;
+    this.prevLevel = null;
+    this.fightStable = null;
+    this.fightCandidate = null;
     this.tips = new TipTracker();
     this.holds = new Map();
     this.events = [];
@@ -115,6 +116,19 @@ export class Coach {
     this.aegisAt = null;
     this.lhAt10 = null;
     this.clock = 0;
+  }
+
+  finishMatch(result) {
+    if (!this.rec || this.rec.done) return;
+    const roshan = this.roshanKills.map((r) => ({ t: r.t, ours: r.team === this.team }));
+    this.finished.push(this.rec.finish({ result, roshan }));
+  }
+
+  // Matches that ended since the last call (for the post-game analysis).
+  popFinished() {
+    const out = this.finished;
+    this.finished = [];
+    return out;
   }
 
   held(id, cond, secs) {
@@ -165,8 +179,50 @@ export class Coach {
       if (this.seenGsiEvents.has(k)) continue;
       this.seenGsiEvents.add(k);
       const at = typeof ev.game_time === 'number' ? ev.game_time - offset : this.clock;
-      if (ev.event_type === 'roshan_killed') this.roshanKilledAt = at;
+      if (ev.event_type === 'roshan_killed') {
+        this.roshanKilledAt = at;
+        this.aegisTeam = ev.killed_by_team === 'radiant' || ev.killed_by_team === 'dire' ? ev.killed_by_team : null;
+        this.roshanKills.push({ t: at, team: this.aegisTeam });
+      }
       if (ev.event_type === 'aegis_picked_up') this.aegisAt = at;
+    }
+  }
+
+  // Power spikes: a core item lands in the inventory, or the hero hits level 6.
+  trackSpikes(c) {
+    const inv = c.inv.inventory;
+    if (this.prevInventory) {
+      for (const n of inv) {
+        if (this.prevInventory.includes(n)) continue;
+        if ((c.coreItems.includes(n) || SPIKE_ITEMS.includes(n)) && c.db.cost(n) >= 1000) {
+          this.pushEvent('spike-item', { name: n, dname: c.db.dname(n) });
+        }
+      }
+    }
+    this.prevInventory = inv;
+    const lvl = c.hero.level;
+    if (typeof lvl === 'number') {
+      if (this.prevLevel !== null && this.prevLevel < 6 && lvl >= 6) this.pushEvent('level6');
+      this.prevLevel = lvl;
+    }
+  }
+
+  // Only report a new fight level after it has held for a few seconds (no flip-flopping).
+  stabiliseFight(fight) {
+    if (!fight || fight.level === 'dead') {
+      this.fightCandidate = null;
+      return;
+    }
+    if (fight.level === this.fightStable) {
+      this.fightCandidate = null;
+      return;
+    }
+    if (!this.fightCandidate || this.fightCandidate.level !== fight.level) this.fightCandidate = { level: fight.level, since: this.clock };
+    if (this.clock - this.fightCandidate.since >= 8 || this.fightStable === null) {
+      const from = this.fightStable;
+      this.fightStable = fight.level;
+      this.fightCandidate = null;
+      if (from !== null) this.pushEvent('fight-shift', { from, to: fight.level });
     }
   }
 
@@ -232,6 +288,7 @@ export class Coach {
     if (matchId && matchId !== this.matchId) this.reset(matchId);
 
     const phase = phaseOf(gsi);
+    if (phase === 'menu' && this.rec && !this.rec.done && this.rec.length >= 30) this.finishMatch('unknown');
     this.clock = typeof map.clock_time === 'number' ? map.clock_time : 0;
     this.trackHistory(gsi, phase);
 
@@ -245,11 +302,15 @@ export class Coach {
     const inv = readInventory(gsi.items, d.itemDb);
     const build = meta?.build || null;
 
+    // The items that make this hero strong: the most popular mid/late-game items.
+    const coreItems = build ? [...build.mid.slice(0, 3), ...build.late.slice(0, 3)].map((x) => x.name) : [];
     let next = nextItem(build, inv, this.clock);
-    if (next) next = { ...next, remaining: d.itemDb.remainingCost(next.name, inv.pool) };
+    if (next) next = { ...next, remaining: d.itemDb.remainingCost(next.name, inv.pool), core: coreItems.includes(next.name) || SPIKE_ITEMS.includes(next.name) };
 
     const draft = d.getDraft();
     const enemies = draft.enemies.map((n) => d.heroes.get(n)).filter(Boolean);
+    const radiant = team === 'radiant';
+    this.team = team;
 
     const perf = {};
     if (meta?.benchmarks && this.clock >= 600) {
@@ -269,9 +330,17 @@ export class Coach {
       hero,
       player,
       heroName: heroInfo?.dname || heroName || 'helten din',
+      heroKey: heroName,
       inv,
       build,
       next,
+      coreItems,
+      coreOwned: coreItems.filter((n) => inv.owned.has(n)).length,
+      enemyKeys: enemies.map((e) => e.name),
+      allyKeys: draft.allies.filter((n) => n !== heroName && d.heroes.has(n)),
+      teamKills: (radiant ? map.radiant_score : map.dire_score) ?? 0,
+      enemyKills: (radiant ? map.dire_score : map.radiant_score) ?? 0,
+      aegisTeam: this.aegisTeam,
       loc: locate(hero.xpos, hero.ypos, team),
       T: this.T,
       db: d.itemDb,
@@ -289,6 +358,11 @@ export class Coach {
       },
     };
 
+    if (['laning', 'mid', 'late'].includes(phase) && heroName) this.trackSpikes(c);
+    const fight = fightAdvice(c);
+    this.stabiliseFight(fight);
+    c.fight = fight;
+
     const raw = [];
     for (const rule of RULES) {
       try {
@@ -302,7 +376,7 @@ export class Coach {
 
     const focusPhase = ['laning', 'mid', 'late', 'strategy'].includes(phase) ? phase : phase === 'pregame' ? 'strategy' : null;
 
-    return {
+    const state = {
       phase,
       phaseLabel: PHASE_LABEL[phase],
       matchId,
@@ -352,7 +426,18 @@ export class Coach {
       enemies: enemies.map((e) => ({ name: e.name, dname: e.dname })),
       enemyTips: enemyTips(enemies),
       perf: { ...perf, lhAt10: this.lhAt10 },
+      fight,
+      matchReady: false,
       updatedAt: Date.now(),
     };
+
+    if (this.rec) {
+      this.rec.update(c, state);
+      if (phase === 'post') {
+        const win = map.win_team;
+        this.finishMatch(win === team ? 'win' : win === 'radiant' || win === 'dire' ? 'loss' : 'unknown');
+      }
+    }
+    return state;
   }
 }

@@ -14,7 +14,7 @@ export function heroIdFor(name) {
 
 const ITEM_PLAN = {
   // [clock to buy, item]; the simulated player buys a bit late on purpose so "afford" tips show up.
-  antimage: [[-80, 'tango'], [-80, 'quelling_blade'], [-80, 'branches'], [-80, 'slippers'], [240, 'magic_wand'], [420, 'power_treads'], [930, 'bfury'], [1290, 'manta'], [1680, 'abyssal_blade'], [2100, 'butterfly']],
+  antimage: [[-80, 'tango'], [-80, 'quelling_blade'], [-80, 'branches'], [-80, 'slippers'], [240, 'magic_wand'], [420, 'power_treads'], [930, 'bfury'], [1290, 'manta'], [1560, 'black_king_bar'], [1800, 'abyssal_blade'], [2100, 'butterfly']],
   default: [[-80, 'tango'], [-80, 'branches'], [-80, 'branches'], [-80, 'faerie_fire'], [240, 'magic_wand'], [420, 'phase_boots'], [960, 'black_king_bar'], [1500, 'blink'], [1900, 'assault']],
 };
 const COST = { tango: 90, quelling_blade: 100, branches: 50, slippers: 140, faerie_fire: 65, magic_wand: 460, power_treads: 1400, phase_boots: 1500, bfury: 3900, manta: 4650, abyssal_blade: 6250, butterfly: 5450, black_king_bar: 4050, blink: 2250, assault: 5125 };
@@ -22,7 +22,7 @@ const DEMO_ENEMIES = ['phantom_assassin', 'lion', 'zuus', 'riki', 'axe'];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function payload(s, token) {
+export function fakePayload(s, token) {
   const { clock, hero } = s;
   const phase = s.phase;
   const t = Math.max(0, clock);
@@ -122,7 +122,7 @@ export async function runSimulation({ port, token, speed = 15, hero = 'antimage'
   const heroId = heroIdFor(hero);
   const url = `http://127.0.0.1:${port}/gsi`;
   const send = async (s) => {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload(s, token)) });
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fakePayload(s, token)) });
     if (res.status === 401) throw new Error('Serveren avviste token. Kjør simulatoren fra samme mappe som serveren.');
   };
   const s = { phase: 'DRAFT', clock: -150, hero, heroId, deaths: 0, alive: true, respawn: 0, lowHp: false, matchId: String(7000000000 + Math.floor(Math.random() * 1e8)) };

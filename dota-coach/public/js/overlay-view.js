@@ -55,6 +55,7 @@ export function mountOverlay(root) {
   root.innerHTML = `
     <div class="ov">
       <div class="ov-head" data-s="head"></div>
+      <div class="ov-fight" data-s="fight"></div>
       <div class="ov-tips" data-s="tips"></div>
       <div class="ov-next" data-s="next"></div>
       <div class="ov-timers" data-s="timers"></div>
@@ -62,7 +63,7 @@ export function mountOverlay(root) {
       <div class="ov-edit-hint">Flyttemodus: dra vinduet dit du vil ha det. Trykk <b>Alt+Shift+M</b> for å låse.</div>
     </div>`;
   const s = (name) => root.querySelector(`[data-s="${name}"]`);
-  const els = { head: s('head'), tips: s('tips'), next: s('next'), timers: s('timers'), foot: s('foot') };
+  const els = { head: s('head'), fight: s('fight'), tips: s('tips'), next: s('next'), timers: s('timers'), foot: s('foot') };
 
   return function update(state, status) {
     const connected = status?.gsiConnected;
@@ -78,6 +79,7 @@ export function mountOverlay(root) {
           : 'Venter på Dota 2 … Start spillet eller en demo.';
       patch(els.head, `<div class="ov-title"><span class="dot ${connected ? 'on' : 'wait'}"></span><b>Dota Coach</b><span class="ov-muted">${esc(state?.phaseLabel || '')}</span></div>`);
       patch(els.tips, `<div class="ov-empty">${esc(msg)}</div>`);
+      patch(els.fight, '');
       patch(els.next, '');
       patch(els.timers, '');
       patch(els.foot, '');
@@ -95,7 +97,19 @@ export function mountOverlay(root) {
     );
     patch(head('clock'), `${esc(state.clockText)} ${day}${state.paused ? ' ⏸' : ''}`);
 
-    const tips = (state.tips || []).slice(0, MAX_TIPS);
+    const f = state.fight;
+    if (f && f.level !== 'dead') {
+      els.fight.className = `ov-fight ${f.level}`;
+      const fb = layout(els.fight, 'fight', '<div class="ov-fight-row"><b data-p="word"></b><span data-p="head"></span></div><div class="fm-gauge sm"><i data-p="marker"></i></div>');
+      patch(fb('word'), `${f.icon} ${esc(f.label)}`);
+      patch(fb('head'), esc(f.reasons[0]?.text || f.headline));
+      fb('marker').style.left = `${(f.score + 100) / 2}%`;
+    } else {
+      els.fight.className = 'ov-fight';
+      patch(els.fight, '');
+    }
+
+    const tips = (state.tips || []).filter((t) => !t.id.startsWith('fight-')).slice(0, MAX_TIPS);
     const shown = tips.length ? tips : [{ key: 'calm', level: 'calm', icon: '✅', text: state.focus || 'Alt ser bra ut. Fortsett sånn!' }];
     patchList(
       els.tips,

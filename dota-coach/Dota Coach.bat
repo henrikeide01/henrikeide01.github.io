@@ -11,5 +11,5 @@ if not exist node_modules\electron (
   echo  Installerer overlay-komponenten ^(kun forste gang, tar et minutt^) ...
   call npm install
 )
-title Dota Coach overlay
+title Dota Coach
 call npx electron overlay\main.cjs

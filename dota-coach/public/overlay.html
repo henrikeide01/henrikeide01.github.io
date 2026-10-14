@@ -10,7 +10,7 @@
 <body class="overlay-page">
   <div id="root"></div>
   <script type="module">
-    import { connect, api, Speaker } from './js/common.js';
+    import { connect, api, Speaker, throttle } from './js/common.js';
     import { mountOverlay } from './js/overlay-view.js';
 
     const params = new URLSearchParams(location.search);
@@ -23,10 +23,11 @@
 
     api('/api/settings').then((s) => Object.assign(speaker.settings, s)).catch(() => {});
 
+    const render = throttle(() => update(state, status));
     connect({
       onState: (s) => {
         state = s;
-        update(state, status);
+        render();
         speaker.handleTips(s.tips);
       },
       onStatus: (s) => {

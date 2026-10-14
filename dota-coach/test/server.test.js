@@ -7,6 +7,7 @@ import { startServer } from '../src/server.js';
 import { loadSettings } from '../src/settings.js';
 import { gsiConfig, parseLibraryFolders } from '../src/setup.js';
 import { makeFixtures } from '../tools/make-fixtures.js';
+import { fakePayload } from '../tools/simulate.js';
 
 let srv;
 let base;
@@ -16,7 +17,7 @@ const post = (p, body) => fetch(base + p, { method: 'POST', headers: { 'Content-
 before(async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotacoach-'));
   makeFixtures(dir);
-  srv = await startServer({ port: 0, quiet: true, fixturesDir: dir });
+  srv = await startServer({ port: 0, quiet: true, fixturesDir: dir, matchesDir: path.join(dir, 'matches') });
   base = `http://127.0.0.1:${srv.port}`;
 });
 
@@ -76,4 +77,28 @@ test('setup helpers', () => {
   const cfg = gsiConfig({ port: 3355, token: 'abc' });
   assert.match(cfg, /"uri"\s+"http:\/\/127\.0\.0\.1:3355\/gsi"/);
   assert.match(cfg, /"token"\s+"abc"/);
+});
+
+test('a finished match is analysed and shows up in the match history', async () => {
+  const s = { phase: 'GAME', clock: 0, hero: 'juggernaut', heroId: 8, deaths: 0, alive: true, respawn: 0, lowHp: false, matchId: '424242' };
+  for (let t = 0; t <= 900; t += 15) {
+    s.clock = t;
+    if (t === 450) s.deaths = 1;
+    await post('/gsi', fakePayload(s, token));
+  }
+  s.phase = 'POST';
+  await post('/gsi', fakePayload(s, token));
+  let list;
+  for (let i = 0; i < 20; i++) {
+    list = await (await fetch(`${base}/api/matches`)).json();
+    if (list.matches.length) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  assert.equal(list.matches.length, 1);
+  assert.equal(list.matches[0].hero.name, 'juggernaut');
+  assert.equal(list.matches[0].result, 'win');
+  const report = await (await fetch(`${base}/api/matches/424242`)).json();
+  assert.ok(report.categories.length >= 5);
+  assert.ok(report.tips.length >= 1);
+  assert.equal((await fetch(`${base}/api/matches/finnes-ikke`)).status, 404);
 });

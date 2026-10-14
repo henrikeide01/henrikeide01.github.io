@@ -3,3 +3,4 @@ cache/
 settings.json
 overlay-window.json
 config/gamestate_integration_dotacoach.cfg
+matches/

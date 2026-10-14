@@ -8,135 +8,153 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><div class="logo">◆</div><span>Dota Coach</span><small id="patch"></small></div>
-    <span class="pill" id="conn"><span class="dot"></span><span>Kobler til …</span></span>
-    <div class="spacer"></div>
-    <div class="controls">
-      <label class="field">Rolle
-        <select id="role">
-          <option value="1">Pos 1 – Carry</option>
-          <option value="2">Pos 2 – Mid</option>
-          <option value="3">Pos 3 – Offlane</option>
-          <option value="4">Pos 4 – Soft support</option>
-          <option value="5">Pos 5 – Hard support</option>
-        </select>
-      </label>
-      <label class="field">Rank
-        <select id="bracket">
-          <option value="1">Herald</option><option value="2">Guardian</option><option value="3">Crusader</option><option value="4">Archon</option>
-          <option value="5">Legend</option><option value="6">Ancient</option><option value="7">Divine</option><option value="8">Immortal</option>
-        </select>
-      </label>
-      <button class="btn" id="tts" title="Les viktige tips høyt">🔈 Tale</button>
-      <button class="btn primary" id="popout" title="Åpner et lite vindu som alltid ligger øverst">⧉ Overlay-vindu</button>
-    </div>
-  </header>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="logo">◆</div><div><span>Dota Coach</span><small id="patch"></small></div></div>
+      <nav class="nav">
+        <button class="nav-item active" data-tab="live"><span class="ni">🎮</span><span>Live-coach</span></button>
+        <button class="nav-item" data-tab="draft"><span class="ni">🧠</span><span>Draft-hjelp</span></button>
+        <button class="nav-item" data-tab="meta"><span class="ni">📊</span><span>Meta og builds</span></button>
+        <button class="nav-item" data-tab="matches"><span class="ni">📜</span><span>Kamper</span><span class="nav-badge hidden" id="new-report">Ny</span></button>
+        <button class="nav-item" data-tab="setup"><span class="ni">⚙️</span><span>Oppsett</span></button>
+      </nav>
+      <div class="sidebar-foot"><span class="pill" id="conn"><span class="dot"></span><span>Kobler til …</span></span></div>
+    </aside>
 
-  <nav class="tabs">
-    <button class="tab active" data-tab="live">Live-coach</button>
-    <button class="tab" data-tab="draft">Draft-hjelp</button>
-    <button class="tab" data-tab="meta">Meta og builds</button>
-    <button class="tab" data-tab="setup">Oppsett</button>
-  </nav>
+    <div class="content">
+      <header class="topbar">
+        <h1 id="page-title">Live-coach</h1>
+        <div class="spacer"></div>
+        <div class="controls">
+          <label class="field">Rolle
+            <select id="role">
+              <option value="1">Pos 1 – Carry</option>
+              <option value="2">Pos 2 – Mid</option>
+              <option value="3">Pos 3 – Offlane</option>
+              <option value="4">Pos 4 – Soft support</option>
+              <option value="5">Pos 5 – Hard support</option>
+            </select>
+          </label>
+          <label class="field">Rank
+            <select id="bracket">
+              <option value="1">Herald</option><option value="2">Guardian</option><option value="3">Crusader</option><option value="4">Archon</option>
+              <option value="5">Legend</option><option value="6">Ancient</option><option value="7">Divine</option><option value="8">Immortal</option>
+            </select>
+          </label>
+          <button class="btn" id="tts" title="Les viktige tips høyt">🔈 Tale</button>
+          <button class="btn primary" id="popout" title="Åpner et lite vindu som alltid ligger øverst">⧉ Overlay-vindu</button>
+        </div>
+      </header>
 
-  <main>
-    <!-- LIVE -->
-    <section id="tab-live">
-      <div id="live-waiting" class="waiting"></div>
-      <div id="live-game" class="grid live-grid hidden">
-        <div class="col">
-          <div class="card hero-card" id="c-hero"></div>
-          <div class="card"><h3>Gjør dette nå <span class="right faint" id="c-tipcount"></span></h3><div class="tips" id="c-tips"></div></div>
-          <div class="card" id="c-focus"></div>
-        </div>
-        <div class="col">
-          <div class="card" id="c-next"></div>
-          <div class="card" id="c-build"></div>
-          <div class="card" id="c-sit"></div>
-        </div>
-        <div class="col">
-          <div class="card"><h3>Timere</h3><div class="timers" id="c-timers"></div></div>
-          <div class="card" id="c-perf"></div>
-          <div class="card" id="c-enemy"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- DRAFT -->
-    <section id="tab-draft" class="hidden">
-      <div class="grid draft-grid">
-        <div class="col">
-          <div class="card">
-            <h3>Draften <span class="right"><button class="btn" id="draft-reset">Nullstill</button></span></h3>
-            <div class="slots" id="draft-slots"></div>
-            <div class="hero-grid-wrap">
-              <div class="hero-grid-tools">
-                <input type="search" id="hero-search" placeholder="Søk etter hero … (Enter legger til den første)" autocomplete="off">
+      <main>
+        <!-- LIVE -->
+        <section id="tab-live">
+          <div id="live-waiting" class="waiting"></div>
+          <div id="live-game" class="hidden">
+            <div class="card fight-card" id="c-fight"></div>
+            <div class="grid live-grid">
+              <div class="col">
+                <div class="card hero-card" id="c-hero"></div>
+                <div class="card"><h3>Gjør dette nå <span class="right faint" id="c-tipcount"></span></h3><div class="tips" id="c-tips"></div></div>
+                <div class="card" id="c-focus"></div>
               </div>
-              <div id="hero-grid"></div>
+              <div class="col">
+                <div class="card" id="c-next"></div>
+                <div class="card" id="c-build"></div>
+                <div class="card" id="c-sit"></div>
+              </div>
+              <div class="col">
+                <div class="card"><h3>Timere</h3><div class="timers" id="c-timers"></div></div>
+                <div class="card" id="c-perf"></div>
+                <div class="card" id="c-enemy"></div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="col" id="draft-results"></div>
-      </div>
-    </section>
+        </section>
 
-    <!-- META -->
-    <section id="tab-meta" class="hidden">
-      <div class="grid meta-grid">
-        <div class="card">
-          <h3>Tier-liste <span class="right"><label class="field">Posisjon
-            <select id="meta-role">
-              <option value="0">Alle</option><option value="1">Pos 1</option><option value="2">Pos 2</option>
-              <option value="3">Pos 3</option><option value="4">Pos 4</option><option value="5">Pos 5</option>
-            </select></label></span></h3>
-          <div id="meta-table"><span class="spinner"></span> Henter meta …</div>
-        </div>
-        <div class="card" id="meta-build"><h3>Build</h3><div class="muted">Klikk på en hero i lista for å se build og benchmark-tall.</div></div>
-      </div>
-    </section>
+        <!-- DRAFT -->
+        <section id="tab-draft" class="hidden">
+          <div class="grid draft-grid">
+            <div class="col">
+              <div class="card">
+                <h3>Draften <span class="right"><button class="btn" id="draft-reset">Nullstill</button></span></h3>
+                <div class="slots" id="draft-slots"></div>
+                <div class="hero-grid-wrap">
+                  <div class="hero-grid-tools">
+                    <input type="search" id="hero-search" placeholder="Søk etter hero … (Enter legger til den første)" autocomplete="off">
+                  </div>
+                  <div id="hero-grid"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col" id="draft-results"></div>
+          </div>
+        </section>
 
-    <!-- SETUP -->
-    <section id="tab-setup" class="hidden">
-      <div class="grid setup-grid">
-        <div class="col">
-          <div class="card"><h3>Status</h3><div id="setup-status"></div></div>
-          <div class="card">
-            <h3>Koble til Dota 2 (én gang)</h3>
-            <div class="steps">
-              <div class="step"><div>Kjør <code>setup.bat</code> (eller <code>npm run setup</code>). Den finner Dota-mappen og legger inn konfig-filen for Game State Integration.</div></div>
-              <div class="step"><div>I Steam: høyreklikk på <b>Dota 2</b> → <b>Egenskaper</b> → <b>Startalternativer</b>, og legg til <code>-gamestateintegration</code></div></div>
-              <div class="step"><div>For overlay over spillet: Dota 2 → Innstillinger → Video → Visningsmodus <b>Borderless Window</b>.</div></div>
-              <div class="step"><div>Start Dota 2 på nytt. Statusen øverst blir grønn når data kommer inn.</div></div>
+        <!-- META -->
+        <section id="tab-meta" class="hidden">
+          <div class="grid meta-grid">
+            <div class="card">
+              <h3>Tier-liste <span class="right"><label class="field">Posisjon
+                <select id="meta-role">
+                  <option value="0">Alle</option><option value="1">Pos 1</option><option value="2">Pos 2</option>
+                  <option value="3">Pos 3</option><option value="4">Pos 4</option><option value="5">Pos 5</option>
+                </select></label></span></h3>
+              <div id="meta-table"><span class="spinner"></span> Henter meta …</div>
+            </div>
+            <div class="card" id="meta-build"><h3>Build</h3><div class="muted">Klikk på en hero i lista for å se build og benchmark-tall.</div></div>
+          </div>
+        </section>
+
+        <!-- MATCHES -->
+        <section id="tab-matches" class="hidden">
+          <div id="matches-list"></div>
+          <div id="match-report" class="hidden"></div>
+        </section>
+
+        <!-- SETUP -->
+        <section id="tab-setup" class="hidden">
+          <div class="grid setup-grid">
+            <div class="col">
+              <div class="card"><h3>Status</h3><div id="setup-status"></div></div>
+              <div class="card">
+                <h3>Koble til Dota 2 (én gang)</h3>
+                <div class="steps">
+                  <div class="step"><div>Kjør <code>setup.bat</code> (eller <code>npm run setup</code>). Den finner Dota-mappen og legger inn konfig-filen for Game State Integration.</div></div>
+                  <div class="step"><div>I Steam: høyreklikk på <b>Dota 2</b> → <b>Egenskaper</b> → <b>Startalternativer</b>, og legg til <code>-gamestateintegration</code></div></div>
+                  <div class="step"><div>For overlay over spillet: Dota 2 → Innstillinger → Video → Visningsmodus <b>Borderless Window</b>.</div></div>
+                  <div class="step"><div>Start Dota 2 på nytt. Statusen nede til venstre blir grønn når data kommer inn.</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="card">
+                <h3>Tale (opplesning av tips)</h3>
+                <div class="kv">
+                  <span class="muted">Stemme</span><select id="voice"></select>
+                  <span class="muted">Hastighet</span><input type="range" id="rate" min="0.7" max="1.6" step="0.05">
+                  <span></span><div><button class="btn" id="voice-test">▶ Test stemmen</button></div>
+                </div>
+                <p class="muted" style="margin:12px 0 0;font-size:12.5px">Tips: installer norsk stemme i Windows (Innstillinger → Tid og språk → Tale → Legg til stemmer → Norsk bokmål) for best uttale.</p>
+              </div>
+              <div class="card">
+                <h3>Overlay over spillet</h3>
+                <div class="check"><span class="st">🪟</span><div><b>Dota Coach-appen (anbefalt):</b> kjør <code>Dota Coach.bat</code>. Du får appvinduet og et gjennomsiktig overlay oppå spillet. <kbd>Alt+Shift+M</kbd> flytter og låser, <kbd>Alt+Shift+C</kbd> viser og skjuler, <kbd>Alt+Shift+S</kbd> slår tale av og på, <kbd>Alt+Shift+D</kbd> åpner appvinduet.</div></div>
+                <div class="check"><span class="st">⧉</span><div><b>Overlay-vindu i nettleseren:</b> trykk «Overlay-vindu» øverst (Chrome/Edge). Du får et lite vindu som alltid ligger øverst.</div></div>
+                <div class="check"><span class="st">📱</span><div><b>Mobil eller nettbrett som skjerm nr. 2:</b> start med <code>start.bat --lan</code> og åpne adressen den skriver ut, på samme Wi-Fi.</div></div>
+              </div>
+              <div class="card">
+                <h3>Fair play</h3>
+                <div class="muted" style="font-size:13px">Coachen bruker bare Valves offisielle Game State Integration. Den ser kun det du selv ser (din hero, gull, items og klokka), og leser ikke minnet til spillet. Den viser ingen info om motspillerne som profiler eller historikk. Meta-tallene kommer fra OpenDota.</div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="col">
-          <div class="card">
-            <h3>Tale (opplesning av tips)</h3>
-            <div class="kv">
-              <span class="muted">Stemme</span><select id="voice"></select>
-              <span class="muted">Hastighet</span><input type="range" id="rate" min="0.7" max="1.6" step="0.05">
-              <span></span><div><button class="btn" id="voice-test">▶ Test stemmen</button></div>
-            </div>
-            <p class="muted" style="margin:12px 0 0;font-size:12.5px">Tips: installer norsk stemme i Windows (Innstillinger → Tid og språk → Tale → Legg til stemmer → Norsk bokmål) for best uttale.</p>
-          </div>
-          <div class="card">
-            <h3>Overlay over spillet</h3>
-            <div class="check"><span class="st">⧉</span><div><b>Overlay-vindu (enklest):</b> trykk «Overlay-vindu» øverst (Chrome/Edge). Du får et lite vindu som alltid ligger øverst. Dra det dit du vil ha det.</div></div>
-            <div class="check"><span class="st">🪟</span><div><b>Ekte gjennomsiktig overlay:</b> kjør <code>start-overlay.bat</code>. Klikk går rett gjennom til spillet. <kbd>Alt+Shift+M</kbd> flytter og låser, <kbd>Alt+Shift+C</kbd> viser og skjuler, <kbd>Alt+Shift+S</kbd> slår tale av og på.</div></div>
-            <div class="check"><span class="st">📱</span><div><b>Mobil eller nettbrett som skjerm nr. 2:</b> start med <code>start.bat --lan</code> og åpne adressen den skriver ut, på samme Wi-Fi.</div></div>
-          </div>
-          <div class="card">
-            <h3>Fair play</h3>
-            <div class="muted" style="font-size:13px">Coachen bruker bare Valves offisielle Game State Integration. Den ser kun det du selv ser (din hero, gull, items og klokka), og leser ikke minnet til spillet. Den viser ingen info om motspillerne som profiler eller historikk. Meta-tallene kommer fra OpenDota.</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
+        </section>
+      </main>
+    </div>
+  </div>
 
+  <div class="chart-tip hidden" id="chart-tip"></div>
   <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>

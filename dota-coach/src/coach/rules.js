@@ -132,6 +132,37 @@ export const RULES = [
     return tip('smoked', 'info', '🌫️', 'Du er smoket. Gå sammen med laget, og ikke angrip før alle er klare.');
   },
 
+  // ---------------- Power spikes / when to fight ----------------
+  function itemSpike(c) {
+    const ev = c.recentEvent('spike-item', 20);
+    if (!ev || !inGame(c)) return;
+    return tip(`spike-${ev.data.name}`, 'good', '⚡', `${ev.data.dname} er ferdig. Det er et powerspike, så se etter fights eller press et tårn med laget nå.`, {
+      say: `${ev.data.dname} ferdig. Nå er du sterk`,
+      cooldown: 0,
+    });
+  },
+  function levelSix(c) {
+    if (!c.recentEvent('level6', 20) || !inGame(c)) return;
+    const what = c.role >= 4 || c.role === 2 ? 'Se etter en gank sammen med laget.' : 'Bruk den når fienden står dårlig.';
+    return tip('level6', 'good', '⭐', `Nivå 6: ultimaten er klar. ${what}`, { say: 'Nivå seks. Ultimaten er klar', cooldown: 0 });
+  },
+  function fightShift(c) {
+    const ev = c.recentEvent('fight-shift', 12);
+    if (!ev || !inGame(c) || !c.fight) return;
+    const why = c.fight.reasons[0] ? ` (${c.fight.reasons[0].text.charAt(0).toLowerCase()}${c.fight.reasons[0].text.slice(1)})` : '';
+    const says = {
+      fight: 'Godt tidspunkt å kjempe',
+      press: 'Ta initiativ og press',
+      farm: 'Farm og vent på neste powerspike',
+      retreat: 'Ikke kjemp nå. Trekk deg',
+    };
+    const level = { fight: 'good', press: 'good', neutral: 'info', farm: 'warn', retreat: 'alert' }[ev.data.to];
+    return tip(`fight-${ev.data.to}`, level, c.fight.icon, `${c.fight.label}: ${c.fight.headline}${why}`, {
+      say: says[ev.data.to],
+      cooldown: 45,
+    });
+  },
+
   // ---------------- Map timings ----------------
   function powerRune(c) {
     if (!inGame(c) || !alive(c) || (c.role !== 2 && c.role !== 4)) return;

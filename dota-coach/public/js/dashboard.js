@@ -1,5 +1,6 @@
-import { esc, heroImg, itemImg, fmtClock, fmtNum, api, connect, Speaker } from './common.js';
+import { esc, heroImg, itemImg, fmtClock, fmtNum, api, connect, Speaker, throttle } from './common.js';
 import { mountOverlay, patch, patchList, layout } from './overlay-view.js';
+import { lineChart, deathMap, scoreColumns } from './charts.js';
 
 const $ = (id) => document.getElementById(id);
 const BRACKET_NAME = { 1: 'Herald', 2: 'Guardian', 3: 'Crusader', 4: 'Archon', 5: 'Legend', 6: 'Ancient', 7: 'Divine', 8: 'Immortal' };
@@ -11,6 +12,7 @@ let settings = { role: 1, bracket: 5, voice: '', ttsRate: 1.05 };
 let heroes = [];
 let heroByName = new Map();
 let pipUpdate = null;
+let openReportId = null;
 const speaker = new Speaker('dotacoach.tts.dashboard', true);
 
 function toast(msg, ms = 3500) {
@@ -21,22 +23,33 @@ function toast(msg, ms = 3500) {
   setTimeout(() => el.remove(), ms);
 }
 
-// ---------------- Tabs ----------------
+// ---------------- Navigation ----------------
+const TAB_TITLE = { live: 'Live-coach', draft: 'Draft-hjelp', meta: 'Meta og builds', matches: 'Kamper og analyse', setup: 'Oppsett' };
 let activeTab = 'live';
 function showTab(name) {
   activeTab = name;
-  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  for (const id of ['live', 'draft', 'meta', 'setup']) $(`tab-${id}`).classList.toggle('hidden', id !== name);
+  document.querySelectorAll('.nav-item').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+  for (const id of Object.keys(TAB_TITLE)) $(`tab-${id}`).classList.toggle('hidden', id !== name);
+  $('page-title').textContent = TAB_TITLE[name];
   if (name === 'draft') initDraft();
   if (name === 'meta') loadMeta();
   if (name === 'setup') renderSetup();
+  if (name === 'matches') {
+    $('new-report').classList.add('hidden');
+    if (!openReportId) loadMatches();
+  }
   try {
     localStorage.setItem('dotacoach.tab', name);
   } catch {
     // ignore
   }
 }
-document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
+document.querySelectorAll('.nav-item').forEach((t) =>
+  t.addEventListener('click', () => {
+    if (t.dataset.tab === 'matches') openReportId = null;
+    showTab(t.dataset.tab);
+  }),
+);
 
 // ---------------- Header controls ----------------
 async function saveSettings(patchObj) {
@@ -73,7 +86,7 @@ $('popout').addEventListener('click', openPopout);
 async function openPopout() {
   if (!('documentPictureInPicture' in window)) {
     window.open('overlay.html', 'dotacoach-overlay', 'width=380,height=560');
-    toast('Nettleseren støtter ikke vinduer som alltid ligger øverst. Bruk Chrome eller Edge, eller start-overlay.bat.', 6000);
+    toast('Nettleseren støtter ikke vinduer som alltid ligger øverst. Bruk Chrome eller Edge, eller «Dota Coach.bat».', 6000);
     return;
   }
   const pip = await documentPictureInPicture.requestWindow({ width: 370, height: 540 });
@@ -109,12 +122,16 @@ function renderConn() {
   patch(el, `<span class="dot ${cls}"></span><span>${esc(text)}</span>`);
 }
 
+const renderState = throttle(() => {
+  renderLive();
+  renderConn();
+  pipUpdate?.(state, status);
+});
+
 connect({
   onState: (s) => {
     state = s;
-    renderLive();
-    renderConn();
-    pipUpdate?.(state, status);
+    renderState();
     speaker.handleTips(s.tips);
   },
   onStatus: (s) => {
@@ -128,6 +145,18 @@ connect({
     if (!state?.hero) renderLive();
     if (activeTab === 'setup') renderSetup();
     pipUpdate?.(state, status);
+  },
+  onReport: (summary) => {
+    if (activeTab === 'matches' && openReportId === summary.matchId) return openReport(summary.matchId);
+    if (activeTab === 'matches' && !openReportId) return loadMatches();
+    $('new-report').classList.remove('hidden');
+    toast(`Kampanalysen er klar: ${summary.hero?.dname || ''} fikk karakter ${summary.grade}. Se «Kamper».`, 7000);
+    // Right after a match (not in the middle of one) jump straight to the report, like Blitz does.
+    if (activeTab === 'live' && (!state || state.matchId === summary.matchId || ['post', 'menu'].includes(state.phase))) {
+      openReportId = summary.matchId;
+      showTab('matches');
+      openReport(summary.matchId);
+    }
   },
   onConnection: (ok) => {
     if (!ok) {
@@ -161,7 +190,7 @@ function renderWaiting() {
     ? `<div class="steps">
         <div class="step ${status?.tokenIsDefault === false ? 'done' : ''}"><div>Kjør <code>setup.bat</code> én gang. Den legger inn GSI-konfigurasjonen i Dota-mappen.</div></div>
         <div class="step"><div>Legg til <code>-gamestateintegration</code> under Startalternativer for Dota 2 i Steam.</div></div>
-        <div class="step"><div>Start Dota 2. Statusen øverst blir grønn.</div></div>
+        <div class="step"><div>Start Dota 2. Statusen nede til venstre blir grønn.</div></div>
       </div>`
     : '';
   patch($('live-waiting'), `<div class="big">${big}</div><h2>${title}</h2><p class="muted">${text}</p>${steps}`);
@@ -203,9 +232,11 @@ function renderLive() {
      <div class="stat"><div class="k">XPM</div><div class="v">${p.xpm}</div></div>`,
   );
 
-  $('c-tipcount').textContent = s.tips.length ? `${s.tips.length} aktive` : '';
-  if (s.tips.length) {
-    patchList($('c-tips'), s.tips, (t) => t.key, (t) => `<div class="ico">${t.icon}</div><div>${esc(t.text)}</div>`, (t) => `tip ${t.level}`);
+  // The fight meter has its own card, so its tips are only read aloud here.
+  const tips = s.tips.filter((t) => !t.id.startsWith('fight-'));
+  $('c-tipcount').textContent = tips.length ? `${tips.length} aktive` : '';
+  if (tips.length) {
+    patchList($('c-tips'), tips, (t) => t.key, (t) => `<div class="ico">${t.icon}</div><div>${esc(t.text)}</div>`, (t) => `tip ${t.level}`);
   } else patch($('c-tips'), '<div class="empty">✅ Ingenting som haster akkurat nå. Følg fokuset under.</div>');
 
   patch(
@@ -215,12 +246,42 @@ function renderLive() {
      ${s.farm ? `<div class="focus-text"><span class="label-sm">Hvor du bør være / farme</span>${esc(s.farm)}</div>` : ''}`,
   );
 
+  renderFight();
   renderNext();
   renderBuild();
   renderSituational();
   renderTimers();
   renderPerf();
   renderEnemyTips();
+}
+
+function renderFight() {
+  const f = state.fight;
+  const card = $('c-fight');
+  if (state.phase === 'post') {
+    card.className = 'card fight-card';
+    return patch(card, `<div class="fm-label"><span class="fm-icon">🏁</span><div><div class="fm-word">KAMPEN ER OVER</div><div class="fm-sub">Analysen lages nå</div></div></div><div class="fm-headline">Rapporten med karakter, hva som gikk bra og hva du bør jobbe med dukker opp under «Kamper» om et øyeblikk.</div><div><button class="btn primary" data-goto="matches">📜 Gå til Kamper</button></div>`);
+  }
+  card.classList.toggle('hidden', !f);
+  if (!f) return;
+  card.className = `card fight-card ${f.level}`;
+  const box = layout(
+    card,
+    'fight',
+    `<div class="fm-label"><span class="fm-icon" data-p="icon"></span><div><div class="fm-word" data-p="word"></div><div class="fm-sub">Fight-meter</div></div></div>
+     <div><div class="fm-headline" data-p="head"></div><div class="fm-gauge"><i data-p="marker"></i></div><div class="fm-scale"><span>Trekk deg</span><span>Farm</span><span>Nøytral</span><span>Press</span><span>Kjemp</span></div></div>
+     <div class="fm-reasons" data-p="reasons"></div>`,
+  );
+  patch(box('icon'), f.icon);
+  patch(box('word'), esc(f.label));
+  patch(box('head'), esc(f.headline));
+  box('marker').style.left = `${(f.score + 100) / 2}%`;
+  patch(
+    box('reasons'),
+    f.reasons.length
+      ? f.reasons.map((r) => `<div class="fm-reason"><b class="${r.delta > 0 ? 'pos' : 'neg'}">${r.delta > 0 ? '+' : '−'}${Math.abs(r.delta)}</b><span>${esc(r.text)}</span></div>`).join('')
+      : '<div class="muted">Ingen sterke signaler akkurat nå.</div>',
+  );
 }
 
 function renderNext() {
@@ -319,6 +380,165 @@ function renderEnemyTips() {
     $('c-enemy'),
     `<h3>Husk mot fiendene</h3>${tips.map((t) => `<div class="enemy-tip">${heroImg(t.hero, heroByName.get(t.hero)?.dname || t.hero, 'xs')}<span>${esc(t.text)}</span></div>`).join('')}`,
   );
+}
+
+// ---------------- Matches and post-game reports ----------------
+const RESULT = { win: ['Seier', 'win'], loss: ['Tap', 'loss'], unknown: ['Ukjent', 'unknown'] };
+const fmtDate = (iso) => {
+  try {
+    return new Date(iso).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+};
+const meterClass = (score) => (score >= 72 ? 'good' : score >= 60 ? 'ok' : score >= 45 ? 'warn' : 'bad');
+
+async function loadMatches() {
+  $('match-report').classList.add('hidden');
+  const list = $('matches-list');
+  list.classList.remove('hidden');
+  list.innerHTML = '<div class="card"><span class="spinner"></span> Henter kamper …</div>';
+  let data;
+  try {
+    data = await api('/api/matches');
+  } catch (err) {
+    list.innerHTML = `<div class="card"><div class="notice warn">${esc(err.message)}</div></div>`;
+    return;
+  }
+  if (!data.matches.length) {
+    list.innerHTML = `<div class="waiting"><div class="big">📜</div><h2>Ingen kamper analysert ennå</h2>
+      <p class="muted">Spill en kamp med coachen åpen. Når kampen er ferdig får du en rapport med karakter, hva som gikk bra og dårlig, og hva du bør jobbe med. Vil du se et eksempel, kjør <code>demo.bat</code>.</p></div>`;
+    return;
+  }
+  const tr = data.trends;
+  const fmt1 = (v) => (v == null ? '–' : (Math.round(v * 10) / 10).toLocaleString('nb-NO'));
+  const common = tr.common.length
+    ? `<div style="margin-top:14px"><span class="label-sm">Det du oftest bør jobbe med</span><div class="tip-cards">${tr.common
+        .map((c) => `<div class="tip-card"><div><b>${esc(c.title)} <span class="faint">(${c.count} av ${tr.games} kamper)</span></b><span class="muted">${esc(c.text)}</span></div></div>`)
+        .join('')}</div></div>`
+    : '<p class="muted" style="margin:14px 0 0">Ingen feil går igjen i flere kamper ennå. Bra!</p>';
+  list.innerHTML = `<div class="grid matches-grid">
+    <div class="col">
+      <div class="card"><h3>Trend <span class="right faint">siste ${tr.games} kamper</span></h3>
+        <div class="trend-stats">
+          <div class="stat"><div class="k">Snittscore</div><div class="v">${tr.avgScore}</div></div>
+          <div class="stat"><div class="k">Vinnerrate</div><div class="v">${tr.winrate == null ? '–' : `${Math.round(tr.winrate * 100)} %`}</div></div>
+          <div class="stat"><div class="k">Dødsfall</div><div class="v">${fmt1(tr.avgDeaths)}</div></div>
+          <div class="stat"><div class="k">LH ved 10</div><div class="v">${fmt1(tr.avgLhAt10)}</div></div>
+        </div>
+        <div style="margin-top:14px"><span class="label-sm">Score per kamp</span><div id="score-cols"></div></div>
+        ${common}
+      </div>
+    </div>
+    <div class="col"><div class="card"><h3>Kamphistorikk</h3>${data.matches
+      .map((m) => {
+        const [rt, rc] = RESULT[m.result] || RESULT.unknown;
+        return `<div class="match-row" data-match="${esc(m.matchId)}">${heroImg(m.hero?.name, m.hero?.dname)}
+          <span class="grade ${m.grade}">${m.grade}</span>
+          <div><b>${esc(m.hero?.dname || '')}</b> <span class="result ${rc}">${rt}</span><div class="muted" style="font-size:12.5px">${fmtDate(m.date)} · ${fmtClock(m.duration)} · Pos ${m.role}</div></div>
+          <div class="num" style="text-align:right">${m.kda.join('/')}<div class="muted" style="font-size:12px">KDA</div></div>
+          <div class="num" style="text-align:right">${m.score}<div class="muted" style="font-size:12px">score</div></div></div>`;
+      })
+      .join('')}</div></div></div>`;
+  scoreColumns($('score-cols'), tr.scores);
+}
+
+$('matches-list').addEventListener('click', (e) => {
+  const row = e.target.closest('[data-match]');
+  if (!row) return;
+  openReportId = row.dataset.match;
+  openReport(openReportId);
+});
+
+async function openReport(id) {
+  $('matches-list').classList.add('hidden');
+  const box = $('match-report');
+  box.classList.remove('hidden');
+  box.innerHTML = '<div class="card"><span class="spinner"></span> Laster rapport …</div>';
+  let r;
+  try {
+    r = await api(`/api/matches/${encodeURIComponent(id)}`);
+  } catch (err) {
+    box.innerHTML = `<div class="card"><div class="notice warn">${esc(err.message)}</div></div>`;
+    return;
+  }
+  renderReport(r);
+}
+
+function renderReport(r) {
+  const [rt, rc] = RESULT[r.result] || RESULT.unknown;
+  const st = r.stats;
+  const pctTxt = (p) => (p == null ? '' : ` <span class="faint">(${Math.round(p * 100)}. pst)</span>`);
+  const od = r.opendota;
+  const odCard = od
+    ? `<div class="card"><h3>Fra OpenDota <span class="right faint">${od.parsed ? 'full analyse' : 'grunndata'}</span></h3>
+        <div class="trend-stats">
+          ${od.heroDamage != null ? `<div class="stat"><div class="k">Hero damage</div><div class="v">${fmtNum(od.heroDamage)}<small> #${od.teamRank.heroDamage} på laget</small></div></div>` : ''}
+          ${od.towerDamage != null ? `<div class="stat"><div class="k">Tårnskade</div><div class="v">${fmtNum(od.towerDamage)}<small> #${od.teamRank.towerDamage}</small></div></div>` : ''}
+          ${od.netWorth != null ? `<div class="stat"><div class="k">Net worth</div><div class="v">${fmtNum(od.netWorth)}<small> #${od.teamRank.netWorth}</small></div></div>` : ''}
+          ${od.obsPlaced != null ? `<div class="stat"><div class="k">Observers</div><div class="v">${od.obsPlaced}</div></div>` : ''}
+        </div>
+        <div class="list-check" style="margin-top:12px">${od.good.map((t) => `<div><span>✅</span><span>${esc(t)}</span></div>`).join('')}${od.bad.map((t) => `<div><span>⚠️</span><span>${esc(t)}</span></div>`).join('')}</div>
+      </div>`
+    : `<div class="card"><h3>Fra OpenDota</h3><p class="muted" style="margin:0 0 10px">Hero damage, tårnskade og wards hentes fra OpenDota når kampen er tilgjengelig der (vanligvis 5–15 min etter kampen, og bare hvis «Expose Public Match Data» er på i Dota).</p><button class="btn" id="od-refresh">↻ Hent nå</button></div>`;
+
+  $('match-report').innerHTML = `
+    <div style="margin-bottom:14px"><button class="btn" id="report-back">← Alle kamper</button></div>
+    <div class="card report-head">
+      ${heroImg(r.hero?.name, r.hero?.dname, 'lg')}
+      <div><div class="hero-name">${esc(r.hero?.dname || '')} <span class="result ${rc}">${rt}</span></div>
+        <div class="meta-row"><span>Pos ${r.role}</span><span>${fmtClock(r.duration)}</span><span>${fmtDate(r.date)}</span><span>KDA <b>${st.kills}/${st.deaths}/${st.assists}</b></span><span>LH <b>${st.lastHits}</b></span><span>GPM <b>${st.gpm}</b>${pctTxt(st.gpmPct)}</span><span>XPM <b>${st.xpm}</b>${pctTxt(st.xpmPct)}</span>${st.kp != null ? `<span>Kill-deltakelse <b>${Math.round(st.kp * 100)} %</b></span>` : ''}</div></div>
+      <div class="report-score"><div class="hero-figure">${r.score}<small>/100</small></div><span class="grade lg ${r.grade}">${r.grade}</span></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>Karakter per område</h3><div class="cat-tiles">${r.categories
+      .map((c) => `<div class="cat-tile"><div class="top"><span>${esc(c.label)}</span><span class="grade sm ${c.grade}">${c.grade}</span></div><div class="meter ${meterClass(c.score)}"><i style="width:${Math.max(3, c.score)}%"></i></div><div class="muted num" style="font-size:12px;margin-top:5px">${c.score}/100</div></div>`)
+      .join('')}</div></div>
+    <div class="grid report-cols" style="margin-top:16px">
+      <div class="card"><h3>✅ Dette gikk bra</h3><div class="list-check">${r.good.length ? r.good.map((g) => `<div><span>✅</span><span>${esc(g.text)}</span></div>`).join('') : '<div class="muted">Ingen klare styrker denne gangen.</div>'}</div></div>
+      <div class="card"><h3>⚠️ Dette kan bli bedre</h3><div class="list-check">${r.bad.length ? r.bad.map((g) => `<div><span>⚠️</span><span>${esc(g.text)}</span></div>`).join('') : '<div class="muted">Ingen store feil. Bra jobba!</div>'}</div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>🎯 Fokus til neste kamp</h3><div class="tip-cards">${r.tips.map((t) => `<div class="tip-card"><div><b>${esc(t.title)}</b><span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></div>
+    <div class="grid report-cols" style="margin-top:16px">
+      <div class="card"><h3>Last hits over tid</h3>${r.charts.lhTargetPerMin ? '<div class="legend"><span><i></i>Du</span><span><i class="ref"></i>Mål</span></div>' : ''}<div class="chart" id="ch-lh"></div></div>
+      <div class="card"><h3>Gull i lomma (ubrukt)</h3><div class="legend"><span><i></i>Ubrukt gull</span><span><i class="ref"></i>Grense før du bør kjøpe</span></div><div class="chart" id="ch-gold"></div></div>
+    </div>
+    <div class="grid report-cols" style="margin-top:16px">
+      <div class="card"><h3>Hvor du døde</h3>${r.deaths.length ? `<div id="death-map"></div><div class="list-check" style="margin-top:12px">${r.deaths.map((d) => `<div><span class="num">${d.n}.</span><span><b class="num">${fmtClock(d.t)}</b> ${esc(d.label || '')}${d.why.length ? ` <span class="muted">– ${esc(d.why.join(', '))}</span>` : ''}</span></div>`).join('')}</div>` : '<div class="muted">Du døde ikke i det hele tatt. Sterkt!</div>'}</div>
+      <div class="col">
+        <div class="card"><h3>Viktige øyeblikk</h3>${r.moments.length ? r.moments.map((m) => `<div class="moment"><span class="t">${fmtClock(m.t)}</span><span>${m.icon}</span><span>${esc(m.text)}</span></div>`).join('') : '<div class="muted">Ingen registrert.</div>'}</div>
+        <div class="card"><h3>Item-timinger</h3>${r.items.length ? r.items.map((it) => `<div class="item-time">${itemImg(it.name, it.dname, 'sm')}<span>${esc(it.dname)}${it.expected ? ` <span class="faint">vanlig ca. ${fmtClock(it.expected)}</span>` : ''}</span><b class="num">${fmtClock(it.t)}</b></div>`).join('') : '<div class="muted">Ingen items registrert.</div>'}</div>
+        ${odCard}
+      </div>
+    </div>`;
+
+  if (r.charts.lh.length) {
+    lineChart($('ch-lh'), {
+      points: r.charts.lh,
+      name: 'Last hits',
+      ref: r.charts.lhTargetPerMin ? { name: 'Mål', at: (t) => Math.max(0, (r.charts.lhTargetPerMin * (t - 30)) / 60) } : null,
+    });
+  }
+  if (r.charts.gold.length) {
+    lineChart($('ch-gold'), { points: r.charts.gold, name: 'Ubrukt gull', ref: { name: 'Grense', at: () => r.charts.unspentLimit } });
+  }
+  if (r.deaths.length) deathMap($('death-map'), r.deaths, r.team);
+  $('report-back').addEventListener('click', () => {
+    openReportId = null;
+    loadMatches();
+  });
+  $('od-refresh')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = 'Henter …';
+    try {
+      const res = await api(`/api/matches/${encodeURIComponent(r.matchId)}/opendota`, {});
+      if (res.found) renderReport(res.report);
+      else toast('Kampen er ikke tilgjengelig på OpenDota ennå. Prøv igjen om noen minutter.');
+    } catch (err) {
+      toast(`Klarte ikke å hente: ${err.message}`);
+    }
+    e.target.disabled = false;
+    e.target.textContent = '↻ Hent nå';
+  });
 }
 
 // ---------------- Heroes ----------------
@@ -611,6 +831,12 @@ $('rate').addEventListener('change', (e) => saveSettings({ ttsRate: Number(e.tar
 $('voice-test').addEventListener('click', () => speaker.say('Du har råd til Black King Bar. Kjøp den nå!'));
 
 // ---------------- Start ----------------
+// In the desktop app the overlay window handles speech and is always on top already.
+if (/Electron/.test(navigator.userAgent)) {
+  $('popout').classList.add('hidden');
+  $('tts').classList.add('hidden');
+  speaker.setEnabled(false);
+}
 renderTtsButton();
 renderLive();
 api('/api/settings')

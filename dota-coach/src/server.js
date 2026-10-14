@@ -13,9 +13,11 @@ import { Coach, ROLE_LABEL } from './coach/engine.js';
 import { ItemDb, buildFromPopularity } from './coach/items.js';
 import { tierList, suggestHeroes, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
+import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
 import { positionsFor } from '../data/positions.js';
 
 const PUBLIC = path.join(ROOT, 'public');
+const MATCHES = path.join(ROOT, 'matches');
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -122,6 +124,80 @@ export async function startServer(opts = {}) {
     getSettings: () => settings,
   });
 
+  // ---------- Post-game analysis and match history ----------
+  const matchesDir = opts.matchesDir || MATCHES;
+  fs.mkdirSync(matchesDir, { recursive: true });
+  const reportFile = (id) => path.join(matchesDir, `${String(id).replace(/[^0-9a-z_-]/gi, '')}.json`);
+
+  function listReports() {
+    const out = [];
+    for (const f of fs.readdirSync(matchesDir)) {
+      if (!f.endsWith('.json')) continue;
+      try {
+        out.push(JSON.parse(fs.readFileSync(path.join(matchesDir, f), 'utf8')));
+      } catch {
+        // skip broken files
+      }
+    }
+    return out.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }
+
+  const summary = (r) => ({
+    matchId: r.matchId,
+    date: r.date,
+    duration: r.duration,
+    result: r.result,
+    hero: r.hero,
+    role: r.role,
+    score: r.score,
+    grade: r.grade,
+    kda: [r.stats.kills, r.stats.deaths, r.stats.assists],
+    gpm: r.stats.gpm,
+  });
+
+  async function enrich(report, rec) {
+    try {
+      const match = await od.match(report.matchId);
+      const extra = enrichFromOpenDota(report, match, { accountId: rec?.accountId ?? report.accountId, heroId: rec?.heroId ?? report.heroId });
+      if (!extra) return false;
+      report.opendota = extra;
+      fs.writeFileSync(reportFile(report.matchId), JSON.stringify(report));
+      broadcast('report', summary(report));
+      return extra.parsed;
+    } catch {
+      return false;
+    }
+  }
+
+  async function handleFinished(rec) {
+    try {
+      const meta = heroMeta.get(rec.hero?.name) || (await loadHeroMeta(rec.hero?.name).catch(() => null));
+      const report = analyzeMatch(rec, { meta, itemDb, heroes });
+      report.accountId = rec.accountId;
+      report.heroId = rec.heroId;
+      fs.writeFileSync(reportFile(report.matchId), JSON.stringify(report));
+      log(`✔ Kampanalyse klar: ${report.hero?.dname} – karakter ${report.grade} (${report.score}/100)`);
+      broadcast('report', summary(report));
+      opts.onReport?.(summary(report));
+      // OpenDota needs a few minutes before the match is available (only for public match data).
+      if (!od.fixturesDir) od.requestParse(report.matchId);
+      for (const delay of od.fixturesDir ? [500] : [3, 8, 20].map((m) => m * 60 * 1000)) {
+        setTimeout(async () => {
+          const r = (() => {
+            try {
+              return JSON.parse(fs.readFileSync(reportFile(report.matchId), 'utf8'));
+            } catch {
+              return null;
+            }
+          })();
+          if (r && !r.opendota?.parsed) await enrich(r, rec);
+        }, delay).unref();
+      }
+    } catch (err) {
+      console.error('Kampanalysen feilet:', err);
+    }
+  }
+
   function idleState() {
     return { phase: 'menu', phaseLabel: lastGsiAt ? 'I menyen' : 'Venter på Dota 2', role: settings.role, roleLabel: ROLE_LABEL[settings.role], tips: [], timers: [], updatedAt: Date.now() };
   }
@@ -135,6 +211,7 @@ export async function startServer(opts = {}) {
       return;
     }
     broadcast('state', state);
+    for (const rec of coach.popFinished()) handleFinished(rec);
   }
 
   function handleGsi(payload) {
@@ -294,6 +371,29 @@ export async function startServer(opts = {}) {
       return send(res, 200, { hero: heroes.get(name), build: meta?.build || null, benchmarks: meta?.benchmarks || null, error: meta?.build ? null : od.lastError });
     }
 
+    if (p === '/api/matches' && req.method === 'GET') {
+      const reports = listReports();
+      return send(res, 200, { matches: reports.map(summary), trends: trends(reports) });
+    }
+    const matchRoute = p.match(/^\/api\/matches\/([0-9a-z_-]+)(\/opendota)?$/i);
+    if (matchRoute) {
+      let report;
+      try {
+        report = JSON.parse(fs.readFileSync(reportFile(matchRoute[1]), 'utf8'));
+      } catch {
+        return send(res, 404, { error: 'Fant ikke kampen' });
+      }
+      if (matchRoute[2] && req.method === 'POST') {
+        const ok = await enrich(report, null);
+        return send(res, 200, { report, found: !!report.opendota, parsed: ok });
+      }
+      if (req.method === 'DELETE') {
+        fs.unlinkSync(reportFile(matchRoute[1]));
+        return send(res, 200, { ok: true });
+      }
+      return send(res, 200, report);
+    }
+
     if (p === '/api/draft' && req.method === 'GET') return send(res, 200, draft);
     if (p === '/api/draft' && req.method === 'POST') {
       const body = await readBody(req);
@@ -326,6 +426,7 @@ export async function startServer(opts = {}) {
     }
 
     if (req.method !== 'GET') return send(res, 405, { error: 'Metoden er ikke støttet' });
+    if (p.startsWith('/api/')) return send(res, 404, { error: 'Ukjent API-adresse' });
 
     // Static files
     const rel = p === '/' ? '/index.html' : decodeURIComponent(p);

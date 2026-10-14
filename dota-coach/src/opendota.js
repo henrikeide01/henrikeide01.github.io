@@ -104,6 +104,21 @@ export class OpenDota {
   items() {
     return this.get('/constants/items', TTL.constants);
   }
+
+  match(matchId) {
+    return this.get(`/matches/${matchId}`, 5 * 60 * 1000);
+  }
+
+  // Ask OpenDota to parse the replay (gives wards, stacks, lane data …). Best effort.
+  requestParse(matchId) {
+    if (this.fixturesDir) return Promise.resolve(null);
+    return this.throttled(async () => {
+      const url = new URL(`${BASE}/request/${matchId}`);
+      if (this.apiKey) url.searchParams.set('api_key', this.apiKey);
+      const res = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(20000) });
+      return res.ok ? res.json() : null;
+    }).catch(() => null);
+  }
 }
 
 // Convert OpenDota /constants/items to the compact format used in data/items.json.

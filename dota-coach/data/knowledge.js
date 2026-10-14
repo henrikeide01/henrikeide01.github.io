@@ -162,3 +162,59 @@ export const ENEMY_TIPS = {
   morphling: 'Morphling: burst ham når han er i agility-form, og bruk hex eller silence.',
   alchemist: 'Alchemist: ganke ham tidlig i jungelen. Han tar pengene sine fra farming.',
 };
+
+// Når helten er på sitt sterkeste. early = sterk tidlig og faller av, late = trenger farm/items, resten = mid.
+export const POWER_CURVE = {
+  early: [
+    'bloodseeker', 'huskar', 'viper', 'venomancer', 'night_stalker', 'razor', 'batrider', 'broodmother', 'beastmaster', 'lycan',
+    'ursa', 'bounty_hunter', 'lion', 'shadow_shaman', 'bane', 'witch_doctor', 'pugna', 'undying', 'clinkz', 'queenofpain',
+    'lina', 'spirit_breaker', 'tusk', 'mirana', 'jakiro', 'skywrath_mage', 'ogre_magi', 'hoodwink', 'marci', 'dazzle',
+    'nyx_assassin', 'elder_titan', 'earth_spirit', 'riki', 'snapfire', 'troll_warlord',
+  ],
+  late: [
+    'antimage', 'spectre', 'medusa', 'naga_siren', 'terrorblade', 'phantom_lancer', 'faceless_void', 'morphling', 'arc_warden',
+    'tinker', 'invoker', 'storm_spirit', 'obsidian_destroyer', 'weaver', 'muerta', 'slark', 'alchemist', 'gyrocopter',
+    'sniper', 'drow_ranger', 'luna', 'enchantress', 'wisp', 'kez',
+  ],
+};
+
+export function powerCurve(heroName) {
+  if (POWER_CURVE.early.includes(heroName)) return 'early';
+  if (POWER_CURVE.late.includes(heroName)) return 'late';
+  return 'mid';
+}
+
+// Hvor sterk en kurve er i hver fase (−1 svak … +1 sterk).
+export const CURVE_STRENGTH = {
+  early: { laning: 1, mid: 0.4, late: -0.6 },
+  mid: { laning: 0, mid: 0.8, late: 0.1 },
+  late: { laning: -0.8, mid: -0.2, late: 1 },
+};
+
+// Items som nesten alltid er en stor powerspike, uansett hero.
+export const SPIKE_ITEMS = [
+  'black_king_bar', 'blink', 'bfury', 'manta', 'desolator', 'radiance', 'ultimate_scepter', 'echo_sabre', 'maelstrom',
+  'mjollnir', 'orchid', 'bloodthorn', 'sange_and_yasha', 'kaya_and_sange', 'yasha_and_kaya', 'diffusal_blade', 'skadi',
+  'butterfly', 'satanic', 'greater_crit', 'abyssal_blade', 'sheepstick', 'refresher', 'octarine_core', 'shivas_guard',
+  'assault', 'heart', 'silver_edge', 'monkey_king_bar', 'aghanims_shard', 'hand_of_midas', 'mask_of_madness', 'armlet',
+  'pipe', 'crimson_guard', 'vanguard', 'force_staff', 'glimmer_cape', 'aether_lens', 'gungir', 'harpoon', 'angels_demise',
+  'disperser', 'overwhelming_blink', 'swift_blink', 'arcane_blink', 'bottle', 'falcon_blade', 'witch_blade', 'phylactery',
+];
+
+// Aktive items der det er dumt å starte en fight mens de står på cooldown.
+export const KEY_ACTIVES = {
+  black_king_bar: 'BKB',
+  blink: 'Blink',
+  overwhelming_blink: 'Blink',
+  swift_blink: 'Blink',
+  arcane_blink: 'Blink',
+  refresher: 'Refresher',
+  sheepstick: 'Hex',
+  bloodthorn: 'Bloodthorn',
+  orchid: 'Orchid',
+  manta: 'Manta',
+  glimmer_cape: 'Glimmer',
+  force_staff: 'Force Staff',
+  lotus_orb: 'Lotus Orb',
+  aeon_disk: 'Aeon Disk',
+};

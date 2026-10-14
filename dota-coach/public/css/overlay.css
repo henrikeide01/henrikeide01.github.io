@@ -48,3 +48,15 @@ html:not(.transparent) .ov { background: var(--panel); }
 .ov-edit-hint { display: none; font-size: 11.5px; color: #ffe3b0; }
 body.edit .ov { outline: 2px dashed var(--gold); -webkit-app-region: drag; cursor: move; }
 body.edit .ov-edit-hint { display: block; }
+
+.ov-fight:empty { display: none; }
+.ov-fight { display: grid; gap: 5px; padding: 6px 8px; border-radius: 8px; background: rgba(30, 39, 51, 0.85); border-left: 3px solid var(--fm-neutral); }
+.ov-fight.fight { border-left-color: var(--fm-fight); background: rgba(12, 90, 12, 0.55); }
+.ov-fight.press { border-left-color: var(--fm-press); background: rgba(24, 88, 48, 0.5); }
+.ov-fight.farm { border-left-color: var(--fm-farm); background: rgba(100, 70, 16, 0.5); }
+.ov-fight.retreat { border-left-color: var(--fm-retreat); background: rgba(120, 32, 28, 0.6); }
+.ov-fight-row { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.ov-fight-row b { white-space: nowrap; letter-spacing: 0.04em; }
+.ov-fight-row span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.fm-gauge.sm { height: 5px; }
+.fm-gauge.sm i { width: 11px; height: 11px; border-width: 2px; }

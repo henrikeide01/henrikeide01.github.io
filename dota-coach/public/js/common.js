@@ -15,12 +15,19 @@ const initials = (dname) =>
 
 const IMG_FAIL = "this.parentNode.classList.add('noimg');this.remove()";
 
+// A stable colour per name, used behind the label when an image can't be loaded (offline).
+const hue = (name) => {
+  let h = 0;
+  for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return h;
+};
+
 export function heroImg(name, dname, cls = '') {
-  return `<span class="himg ${cls}" data-label="${esc(dname || name)}" title="${esc(dname || name)}"><img src="${CDN}/heroes/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
+  return `<span class="himg ${cls}" style="--h:${hue(name)}" data-label="${esc(dname || name)}" title="${esc(dname || name)}"><img src="${CDN}/heroes/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
 }
 
 export function itemImg(name, dname, cls = '') {
-  return `<span class="iimg ${cls}" data-label="${esc(initials(dname || name))}" title="${esc(dname || name)}"><img src="${CDN}/items/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
+  return `<span class="iimg ${cls}" style="--h:${hue(name)}" data-label="${esc(initials(dname || name))}" title="${esc(dname || name)}"><img src="${CDN}/items/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
 }
 
 export function fmtClock(sec) {
@@ -37,13 +44,34 @@ export async function api(path, body) {
   return data;
 }
 
+// Calls `fn` at most once per `ms`, always with the latest call last, so a slow screen
+// never builds up a backlog of old game states.
+export function throttle(fn, ms = 120) {
+  let last = 0;
+  let timer = null;
+  return () => {
+    const wait = last + ms - Date.now();
+    if (wait <= 0) {
+      last = Date.now();
+      fn();
+    } else if (!timer) {
+      timer = setTimeout(() => {
+        timer = null;
+        last = Date.now();
+        fn();
+      }, wait);
+    }
+  };
+}
+
 // Live connection to the coach server (Server-Sent Events, reconnects by itself).
-export function connect({ onState, onStatus, onConnection }) {
+export function connect({ onState, onStatus, onConnection, onReport }) {
   let es;
   const open = () => {
     es = new EventSource('/api/stream');
     es.addEventListener('state', (e) => onState?.(JSON.parse(e.data)));
     es.addEventListener('status', (e) => onStatus?.(JSON.parse(e.data)));
+    es.addEventListener('report', (e) => onReport?.(JSON.parse(e.data)));
     es.onopen = () => onConnection?.(true);
     es.onerror = () => onConnection?.(false);
   };
