@@ -1290,13 +1290,14 @@ export function learnLayout(result, { minScore = DEFAULTS.rowScore } = {}) {
   for (;;) {
     if (list.length < 8 || sides.some((s) => !list.some((h) => h.side === s))) return null;
     fit = fitSlots(list);
-    if (!fit || !(fit.pitch >= 0.9 * w && fit.pitch <= 2 * w)) return null;
+    if (!fit) return null;
     const err = (h) => Math.abs(h.x + h.w / 2 - ((h.side === 'left' ? fit.aL : fit.aR) + h.slot * fit.pitch));
     const worst = list.reduce((a, b) => (err(b) > err(a) ? b : a));
-    if (err(worst) <= 0.3 * fit.pitch) break;
+    if (err(worst) <= 0.3 * Math.abs(fit.pitch)) break;
     list = list.filter((h) => h !== worst);
   }
   const { aL, aR, pitch } = fit;
+  if (!(pitch >= 0.9 * w && pitch <= 2 * w)) return null;
   const y = median(list.map((h) => h.y));
   const slots = [];
   for (const side of sides) {

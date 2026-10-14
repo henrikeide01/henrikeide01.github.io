@@ -349,7 +349,8 @@ function jpegify(scr, yMax, quality) {
 
 // A fake screen: dark textured "game world" with noise, a top bar with a clock in the middle and 5 + 5 portrait
 // slots (with health and mana bars) left and right of it. slots: 10 hero images or null (empty), left side first.
-// scale: portrait height / screen height. Returns the screen (rgba) and the slot rectangles.
+// scale: portrait height / screen height. dead: the slot (0..9) of a dead hero, or a list of them. Returns the
+// screen (rgba) and the slot rectangles.
 // Harder variants (all off by default; they draw from their own random sequence, so a screen with none of them is
 // the same as before they existed):
 //   top: y of the portraits as a fraction of the height (the HUD sits lower, game world above it)
@@ -364,6 +365,7 @@ function makeScreen(W, H, opts) {
   const { top: topFrac, titleBar = 0, yJitter = 0, frame = 0, background = 'dark', jpeg = 0, extras = [] } = opts;
   const rand = mulberry32(seed);
   const rand2 = mulberry32(seed ^ 0x5bd1e995);
+  const isDead = (k) => (Array.isArray(dead) ? dead.includes(k) : k === dead);
   const scr = { width: W, height: H, data: new Uint8Array(W * H * 4), format: 'rgba' };
   if (background === 'bright') brightWorld(scr, rand);
   else darkWorld(scr, rand);
@@ -406,7 +408,7 @@ function makeScreen(W, H, opts) {
     const hp = Math.max(2, Math.round(ph * 0.09));
     fillRect(scr, x, y + ph + 1, pw, hp, [40, 170, 60]);
     fillRect(scr, x, y + ph + 2 + hp, pw, Math.max(2, Math.round(ph * 0.07)), [50, 90, 200]);
-    if (slots[k]) drawPortrait(scr, slots[k], x, y, pw, ph, rand, k === dead);
+    if (slots[k]) drawPortrait(scr, slots[k], x, y, pw, ph, rand, isDead(k));
     else fillRect(scr, x, y, pw, ph, [16, 18, 22], 2, rand);
     if (frame) {
       // HUD frame: a bevelled gold-ish border over the outer `frame` px of the portrait, a dark line around it.
@@ -659,4 +661,217 @@ test('a layout is only used for its own resolution, and only learned from a good
   const few = { ...fullResults.get('1920x1080'), heroes: fullResults.get('1920x1080').heroes.slice(0, 7) };
   assert.equal(learnLayout(few), null);
   assert.equal(learnLayout({ heroes: [] }), null);
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Harder cases: things real screenshots may do that the screens above do not
+
+const imgs = (pick) => pick.map((i) => (i == null ? null : heroes[i].image));
+const sides = (r) => r.heroes.map((h) => `${h.side}:${h.name}`);
+
+// In-game screens made harder one way at a time, then all at once. All but the last have dead heroes.
+const HARD = [
+  { label: 'portraits 0-3 px apart vertically', W: 1920, H: 1080, o: { yJitter: 3 }, dead: [2] },
+  { label: 'HUD 1% down from the top', W: 1920, H: 1080, o: { top: 0.01 }, dead: [6] },
+  { label: 'windowed, title bar above the HUD', W: 1280, H: 720, o: { titleBar: 30 }, dead: [0] },
+  { label: '3 px HUD frame on every portrait', W: 2560, H: 1440, o: { frame: 3 }, dead: [4, 7] },
+  { label: 'JPEG quality 35', W: 1920, H: 1080, o: { jpeg: 35 }, dead: [9] },
+  { label: 'ultrawide, frames, 0-2 px offsets', W: 3440, H: 1440, o: { frame: 2, yJitter: 2, scale: 0.031 }, dead: [5] },
+  { label: 'tiny 720p portraits (18 px)', W: 1280, H: 720, o: { scale: 0.025 }, dead: [3] },
+  { label: 'bright busy background', W: 1920, H: 1080, o: { background: 'bright' }, dead: [8] },
+  { label: 'bright busy ultrawide', W: 3440, H: 1440, o: { background: 'bright' }, dead: [1] },
+  { label: 'all of it at once', W: 1920, H: 1080, o: { frame: 2, jpeg: 40, yJitter: 2, background: 'bright', top: 0.01 }, dead: [3] },
+  { label: 'all of it at 720p (live heroes only)', W: 1280, H: 720, o: { scale: 0.03, frame: 1, jpeg: 40, yJitter: 2, background: 'bright' }, dead: [] },
+];
+for (const [n, c] of HARD.entries()) {
+  test(`hard, ${c.W}x${c.H}: ${c.label}`, (t) => {
+    const pick = pickHeroes(1100 + n);
+    const { screen } = makeScreen(c.W, c.H, { slots: imgs(pick), scale: 0.033, ...c.o, dead: c.dead, seed: 1200 + n });
+    const r = detectTopBar(screen, templates);
+    t.diagnostic(`${c.label}: ${r.ms} ms, scores ${r.heroes.map((h) => h.score).join(' ')}`);
+    assertHeroes(r, pick, c.label);
+    assert.ok(r.ms < 4000, `full search took ${r.ms} ms`);
+  });
+}
+
+test('three dead heroes at once under a HUD frame, JPEG or shifted portraits', (t) => {
+  [{ frame: 2 }, { jpeg: 35 }, { yJitter: 3 }].forEach((o, n) => {
+    const pick = pickHeroes(1300 + n);
+    const dead = [1, 5, 8].map((k) => (k + n) % 10);
+    const { screen } = makeScreen(1920, 1080, { slots: imgs(pick), ...o, dead, seed: 1310 + n });
+    const r = detectTopBar(screen, templates);
+    const deadScores = r.heroes.filter((h) => dead.includes((h.side === 'left' ? 0 : 5) + h.slot)).map((h) => h.score);
+    t.diagnostic(`${JSON.stringify(o)}: dead heroes scored ${deadScores.join(' ')}`);
+    assertHeroes(r, pick, `three dead, ${JSON.stringify(o)}`);
+  });
+});
+
+test('look-alikes: five look-alike pairs on one screen, and look-alikes without their twin', (t) => {
+  const rand = mulberry32(1400);
+  const pairs = [6, 22, 38, 54, 86].flatMap((p) => [p, p + 1]).sort(() => rand() - 0.5); // 8m+7 looks like 8m+6
+  const single = [7, 14, 23, 30, 47, 54, 63, 70, 95, 102]; // one of a pair each, the other one not on screen
+  for (const [label, pick] of [['pairs', pairs], ['without twin', single]]) {
+    const { screen } = makeScreen(1920, 1080, { slots: imgs(pick), seed: 1401 + pick[0] });
+    const r = detectTopBar(screen, templates);
+    t.diagnostic(`${label}: smallest margin ${Math.min(...r.heroes.map((h) => h.margin))}`);
+    assertHeroes(r, pick, label);
+  }
+});
+
+test('hero art outside the bar and busy or compressed backgrounds add no heroes', () => {
+  // A full bar on a bright busy background, with the art of a hero not in the match just below the bar.
+  const pick = pickHeroes(1500);
+  const other = heroes.findIndex((_, i) => !pick.includes(i));
+  const extras = [{ image: heroes[other].image, x: 0.36, y: 0.055, h: 45 }];
+  const a = makeScreen(1920, 1080, { slots: imgs(pick), background: 'bright', extras, seed: 1501 });
+  assertHeroes(detectTopBar(a.screen, templates), pick, 'bright, hero art below the bar');
+  // Empty bars.
+  [{ background: 'bright', jpeg: 40 }, { jpeg: 30, frame: 2 }, { titleBar: 30, background: 'bright' }].forEach((o, n) => {
+    const { screen } = makeScreen(n === 2 ? 1280 : 1920, n === 2 ? 720 : 1080, { slots: Array(10).fill(null), ...o, seed: 1510 + n });
+    const r = detectTopBar(screen, templates);
+    assert.deepEqual(r.heroes, [], `${JSON.stringify(o)}: ${JSON.stringify(r.heroes)}`);
+  });
+});
+
+test('hero selection: big portraits lower in the band', (t) => {
+  const draft = { scale: 0.05, top: 0.04, gapFrac: 0.12, clockFrac: 2.2 };
+  // All ten picked, 16:10, portraits from 4.5% to 9.5% of the height.
+  const pick = pickHeroes(1600);
+  const all = detectTopBar(makeScreen(1920, 1200, { slots: imgs(pick), ...draft, top: 0.045, seed: 1601 }).screen, templates);
+  assertHeroes(all, pick, 'draft, all picked');
+  // 3 + 2 picks.
+  const five = Array(10).fill(null);
+  [0, 2, 4, 6, 8].forEach((k, j) => (five[k] = pick[j]));
+  assertHeroes(detectTopBar(makeScreen(2560, 1440, { slots: imgs(five), ...draft, seed: 1602 }).screen, templates), five, 'draft, 3 + 2');
+  // The first two picks (no row to check against yet): the right heroes on the right sides. Their slots are a guess.
+  [
+    [1920, 1080, 1, 7],
+    [1280, 720, 4, 6],
+    [2560, 1440, 2, 3],
+  ].forEach(([W, H, ka, kb], n) => {
+    const two = Array(10).fill(null);
+    two[ka] = pick[5 + n];
+    two[kb] = pick[8 - n];
+    const r = detectTopBar(makeScreen(W, H, { slots: imgs(two), ...draft, seed: 1610 + n }).screen, templates);
+    t.diagnostic(`two picks ${W}x${H}: ${r.ms} ms`);
+    const want = [ka, kb].sort((a, b) => a - b).map((k) => `${k < 5 ? 'left' : 'right'}:${names[two[k]]}`);
+    assert.deepEqual(sides(r), want, `two picks ${W}x${H}`);
+  });
+});
+
+test('heroes missing from the template set are not reported as other heroes', () => {
+  // Heroes 120..129 are unknown (a hero newer than the app's data): one alive, one dead on each screen.
+  const known = prepareTemplates(heroes.slice(0, 120));
+  [{}, { background: 'bright', frame: 2 }].forEach((o, n) => {
+    const rand = mulberry32(1700 + n);
+    const pick = [];
+    while (pick.length < 10) {
+      const i = Math.floor(rand() * 120);
+      if (!pick.includes(i)) pick.push(i);
+    }
+    const slots = imgs(pick);
+    slots[3] = heroes[121 + n].image;
+    slots[8] = heroes[126 + n].image;
+    const { screen } = makeScreen(1920, 1080, { slots, ...o, dead: [8, 0], seed: 1710 + n });
+    const expected = pick.map((i, k) => (k === 3 || k === 8 ? null : i));
+    const r = detectTopBar(screen, known);
+    assertHeroes(r, expected, `unknown heroes ${JSON.stringify(o)}`);
+    const layout = learnLayout(r);
+    assert.ok(layout, 'layout from 8 known heroes');
+    const again = detectTopBar(screen, known, { layout });
+    assertHeroes(again, expected, `unknown heroes, layout ${JSON.stringify(o)}`);
+    assert.deepEqual(again.missing, [
+      { side: 'left', slot: 3 },
+      { side: 'right', slot: 3 },
+    ]);
+  });
+});
+
+test('learnLayout: needs 8 confident heroes, fills in the rest, drops a hero off the spacing', () => {
+  const s = inGame[1];
+  const full = fullResults.get('1920x1080') || detectTopBar(s.screen, templates);
+  const ref = learnLayout(full);
+  assert.ok(ref);
+  // The slots sit on the drawn portraits (the boxes cover the 5% zoomed art around the same centre).
+  for (const sl of ref.slots) {
+    const r = s.rects[(sl.side === 'left' ? 0 : 5) + sl.slot];
+    assert.ok(Math.abs(sl.x + sl.w / 2 - (r.x + r.w / 2)) <= 1.5 && Math.abs(sl.y + sl.h / 2 - (r.y + r.h / 2)) <= 1.5, JSON.stringify([sl, r]));
+  }
+  const near = (layout, tol, label) => {
+    assert.ok(layout, `${label}: no layout`);
+    layout.slots.forEach((sl, i) => {
+      const r = ref.slots[i];
+      const d = Math.max(Math.abs(sl.x - r.x), Math.abs(sl.y - r.y), Math.abs(sl.w - r.w), Math.abs(sl.h - r.h));
+      assert.ok(d <= tol, `${label}: slot ${sl.side}${sl.slot} ${JSON.stringify(sl)} vs ${JSON.stringify(r)}`);
+    });
+  };
+  const strong = { ...full, heroes: full.heroes.map((h) => ({ ...h, score: 0.95 })) };
+  const weaken = (idx) => ({ ...strong, heroes: strong.heroes.map((h, i) => (idx.includes(i) ? { ...h, score: 0.75 } : h)) });
+  // Only 6 confident heroes (4 dead or doubtful): no layout, unless a lower bar is asked for.
+  assert.equal(learnLayout(weaken([0, 3, 6, 9])), null);
+  near(learnLayout(weaken([0, 3, 6, 9]), { minScore: 0.7 }), 0.5, 'minScore 0.7');
+  near(learnLayout(weaken([2, 7])), 1, '8 confident');
+  // Two heroes missing (inside the row and at its end): their slots come from the spacing.
+  near(learnLayout({ ...strong, heroes: strong.heroes.filter((h, i) => i !== 2 && i !== 9) }), 1.5, 'two missing');
+  // A hero with a wrong slot number is dropped...
+  const wrong = { ...strong, heroes: strong.heroes.map((h, i) => (i === 7 ? { ...h, slot: (h.slot + 2) % 5 } : h)) };
+  near(learnLayout(wrong), 1.5, 'one wrong slot');
+  // ... but not below 8 heroes.
+  assert.equal(learnLayout({ ...wrong, heroes: wrong.heroes.filter((h, i) => i > 1) }), null);
+  // Sizes that do not agree do not count.
+  assert.equal(learnLayout({ ...strong, heroes: strong.heroes.map((h, i) => (i < 3 ? { ...h, w: h.w * 1.5, h: h.h * 1.5 } : h)) }), null);
+});
+
+test('layout path: empty and dead slots, a new game on the same screen', (t) => {
+  const W = 1920;
+  const H = 1080;
+  const o = { frame: 2, yJitter: 2 };
+  const pick = pickHeroes(1800);
+  const layout = learnLayout(detectTopBar(makeScreen(W, H, { slots: imgs(pick), ...o, dead: 4, seed: 1801 }).screen, templates));
+  assert.ok(layout, 'no layout learned');
+  // Next frame: 3 slots empty (disconnected players), 2 heroes dead.
+  const next = [...pick];
+  [1, 6, 8].forEach((k) => (next[k] = null));
+  const screen = toBgra(makeScreen(W, H, { slots: imgs(next), ...o, dead: [0, 7], seed: 1802 }).screen);
+  const times = [];
+  let r;
+  for (let i = 0; i < 3; i++) {
+    r = detectTopBar(screen, templates, { layout });
+    times.push(r.ms);
+  }
+  t.diagnostic(`layout path with frames, offsets, 3 empty and 2 dead slots: ${times.join(', ')} ms`);
+  assert.equal(r.searched, 'layout');
+  assertHeroes(r, next, 'layout, empty and dead');
+  assert.deepEqual(r.missing, [
+    { side: 'left', slot: 1 },
+    { side: 'right', slot: 1 },
+    { side: 'right', slot: 3 },
+  ]);
+  assert.ok(Math.min(...times) < 500, `layout path took ${times} ms`);
+  // A new game at the same resolution: ten other heroes, found through the same layout.
+  const pick2 = pickHeroes(1803);
+  const r2 = detectTopBar(makeScreen(W, H, { slots: imgs(pick2), ...o, seed: 1804 }).screen, templates, { layout });
+  assert.equal(r2.searched, 'layout');
+  assertHeroes(r2, pick2, 'layout, new game');
+});
+
+test('a stale layout (draft screen seen through the in-game layout) does not invent heroes', (t) => {
+  // In-game layout at 1280x720; then the hero selection screen, whose portraits are bigger and lower. At the old
+  // slots there is only game world and bar, and with fewer than minLayoutHeroes found there a full search decides.
+  for (const [n, [W, H]] of [
+    [1920, 1080],
+    [1280, 720],
+  ].entries()) {
+    const pick = pickHeroes(1900 + n);
+    const layout = learnLayout(detectTopBar(makeScreen(W, H, { slots: imgs(pick), scale: 0.03, jpeg: 50, seed: 1901 + n }).screen, templates));
+    assert.ok(layout, 'no layout learned');
+    const two = Array(10).fill(null);
+    two[1] = pick[0];
+    two[7] = pick[1];
+    const draft = makeScreen(W, H, { slots: imgs(two), scale: 0.05, top: 0.035, gapFrac: 0.12, clockFrac: 2.2, seed: 1910 + n });
+    const r = detectTopBar(draft.screen, templates, { layout });
+    t.diagnostic(`stale layout ${W}x${H}: searched ${r.searched}, ${r.ms} ms`);
+    assert.deepEqual(sides(r), [`left:${names[pick[0]]}`, `right:${names[pick[1]]}`], `${W}x${H}`);
+    assert.equal(detectTopBar(draft.screen, templates, { layout, fallback: false }).searched, 'layout');
+  }
 });
