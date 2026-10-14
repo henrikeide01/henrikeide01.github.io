@@ -23,17 +23,40 @@ let editMode = false;
 let quitting = false;
 let baseUrl = '';
 
+// The overlay's default spot: top right of a screen.
+function defaultBounds(display = screen.getPrimaryDisplay(), size = { width: 360, height: 580 }) {
+  const wa = display.workArea;
+  return { ...size, x: wa.x + wa.width - size.width - 20, y: wa.y + 90 };
+}
+
+// userPlaced: the user moved the overlay themselves (edit mode); then the app never moves it.
+let userPlaced = false;
 function loadBounds() {
   try {
-    return JSON.parse(fs.readFileSync(BOUNDS_FILE, 'utf8'));
+    const b = JSON.parse(fs.readFileSync(BOUNDS_FILE, 'utf8'));
+    userPlaced = !!b.userPlaced;
+    // A monitor that is gone: start on the main screen again.
+    const visible = screen.getAllDisplays().some((d) => b.x < d.bounds.x + d.bounds.width - 40 && b.x + b.width > d.bounds.x + 40 && b.y < d.bounds.y + d.bounds.height - 40 && b.y + b.height > d.bounds.y);
+    if (!visible) return defaultBounds(undefined, { width: b.width || 360, height: b.height || 580 });
+    return { x: b.x, y: b.y, width: b.width, height: b.height };
   } catch {
-    const { width } = screen.getPrimaryDisplay().workAreaSize;
-    return { width: 360, height: 580, x: width - 380, y: 90 };
+    return defaultBounds();
   }
 }
 
 function saveBounds() {
-  if (overlay) fs.writeFileSync(BOUNDS_FILE, JSON.stringify(overlay.getBounds()));
+  if (!overlay) return;
+  if (editMode) userPlaced = true;
+  fs.writeFileSync(BOUNDS_FILE, JSON.stringify({ ...overlay.getBounds(), userPlaced }));
+}
+
+// Dota was found on another screen than the overlay: move the overlay there (unless the user placed it).
+function followDota(display) {
+  if (!overlay || overlay.isDestroyed() || userPlaced) return;
+  if (screen.getDisplayMatching(overlay.getBounds()).id === display.id) return;
+  const b = overlay.getBounds();
+  overlay.setBounds(defaultBounds(display, { width: b.width, height: b.height }));
+  saveBounds();
 }
 
 const runInOverlay = (js) => overlay.webContents.executeJavaScript(js).catch(() => undefined);
@@ -192,6 +215,7 @@ app.whenReady().then(async () => {
       excludeRects: () => [overlay, mainWin].filter((w) => w && !w.isDestroyed() && w.isVisible() && !w.isMinimized()).map((w) => w.getBounds()),
       // The user puts the overlay over Dota, so that is the screen to look at.
       getDisplay: () => (overlay && !overlay.isDestroyed() ? screen.getDisplayMatching(overlay.getBounds()) : screen.getPrimaryDisplay()),
+      onDotaDisplay: followDota,
     });
   } catch (err) {
     console.error('Bildegjenkjenningen startet ikke:', err.message);

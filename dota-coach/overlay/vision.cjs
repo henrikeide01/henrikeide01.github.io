@@ -59,7 +59,8 @@ function flatTopBand(img) {
 
 // excludeRects(): the app's own windows (screen coordinates); they are blanked out so the hero pictures in the
 // overlay are never taken for picks. getDisplay(): the screen Dota is on (where the user put the overlay).
-function startVision({ root, baseUrl, log = (...a) => console.log(...a), excludeRects = () => [], getDisplay = () => screen.getPrimaryDisplay() }) {
+// onDotaDisplay(display): called when the screen Dota is on is found (or changes).
+function startVision({ root, baseUrl, log = (...a) => console.log(...a), excludeRects = () => [], getDisplay = () => screen.getPrimaryDisplay(), onDotaDisplay = () => {} }) {
   const cacheDir = path.join(root, 'cache', 'heroimg');
   const layoutFile = path.join(root, 'cache', 'vision-layout.json');
   const debugDir = path.join(root, 'debug');
@@ -231,7 +232,14 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
         }
       }
     }
-    if (r.result.heroes.length) preferredScreen = shot.src.id;
+    if (r.result.heroes.length && preferredScreen !== shot.src.id) {
+      preferredScreen = shot.src.id;
+      if (shot.display) {
+        try {
+          onDotaDisplay(shot.display);
+        } catch {}
+      }
+    }
     const { thumb, key, opts, result, layout } = r;
     status.screen = `${result.width}x${result.height}`;
     status.hint = r.flat
