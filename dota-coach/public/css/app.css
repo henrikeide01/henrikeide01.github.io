@@ -363,6 +363,60 @@ td.hero-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; 
 .item-time + .item-time { border-top: 1px solid var(--border); }
 .trend-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
 
+/* ---------- Detailed stats (Dota Plus-style) ---------- */
+:root {
+  /* Damage types (validated for the dark panels: distinct for colour-blind readers, always shown with a text label). */
+  --dmg-physical: #d6505a;
+  --dmg-magical: #3987e5;
+  --dmg-pure: #a8961c;
+  --dmg-unknown: #5d6b80;
+  --bar-amount: #7f8fae;
+  --bar-xp: #8a6fd8;
+}
+.dp-insights { margin-bottom: 14px; }
+.dp-insights .tip { animation: none; font-size: 13.5px; }
+.dp-tiles { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); margin-bottom: 6px; }
+.dp-tiles .stat .s { font-size: 12px; color: var(--muted); margin-top: 1px; line-height: 1.3; overflow-wrap: anywhere; }
+.dp-group { margin-top: 16px; }
+.dp-group > .label-sm { margin-bottom: 8px; }
+.dp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 12px; align-items: start; }
+.dp-col { gap: 12px; }
+.dp-block { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px 12px; min-width: 0; }
+.dp-block h4 { margin: 0 0 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.dp-block h4 .faint { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 12px; white-space: nowrap; }
+
+.hb-list { display: grid; gap: 9px; }
+.hb-top { display: flex; justify-content: space-between; align-items: center; gap: 4px 10px; font-size: 13px; }
+.hb-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hb-label { min-width: 0; overflow-wrap: anywhere; }
+.hb-val { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.hb-val .faint { font-size: 12px; min-width: 32px; text-align: right; }
+.hb-ico { width: 32px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--faint); font-size: 12px; }
+.hb .himg { width: 32px; height: 18px; border-radius: 3px; }
+.hb .iimg { width: 25px; height: 18px; border-radius: 3px; }
+.hb .iimg.aimg { width: 18px; }
+.hb .himg.noimg::after, .hb .iimg.noimg::after { font-size: 0; }
+.hb-bar { height: 6px; margin-top: 4px; background: var(--panel-3); border-radius: 99px; overflow: hidden; }
+.hb-bar > i { display: block; height: 100%; border-radius: 99px; background: var(--bar-amount); }
+.hb-bar > i.physical, .sw.physical, .stack-bar > i.physical { background: var(--dmg-physical); }
+.hb-bar > i.magical, .sw.magical, .stack-bar > i.magical { background: var(--dmg-magical); }
+.hb-bar > i.pure, .sw.pure, .stack-bar > i.pure { background: var(--dmg-pure); }
+.hb-bar > i.unknown, .sw.unknown, .stack-bar > i.unknown { background: var(--dmg-unknown); }
+.hb-bar > i.gold { background: linear-gradient(90deg, #b88a2e, var(--gold)); }
+.hb-bar > i.xp { background: var(--bar-xp); }
+.hb-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.dmg-tag { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+.stack-bar { display: flex; gap: 2px; height: 14px; border-radius: 4px; overflow: hidden; }
+.stack-bar > i { display: block; flex-basis: 0; min-width: 3px; }
+.stack-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.stack-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.stack-legend b { color: var(--text); }
+
+.dp-buys { display: flex; flex-wrap: wrap; gap: 10px 12px; }
+.dp-buy { display: grid; justify-items: center; gap: 3px; font-size: 12px; color: var(--muted); }
+
 /* ---------- Charts ---------- */
 .chart { position: relative; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }

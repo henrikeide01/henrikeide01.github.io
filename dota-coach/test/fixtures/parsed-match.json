@@ -1,0 +1,398 @@
+{
+  "match_id": 424242,
+  "duration": 2460,
+  "radiant_win": true,
+  "start_time": 1791200000,
+  "game_mode": 22,
+  "lobby_type": 7,
+  "version": 21,
+  "players": [
+    {
+      "match_id": 424242,
+      "player_slot": 0,
+      "account_id": 123456789,
+      "hero_id": 8,
+      "isRadiant": true,
+      "win": 1,
+      "personaname": "Demo",
+      "kills": 7,
+      "deaths": 6,
+      "assists": 9,
+      "last_hits": 276,
+      "denies": 12,
+      "gold_per_min": 512,
+      "xp_per_min": 598,
+      "level": 23,
+      "hero_damage": 19850,
+      "tower_damage": 3120,
+      "hero_healing": 1430,
+      "net_worth": 17820,
+      "total_gold": 20990,
+      "obs_placed": 0,
+      "sen_placed": 1,
+      "camps_stacked": 0,
+      "rune_pickups": 6,
+      "stuns": 1.84,
+      "teamfight_participation": 0.533,
+      "buyback_count": 1,
+      "lane_efficiency_pct": 64,
+      "life_state_dead": 214,
+      "lh_t": [0, 6, 11, 17, 22, 28, 34, 39, 45, 50, 56, 63, 70, 77, 84, 92, 99, 106, 113, 120, 127, 134, 141, 148, 155, 163, 170, 177, 184, 191, 198, 205, 212, 219, 226, 234, 241, 248, 255, 262, 269, 276],
+      "dn_t": [0, 1, 2, 2, 3, 4, 5, 6, 6, 7, 8, 9, 10, 10, 11, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+      "benchmarks": {
+        "hero_damage_per_min": {
+          "raw": 484,
+          "pct": 0.55
+        },
+        "tower_damage": {
+          "raw": 3120,
+          "pct": 0.62
+        },
+        "gold_per_min": {
+          "raw": 512,
+          "pct": 0.41
+        }
+      },
+      "damage": {
+        "npc_dota_hero_lina": 5600,
+        "npc_dota_hero_phantom_assassin": 4300,
+        "npc_dota_hero_axe": 4100,
+        "npc_dota_hero_lion": 3200,
+        "npc_dota_hero_witch_doctor": 2650,
+        "npc_dota_creep_badguys_melee": 21400,
+        "npc_dota_creep_badguys_ranged": 6900,
+        "npc_dota_neutral_centaur_khan": 4100,
+        "npc_dota_neutral_satyr_hellcaller": 3800,
+        "npc_dota_badguys_tower1_bot": 1650,
+        "npc_dota_badguys_tower2_bot": 1470,
+        "npc_dota_roshan": 2900
+      },
+      "damage_taken": {
+        "npc_dota_hero_lina": 8200,
+        "npc_dota_hero_phantom_assassin": 4600,
+        "npc_dota_hero_axe": 2300,
+        "npc_dota_hero_lion": 1900,
+        "npc_dota_hero_witch_doctor": 1250,
+        "npc_dota_creep_badguys_melee": 2100,
+        "npc_dota_creep_badguys_ranged": 900,
+        "npc_dota_badguys_siege": 120,
+        "npc_dota_neutral_centaur_khan": 650,
+        "npc_dota_neutral_satyr_hellcaller": 310,
+        "npc_dota_badguys_tower1_bot": 700,
+        "npc_dota_roshan": 480
+      },
+      "damage_inflictor": {
+        "null": 11200,
+        "juggernaut_blade_fury": 4300,
+        "juggernaut_omni_slash": 2650,
+        "juggernaut_swift_slash": 600,
+        "bfury": 450,
+        "item_abyssal_blade": 650
+      },
+      "damage_inflictor_received": {
+        "null": 6200,
+        "lina_laguna_blade": 4200,
+        "lina_dragon_slave": 2300,
+        "lina_light_strike_array": 1500,
+        "phantom_assassin_stifling_dagger": 900,
+        "axe_counter_helix": 1200,
+        "lion_finger_of_death": 1800,
+        "lion_impale": 700,
+        "witch_doctor_paralyzing_cask": 600,
+        "witch_doctor_maledict": 900,
+        "item_blade_mail": 450
+      },
+      "killed": {
+        "npc_dota_hero_lina": 3,
+        "npc_dota_hero_lion": 2,
+        "npc_dota_hero_witch_doctor": 1,
+        "npc_dota_hero_axe": 1,
+        "npc_dota_creep_badguys_melee": 168,
+        "npc_dota_creep_badguys_ranged": 61,
+        "npc_dota_neutral_centaur_khan": 9,
+        "npc_dota_badguys_tower1_bot": 1,
+        "npc_dota_roshan": 1
+      },
+      "killed_by": {
+        "npc_dota_hero_phantom_assassin": 3,
+        "npc_dota_hero_lina": 2,
+        "npc_dota_badguys_tower2_bot": 1
+      },
+      "gold_reasons": {
+        "0": 600,
+        "1": -1450,
+        "2": -1280,
+        "6": 450,
+        "11": 1650,
+        "12": 4300,
+        "13": 11200,
+        "14": 1900,
+        "15": 450,
+        "17": 520
+      },
+      "xp_reasons": {
+        "0": 800,
+        "1": 6900,
+        "2": 15400,
+        "3": 600,
+        "5": 750
+      },
+      "ability_uses": {
+        "juggernaut_blade_fury": 24,
+        "juggernaut_healing_ward": 9,
+        "juggernaut_omni_slash": 5,
+        "juggernaut_swift_slash": 3
+      },
+      "item_uses": {
+        "tpscroll": 14,
+        "phase_boots": 31,
+        "manta": 8,
+        "black_king_bar": 3,
+        "magic_wand": 6,
+        "tango": 4,
+        "abyssal_blade": 4
+      },
+      "max_hero_hit": {
+        "type": "max_hero_hit",
+        "time": 1852,
+        "max": true,
+        "inflictor": null,
+        "unit": "npc_dota_hero_juggernaut",
+        "key": "npc_dota_hero_lina",
+        "value": 702,
+        "slot": 0,
+        "player_slot": 0
+      },
+      "runes": {
+        "0": 1,
+        "1": 1,
+        "5": 3,
+        "6": 1
+      },
+      "purchase_log": [
+        {
+          "time": -89,
+          "key": "tango"
+        },
+        {
+          "time": -89,
+          "key": "quelling_blade"
+        },
+        {
+          "time": -89,
+          "key": "branches"
+        },
+        {
+          "time": -89,
+          "key": "slippers"
+        },
+        {
+          "time": 238,
+          "key": "magic_wand"
+        },
+        {
+          "time": 410,
+          "key": "boots"
+        },
+        {
+          "time": 452,
+          "key": "phase_boots"
+        },
+        {
+          "time": 620,
+          "key": "broadsword"
+        },
+        {
+          "time": 905,
+          "key": "bfury"
+        },
+        {
+          "time": 1120,
+          "key": "recipe_manta"
+        },
+        {
+          "time": 1340,
+          "key": "manta"
+        },
+        {
+          "time": 1355,
+          "key": "tpscroll"
+        },
+        {
+          "time": 1690,
+          "key": "black_king_bar"
+        },
+        {
+          "time": 2150,
+          "key": "abyssal_blade"
+        },
+        {
+          "time": 2200,
+          "key": "ward_sentry"
+        }
+      ]
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 1,
+      "account_id": 1001,
+      "hero_id": 5,
+      "isRadiant": true,
+      "win": 1,
+      "kills": 3,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 11200,
+      "tower_damage": 150,
+      "net_worth": 8900
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 2,
+      "account_id": 1002,
+      "hero_id": 7,
+      "isRadiant": true,
+      "win": 1,
+      "kills": 3,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 15400,
+      "tower_damage": 600,
+      "net_worth": 12100
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 3,
+      "account_id": 1003,
+      "hero_id": 27,
+      "isRadiant": true,
+      "win": 1,
+      "kills": 3,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 9800,
+      "tower_damage": 4800,
+      "net_worth": 9700
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 4,
+      "account_id": 1004,
+      "hero_id": 129,
+      "isRadiant": true,
+      "win": 1,
+      "kills": 3,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 21300,
+      "tower_damage": 1900,
+      "net_worth": 15400
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 128,
+      "account_id": 1128,
+      "hero_id": 25,
+      "isRadiant": false,
+      "win": 0,
+      "kills": 9,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 26800,
+      "tower_damage": 400,
+      "net_worth": 18800
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 129,
+      "account_id": 1129,
+      "hero_id": 44,
+      "isRadiant": false,
+      "win": 0,
+      "kills": 8,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 21900,
+      "tower_damage": 400,
+      "net_worth": 19900
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 130,
+      "account_id": 1130,
+      "hero_id": 2,
+      "isRadiant": false,
+      "win": 0,
+      "kills": 3,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 13400,
+      "tower_damage": 400,
+      "net_worth": 13300
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 131,
+      "account_id": 1131,
+      "hero_id": 26,
+      "isRadiant": false,
+      "win": 0,
+      "kills": 3,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 14100,
+      "tower_damage": 400,
+      "net_worth": 9100
+    },
+    {
+      "match_id": 424242,
+      "player_slot": 132,
+      "account_id": 1132,
+      "hero_id": 30,
+      "isRadiant": false,
+      "win": 0,
+      "kills": 3,
+      "deaths": 5,
+      "assists": 10,
+      "last_hits": 80,
+      "denies": 3,
+      "gold_per_min": 350,
+      "xp_per_min": 420,
+      "hero_damage": 10900,
+      "tower_damage": 400,
+      "net_worth": 8200
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { esc, heroImg, itemImg, fmtClock, fmtNum, api, connect, Speaker, throttle } from './common.js';
+import { esc, heroImg, itemImg, abilityImg, fmtClock, fmtNum, api, connect, Speaker, throttle } from './common.js';
 import { mountOverlay, patch, patchList, layout } from './overlay-view.js';
 import { lineChart, deathMap, scoreColumns } from './charts.js';
 
@@ -480,6 +480,149 @@ async function openReport(id) {
   renderReport(r);
 }
 
+// ---------------- Dota Plus-style details (parsed OpenDota match) ----------------
+const DMG_WORD = { physical: 'fysisk', magical: 'magisk', pure: 'ren', unknown: 'ukjent' };
+const n0 = (v) => Number(v) || 0;
+const pctOf = (r) => `${n0(r.pct)} %`;
+const valPct = (value, pct) => `<b>${fmtNum(n0(value))}</b><span class="faint">${n0(pct)} %</span>`;
+
+// Horizontal bars, longest = the biggest row. name/text return escaped HTML.
+function barList(rows, { name, value = (r) => r.value, text, cls = () => '', tip = () => '', sub = () => '' }) {
+  const max = Math.max(1, ...rows.map((r) => n0(value(r))));
+  return `<div class="hb-list">${rows
+    .map(
+      (r) => `<div class="hb" title="${esc(tip(r))}">
+        <div class="hb-top"><span class="hb-name">${name(r)}</span><span class="hb-val num">${text(r)}</span></div>
+        <div class="hb-bar"><i class="${esc(cls(r))}" style="width:${Math.max(1.5, (n0(value(r)) / max) * 100).toFixed(1)}%"></i></div>${sub(r)}</div>`,
+    )
+    .join('')}</div>`;
+}
+
+const dmgKey = (t) => (DMG_WORD[t] ? t : 'unknown');
+const dmgTag = (t) => `<span class="dmg-tag"><i class="sw ${dmgKey(t)}"></i>${DMG_WORD[dmgKey(t)]}</span>`;
+// Icon in a fixed-width slot, then the text (which may wrap), so every row's text lines up.
+const nameCell = (icon, label) => `<span class="hb-ico" aria-hidden="true">${icon}</span><span class="hb-label">${label}</span>`;
+const heroName = (r) => nameCell(heroImg(r.name, r.dname, 'xs'), esc(r.dname));
+const unitName = (r) => (r.kind === 'hero' ? heroName(r) : nameCell(r.kind === 'roshan' ? '🐲' : r.kind === 'tower' ? '🏰' : '•', esc(r.dname)));
+
+function sourceName(s, { showHero }) {
+  const icon = s.kind === 'item' ? itemImg(s.key, s.dname, 'sm') : s.kind === 'ability' ? abilityImg(s.key, s.dname, 'sm') : s.kind === 'attack' ? '⚔' : '…';
+  const who = showHero && s.heroDname ? ` <span class="faint">· ${esc(s.heroDname)}</span>` : '';
+  return nameCell(icon, `${esc(s.dname)}${who}${s.kind === 'rest' ? '' : ` ${dmgTag(s.dmg)}`}`);
+}
+
+function sourceBars(block, { showHero }) {
+  return barList(block.rows, {
+    name: (s) => sourceName(s, { showHero }),
+    text: (s) => valPct(s.value, s.pct),
+    cls: (s) => (s.kind === 'rest' ? 'unknown' : dmgKey(s.dmg)),
+    tip: (s) => `${s.dname}${s.heroDname ? ` (${s.heroDname})` : ''}: ${fmtNum(n0(s.value))} skade, ${pctOf(s)}${s.kind === 'rest' ? '' : `, ${DMG_WORD[dmgKey(s.dmg)]} skade`}`,
+  });
+}
+
+function heroBars(block, what) {
+  return barList(block.rows, {
+    name: unitName,
+    text: (r) => valPct(r.value, r.pct),
+    cls: (r) => (r.kind === 'hero' ? 'amount' : 'unknown'),
+    tip: (r) => `${r.dname}: ${fmtNum(n0(r.value))} ${what} (${pctOf(r)})`,
+    sub: (r) => (r.parts?.length ? `<div class="hb-sub">${r.parts.map((p) => `${esc(p.dname)} ${fmtNum(n0(p.value))}`).join(' · ')}</div>` : ''),
+  });
+}
+
+function countBars(block, unitWord) {
+  return barList(block.rows, {
+    name: unitName,
+    value: (r) => r.count,
+    text: (r) => `<b>${n0(r.count)}</b><span class="faint">${n0(r.count) === 1 ? unitWord[0] : unitWord[1]}</span>`,
+    cls: () => 'amount',
+    tip: (r) => `${r.dname}: ${n0(r.count)} ${n0(r.count) === 1 ? unitWord[0] : unitWord[1]}`,
+  });
+}
+
+function reasonBars(block, cls) {
+  return barList(block.rows, {
+    name: (r) => `<span class="hb-label">${esc(r.label)}</span>`,
+    text: (r) => valPct(r.value, r.pct),
+    cls: () => cls,
+    tip: (r) => `${r.label}: ${fmtNum(n0(r.value))} (${pctOf(r)})`,
+  });
+}
+
+function dpBlock(title, right, body) {
+  if (!body) return '';
+  return `<section class="dp-block"><h4><span>${title}</span>${right ? `<span class="faint num">${right}</span>` : ''}</h4>${body}</section>`;
+}
+
+function dpGroup(title, blocks) {
+  const html = blocks.filter(Boolean).join('');
+  return html ? `<div class="dp-group"><div class="label-sm">${title}</div><div class="dp-grid">${html}</div></div>` : '';
+}
+
+function renderDetails(d, r) {
+  const st = d.stats || {};
+  const tiles = [];
+  const tile = (k, v, s = '') => tiles.push(`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`);
+  if (st.maxHit) tile('Største treff', fmtNum(n0(st.maxHit.value)), `${esc(st.maxHit.source?.dname || '')}${st.maxHit.target ? ` mot ${esc(st.maxHit.target.dname)}` : ''}`);
+  if (st.stuns != null) tile('Stuns', `${n0(st.stuns).toLocaleString('nb-NO')}<small> s</small>`, 'på fiendene');
+  if (st.teamfight != null) tile('Teamfights', `${Math.round(n0(st.teamfight) * 100)}<small> %</small>`, 'deltakelse');
+  if (st.runes) tile('Runer', n0(st.runes.total), esc((st.runes.rows || []).map((x) => `${x.label} ${x.count}`).join(', ')));
+  if (st.buybacks != null) tile('Buybacks', n0(st.buybacks));
+  if (st.timeDead != null) tile('Tid død', fmtClock(st.timeDead), r.duration ? `${Math.round((n0(st.timeDead) / r.duration) * 100)} % av kampen` : '');
+  if (st.lhAt10 != null) tile('LH / DN ved 10', `${n0(st.lhAt10)}<small> / ${n0(st.dnAt10)}</small>`);
+  if (st.laneEfficiency != null) tile('Lane-effektivitet', `${n0(st.laneEfficiency)}<small> %</small>`);
+
+  const types = d.damageTypes;
+  const typeBody = types
+    ? `<div class="stack-bar" role="img" aria-label="${esc(types.rows.map((t) => `${t.label} ${t.pct} %`).join(', '))}">${types.rows
+        .map((t) => `<i class="${esc(t.key)}" style="flex-grow:${n0(t.value)}" title="${esc(`${t.label}: ${fmtNum(n0(t.value))} (${pctOf(t)})`)}"></i>`)
+        .join('')}</div>
+       <div class="stack-legend">${types.rows.map((t) => `<span><i class="sw ${esc(t.key)}"></i>${esc(t.label)} <b class="num">${n0(t.pct)} %</b></span>`).join('')}</div>`
+    : '';
+
+  const gold = d.gold;
+  const goldBody = gold
+    ? reasonBars(gold, 'gold') + (gold.lost || gold.buyback ? `<div class="hb-sub" style="margin-top:8px">Tapt ved dødsfall: ${fmtNum(n0(gold.lost))} · Brukt på buyback: ${fmtNum(n0(gold.buyback))}</div>` : '')
+    : '';
+  const uses = d.uses?.length
+    ? barList(d.uses, {
+        name: (u) => nameCell(u.kind === 'item' ? itemImg(u.key, u.dname, 'sm') : abilityImg(u.key, u.dname, 'sm'), esc(u.dname)),
+        value: (u) => u.count,
+        text: (u) => `<b>${n0(u.count)}</b><span class="faint">${n0(u.count) === 1 ? 'gang' : 'ganger'}</span>`,
+        cls: () => 'amount',
+        tip: (u) => `${u.dname}: brukt ${n0(u.count)} ${n0(u.count) === 1 ? 'gang' : 'ganger'}`,
+      })
+    : '';
+  const buys = d.purchases?.length
+    ? `<div class="dp-buys">${d.purchases.map((p) => `<div class="dp-buy" title="${esc(p.dname)}">${itemImg(p.name, p.dname)}<span class="num">${fmtClock(p.t)}</span></div>`).join('')}</div>`
+    : '';
+
+  return `<div class="card dp-card" style="margin-top:16px">
+    <h3>📊 Detaljert statistikk (som Dota Plus) <span class="right faint">fra OpenDota-analysen av replayen</span></h3>
+    ${d.insights?.length ? `<div class="tips dp-insights">${d.insights.map((i) => `<div class="tip warn"><div class="ico">💡</div><div><b>${esc(i.label)}:</b> ${esc(i.text)}</div></div>`).join('')}</div>` : ''}
+    ${tiles.length ? `<div class="trend-stats dp-tiles">${tiles.join('')}</div>` : ''}
+    ${dpGroup('Skade du tok', [
+      d.damageTaken && dpBlock('Skade tatt fra helter', fmtNum(n0(d.damageTaken.total)), heroBars(d.damageTaken, 'skade')),
+      d.damageTakenBy && dpBlock('Skade tatt fra evner/items', '', sourceBars(d.damageTakenBy, { showHero: true })),
+      (types || d.killedBy) &&
+        `<div class="col dp-col">${types ? dpBlock('Skadetype', '', typeBody) : ''}${d.killedBy ? dpBlock('Drept av', `${n0(d.killedBy.total)} dødsfall`, countBars(d.killedBy, ['gang', 'ganger'])) : ''}</div>`,
+    ])}
+    ${dpGroup('Skade du ga', [
+      d.damageDealt && dpBlock('Skade gitt til helter', fmtNum(n0(d.damageDealt.total)), heroBars(d.damageDealt, 'skade')),
+      d.damageDealtBy && dpBlock('Skade gitt med evner', '', sourceBars(d.damageDealtBy, { showHero: false })),
+      d.kills && dpBlock('Du drepte', `${n0(d.kills.total)} kills`, countBars(d.kills, ['gang', 'ganger'])),
+    ])}
+    ${dpGroup('Gull, XP og bruk', [
+      gold && dpBlock('Gullkilder', fmtNum(n0(gold.total)), goldBody),
+      d.xp && dpBlock('XP-kilder', fmtNum(n0(d.xp.total)), reasonBars(d.xp, 'xp')),
+      (uses || buys) && `<div class="col dp-col">${dpBlock('Mest brukte evner/items', '', uses)}${dpBlock('Nøkkelkjøp', '', buys)}</div>`,
+    ])}
+  </div>`;
+}
+
+const DETAILS_HINT =
+  'Skade tatt fra hver helt og evne, skadetyper, gull- og XP-kilder, største treff og mer kommer når OpenDota har analysert replayen. Coachen ber om analysen etter kampen og henter den automatisk (vanligvis innen 5–30 min).';
+
 function renderReport(r) {
   const [rt, rc] = RESULT[r.result] || RESULT.unknown;
   const st = r.stats;
@@ -495,7 +638,12 @@ function renderReport(r) {
         </div>
         <div class="list-check" style="margin-top:12px">${od.good.map((t) => `<div><span>✅</span><span>${esc(t)}</span></div>`).join('')}${od.bad.map((t) => `<div><span>⚠️</span><span>${esc(t)}</span></div>`).join('')}</div>
       </div>`
-    : `<div class="card"><h3>Fra OpenDota</h3><p class="muted" style="margin:0 0 10px">Hero damage, tårnskade og wards hentes fra OpenDota når kampen er tilgjengelig der (vanligvis 5–15 min etter kampen, og bare hvis «Expose Public Match Data» er på i Dota).</p><button class="btn" id="od-refresh">↻ Hent nå</button></div>`;
+    : `<div class="card"><h3>Fra OpenDota</h3><p class="muted" style="margin:0 0 10px">Hero damage, tårnskade, wards og detaljert statistikk (som i Dota Plus) hentes fra OpenDota når kampen er tilgjengelig der (vanligvis 5–15 min etter kampen, og bare hvis «Expose Public Match Data» er på i Dota).</p><button class="btn" data-od-refresh>↻ Hent nå</button></div>`;
+  const detailsCard = od?.details
+    ? renderDetails(od.details, r)
+    : od
+      ? `<div class="card" style="margin-top:16px"><h3>📊 Detaljert statistikk (som Dota Plus)</h3><p class="muted" style="margin:0 0 10px">${esc(DETAILS_HINT)}</p><button class="btn" data-od-refresh>↻ Hent nå</button></div>`
+      : '';
 
   $('match-report').innerHTML = `
     <div style="margin-bottom:14px"><button class="btn" id="report-back">← Alle kamper</button></div>
@@ -524,7 +672,8 @@ function renderReport(r) {
         <div class="card"><h3>Item-timinger</h3>${r.items.length ? r.items.map((it) => `<div class="item-time">${itemImg(it.name, it.dname, 'sm')}<span>${esc(it.dname)}${it.expected ? ` <span class="faint">vanlig ca. ${fmtClock(it.expected)}</span>` : ''}</span><b class="num">${fmtClock(it.t)}</b></div>`).join('') : '<div class="muted">Ingen items registrert.</div>'}</div>
         ${odCard}
       </div>
-    </div>`;
+    </div>
+    ${detailsCard}`;
 
   if (r.charts.lh.length) {
     lineChart($('ch-lh'), {
@@ -541,19 +690,24 @@ function renderReport(r) {
     openReportId = null;
     loadMatches();
   });
-  $('od-refresh')?.addEventListener('click', async (e) => {
-    e.target.disabled = true;
-    e.target.textContent = 'Henter …';
-    try {
-      const res = await api(`/api/matches/${encodeURIComponent(r.matchId)}/opendota`, {});
-      if (res.found) renderReport(res.report);
-      else toast('Kampen er ikke tilgjengelig på OpenDota ennå. Prøv igjen om noen minutter.');
-    } catch (err) {
-      toast(`Klarte ikke å hente: ${err.message}`);
-    }
-    e.target.disabled = false;
-    e.target.textContent = '↻ Hent nå';
-  });
+  for (const btn of $('match-report').querySelectorAll('[data-od-refresh]')) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Henter …';
+      try {
+        const res = await api(`/api/matches/${encodeURIComponent(r.matchId)}/opendota`, {});
+        if (!res.found) toast('Kampen er ikke tilgjengelig på OpenDota ennå. Prøv igjen om noen minutter.');
+        else {
+          if (!res.report.opendota?.details) toast('OpenDota har ikke analysert replayen ennå. Prøv igjen om noen minutter.');
+          return renderReport(res.report);
+        }
+      } catch (err) {
+        toast(`Klarte ikke å hente: ${err.message}`);
+      }
+      btn.disabled = false;
+      btn.textContent = '↻ Hent nå';
+    });
+  }
 }
 
 // ---------------- Heroes ----------------

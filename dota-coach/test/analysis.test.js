@@ -5,7 +5,7 @@ import path from 'node:path';
 import { ROOT } from '../src/settings.js';
 import { ItemDb } from '../src/coach/items.js';
 import { fightAdvice, heroStrength, levelFor } from '../src/coach/fight.js';
-import { analyzeMatch, trends, expectedTime, enrichFromOpenDota } from '../src/coach/analysis.js';
+import { analyzeMatch, trends, expectedTime, enrichFromOpenDota, matchDetails, percentages } from '../src/coach/analysis.js';
 import { Coach } from '../src/coach/engine.js';
 
 const { items } = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/items.json'), 'utf8'));
@@ -157,6 +157,140 @@ test('analysis: OpenDota match data adds damage numbers', () => {
   assert.ok(od.good[0].startsWith('Mye skade på helter'));
   assert.ok(od.bad[0].startsWith('Lite tårnskade'));
   assert.equal(enrichFromOpenDota(r, { players: [] }, { accountId: 42 }), null);
+});
+
+const parsedMatch = () => JSON.parse(fs.readFileSync(path.join(ROOT, 'test/fixtures/parsed-match.json'), 'utf8'));
+const sumPct = (block) => block.rows.reduce((s, r) => s + r.pct, 0);
+
+test('details: a parsed match gives Dota Plus-style breakdowns whose percentages add up', () => {
+  const r = analyzeMatch(record({ hero: { name: 'juggernaut', dname: 'Juggernaut' } }), { itemDb: db, heroes });
+  const od = enrichFromOpenDota(r, parsedMatch(), { accountId: 123456789 });
+  const d = od.details;
+  assert.ok(d, 'details present');
+  assert.equal(od.parsed, true);
+  for (const key of ['damageTaken', 'damageTakenBy', 'damageTypes', 'damageDealt', 'damageDealtBy', 'gold', 'xp']) {
+    assert.equal(sumPct(d[key]), 100, `${key} sums to 100 %`);
+  }
+
+  // Damage taken: enemy heroes biggest first, everything else in one bucket with its parts.
+  assert.deepEqual(d.damageTaken.rows.map((x) => x.key), ['lina', 'phantom_assassin', 'axe', 'lion', 'witch_doctor', 'other']);
+  assert.equal(d.damageTaken.rows[0].dname, 'Lina');
+  assert.equal(d.damageTaken.rows[0].pct, 35);
+  const other = d.damageTaken.rows.at(-1);
+  assert.equal(other.value, 2100 + 900 + 120 + 650 + 310 + 700 + 480);
+  assert.deepEqual(Object.fromEntries(other.parts.map((p) => [p.key, p.value])), { creep: 3120, neutral: 960, tower: 700, roshan: 480 });
+
+  // By source: the "null" key is auto-attacks, abilities get names, owners and damage types.
+  const [attack, laguna] = d.damageTakenBy.rows;
+  assert.deepEqual([attack.key, attack.kind, attack.dname, attack.dmg, attack.value], ['attack', 'attack', 'Autoangrep', 'physical', 6200]);
+  assert.deepEqual([laguna.dname, laguna.hero, laguna.heroDname, laguna.dmg], ['Laguna Blade', 'lina', 'Lina', 'magical']);
+  assert.equal(d.damageTakenBy.rows.find((x) => x.key === 'axe_counter_helix').dmg, 'pure');
+  assert.equal(d.damageTakenBy.rows.length, 9, 'top 8 + one folded row');
+  assert.equal(d.damageTakenBy.rows.at(-1).dname, '3 andre');
+  assert.deepEqual(d.damageTypes.pct, { physical: 34, magical: 58, pure: 6, unknown: 2 });
+
+  // Damage dealt: heroes only; items with and without the item_ prefix are recognised.
+  assert.equal(d.damageDealt.total, 19850);
+  assert.ok(d.damageDealt.rows.every((x) => x.kind === 'hero'));
+  const dealt = Object.fromEntries(d.damageDealtBy.rows.map((x) => [x.key, x]));
+  assert.equal(dealt.attack.dname, 'Autoangrep');
+  assert.deepEqual([dealt.bfury.kind, dealt.bfury.dname], ['item', 'Battle Fury']);
+  assert.deepEqual([dealt.abyssal_blade.kind, dealt.abyssal_blade.dmg], ['item', 'physical']);
+
+  assert.deepEqual(d.killedBy.rows.map((x) => [x.key, x.count]), [['phantom_assassin', 3], ['lina', 2], ['tower', 1]]);
+  assert.deepEqual(d.kills.rows.map((x) => [x.key, x.count]), [['lina', 3], ['lion', 2], ['witch_doctor', 1], ['axe', 1]]);
+  assert.equal(d.gold.rows[0].label, 'Creeps');
+  assert.equal(d.gold.rows.find((x) => x.key === '14').label, 'Nøytrale leirer');
+  assert.deepEqual([d.gold.lost, d.gold.buyback], [1450, 1280]);
+  assert.equal(d.xp.rows[0].label, 'Creeps og nøytrale');
+  assert.deepEqual(d.uses.slice(0, 2).map((u) => [u.dname, u.kind, u.count]), [['Phase Boots', 'item', 31], ['Blade Fury', 'ability', 24]]);
+  assert.deepEqual(d.purchases.map((p) => p.name), ['phase_boots', 'bfury', 'manta', 'black_king_bar', 'abyssal_blade']);
+  assert.deepEqual(d.stats.maxHit, { value: 702, t: 1852, source: { key: 'attack', kind: 'attack', dname: 'Autoangrep' }, target: { name: 'lina', dname: 'Lina' } });
+  assert.equal(d.stats.runes.total, 6);
+  assert.equal(d.stats.runes.rows[0].label, 'Bounty');
+  assert.deepEqual([d.stats.lhAt10, d.stats.dnAt10, d.stats.timeDead, d.stats.buybacks, d.stats.stuns], [56, 8, 214, 1, 1.8]);
+});
+
+test('details: concrete Norwegian insights, at most four', () => {
+  const od = enrichFromOpenDota({ role: 1, duration: 2460 }, parsedMatch(), { heroId: 8 });
+  const ins = od.details.insights;
+  assert.ok(ins.length > 0 && ins.length <= 4);
+  const byTag = Object.fromEntries(ins.map((i) => [i.tag, i]));
+  assert.match(byTag['dmg-magical'].text, /^58 % av skaden du tok var magisk – BKB eller Eternal Shroud/);
+  assert.match(byTag['top-damage-hero'].text, /^Lina sto for 35 % av skaden du tok \(mest Laguna Blade\) og drepte deg 2 ganger/);
+  assert.match(byTag['killed-by'].text, /^Du døde 3 ganger til Phantom Assassin – se etter Ghost Scepter/);
+  assert.match(byTag['few-neutrals'].text, /^Bare 9 % av gullet kom fra nøytrale leirer/);
+  assert.ok(ins.every((i) => i.label && i.text));
+
+  // A support gets support items and no farm advice.
+  const sup = enrichFromOpenDota({ role: 5, duration: 2460 }, parsedMatch(), { heroId: 8 }).details.insights;
+  assert.match(sup.find((i) => i.tag === 'dmg-magical').text, /Glimmer Cape eller Pipe/);
+  assert.ok(!sup.some((i) => i.tag === 'few-neutrals'));
+});
+
+test('details: unknown keys and odd values are handled', () => {
+  const m = parsedMatch();
+  const me = m.players[0];
+  me.damage_inflictor_received.lina_brand_new_spell = 500;
+  me.damage_inflictor_received.mystery_thing = 300;
+  me.damage_inflictor_received.dota_unknown = 100;
+  me.damage_inflictor_received.broken = 'lots';
+  me.damage_taken.npc_dota_weird_summon = 250;
+  me.gold_reasons['99'] = 70;
+  me.xp_reasons['42'] = 30;
+  me.runes['17'] = 1;
+  me.item_uses.item_unheard_of = 50;
+  me.killed_by.npc_dota_hero_juggernaut = 1; // denied yourself? still not an enemy hero
+  const d = enrichFromOpenDota({ role: 1, duration: 2460 }, m, { heroId: 8 }).details;
+  for (const key of ['damageTaken', 'damageTakenBy', 'damageTypes', 'gold', 'xp']) assert.equal(sumPct(d[key]), 100, key);
+  const attack = d.damageTakenBy.rows.find((x) => x.key === 'attack');
+  assert.equal(attack.value, 6300, 'dota_unknown counts as an auto-attack');
+  const rest = d.damageTakenBy.rows.at(-1);
+  assert.equal(rest.kind, 'rest');
+  assert.equal(d.damageTaken.rows.find((x) => x.key === 'other').parts.find((p) => p.key === 'other').value, 250);
+  assert.equal(d.gold.rows.find((x) => x.key === '0').value, 600 + 70, 'unknown gold reason counts as «Annet»');
+  assert.equal(d.xp.rows.find((x) => x.key === '0').value, 800 + 30);
+  assert.ok(d.stats.runes.rows.some((x) => x.label === 'Annen rune'));
+  assert.ok(d.uses.some((u) => u.key === 'unheard_of' && u.dname === 'Unheard Of'));
+  assert.ok(!d.killedBy.rows.some((x) => x.key === 'juggernaut'));
+
+  // Unknown abilities still get a readable name and, from the name prefix, an owner.
+  const all = enrichFromOpenDota({ role: 1 }, { players: [{ hero_id: 8, isRadiant: true, damage_inflictor_received: { lina_brand_new_spell: 500, mystery_thing: 300 } }] }, { heroId: 8 }).details;
+  const spell = all.damageTakenBy.rows.find((x) => x.key === 'lina_brand_new_spell');
+  assert.deepEqual([spell.dname, spell.hero, spell.dmg], ['Brand New Spell', 'lina', null]);
+  assert.equal(all.damageTakenBy.rows.find((x) => x.key === 'mystery_thing').dname, 'Mystery Thing');
+  assert.equal(all.damageTypes.pct.unknown, 100);
+});
+
+test('details: unparsed matches and missing data never crash', () => {
+  const m = parsedMatch();
+  for (const p of m.players) {
+    for (const k of ['damage', 'damage_taken', 'damage_inflictor', 'damage_inflictor_received', 'killed', 'killed_by', 'gold_reasons', 'xp_reasons', 'ability_uses', 'item_uses', 'runes', 'max_hero_hit', 'purchase_log', 'lh_t', 'dn_t', 'obs_placed', 'lane_efficiency_pct']) p[k] = null;
+  }
+  const od = enrichFromOpenDota({ role: 1, duration: 2460 }, m, { heroId: 8 });
+  assert.equal(od.details, null);
+  assert.equal(od.parsed, false);
+  assert.equal(od.heroDamage, 19850);
+
+  // Only some fields parsed, odd shapes, no hero data at all.
+  const partial = { players: [{ hero_id: 8, isRadiant: true, gold_reasons: { 13: 1000 }, damage_taken: [], killed_by: {}, runes: null, lh_t: [1, 2] }] };
+  const d = enrichFromOpenDota({ role: 2, duration: 600 }, partial, { heroId: 8, data: { heroes: [], items: {}, abilities: {}, abilityInfo: {} } }).details;
+  assert.equal(d.gold.rows[0].pct, 100);
+  for (const key of ['damageTaken', 'damageTakenBy', 'damageTypes', 'damageDealt', 'damageDealtBy', 'killedBy', 'kills', 'xp', 'uses', 'purchases']) assert.equal(d[key], null, key);
+  assert.equal(d.stats.lhAt10, null);
+  assert.deepEqual(d.insights, []);
+  assert.equal(percentages([]).length, 0);
+  assert.deepEqual(percentages([1, 1, 1]), [34, 33, 33]);
+  assert.deepEqual(percentages([0, 0]), [0, 0]);
+});
+
+test('details: works with the server hero Map as name data', () => {
+  const data = { heroes, items, abilities: JSON.parse(fs.readFileSync(path.join(ROOT, 'data/abilities.json'), 'utf8')).heroes, abilityInfo: {} };
+  const d = matchDetails(parsedMatch().players[0], parsedMatch(), { role: 1, data });
+  assert.equal(d.damageTaken.rows[0].dname, 'Lina');
+  // Without ability-info, owners and names still come from the per-hero ability lists.
+  const laguna = d.damageTakenBy.rows.find((x) => x.key === 'lina_laguna_blade');
+  assert.deepEqual([laguna.dname, laguna.hero, laguna.dmg], ['Laguna Blade', 'lina', null]);
 });
 
 test('engine records the match and hands it over when the game ends', () => {

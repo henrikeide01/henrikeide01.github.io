@@ -43,6 +43,8 @@ BUILDS[5] = BUILDS[4];
 const MEDIAN = { 1: [560, 600, 6.8], 2: [540, 640, 6.0], 3: [470, 560, 3.6], 4: [330, 430, 1.4], 5: [290, 380, 1.0] };
 const SPREAD = [[0.1, 0.62], [0.2, 0.72], [0.3, 0.82], [0.4, 0.91], [0.5, 1], [0.6, 1.08], [0.7, 1.17], [0.8, 1.28], [0.9, 1.45], [0.95, 1.6], [0.99, 1.9]];
 
+export const PARSED_MATCH_ID = '424242';
+
 export function makeFixtures(dir) {
   fs.mkdirSync(dir, { recursive: true });
   const { heroes } = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/heroes.json'), 'utf8'));
@@ -87,6 +89,10 @@ export function makeFixtures(dir) {
     const pts = (m) => SPREAD.map(([percentile, f]) => ({ percentile, value: Math.round(m * f * 100) / 100 }));
     write(`benchmarks_hero_id_${h.id}`, { hero_id: h.id, result: { gold_per_min: pts(gpm), xp_per_min: pts(xpm), last_hits_per_min: pts(lh) } });
   }
+
+  // A parsed match (Juggernaut, match id 424242) with the Dota Plus-style fields: damage taken/dealt per
+  // hero and ability, gold/XP sources, runes … Used by the server test's finished match and for UI work.
+  fs.copyFileSync(path.join(ROOT, 'test/fixtures/parsed-match.json'), path.join(dir, `matches_${PARSED_MATCH_ID}.json`));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
