@@ -31,7 +31,7 @@ export function itemImg(name, dname, cls = '') {
 }
 
 export function abilityImg(name, dname, cls = '') {
-  return `<span class="aimg ${cls}" style="--h:${hue(name)}" data-label="${esc(initials(dname || name))}" title="${esc(dname || name)}"><img src="${CDN}/abilities/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
+  return `<span class="iimg aimg ${cls}" style="--h:${hue(name)}" data-label="${esc(initials(dname || name))}" title="${esc(dname || name)}"><img src="${CDN}/abilities/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
 }
 
 // Talents have no icon of their own.

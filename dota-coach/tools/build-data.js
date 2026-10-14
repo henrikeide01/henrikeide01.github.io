@@ -63,10 +63,33 @@ for (const [hero, info] of Object.entries(read('hero_abilities.json'))) {
   heroAbilities[short] = { abilities, talents };
 }
 
+// Display name, damage type and owning hero of every ability that can show up as a damage source in
+// OpenDota's parsed match data (damage_inflictor, damage_inflictor_received, ability_uses). Includes
+// hidden/innate hero abilities and neutral creep / Roshan abilities; seasonal event abilities are skipped.
+const DMG_TYPE = { Magical: 'magical', Physical: 'physical', Pure: 'pure' };
+const heroNames = heroes.map((h) => h.name).sort((a, b) => b.length - a.length);
+const ownerByPrefix = (n) => heroNames.find((h) => n.startsWith(`${h}_`)) || null;
+const abilityOwner = {};
+for (const [hero, info] of Object.entries(read('hero_abilities.json'))) {
+  for (const n of info.abilities || []) if (n && n !== 'generic_hidden') abilityOwner[n] = hero.replace('npc_dota_hero_', '');
+}
+const EVENT = /^(greevil_|frostivus|cny20|seasonal_|roshan_halloween|throw_|special_bonus)/;
+const abilityMeta = {};
+for (const [n, a] of Object.entries(abilityInfo).sort(([x], [y]) => x.localeCompare(y))) {
+  if (!a?.dname || EVENT.test(n)) continue;
+  const dmg = DMG_TYPE[a.dmg_type] || null;
+  const hero = abilityOwner[n] || ownerByPrefix(n);
+  if (!abilityOwner[n] && !dmg) continue; // not a hero ability and deals no typed damage
+  abilityMeta[n] = { dname: a.dname, ...(dmg ? { dmg } : {}), ...(hero ? { hero } : {}) };
+}
+
 const patches = read('patch.json');
 const patch = patches[patches.length - 1].name;
 
 fs.writeFileSync(path.join(root, 'data/heroes.json'), JSON.stringify({ patch, heroes }, null, 0));
 fs.writeFileSync(path.join(root, 'data/items.json'), JSON.stringify({ patch, items }, null, 0));
 fs.writeFileSync(path.join(root, 'data/abilities.json'), JSON.stringify({ patch, heroes: heroAbilities, ids }, null, 0));
-console.log(`Skrev ${heroes.length} helter, ${Object.keys(items).length} items og ${Object.keys(ids).length} evner/talenter (patch ${patch}).`);
+fs.writeFileSync(path.join(root, 'data/ability-info.json'), JSON.stringify({ patch, abilities: abilityMeta }, null, 0));
+console.log(
+  `Skrev ${heroes.length} helter, ${Object.keys(items).length} items, ${Object.keys(ids).length} evner/talenter og ${Object.keys(abilityMeta).length} skadekilder (patch ${patch}).`,
+);

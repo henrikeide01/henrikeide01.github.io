@@ -39,7 +39,8 @@ Never edit files the updater treats as user data: `settings.json`, `matches/`, `
 - `src/coach/` – pure logic: `engine.js` (live state), `rules.js` (live tips), `fight.js` (fight meter),
   `recorder.js` + `analysis.js` (post-game report), `draft.js`, `items.js`, `timers.js`, `map.js`.
 - `data/` – game knowledge: `knowledge.js` (patch timings, counters, power curves), `positions.js`,
-  generated `heroes.json` / `items.json` (`npm run build-data` from the `dotaconstants` package).
+  generated `heroes.json` / `items.json` / `abilities.json` / `ability-info.json` (`npm run build-data` from the
+  `dotaconstants` package; `ability-info.json` gives damage types for the post-game damage breakdown).
 - `public/` – dashboard (`index.html`, `js/dashboard.js`) and overlay (`overlay.html`, `js/overlay-view.js`).
 - `overlay/main.cjs` – Electron app (app window + click-through overlay + tray, restarts after updates).
 - `overlay/vision.cjs` + `vision-worker.mjs` + `src/vision/` – reads the hero portraits from the screen during the

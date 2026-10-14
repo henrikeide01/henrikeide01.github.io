@@ -1,5 +1,8 @@
 // Post-game analysis: turns a recorded match into a report with a grade, what went well,
 // what went badly and what to work on next game.
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT } from '../settings.js';
 import { percentileOf } from './percentile.js';
 import { situationalItems } from './situational.js';
 import { fmtClock } from './timers.js';
@@ -354,8 +357,405 @@ export function trends(reports) {
   };
 }
 
-// Adds numbers only OpenDota has (hero damage, tower damage, wards …) once the match is public.
-export function enrichFromOpenDota(report, match, { accountId = null, heroId = null } = {}) {
+// ---------- Dota Plus-style details from a parsed OpenDota match ----------
+
+// Keys of gold_reasons / xp_reasons are Dota's EDOTA_ModifyGold_Reason / EDOTA_ModifyXP_Reason codes.
+// Unknown codes are counted as «Annet»; 1 (lost on death) and 2 (buyback) are costs, not income.
+const GOLD_REASON = {
+  0: 'Annet',
+  5: 'Fra spiller som forlot kampen',
+  6: 'Salg av items',
+  10: 'Passiv inntekt',
+  11: 'Tårn og bygninger',
+  12: 'Helter (kills og assists)',
+  13: 'Creeps',
+  14: 'Nøytrale leirer',
+  15: 'Roshan',
+  16: 'Kurerer',
+  17: 'Bounty-runer',
+  18: 'Delt gull',
+  19: 'Evner',
+  20: 'Wards',
+};
+const GOLD_ALIAS = { 21: 16 }; // courier killed by this player
+const XP_REASON = {
+  0: 'Annet',
+  1: 'Helter (kills og assists)',
+  2: 'Creeps og nøytrale',
+  3: 'Roshan',
+  4: 'Tome of Knowledge',
+  5: 'Utposter',
+  6: 'Innhenting (catch-up)',
+  7: 'Evner',
+};
+const RUNE = { 0: 'Dobbel skade', 1: 'Fart', 2: 'Illusjon', 3: 'Usynlighet', 4: 'Regenerering', 5: 'Bounty', 6: 'Arcane', 7: 'Vann', 8: 'Visdom', 9: 'Skjold' };
+const DMG_TYPES = ['physical', 'magical', 'pure', 'unknown'];
+const DMG_LABEL = { physical: 'Fysisk', magical: 'Magisk', pure: 'Ren (pure)', unknown: 'Ukjent' };
+const UNIT_LABEL = { creep: 'Creeps', neutral: 'Nøytrale', tower: 'Tårn og bygninger', roshan: 'Roshan', other: 'Andre enheter' };
+// Damage type of items that deal damage themselves (dotaconstants has no dmg_type for items).
+// Blade Mail is left out on purpose: it returns damage with the original type.
+const ITEM_DMG = {
+  radiance: 'magical', maelstrom: 'magical', mjollnir: 'magical', gungir: 'magical', dagon: 'magical', dagon_2: 'magical', dagon_3: 'magical',
+  dagon_4: 'magical', dagon_5: 'magical', shivas_guard: 'magical', ethereal_blade: 'magical', monkey_king_bar: 'magical', javelin: 'magical',
+  orchid: 'magical', bloodthorn: 'magical', meteor_hammer: 'magical', overwhelming_blink: 'magical', revenants_brooch: 'magical', cyclone: 'magical',
+  wind_waker: 'magical', phylactery: 'magical', khanda: 'magical', witch_blade: 'magical', devastator: 'magical', fallen_sky: 'magical',
+  gunpowder_gauntlets: 'magical', bfury: 'physical', basher: 'physical', abyssal_blade: 'physical', silver_edge: 'physical',
+  invis_sword: 'physical', diffusal_blade: 'physical', disperser: 'physical',
+};
+
+const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const numEntries = (o) => (isObj(o) ? Object.entries(o).filter(([, v]) => num(v) != null) : []);
+const sum = (list) => list.reduce((s, v) => s + v, 0);
+const humanize = (s) =>
+  String(s || '')
+    .split('_')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+
+// Whole-number percentages of `values` that add up to exactly 100 (largest remainder method).
+export function percentages(values) {
+  const vals = values.map((v) => Math.max(0, v || 0));
+  const total = sum(vals);
+  if (!total) return vals.map(() => 0);
+  const raw = vals.map((v) => (v / total) * 100);
+  const out = raw.map(Math.floor);
+  let left = 100 - sum(out);
+  for (const [, i] of raw.map((v, j) => [v - out[j], j]).sort((a, b) => b[0] - a[0])) {
+    if (left <= 0) break;
+    out[i] += 1;
+    left -= 1;
+  }
+  return out;
+}
+
+// { total, rows } with each row's share as whole percent, or null when there is nothing to show.
+const withPct = (rows) => {
+  const total = sum(rows.map((r) => r.value));
+  if (!rows.length || !total) return null;
+  const pcts = percentages(rows.map((r) => r.value));
+  return { total, rows: rows.map((r, i) => ({ ...r, pct: pcts[i] })) };
+};
+
+// Keeps the `top` biggest rows and folds the rest into one «N andre» row.
+function fold(rows, top) {
+  if (rows.length <= top + 1) return rows;
+  const rest = rows.slice(top);
+  return [...rows.slice(0, top), { key: 'rest', kind: 'rest', dname: `${rest.length} andre`, dmg: null, value: sum(rest.map((r) => r.value)) }];
+}
+
+let bundled = null;
+function bundledData() {
+  if (!bundled) {
+    const read = (f) => {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(ROOT, 'data', f), 'utf8'));
+      } catch {
+        return {};
+      }
+    };
+    bundled = { heroes: read('heroes.json').heroes || [], items: read('items.json').items || {}, abilities: read('abilities.json').heroes || {}, abilityInfo: read('ability-info.json').abilities || {} };
+  }
+  return bundled;
+}
+
+// Name lookups for OpenDota's unit names (npc_dota_hero_lina) and damage sources (lina_laguna_blade, item_radiance, null).
+// data: { heroes (array or Map name -> hero), items, abilities (per-hero lists), abilityInfo (data/ability-info.json) }
+function makeLookup(data) {
+  const heroList = data.heroes instanceof Map ? [...data.heroes.values()] : data.heroes || [];
+  const heroByName = new Map(heroList.map((h) => [h.name, h]));
+  const heroById = new Map(heroList.map((h) => [h.id, h]));
+  const byLength = [...heroByName.keys()].sort((a, b) => b.length - a.length);
+  const listed = new Map();
+  for (const [hero, info] of Object.entries(data.abilities || {})) for (const a of info.abilities || []) listed.set(a.name, { hero, dname: a.dname });
+  const info = data.abilityInfo || {};
+  const items = data.items || {};
+  const heroDname = (name) => heroByName.get(name)?.dname || humanize(name);
+
+  function unit(key) {
+    const k = String(key || '');
+    if (k.startsWith('npc_dota_hero_')) {
+      const name = k.slice('npc_dota_hero_'.length);
+      return { kind: 'hero', name, dname: heroDname(name) };
+    }
+    if (k.includes('roshan')) return { kind: 'roshan' };
+    if (k.startsWith('npc_dota_neutral_')) return { kind: 'neutral' };
+    if (/_tower|_fort|_rax|barracks|_healers|_fillers?\b|_effigy|_outpost/.test(k)) return { kind: 'tower' };
+    if (/^npc_dota_creep_(goodguys|badguys)|_siege|^npc_dota_creep_lane/.test(k)) return { kind: 'creep' };
+    return { kind: 'other' };
+  }
+
+  function item(key) {
+    const name = String(key || '').replace(/^item_/, '');
+    return { key: name, kind: 'item', dname: items[name]?.dname || humanize(name), dmg: ITEM_DMG[name] || null, hero: null, heroDname: null };
+  }
+
+  // OpenDota writes auto-attacks as the inflictor null (the JSON key "null").
+  function source(key) {
+    const k = key == null ? 'null' : String(key);
+    if (!k || k === 'null' || k === 'undefined' || k === 'dota_unknown') return { key: 'attack', kind: 'attack', dname: 'Autoangrep', dmg: 'physical', hero: null, heroDname: null };
+    if (info[k] || listed.has(k)) {
+      const hero = info[k]?.hero || listed.get(k)?.hero || null;
+      return { key: k, kind: 'ability', dname: info[k]?.dname || listed.get(k).dname, dmg: info[k]?.dmg || null, hero, heroDname: hero ? heroDname(hero) : null };
+    }
+    if (k.startsWith('item_') || items[k]) return item(k);
+    const hero = byLength.find((h) => k.startsWith(`${h}_`)) || null;
+    return { key: k, kind: 'other', dname: humanize(hero ? k.slice(hero.length + 1) : k), dmg: null, hero, heroDname: hero ? heroDname(hero) : null };
+  }
+
+  return { heroById, heroDname, unit, item, source, items };
+}
+
+// Damage per source (ability, item, auto-attack), merged by display key and sorted, biggest first.
+function sources(map, L) {
+  const agg = new Map();
+  for (const [k, v] of numEntries(map)) {
+    if (v <= 0) continue;
+    const s = L.source(k);
+    const prev = agg.get(s.key);
+    if (prev) prev.value += v;
+    else agg.set(s.key, { ...s, value: v });
+  }
+  return [...agg.values()].sort((a, b) => b.value - a.value);
+}
+
+// Hero damage per enemy hero; everything else goes into one bucket with its parts (creeps, towers …).
+function damageByUnit(map, L, isEnemy, { otherBucket }) {
+  const heroes = new Map();
+  const other = { creep: 0, neutral: 0, tower: 0, roshan: 0, other: 0 };
+  for (const [k, v] of numEntries(map)) {
+    if (v <= 0) continue;
+    const u = L.unit(k);
+    if (u.kind === 'hero' && isEnemy(u.name)) heroes.set(u.name, (heroes.get(u.name) || 0) + v);
+    else other[u.kind === 'hero' ? 'other' : u.kind] += v;
+  }
+  const rows = [...heroes].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ key: name, kind: 'hero', name, dname: L.heroDname(name), value }));
+  const otherTotal = sum(Object.values(other));
+  if (otherBucket && otherTotal > 0) {
+    rows.push({
+      key: 'other',
+      kind: 'other',
+      dname: 'Creeps, tårn og annet',
+      value: otherTotal,
+      parts: Object.entries(other)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([key, value]) => ({ key, dname: UNIT_LABEL[key], value })),
+    });
+  }
+  return withPct(rows);
+}
+
+function damageTypes(all) {
+  if (!all.length) return null;
+  const by = Object.fromEntries(DMG_TYPES.map((t) => [t, 0]));
+  for (const s of all) by[s.dmg || 'unknown'] += s.value;
+  const res = withPct(DMG_TYPES.filter((t) => by[t] > 0).map((t) => ({ key: t, label: DMG_LABEL[t], value: by[t] })));
+  if (!res) return null;
+  res.pct = Object.fromEntries(DMG_TYPES.map((t) => [t, res.rows.find((r) => r.key === t)?.pct || 0]));
+  return res;
+}
+
+function countByUnit(map, L, isEnemy, { heroesOnly }) {
+  const rows = new Map();
+  for (const [k, v] of numEntries(map)) {
+    if (v <= 0) continue;
+    const u = L.unit(k);
+    if (u.kind === 'hero' && isEnemy(u.name)) rows.set(u.name, { key: u.name, kind: 'hero', name: u.name, dname: u.dname, count: (rows.get(u.name)?.count || 0) + v });
+    else if (!heroesOnly) {
+      const kind = u.kind === 'hero' ? 'other' : u.kind;
+      rows.set(kind, { key: kind, kind, dname: UNIT_LABEL[kind], count: (rows.get(kind)?.count || 0) + v });
+    }
+  }
+  const list = [...rows.values()].sort((a, b) => b.count - a.count);
+  return list.length ? { total: sum(list.map((r) => r.count)), rows: list } : null;
+}
+
+// Income per reason code (unknown codes count as 0 «Annet»). gold: codes 1/2 are gold lost on death / spent on buyback.
+function reasons(map, labels, { alias = {}, gold = false } = {}) {
+  const agg = new Map();
+  let lost = 0;
+  let buyback = 0;
+  for (const [k, v] of numEntries(map)) {
+    if (gold && k === '1') lost += Math.abs(v);
+    else if (gold && k === '2') buyback += Math.abs(v);
+    else if (v > 0) {
+      const code = String(alias[k] ?? (labels[k] ? k : 0));
+      agg.set(code, (agg.get(code) || 0) + v);
+    }
+  }
+  const res = withPct([...agg].sort((a, b) => b[1] - a[1]).map(([key, value]) => ({ key, label: labels[key], value })));
+  if (!res) return null;
+  return gold ? { ...res, lost, buyback } : res;
+}
+
+// What an enemy hero mostly hurt you with: their own abilities (if they explain most of their damage) or auto-attacks.
+function heroProfile(name, taken, takenAll) {
+  const own = takenAll.filter((s) => s.hero === name);
+  const attributed = sum(own.map((s) => s.value));
+  const heroTotal = taken?.rows.find((r) => r.key === name)?.value || 0;
+  if (own.length && attributed >= heroTotal * 0.5) {
+    const by = {};
+    for (const s of own) by[s.dmg || 'unknown'] = (by[s.dmg || 'unknown'] || 0) + s.value;
+    const type = Object.entries(by).sort((a, b) => b[1] - a[1])[0][0];
+    return { main: own[0].dname, type };
+  }
+  return { main: 'autoangrep', type: 'physical' };
+}
+
+function counterItems(type, role) {
+  const support = role >= 4;
+  if (type === 'magical') return support ? 'Glimmer Cape eller Pipe' : role === 3 ? 'Pipe, BKB eller Eternal Shroud' : 'BKB eller Eternal Shroud';
+  if (type === 'physical') {
+    if (support) return 'Ghost Scepter, Force Staff eller Solar Crest';
+    return { 1: 'Ghost Scepter, Butterfly eller Assault Cuirass', 2: "Ghost Scepter, Blade Mail eller Shiva's Guard", 3: "Heaven's Halberd, Blade Mail eller Crimson Guard" }[role] || 'Ghost Scepter';
+  }
+  if (type === 'pure') return support ? 'Aeon Disk eller Force Staff' : 'Aeon Disk eller mer HP';
+  return null;
+}
+
+function buildInsights({ role, duration, taken, takenAll, types, killedBy, gold, stats }) {
+  const out = [];
+  const add = (tag, label, text) => out.push({ tag, label, text });
+
+  if (types && types.total >= 1500) {
+    const p = types.pct;
+    if (p.magical >= 50) add('dmg-magical', 'Skadetype', `${p.magical} % av skaden du tok var magisk – ${counterItems('magical', role)} hjelper.`);
+    else if (p.pure >= 25) add('dmg-pure', 'Skadetype', `${p.pure} % av skaden du tok var ren skade (pure), som går gjennom både rustning og magisk motstand – ${counterItems('pure', role)} hjelper.`);
+    else if (p.physical >= 70) add('dmg-physical', 'Skadetype', `${p.physical} % av skaden du tok var fysisk – ${counterItems('physical', role)} hjelper.`);
+  }
+
+  const topHero = taken?.rows.find((r) => r.kind === 'hero');
+  const killers = (killedBy?.rows || []).filter((r) => r.kind === 'hero');
+  let topHeroName = null;
+  if (topHero && topHero.pct >= 30 && taken.total >= 2000) {
+    topHeroName = topHero.name;
+    const prof = heroProfile(topHero.name, taken, takenAll);
+    const deaths = killers.find((k) => k.name === topHero.name)?.count || 0;
+    const advice =
+      prof.type === 'magical'
+        ? `hold deg utenfor rekkevidde, og vurder ${role >= 4 ? 'Glimmer Cape eller Force Staff' : "Linken's Sphere eller BKB"}`
+        : prof.type === 'unknown'
+          ? `se etter ${topHero.dname} på kartet før du går inn, og hold avstand`
+          : `hold avstand, og vurder ${counterItems(prof.type, role)}`;
+    add(
+      'top-damage-hero',
+      'Farligste fiende',
+      `${topHero.dname} sto for ${topHero.pct} % av skaden du tok (mest ${prof.main})${deaths >= 2 ? ` og drepte deg ${deaths} ganger` : ''} – ${advice}.`,
+    );
+  }
+
+  const killer = killers[0];
+  if (killer && killer.count >= 3 && killer.name !== topHeroName) {
+    const prof = heroProfile(killer.name, taken, takenAll);
+    const items = counterItems(prof.type, role);
+    add('killed-by', 'Dødsfall', `Du døde ${killer.count} ganger til ${killer.dname} – ${items ? `se etter ${items}` : 'hold deg nær laget når du ikke ser helten på kartet'}.`);
+  }
+
+  if (gold && role <= 3 && duration >= 1200 && gold.total >= 4000) {
+    const share = (gold.rows.find((r) => r.key === '14')?.value || 0) / gold.total;
+    if (share < 0.15) {
+      const p = Math.round(share * 100);
+      add('few-neutrals', 'Farm', `${p >= 1 ? `Bare ${p} %` : 'Nesten ingenting'} av gullet kom fra nøytrale leirer – farm jungelen mellom bølgene.`);
+    }
+  }
+
+  const runes = stats.runes?.total;
+  if (role === 2 && duration >= 1200 && runes != null && runes < duration / 400) {
+    add('few-runes', 'Runer', `Bare ${runes} runer på ${Math.round(duration / 60)} minutter – som mid bør du ta power-runene og stjele bounty-runer når du kan.`);
+  }
+
+  if (stats.timeDead != null && duration > 0 && stats.timeDead / duration >= 0.15) {
+    add('time-dead', 'Tid død', `Du var død i ${fmtClock(stats.timeDead)} (${Math.round((stats.timeDead / duration) * 100)} % av kampen) – det er farm og fights du går glipp av.`);
+  }
+  return out.slice(0, 4);
+}
+
+// The per-match breakdowns Dota Plus shows (damage taken/dealt by hero and ability, gold/XP sources …).
+// Only parsed matches have these fields; returns null for an unparsed match.
+export function matchDetails(me, match, { role = 1, duration = 0, data = bundledData() } = {}) {
+  const PARSED = ['damage_taken', 'damage_inflictor_received', 'damage', 'damage_inflictor', 'killed_by', 'killed', 'gold_reasons', 'xp_reasons', 'ability_uses', 'item_uses'];
+  if (!me || !PARSED.some((k) => isObj(me[k]))) return null;
+  const L = makeLookup(data);
+  const myName = L.heroById.get(me.hero_id)?.name || null;
+  const players = Array.isArray(match?.players) ? match.players : [];
+  const enemies = new Set(players.filter((p) => p.isRadiant !== me.isRadiant).map((p) => L.heroById.get(p.hero_id)?.name).filter(Boolean));
+  const isEnemy = (name) => name !== myName && (!enemies.size || enemies.has(name));
+  const dur = num(match?.duration) || duration || 0;
+
+  const takenAll = sources(me.damage_inflictor_received, L);
+  const dealtAll = sources(me.damage_inflictor, L);
+  const taken = damageByUnit(me.damage_taken, L, isEnemy, { otherBucket: true });
+  const killedBy = countByUnit(me.killed_by, L, isEnemy, { heroesOnly: false });
+  const gold = reasons(me.gold_reasons, GOLD_REASON, { alias: GOLD_ALIAS, gold: true });
+
+  const uses = [
+    ...numEntries(me.ability_uses).map(([k, count]) => {
+      const s = L.source(k);
+      return { key: s.key, kind: s.kind === 'item' ? 'item' : 'ability', dname: s.dname, count };
+    }),
+    ...numEntries(me.item_uses).map(([k, count]) => ({ key: L.item(k).key, kind: 'item', dname: L.item(k).dname, count })),
+  ]
+    .filter((u) => u.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const purchases = [];
+  const seen = new Set();
+  for (const p of Array.isArray(me.purchase_log) ? me.purchase_log : []) {
+    const name = String(p?.key || '').replace(/^item_/, '');
+    const it = L.items[name];
+    if (!it || seen.has(name) || name.startsWith('recipe_') || it.qual === 'consumable' || num(p.time) == null) continue;
+    if (!(it.cost >= 2000 || (it.created && it.cost >= 1000))) continue;
+    seen.add(name);
+    purchases.push({ name, dname: it.dname, t: p.time });
+  }
+
+  const hit = isObj(me.max_hero_hit) && num(me.max_hero_hit.value) ? me.max_hero_hit : null;
+  const target = hit ? L.unit(hit.key) : null;
+  const runeRows = numEntries(me.runes)
+    .filter(([, n]) => n > 0)
+    .map(([key, count]) => ({ key, label: RUNE[key] || 'Annen rune', count }))
+    .sort((a, b) => b.count - a.count);
+  const runeTotal = num(me.rune_pickups) ?? (runeRows.length ? sum(runeRows.map((r) => r.count)) : null);
+  const at10 = (arr) => (Array.isArray(arr) && arr.length > 10 ? num(arr[10]) : null);
+  const stats = {
+    maxHit: hit
+      ? { value: hit.value, t: num(hit.time), source: (({ key, kind, dname }) => ({ key, kind, dname }))(L.source(hit.inflictor)), target: target?.kind === 'hero' ? { name: target.name, dname: target.dname } : null }
+      : null,
+    stuns: num(me.stuns) != null ? Math.round(me.stuns * 10) / 10 : null,
+    teamfight: num(me.teamfight_participation),
+    runes: runeTotal != null ? { total: runeTotal, rows: runeRows } : null,
+    buybacks: num(me.buyback_count),
+    laneEfficiency: num(me.lane_efficiency_pct),
+    lhAt10: at10(me.lh_t),
+    dnAt10: at10(me.dn_t),
+    timeDead: num(me.life_state_dead),
+  };
+
+  const types = damageTypes(takenAll);
+  return {
+    damageTaken: taken,
+    damageTakenBy: withPct(fold(takenAll, 8)),
+    damageTypes: types,
+    damageDealt: damageByUnit(me.damage, L, isEnemy, { otherBucket: false }),
+    damageDealtBy: withPct(fold(dealtAll, 8)),
+    killedBy,
+    kills: countByUnit(me.killed, L, isEnemy, { heroesOnly: true }),
+    gold,
+    xp: reasons(me.xp_reasons, XP_REASON),
+    uses: uses.length ? uses : null,
+    purchases: purchases.length ? purchases.slice(0, 10) : null,
+    stats,
+    insights: buildInsights({ role, duration: dur, taken, takenAll, types, killedBy, gold, stats }),
+  };
+}
+
+// Adds numbers only OpenDota has (hero damage, tower damage, wards …) once the match is public,
+// and the detailed Dota Plus-style breakdowns once the replay is parsed.
+// data: name lookups (see makeLookup); defaults to the bundled files in data/.
+export function enrichFromOpenDota(report, match, { accountId = null, heroId = null, data } = {}) {
   const players = Array.isArray(match?.players) ? match.players : [];
   const me = players.find((p) => accountId && p.account_id === accountId) || players.find((p) => heroId && p.hero_id === heroId);
   if (!me) return null;
@@ -384,9 +784,16 @@ export function enrichFromOpenDota(report, match, { accountId = null, heroId = n
   }
   if (typeof me.camps_stacked === 'number' && me.camps_stacked >= 4) good.push(`${me.camps_stacked} leirer stacket.`);
 
+  let details = null;
+  try {
+    details = matchDetails(me, match, { role: report.role || 1, duration: report.duration || 0, ...(data ? { data } : {}) });
+  } catch (err) {
+    console.error('Detaljert statistikk feilet:', err); // never lose the basic numbers over a data quirk
+  }
+
   return {
     fetchedAt: new Date().toISOString(),
-    parsed: typeof me.obs_placed === 'number' || typeof me.lane_efficiency_pct === 'number',
+    parsed: !!details || typeof me.obs_placed === 'number' || typeof me.lane_efficiency_pct === 'number',
     heroDamage: me.hero_damage ?? null,
     towerDamage: me.tower_damage ?? null,
     healing: me.hero_healing ?? null,
@@ -396,5 +803,6 @@ export function enrichFromOpenDota(report, match, { accountId = null, heroId = n
     teamRank: { heroDamage: rank('hero_damage'), towerDamage: rank('tower_damage'), netWorth: rank('net_worth') },
     good,
     bad,
+    details,
   };
 }

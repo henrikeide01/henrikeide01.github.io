@@ -101,6 +101,26 @@ test('a finished match is analysed and shows up in the match history', async () 
   assert.ok(report.categories.length >= 5);
   assert.ok(report.tips.length >= 1);
   assert.equal((await fetch(`${base}/api/matches/finnes-ikke`)).status, 404);
+
+  // OpenDota (fixture) has the parsed match: the report gets the Dota Plus-style details by itself.
+  let enriched;
+  for (let i = 0; i < 40; i++) {
+    enriched = await (await fetch(`${base}/api/matches/424242`)).json();
+    if (enriched.opendota) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  const d = enriched.opendota?.details;
+  assert.ok(d, 'details added automatically after the match');
+  assert.equal(enriched.opendota.parsed, true);
+  assert.equal(d.damageTaken.rows[0].dname, 'Lina');
+  assert.equal(d.damageTakenBy.rows[0].dname, 'Autoangrep');
+  assert.ok(d.insights.length >= 1);
+
+  // «Hent nå» fetches again and returns the same details.
+  const res = await (await post('/api/matches/424242/opendota', {})).json();
+  assert.equal(res.found, true);
+  assert.equal(res.parsed, true);
+  assert.deepEqual(res.report.opendota.details.damageTypes.pct, d.damageTypes.pct);
 });
 
 test('update API: check, install into a copy of the app, then restart', async () => {
