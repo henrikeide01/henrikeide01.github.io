@@ -33,7 +33,9 @@ brightness/contrast changes and a slightly different crop do not matter.
 4. **Row and grid**: the 10 portraits are one row of 5 + 5 evenly spaced slots mirrored around the screen centre.
    When 3+ candidates scoring `rowScore` agree on such a grid, only candidates on it count, and every empty slot is
    classified directly with an overlay-tolerant score (robust NCC: iteratively reweighted, ignores the respawn
-   timer on a dead hero's grey portrait). Portraits do not overlap, each hero appears once, at most 5 per side.
+   timer and a HUD frame on a dead hero's grey portrait; colour does not count for a grey window; the score needs a
+   clear lead over every hero that is not a look-alike). Portraits do not overlap, each hero appears once, at most
+   5 per side.
    Without such a row, a portrait needs `loneScore`.
 5. **Layout**: `learnLayout()` fits the 10 slot rectangles; with `opts.layout` only those are classified (a few
    pixels of jitter search). A layout is only used for the resolution it was learned on; if no slot has a hero
@@ -50,7 +52,8 @@ brightness/contrast changes and a slightly different crop do not matter.
 | `loneScore` | 0.88 | a portrait without a row (empty bar, first picks) |
 
 Chosen from synthetic score distributions: live portraits score 0.90-1.00 (5th percentile ~0.98), dead
-portraits (grey, 55% brightness, respawn timer) 0.73-0.88 via the robust score, the best wrong match in the
+portraits (grey, 55% brightness, respawn timer, also under a HUD frame or JPEG) mostly 0.85-1.00 via the robust
+score (10th percentile ~0.86; low-contrast art under JPEG or a 3 px frame down to ~0.72), the best wrong match in the
 textured background ~0.82 (>= 0.8 in under 1% of candidates). Real screenshots will shift all of these: tune with
 `debug` output from saved screenshots before changing code.
 
