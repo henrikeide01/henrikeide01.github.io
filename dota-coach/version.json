@@ -1,7 +1,16 @@
 {
-  "version": "1.3.2",
+  "version": "1.3.3",
   "date": "2026-10-14",
   "changes": [
+    {
+      "version": "1.3.3",
+      "date": "2026-10-14",
+      "notes": [
+        "Overlayet påvirker ikke lenger musa og klikkene dine i spillet, og tegnes uten grafikkortet så Dota får det for seg selv.",
+        "Skjermlesingen av draften er enda lettere, og kan slås av under Draft-hjelp.",
+        "Bedre gjenkjenning av heroene (tåler rammer, komprimerte bilder og grå døde helter bedre)."
+      ]
+    },
     {
       "version": "1.3.2",
       "date": "2026-10-14",

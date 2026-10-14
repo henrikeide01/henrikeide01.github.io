@@ -15,6 +15,14 @@ const ICON = nativeImage.createFromDataURL(
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
+// The overlay is a small window that changes a few times a second: drawing it on the CPU keeps the graphics
+// card free for Dota (fewer frame drops and less input lag). "gpu": true in settings.json turns it back on.
+try {
+  if (JSON.parse(fs.readFileSync(path.join(ROOT, 'settings.json'), 'utf8')).gpu !== true) app.disableHardwareAcceleration();
+} catch {
+  app.disableHardwareAcceleration();
+}
+
 let overlay = null;
 let mainWin = null;
 let tray = null;
@@ -63,7 +71,8 @@ const runInOverlay = (js) => overlay.webContents.executeJavaScript(js).catch(() 
 
 function setEditMode(on) {
   editMode = on;
-  overlay.setIgnoreMouseEvents(!on, { forward: true });
+  // Click-through without forwarding: Windows then never sends the game's mouse input through our window.
+  overlay.setIgnoreMouseEvents(!on);
   overlay.setFocusable(on);
   runInOverlay(`window.dotaCoach && window.dotaCoach.setEditMode(${on})`);
   if (!on) saveBounds();
@@ -161,7 +170,7 @@ function createOverlay() {
   });
   overlay.setAlwaysOnTop(true, 'screen-saver');
   overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlay.setIgnoreMouseEvents(true, { forward: true });
+  overlay.setIgnoreMouseEvents(true);
   overlay.loadURL(`${baseUrl}/overlay.html?electron=1`);
   overlay.once('ready-to-show', () => overlay.showInactive());
   overlay.on('moved', saveBounds);

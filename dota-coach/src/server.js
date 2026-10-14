@@ -417,6 +417,7 @@ export async function startServer(opts = {}) {
         debugFile: vision.debugFile || null,
         error: vision.error || null,
         hint: vision.hint || null,
+        paused: !!vision.paused,
       },
     };
   }
@@ -669,7 +670,7 @@ export async function startServer(opts = {}) {
       vision = { ...(await readBody(req)), reportedAt: Date.now() };
       const command = visionCommand;
       visionCommand = {};
-      return send(res, 200, { ok: true, command });
+      return send(res, 200, { ok: true, command, enabled: settings.vision !== false });
     }
     if (p === '/api/vision/debug' && req.method === 'POST') {
       visionCommand = { saveDebug: true };

@@ -11,9 +11,9 @@ const { pathToFileURL } = require('node:url');
 const CDN = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes';
 const DRAFT_PHASES = ['draft', 'strategy'];
 const GAME_PHASES = ['pregame', 'laning', 'mid', 'late'];
-const MAX_GAME_SCANS = 12; // in game: only the first minutes (until all heroes are found), so the game stays smooth
-const GAME_SCAN_UNTIL = 150; // game clock seconds
-const MAX_CAPTURE_WIDTH = 1920; // portraits are big enough at 1080p; larger captures only cost time
+const MAX_GAME_SCANS = 8; // in game: only the first minute and a half (until all heroes are found), so the game stays smooth
+const GAME_SCAN_UNTIL = 90; // game clock seconds
+const MAX_CAPTURE_WIDTH = 1280; // portraits are still big enough at 1280 px wide; larger captures only cost time
 const KEEP_DEBUG = 6;
 
 const readJson = (file) => {
@@ -275,6 +275,7 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
   }
 
   let lastError = null;
+  let enabled = true;
   async function tick() {
     if (stopped) return;
     let delay = 4000;
@@ -295,6 +296,12 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
         gameScans = 0;
       }
       if (id) matchKey = id;
+      // Turned off under Draft-hjelp: only report in, never take screenshots.
+      if (!enabled) {
+        status.paused = true;
+        throw Object.assign(new Error('Skjermlesing er slått av'), { quiet: true });
+      }
+      status.paused = false;
       const inDraft = DRAFT_PHASES.includes(st.phase);
       const inGame =
         GAME_PHASES.includes(st.phase) && (st.clock ?? 0) <= GAME_SCAN_UNTIL && (st.draft?.enemies?.length || 0) < 5 && gameScans < MAX_GAME_SCANS;
@@ -302,19 +309,25 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
         if (inGame) gameScans++;
         await scan(inDraft ? 'draft' : 'game');
         // Once the slots are known a scan takes a few milliseconds, so the draft can be followed closely.
-        delay = inDraft ? (status.searched === 'layout' ? 1000 : 2000) : 8000;
+        delay = inDraft ? (status.searched === 'layout' ? 1500 : 2500) : 10000;
       }
       status.error = null;
     } catch (err) {
-      // desktopCapturer rejects with a plain string.
-      status.error = err?.message || String(err);
-      if (status.error !== lastError) log(`  Bildegjenkjenning: ${status.error}`);
-      delay = 10000;
+      if (err?.quiet) {
+        status.error = null;
+        delay = 5000;
+      } else {
+        // desktopCapturer rejects with a plain string.
+        status.error = err?.message || String(err);
+        if (status.error !== lastError) log(`  Bildegjenkjenning: ${status.error}`);
+        delay = 10000;
+      }
     }
     lastError = status.error;
     try {
       const r = await api('/api/vision/status', status);
       if (r?.command?.resetPicks) tracker?.reset();
+      if (typeof r?.enabled === 'boolean') enabled = r.enabled;
       if (r?.command?.saveDebug) {
         saveDebug = true;
         delay = Math.min(delay, 500);

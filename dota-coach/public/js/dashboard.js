@@ -892,6 +892,9 @@ async function initDraft() {
     renderHeroGrid();
     pushDraft();
   });
+  $('vision-line').addEventListener('change', (e) => {
+    if (e.target.matches('[data-vision-toggle]')) saveSettings({ vision: e.target.checked }).then(renderVisionLine);
+  });
   $('vision-line').addEventListener('click', async (e) => {
     if (!e.target.closest('[data-vision-debug]')) return;
     try {
@@ -943,15 +946,17 @@ function renderVisionLine() {
     ? `<span class="muted">Gjenkjent: ${draft.unassigned.map((n) => esc(heroByName.get(n)?.dname || n)).join(', ')} – venter på å vite hvilket lag du er på.</span>`
     : '';
   const debugBtn = '<button class="btn" data-vision-debug>📸 Lagre skjermbilde</button>';
+  const toggle = v?.active ? `<label class="switch"><input type="checkbox" data-vision-toggle ${settings.vision !== false ? 'checked' : ''}> Les draften fra skjermen</label>` : '';
   let html;
-  if (!v?.active) html = '<span class="muted">Automatisk gjenkjenning av heroer krever desktop-appen (Dota Coach.bat). Her kan du også legge dem inn selv.</span>';
+  if (v?.active && settings.vision === false) html = '<span class="muted">Skjermlesing er slått av. Legg inn heroene selv, eller slå den på igjen.</span>';
+  else if (!v?.active) html = '<span class="muted">Automatisk gjenkjenning av heroer krever desktop-appen (Dota Coach.bat). Her kan du også legge dem inn selv.</span>';
   else if (v.error || !v.ready) {
     html = `<span class="pill" style="background:rgba(230,160,40,.2)">⚠️ Gjenkjenning virker ikke ennå</span><span class="muted">${esc(v.error || 'Laster heltebildene …')} Legg inn heroene selv så lenge.</span>${debugBtn}`;
   } else {
     html = `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Automatisk</span><span class="muted">Desktop-appen leser heroene fra skjermen (merket AUTO). Feil hero? Klikk på den for å fjerne den.</span>${debugBtn}`;
     if (v.hint) html += `<span class="muted" style="color:var(--gold)">${esc(v.hint)}</span>`;
   }
-  patch(el, html + unassigned);
+  patch(el, html + toggle + unassigned);
 }
 
 function renderSlots() {
