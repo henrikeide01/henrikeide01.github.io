@@ -21,4 +21,8 @@ if errorlevel 1 (
 if exist .needs-install del .needs-install
 :launch
 title Dota Coach
-call node_modules\.bin\electron.cmd overlay\main.cjs
+rem One block, so an update that rewrites this file while the app runs cannot confuse cmd.exe.
+(
+  call node_modules\.bin\electron.cmd overlay\main.cjs
+  exit /b
+)

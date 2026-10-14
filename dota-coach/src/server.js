@@ -14,7 +14,9 @@ import { ItemDb, buildFromPopularity } from './coach/items.js';
 import { tierList, suggestHeroes, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
 import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
-import { Updater, listBackups } from './updater.js';
+import { Updater, listBackups, compareVersions } from './updater.js';
+
+const maxVersion = (a, b) => (!a ? b || null : !b ? a : compareVersions(a, b) >= 0 ? a : b);
 import { positionsFor } from '../data/positions.js';
 
 const PUBLIC = path.join(ROOT, 'public');
@@ -272,6 +274,13 @@ export async function startServer(opts = {}) {
   }, 5000);
   pingTimer.unref();
 
+  // Saves our settings without losing a skipVersion written by tools/rollback.js meanwhile.
+  function persistSettings() {
+    const disk = loadSettings();
+    settings = { ...settings, skipVersion: maxVersion(settings.skipVersion, disk.skipVersion) };
+    saveSettings(settings);
+  }
+
   // ---------- Self-update ----------
   const updater = new Updater({ root: opts.root || ROOT, channel: opts.updateChannel || null, log });
   const appVersion = () => updater.localVersion().version;
@@ -302,6 +311,12 @@ export async function startServer(opts = {}) {
     }, 600);
   }
 
+  // Not a version the user backed out of, and not one that already failed to install.
+  function wantsAutoInstall(version) {
+    const skip = maxVersion(settings.skipVersion, loadSettings().skipVersion);
+    return compareVersions(version, skip || '0') > 0 && version !== updater.failedVersion();
+  }
+
   async function installUpdate() {
     if (update.state === 'downloading') throw new Error('En oppdatering pågår allerede.');
     setUpdate({ state: 'downloading', progress: null, error: null });
@@ -309,7 +324,8 @@ export async function startServer(opts = {}) {
       const res = await updater.apply({ branch: update.branch, onProgress: (p) => setUpdate({ progress: p }) });
       log(`✔ Oppdatert til versjon ${res.to}. Starter på nytt …`);
       setUpdate({ installed: res });
-      restart();
+      if (res.to !== res.from) restart();
+      else setUpdate({ state: 'idle', available: false });
       return res;
     } catch (err) {
       setUpdate({ state: 'idle', error: err.message, progress: null });
@@ -494,9 +510,9 @@ export async function startServer(opts = {}) {
     if (p === '/api/update/rollback' && req.method === 'POST') {
       try {
         const r = updater.rollback();
-        // Don't install the version we just left again automatically.
-        settings = { ...settings, skipVersion: r.from };
-        saveSettings(settings);
+        // Don't install the version we just left (or anything older) again automatically.
+        settings = { ...settings, skipVersion: maxVersion(settings.skipVersion, r.from) };
+        persistSettings();
         log(`↩ Rullet tilbake til versjon ${r.to}. Starter på nytt …`);
         restart();
         return send(res, 200, { ok: true, to: r.to });
@@ -532,7 +548,7 @@ export async function startServer(opts = {}) {
 
     if (p === '/api/settings' && req.method === 'POST') {
       settings = applyPublicSettings(settings, await readBody(req));
-      saveSettings(settings);
+      persistSettings();
       recompute();
       broadcast('status', status());
       return send(res, 200, publicSettings(settings));
@@ -589,7 +605,7 @@ export async function startServer(opts = {}) {
   if (!opts.noUpdate && !od.fixturesDir) {
     setTimeout(async () => {
       await checkForUpdate();
-      if (update.available && settings.autoUpdate !== false && update.latest !== settings.skipVersion && !inGameNow()) {
+      if (update.available && settings.autoUpdate !== false && wantsAutoInstall(update.latest) && !inGameNow()) {
         log(`  Ny versjon ${update.latest} funnet – installerer …`);
         installUpdate().catch((err) => log(`  Oppdateringen feilet: ${err.message}`));
       } else if (update.available) {

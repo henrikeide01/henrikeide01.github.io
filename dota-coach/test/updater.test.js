@@ -50,7 +50,7 @@ function tarGz(files, { commit = 'a'.repeat(40), top = 'repo-main' } = {}) {
 // ---------- A fake GitHub: raw files, the commits API and the trees API ----------
 let server;
 let base;
-const remote = { commit: 'c1', tree: 't1', files: new Map(), corrupt: new Set(), archive: false, archiveHits: 0, apiHits: 0 };
+const remote = { commit: 'c1', tree: 't1', files: new Map(), corrupt: new Set(), archive: false, archiveHits: 0, apiHits: 0, staleArchive: null };
 
 before(async () => {
   server = http.createServer((req, res) => {
@@ -64,7 +64,8 @@ before(async () => {
       if (!remote.archive) return json(404, {});
       remote.archiveHits++;
       res.writeHead(200, { 'Content-Type': 'application/x-gzip' });
-      return res.end(tarGz([...remote.files].map(([rel, buf]) => [`app/${rel}`, buf]).concat([['other/site.html', '<html>'], ['app/../evil.js', 'x']])));
+      const files = remote.staleArchive || remote.files;
+      return res.end(tarGz([...files].map(([rel, buf]) => [`app/${rel}`, Buffer.isBuffer(buf) ? buf : Buffer.from(buf)]).concat([['other/site.html', '<html>'], ['app/../evil.js', 'x']])));
     }
     if (p === '/api/repos/o/r/commits/main') {
       remote.apiHits++;
@@ -109,6 +110,7 @@ function setRemote(files, commit = 'c1', { archive = false } = {}) {
   remote.archive = archive;
   remote.archiveHits = 0;
   remote.apiHits = 0;
+  remote.staleArchive = null;
 }
 
 const read = (root, rel) => fs.readFileSync(path.join(root, rel), 'utf8');
@@ -265,4 +267,45 @@ test('if the archive is unavailable the API is used instead', async () => {
   await u.apply({ branch: 'main' });
   assert.equal(remote.apiHits, 1);
   assert.equal(read(root, 'src/server.js'), 'new');
+});
+
+test('right after a release the archive may be old: the API is asked instead, and nothing restarts for nothing', async () => {
+  const root = makeLocal({ 'version.json': version('1.2.0'), 'src/server.js': 'old' });
+  setRemote({ 'version.json': version('1.3.0'), 'src/server.js': 'new' }, 'c11', { archive: true });
+  remote.staleArchive = new Map([['version.json', version('1.2.0')], ['src/server.js', Buffer.from('old')]]);
+  const u = new Updater({ root, channel: channel(), selfTest: () => ({ ok: true }) });
+  const res = await u.apply({ branch: 'main' });
+  assert.equal(res.to, '1.3.0');
+  assert.equal(remote.apiHits, 1, 'fell back to the API');
+
+  // If nothing upstream is newer yet, the update is refused and nothing is touched.
+  const root2 = makeLocal({ 'version.json': version('1.3.0'), 'src/server.js': 'new' });
+  await assert.rejects(new Updater({ root: root2, channel: channel(), selfTest: () => ({ ok: true }) }).apply({ branch: 'main' }), /ikke helt klar/);
+  assert.equal(listBackups(root2).length, 0);
+});
+
+test('a failed install removes its own backup and is remembered', async () => {
+  const root = makeLocal({ 'version.json': version('1.0.0'), 'src/server.js': 'v1' });
+  setRemote({ 'version.json': version('1.1.0'), 'src/server.js': 'v1.1' }, 'c12');
+  const ok = new Updater({ root, channel: channel(), selfTest: () => ({ ok: true }) });
+  await ok.apply({ branch: 'main' });
+  setRemote({ 'version.json': version('1.2.0'), 'src/server.js': 'broken' }, 'c13');
+  const bad = new Updater({ root, channel: channel(), selfTest: () => ({ ok: false, error: 'boom' }) });
+  await assert.rejects(bad.apply({ branch: 'main' }), /boom/);
+  await assert.rejects(bad.apply({ branch: 'main' }), /boom/);
+  assert.equal(bad.failedVersion(), '1.2.0');
+  assert.equal(listBackups(root).length, 1, 'only the backup of the real 1.0.0 -> 1.1.0 update is left');
+  // «Angre» now really goes back to 1.0.0.
+  assert.equal(bad.rollback().to, '1.0.0');
+  assert.equal(read(root, 'src/server.js'), 'v1');
+});
+
+test('a file renamed only in letter case is not deleted', async () => {
+  const root = makeLocal({ 'version.json': version('1.0.0'), 'src/server.js': 'a', 'public/Charts.js': 'c' });
+  setRemote({ 'version.json': version('1.1.0'), 'src/server.js': 'a', 'public/Charts.js': 'c' }, 'c14');
+  const u = new Updater({ root, channel: channel(), selfTest: () => ({ ok: true }) });
+  await u.apply({ branch: 'main' });
+  setRemote({ 'version.json': version('1.2.0'), 'src/server.js': 'a', 'public/charts.js': 'c' }, 'c15');
+  const res = await u.apply({ branch: 'main' });
+  assert.deepEqual(res.removed, []);
 });

@@ -154,18 +154,26 @@ export class Updater {
       const target = branch || (await this.check()).branch || this.channel.branches[0];
       onProgress({ step: 'Finner nyeste versjon …' });
       // Preferred: one archive download (no API rate limit). Fallback: the API + single files.
+      const fromVersion = this.localVersion().version;
       let snap;
       try {
         snap = await this.snapshotFromArchive(target, onProgress);
+        // Right after a release the archive can still be the old one; the API always has the newest.
+        if (compareVersions(this.snapshotVersion(snap), fromVersion) <= 0) snap = await this.snapshotFromApi(target, onProgress);
       } catch (err) {
         this.log(`(Arkiv-nedlasting feilet: ${err.message}. Prøver fil for fil.)`);
         snap = await this.snapshotFromApi(target, onProgress);
       }
+      if (compareVersions(this.snapshotVersion(snap), fromVersion) <= 0) {
+        throw new Error('Den nye versjonen er ikke helt klar hos GitHub ennå. Prøv igjen om noen minutter.');
+      }
       const { remote, downloads, commit } = snap;
       const manifest = readJson(path.join(this.root, '.installed.json'), null);
-      const removed = manifest ? Object.keys(manifest.files || {}).filter((rel) => !remote.has(rel) && safeRel(rel) && !isProtected(rel) && fs.existsSync(path.join(this.root, rel))) : [];
+      const upstreamLower = new Set([...remote.keys()].map((r) => r.toLowerCase()));
+      const removed = manifest
+        ? Object.keys(manifest.files || {}).filter((rel) => !upstreamLower.has(rel.toLowerCase()) && safeRel(rel) && !isProtected(rel) && fs.existsSync(path.join(this.root, rel)))
+        : [];
 
-      const fromVersion = this.localVersion().version;
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const backupDir = path.join(this.root, 'backup', `${stamp}_v${fromVersion}`);
       const touched = [...downloads.map((d) => d.rel), ...removed];
@@ -194,16 +202,17 @@ export class Updater {
         }
         for (const rel of removed) fs.rmSync(path.join(this.root, rel), { force: true });
       } catch (err) {
-        restoreBackup(this.root, backupDir);
+        this.undoFailed(backupDir, this.snapshotVersion(snap), err.message);
         throw new Error(`Kunne ikke skrive filene (${err.message}). Den gamle versjonen er satt tilbake.`);
       }
 
       onProgress({ step: 'Tester den nye versjonen …' });
       const test = this.selfTest();
       if (!test.ok) {
-        restoreBackup(this.root, backupDir);
+        this.undoFailed(backupDir, this.snapshotVersion(snap), test.error);
         throw new Error(`Den nye versjonen startet ikke riktig, så den gamle er satt tilbake. (${test.error})`);
       }
+      fs.rmSync(path.join(this.root, '.update', 'failed.json'), { force: true });
 
       fs.writeFileSync(path.join(this.root, '.installed.json'), JSON.stringify({ version: this.localVersion().version, commit, branch: target, files: Object.fromEntries(remote) }));
       const needsInstall = depsChanged(backupDir, this.root);
@@ -215,6 +224,29 @@ export class Updater {
     } finally {
       this.busy = false;
     }
+  }
+
+  // The version inside a downloaded snapshot (version.json is either new, or unchanged = ours).
+  snapshotVersion(snap) {
+    const v = snap.downloads.find((d) => d.rel === 'version.json');
+    if (!v) return this.localVersion().version;
+    try {
+      return JSON.parse(v.buf.toString('utf8')).version;
+    } catch {
+      return '0.0.0';
+    }
+  }
+
+  undoFailed(backupDir, version, error) {
+    restoreBackup(this.root, backupDir);
+    fs.rmSync(backupDir, { recursive: true, force: true });
+    fs.mkdirSync(path.join(this.root, '.update'), { recursive: true });
+    fs.writeFileSync(path.join(this.root, '.update', 'failed.json'), JSON.stringify({ version, error, at: new Date().toISOString() }));
+  }
+
+  // A version that failed to install is not retried automatically (a newer one is).
+  failedVersion() {
+    return readJson(path.join(this.root, '.update', 'failed.json'), null)?.version || null;
   }
 
   // Files of the app (rel -> git blob sha) and which of them differ from what we have locally.
