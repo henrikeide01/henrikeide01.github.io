@@ -250,3 +250,31 @@ test('the live coach says which ability to skill and which neutral item to pick'
   assert.ok(state.skills.neutral?.artifacts.length);
   assert.ok(state.tips.some((t) => t.id.startsWith('neutral-')));
 });
+
+test('draft: own hero is never suggested, removals stick, and a new match clears the draft', async () => {
+  await post('/api/draft', { reset: true, enemies: [], allies: [] });
+  const g = (matchid, hero, clock = -50) => ({ auth: { token }, map: { matchid, game_state: 'DOTA_GAMERULES_STATE_HERO_SELECTION', clock_time: clock }, player: { team_name: 'radiant' }, hero });
+  await post('/gsi', g('880', { id: 0 }));
+  let st = await (await fetch(`${base}/api/state`)).json();
+  // Pick the top suggestion, then it must disappear from the suggestions (and never be an enemy).
+  let res = await (await post('/api/draft', { enemies: ['axe'], allies: [] })).json();
+  const top = res.suggestions.picks[0].name;
+  await post('/gsi', g('880', { id: 1, name: `npc_dota_hero_${top}` }));
+  res = await (await post('/api/draft/auto', { left: [top], right: ['axe', top] })).json();
+  assert.ok(!res.draft.enemies.includes(top));
+  res = await (await post('/api/draft', { suggestOnly: true })).json();
+  assert.ok(!res.suggestions.picks.some((p) => p.name === top));
+
+  // A body that still lists a hero the user just removed keeps it removed; «Nullstill» keeps removals.
+  await post('/api/draft/auto', { left: [], right: ['axe', 'zuus'] });
+  res = await (await post('/api/draft', { enemies: ['axe', 'zuus'], allies: [], removed: ['zuus'] })).json();
+  assert.ok(!res.draft.enemies.includes('zuus'));
+  await post('/api/draft', { reset: true, enemies: [], allies: [] });
+  res = await (await post('/api/draft/auto', { left: [], right: ['axe', 'zuus', 'lion'] })).json();
+  assert.deepEqual(res.draft.enemies.sort(), ['axe', 'lion']);
+  const rev = res.draft.rev;
+  assert.ok(rev > 0);
+  // suggestOnly does not touch the draft.
+  res = await (await post('/api/draft', { suggestOnly: true })).json();
+  assert.equal(res.draft.rev, rev);
+});

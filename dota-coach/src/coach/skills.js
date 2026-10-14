@@ -3,6 +3,10 @@
 
 const TALENT_LEVELS = [10, 15, 20, 25];
 const ULT_LEVELS = [6, 12, 18];
+// Hero level at which the n-th ability point is earned (no points at 17, 19, 21-24).
+const POINT_LEVEL = [...Array.from({ length: 16 }, (_, i) => i + 1), 18, 20, 25];
+// Ultimates that do not follow 6/12/18 (pro builds also reveal these, see computeHeroSkills).
+const ULT_UNLOCK = { meepo_divided_we_stand: [4, 11, 18] };
 const DEFENSIVE = /health|hp|armor|magic res|regen|evasion|status res|lifesteal|barrier|slow res/i;
 
 // Ability points available at a hero level (no points at 17, 19, 21-24, 26+).
@@ -38,13 +42,24 @@ export function computeHeroSkills(rows, hero, ids, itemDb) {
     }
   }
 
-  // Which abilities really get points (some listed abilities are sub-spells), and their max level.
+  // Which abilities really get points (some listed abilities are sub-spells), their max level, and the
+  // earliest hero level at which pros put the k-th point into each (the 2nd earliest, so one odd row can't count).
   const maxLevel = {};
+  const firstAt = {};
   for (const b of builds) {
     const c = {};
-    for (const n of b.order) if (abilityNames.has(n)) c[n] = (c[n] || 0) + 1;
+    b.order.forEach((n, i) => {
+      if (!abilityNames.has(n)) return;
+      c[n] = (c[n] || 0) + 1;
+      ((firstAt[n] ||= [])[c[n] - 1] ||= []).push(POINT_LEVEL[i] ?? 30);
+    });
     for (const [n, v] of Object.entries(c)) maxLevel[n] = Math.max(maxLevel[n] || 0, v);
   }
+  const unlockOf = (n) =>
+    (firstAt[n] || []).map((levels) => {
+      const sorted = [...levels].sort((a, b) => a - b);
+      return sorted[Math.min(1, sorted.length - 1)];
+    });
   const dname = Object.fromEntries([...hero.abilities, ...hero.talents].map((x) => [x.name, x.dname]));
 
   // A typical order: follow the most common next step among builds sharing the prefix.
@@ -89,13 +104,20 @@ export function computeHeroSkills(rows, hero, ids, itemDb) {
 
   return {
     games: builds.length,
-    abilities: hero.abilities.filter((a) => maxLevel[a.name]).map((a) => ({ ...a, max: maxLevel[a.name] })),
+    abilities: hero.abilities.filter((a) => maxLevel[a.name]).map((a) => ({ ...a, max: maxLevel[a.name], unlock: unlockOf(a.name) })),
     typical,
     talents,
     neutrals,
     // Compact builds for the live "what next" lookup.
     builds: builds.map((b) => b.order),
   };
+}
+
+// How many points an ultimate may have at a hero level: 6/12/18, unless the pros (or ULT_UNLOCK) show it unlocks
+// earlier, like Meepo's Divided We Stand at 4/11/18.
+export function ultCap(ability, level) {
+  const unlock = ULT_UNLOCK[ability.name] || ULT_LEVELS.map((l, k) => Math.min(l, ability.unlock?.[k] ?? l));
+  return unlock.filter((l) => level >= l).length;
 }
 
 const countsOf = (order, k) => {
@@ -117,7 +139,7 @@ export function nextSkillPoint(stats, current) {
   for (const a of stats.abilities) {
     const have = current.levels[a.name] || 0;
     const isUlt = current.ultimates.has(a.name);
-    const cap = isUlt ? ULT_LEVELS.filter((l) => lvl >= l).length : Math.floor((lvl + 1) / 2);
+    const cap = isUlt ? ultCap(a, lvl) : Math.floor((lvl + 1) / 2);
     if (have < Math.min(a.max, cap)) legal.add(a.name);
   }
   for (const t of stats.talents) {
@@ -176,7 +198,7 @@ export function talentAdvice(stats, tier, { dyingALot = false } = {}) {
   const other = pick === a ? b : a;
   // Clearly better results with the less popular one (enough games on both): prefer it.
   if (pick.winPct != null && other.winPct != null && other.picks >= 20 && other.winPct - pick.winPct >= 5) {
-    reason = `vinner oftere (${other.winPct} % mot ${pick.winPct} %)`;
+    reason = `vinner oftere: ${other.winPct} % mot ${pick.winPct} %`;
     pick = other;
   }
   let hint = null;

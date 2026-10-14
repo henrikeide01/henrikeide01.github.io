@@ -381,20 +381,23 @@ function renderSkills() {
   card.classList.toggle('hidden', !sk);
   if (!sk) return patch(card, '');
   if (!sk.games) {
-    return patch(
-      card,
-      `<h3>Evner og talenter</h3><div class="muted">${state.buildStatus === 'loading' || state.buildStatus === 'ok' ? '<span class="spinner"></span> Henter skill-builds fra pro-kamper …' : 'Fant ingen skill-data for helten akkurat nå (OpenDota er utilgjengelig). Prøver igjen om litt.'}</div>`,
-    );
+    const msg = {
+      loading: '<span class="spinner"></span> Henter skill-builds fra pro-kamper …',
+      none: 'Ingen pro-data for skill-rekkefølge på denne helten ennå.',
+    }[state.skillsStatus] || 'Fant ingen skill-data for helten akkurat nå (OpenDota er utilgjengelig). Prøver igjen om litt.';
+    return patch(card, `<h3>Evner og talenter</h3><div class="muted">${msg}</div>`);
   }
   const n = sk.next;
   const nextHtml = n
     ? `<div class="next-skill">${skillImg(n, 'lg')}<div>
          <div class="name">${n.talent ? `Talent: ${esc(n.dname)}` : `${esc(n.dname)} <span class="faint">→ nivå ${n.toLevel}</span>`}</div>
-         <div class="muted">${n.pct} % av pro-spillerne${n.exact ? ' med samme build' : ''} tar denne nå</div>
+         <div class="muted">${n.talent && n.reason ? `Anbefalt: ${esc(n.reason)}` : `${n.pct} % av pro-spillerne${n.exact ? ' med samme build' : ''} tar denne nå`}</div>
          ${n.alternatives?.length ? `<div class="alt muted">Ellers: ${n.alternatives.map((a) => `${esc(a.dname)} ${a.pct} %`).join(' · ')}</div>` : ''}
        </div></div>`
-    : '<div class="muted">Ingen ubrukte poeng. Du får neste råd når du går opp i nivå.</div>';
-  const spent = Math.max(0, (state.hero?.level || 0) - (n ? 1 : 0));
+    : sk.unspent > 0
+      ? `<div class="muted">Du har ${sk.unspent} ubrukt${sk.unspent > 1 ? 'e' : ''} poeng, men pro-kampene sier ikke noe sikkert om akkurat dette steget. Se rekkefølgen under.</div>`
+      : '<div class="muted">Ingen ubrukte poeng. Du får neste råd når du går opp i nivå.</div>';
+  const spent = sk.spent ?? Math.max(0, (state.hero?.level || 0) - (n ? 1 : 0));
   const strip = sk.typical?.length
     ? `<div class="subhead">Vanlig rekkefølge hos pro-spillere</div><div class="skill-strip">${sk.typical
         .map((t, i) => `<div class="st ${i < spent ? 'done' : i === spent ? 'now' : ''}" title="${esc(`${i + 1}: ${t.dname} (${t.pct} %)`)}">${skillImg(t, 'sm')}<span>${i + 1}</span></div>`)
@@ -832,7 +835,8 @@ async function loadHeroes() {
 }
 
 // ---------------- Draft ----------------
-const draft = { enemies: [], allies: [], bans: [], mode: 'enemies', auto: new Set(), removed: new Set(), autoAt: 0 };
+const draft = { enemies: [], allies: [], bans: [], mode: 'enemies', auto: new Set(), removed: new Set(), autoAt: 0, rev: 0 };
+let draftInFlight = 0; // POSTs not answered yet: a state from the server may be older than the user's edit
 const LIMITS = { enemies: 5, allies: 4, bans: 10 };
 const GROUP_LABEL = { enemies: ['Fiender', 'motstanderlaget'], allies: ['Ditt lag', 'lagkameratene'], bans: ['Bans', 'bannede heroes'] };
 let draftReady = false;
@@ -844,9 +848,7 @@ async function initDraft() {
   draftReady = true;
   await loadHeroes();
   try {
-    const saved = await api('/api/draft');
-    applyServerDraft(saved);
-    draft.bans = saved.bans || [];
+    applyServerDraft(await api('/api/draft'));
   } catch {
     // start empty
   }
@@ -892,20 +894,30 @@ function applyServerDraft(d) {
   if (!d) return;
   draft.enemies = d.enemies || [];
   draft.allies = d.allies || [];
+  draft.bans = d.bans || [];
+  draft.rev = d.rev || 0;
   draft.auto = new Set([...(d.autoEnemies || []), ...(d.autoAllies || [])]);
   draft.unassigned = d.unassigned || [];
   draft.team = d.team || null;
   draft.autoAt = d.autoAt || 0;
 }
 
-// Called on every state update: pick up heroes the desktop app recognised.
-function syncDraft(d) {
-  if (!d || !draftReady || d.autoAt === draft.autoAt || draftTimer) return;
+// Called on every state update: pick up changes made elsewhere (heroes recognised on screen, a new match,
+// another window). Skipped while the user's own edit is on its way, so it can't undo that edit.
+let suggestSeq = 0;
+async function syncDraft(d) {
+  if (!d || !draftReady || d.rev === draft.rev || draftTimer || draftInFlight) return;
   applyServerDraft(d);
   renderSlots();
   renderHeroGrid();
   renderVisionLine();
-  pushDraft();
+  const seq = ++suggestSeq;
+  try {
+    const res = await api('/api/draft', { suggestOnly: true, role: settings.role, bracket: settings.bracket });
+    if (seq === suggestSeq && !draftTimer && !draftInFlight) renderSuggestions(res.suggestions);
+  } catch {
+    // the next change tries again
+  }
 }
 
 function renderVisionLine() {
@@ -915,12 +927,16 @@ function renderVisionLine() {
   const unassigned = draft.unassigned?.length
     ? `<span class="muted">Gjenkjent: ${draft.unassigned.map((n) => esc(heroByName.get(n)?.dname || n)).join(', ')} – venter på å vite hvilket lag du er på.</span>`
     : '';
-  patch(
-    el,
-    v?.active
-      ? `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Automatisk</span><span class="muted">Desktop-appen leser heroene fra skjermen (merket AUTO). Feil hero? Klikk på den for å fjerne den.</span><button class="btn" data-vision-debug>📸 Lagre skjermbilde</button>${unassigned}`
-      : `<span class="muted">Automatisk gjenkjenning av heroer krever desktop-appen (Dota Coach.bat). Her kan du også legge dem inn selv.</span>${unassigned}`,
-  );
+  const debugBtn = '<button class="btn" data-vision-debug>📸 Lagre skjermbilde</button>';
+  let html;
+  if (!v?.active) html = '<span class="muted">Automatisk gjenkjenning av heroer krever desktop-appen (Dota Coach.bat). Her kan du også legge dem inn selv.</span>';
+  else if (v.error || !v.ready) {
+    html = `<span class="pill" style="background:rgba(230,160,40,.2)">⚠️ Gjenkjenning virker ikke ennå</span><span class="muted">${esc(v.error || 'Laster heltebildene …')} Legg inn heroene selv så lenge.</span>${debugBtn}`;
+  } else {
+    html = `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Automatisk</span><span class="muted">Desktop-appen leser heroene fra skjermen (merket AUTO). Feil hero? Klikk på den for å fjerne den.</span>${debugBtn}`;
+    if (v.hint) html += `<span class="muted" style="color:var(--gold)">${esc(v.hint)}</span>`;
+  }
+  patch(el, html + unassigned);
 }
 
 function renderSlots() {
@@ -995,15 +1011,23 @@ $('hero-grid').addEventListener('click', (e) => {
 
 function pushDraft() {
   clearTimeout(draftTimer);
+  // A newer edit makes every answer still on its way stale.
+  const seq = ++draftSeq;
+  suggestSeq++;
   draftTimer = setTimeout(async () => {
-    const seq = ++draftSeq;
     if (draft.enemies.length) patch($('draft-results'), `<div class="card"><span class="spinner"></span> Regner ut forslag … (første gang kan ta noen sekunder)</div>`);
+    const body = { enemies: draft.enemies, allies: draft.allies, bans: draft.bans, removed: [...draft.removed], reset: !!draft.reset, role: settings.role, bracket: settings.bracket };
     try {
-      const body = { enemies: draft.enemies, allies: draft.allies, bans: draft.bans, removed: [...draft.removed], reset: !!draft.reset, role: settings.role, bracket: settings.bracket };
       draft.removed = new Set();
       draft.reset = false;
       draftTimer = null;
-      const res = await api('/api/draft', body);
+      draftInFlight++;
+      let res;
+      try {
+        res = await api('/api/draft', body);
+      } finally {
+        draftInFlight--;
+      }
       if (seq === draftSeq) {
         applyServerDraft(res.draft);
         renderSlots();
@@ -1011,6 +1035,7 @@ function pushDraft() {
         renderSuggestions(res.suggestions);
       }
     } catch (err) {
+      for (const n of body.removed) draft.removed.add(n); // send the removals again with the next change
       if (seq === draftSeq) patch($('draft-results'), `<div class="card"><div class="notice warn">Klarte ikke å regne ut forslag: ${esc(err.message)}</div></div>`);
     }
   }, 200);

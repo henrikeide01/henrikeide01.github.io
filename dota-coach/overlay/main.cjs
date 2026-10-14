@@ -185,7 +185,14 @@ app.whenReady().then(async () => {
 
   // Recognises the heroes in the draft from the screen, so nobody has to enter them by hand.
   try {
-    vision = require('./vision.cjs').startVision({ root: ROOT, baseUrl });
+    vision = require('./vision.cjs').startVision({
+      root: ROOT,
+      baseUrl,
+      // Our own windows show hero pictures too: they must not be read as picks.
+      excludeRects: () => [overlay, mainWin].filter((w) => w && !w.isDestroyed() && w.isVisible() && !w.isMinimized()).map((w) => w.getBounds()),
+      // The user puts the overlay over Dota, so that is the screen to look at.
+      getDisplay: () => (overlay && !overlay.isDestroyed() ? screen.getDisplayMatching(overlay.getBounds()) : screen.getPrimaryDisplay()),
+    });
   } catch (err) {
     console.error('Bildegjenkjenningen startet ikke:', err.message);
   }

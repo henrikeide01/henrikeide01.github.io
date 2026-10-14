@@ -181,3 +181,64 @@ test('picks seen on screen count after two scans in a row and stay for the match
   r = t.add(scan(...many));
   assert.deepEqual(r.left, ['b', 'c', 'd', 'e', 'f']);
 });
+
+test('an ultimate that pros learn before level 6 (Meepo) is suggested on time', async () => {
+  const meepo = {
+    abilities: [{ name: 'q', dname: 'Earthbind' }, { name: 'w', dname: 'Poof' }, { name: 'e', dname: 'Ransack' }, { name: 'dwst', dname: 'Divided We Stand' }],
+    talents: hero.talents,
+  };
+  const mids = { 1: 'q', 2: 'w', 3: 'e', 4: 'dwst', 5: 't1a' };
+  const order = [2, 1, 2, 4, 2, 1, 2, 1, 1, 5, 4, 3, 3, 3, 3, 4].map((id) => id);
+  const rows = Array.from({ length: 30 }, () => ({ a: order, n: null, w: true }));
+  const st = computeHeroSkills(rows, meepo, mids, db);
+  assert.deepEqual(st.abilities.find((a) => a.name === 'dwst').unlock, [4, 11, 16]);
+  const ult = new Set(['dwst']);
+  const next = nextSkillPoint(st, { level: 4, levels: { w: 2, q: 1 }, ultimates: ult, talentTiers: new Set() });
+  assert.equal(next.name, 'dwst');
+  assert.equal(next.toLevel, 1);
+  // A normal hero still can't take its ultimate before 6, even if one odd pro row did.
+  const { ultCap } = await import('../src/coach/skills.js');
+  assert.equal(ultCap({ name: 'x', unlock: [6, 12, 18] }, 5), 0);
+  assert.equal(ultCap({ name: 'x', unlock: [7, 13] }, 6), 1);
+  assert.equal(ultCap({ name: 'meepo_divided_we_stand' }, 4), 1);
+});
+
+test('the live coach names one talent everywhere, and gives time to skill after every level-up', async () => {
+  const { Coach } = await import('../src/coach/engine.js');
+  const heroes = new Map(JSON.parse(fs.readFileSync(new URL('../data/heroes.json', import.meta.url), 'utf8')).heroes.map((h) => [h.name, h]));
+  // 70 % take t1a but t1b wins far more often: the advice is t1b, in the next-point box and in the tip.
+  const talentRows = [];
+  for (let i = 0; i < 100; i++) {
+    const take = i < 70 ? 't1a' : 't1b';
+    const won = i < 70 ? i % 2 === 0 : i % 10 < 8;
+    talentRows.push({ a: ORDER.map((n) => (n === 't1a' ? take : n)).map((n) => idOf[n]), n: null, w: won });
+  }
+  const st = computeHeroSkills(talentRows, hero, ids, db);
+  const coach = new Coach({ itemDb: db, heroes, getHeroMeta: () => ({ build: null, benchmarks: null, skills: st }), getDraft: () => ({ allies: [], enemies: [], bans: [] }), getSettings: () => ({ role: 1 }) });
+  const payload = (clock, level, levels, talents = {}) => ({
+    map: { matchid: 'm1', game_state: 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS', clock_time: clock, game_time: clock + 90 },
+    player: { team_name: 'radiant', gold: 100, gpm: 400, xpm: 400, last_hits: 10, deaths: 0 },
+    hero: { name: 'npc_dota_hero_antimage', level, alive: true, health_percent: 90, max_health: 1000, xpos: 4200, ypos: -6300, ...talents },
+    abilities: Object.fromEntries(Object.entries(levels).map(([n, l], i) => [`ability${i}`, { name: n, level: l, ultimate: n === 'r' }])),
+    items: { teleport0: { name: 'item_tpscroll' } },
+  });
+  // Level 10, talent point open.
+  let s;
+  for (const t of [600, 603, 606]) s = coach.update(payload(t, 10, { q: 4, w: 3, e: 1, r: 1 }));
+  assert.equal(s.skills.next.talent, true);
+  assert.equal(s.skills.next.name, 't1b');
+  assert.equal(s.skills.talent.pick, 't1b');
+  const tips = s.tips.filter((t) => t.id === 'unspent' || t.id.startsWith('talent-'));
+  assert.ok(tips.every((t) => !t.text.includes('+10 Damage»')), 'no tip names the other talent');
+  assert.match(tips.find((t) => t.id === 'unspent').text, /\+200 Health/);
+
+  // Grace time: the point is spent, then a new level-up. No tip on the first update after it.
+  s = coach.update(payload(610, 10, { q: 4, w: 3, e: 1, r: 1 }, { talent_2: true }));
+  assert.ok(!s.tips.some((t) => t.id === 'unspent'));
+  s = coach.update(payload(700, 11, { q: 4, w: 3, e: 1, r: 1 }, { talent_2: true }));
+  assert.ok(!s.tips.some((t) => t.id === 'unspent'), 'not straight away');
+  s = coach.update(payload(705, 11, { q: 4, w: 3, e: 1, r: 1 }, { talent_2: true }));
+  assert.ok(s.tips.some((t) => t.id === 'unspent'), 'after a few seconds');
+  assert.equal(s.skills.unspent, 1);
+  assert.equal(s.skills.spent, 10);
+});

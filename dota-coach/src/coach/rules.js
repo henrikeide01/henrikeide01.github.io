@@ -86,8 +86,8 @@ export const RULES = [
 
   // ---------------- Items ----------------
   function noTp(c) {
-    if (!inGame(c) || c.clock < 90 || c.inv.tp !== null) return;
-    if (!c.held('no-tp', true, 5)) return;
+    // The hold must see the condition turn false, or it never resets after the first time.
+    if (!c.held('no-tp', inGame(c) && c.clock >= 90 && c.inv.tp === null, 5)) return;
     return tip('no-tp', 'warn', '🌀', 'Du har ingen TP Scroll! Kjøp en (100 gull). Den redder liv og tårn.', { say: 'Kjøp TP scroll', cooldown: 120 });
   },
   function stash(c) {
@@ -112,14 +112,14 @@ export const RULES = [
     return tip('unreliable', 'info', '🪙', `Du har ${u} upålitelig gull. Mye av det forsvinner hvis du dør, så kjøp ${target}.`, { say: 'Bruk gullet ditt', cooldown: 240 });
   },
   function unspentSkillPoints(c) {
-    if (!playing(c) || c.unspent < 1) return;
     const next = c.skills?.next;
-    // With a recommendation the player gets a few seconds to skill on their own; without one, wait longer.
-    if (!c.held('unspent', true, next ? 4 : 10)) return;
+    // The player gets a few seconds to skill on their own (longer without a recommendation). The hold resets
+    // as soon as the points are spent, so every level-up gets the same grace time.
+    if (!c.held('unspent', playing(c) && c.unspent >= 1, next ? 4 : 10)) return;
     const n = c.unspent;
     if (next) {
       const what = next.talent ? `talentet «${next.dname}»` : `${next.dname} (nivå ${next.toLevel})`;
-      const why = next.pct ? ` – ${next.pct} % av pro-spillerne gjør det her` : '';
+      const why = next.talent && next.reason ? ` – ${next.reason}` : next.pct ? ` – ${next.pct} % av pro-spillerne gjør det her` : '';
       return tip('unspent', 'warn', '⬆️', `Skill ${what}${why}.${n > 1 ? ` Du har ${n} ubrukte poeng.` : ''}`, {
         say: `Skill ${next.talent ? 'talent' : next.dname}`,
         cooldown: 90,
@@ -129,11 +129,13 @@ export const RULES = [
   },
   function talentChoice(c) {
     const t = c.skills?.talent;
-    if (!playing(c) || !t?.open || c.unspent < 1) return;
+    // When the next point is a talent, the unspent tip already names it; this only adds the split and the hint.
+    if (!playing(c) || !t?.open || c.unspent < 1 || (c.skills.next && !c.skills.next.talent)) return;
     const pick = t.options.find((o) => o.name === t.pick);
     if (!pick) return;
     const split = t.options.map((o) => `${o.dname}${o.pct != null ? ` ${o.pct} %` : ''}`).join(' / ');
-    return tip(`talent-${t.tier}`, 'info', '🌟', `Talent nivå ${t.level}: ta «${pick.dname}» (${t.reason}). Pro-fordeling: ${split}.${t.hint ? ` ${t.hint}` : ''}`);
+    if (c.skills.next?.talent) return t.hint ? tip(`talent-${t.tier}`, 'info', '🌟', `Talent nivå ${t.level}: pro-fordeling ${split}. ${t.hint}`) : undefined;
+    return tip(`talent-${t.tier}`, 'info', '🌟', `Talent nivå ${t.level}: ta «${pick.dname}» – ${t.reason}. Pro-fordeling: ${split}.${t.hint ? ` ${t.hint}` : ''}`);
   },
   function neutralCraft(c) {
     const n = c.skills?.neutral;

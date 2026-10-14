@@ -2,7 +2,7 @@
 // third-party app what the enemies picked, so the desktop app looks at the hero portraits in the top bar instead
 // (during the draft, and early in the game until all 10 heroes are known). Nothing is stored or sent anywhere
 // except to the local coach server; a screenshot is only saved when the user asks for one (for troubleshooting).
-const { desktopCapturer, screen, nativeImage } = require('electron');
+const { desktopCapturer, screen, nativeImage, net } = require('electron');
 const { Worker } = require('node:worker_threads');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -35,12 +35,38 @@ function toImage(img) {
   return { width, height, data: ownBuffer(bmp), format: 'bgra' };
 }
 
-function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
+// The top band is all the detection looks at: if it is (nearly) one colour, the capture shows nothing useful
+// (exclusive fullscreen gives a black picture on Windows).
+function flatTopBand(img) {
+  const d = new Uint8Array(img.data);
+  const rows = Math.round(img.height * 0.1);
+  let n = 0;
+  let sum = 0;
+  let sq = 0;
+  for (let y = 0; y < rows; y += 4) {
+    for (let x = 0; x < img.width; x += 8) {
+      const o = (y * img.width + x) * 4;
+      const l = 0.114 * d[o] + 0.587 * d[o + 1] + 0.299 * d[o + 2];
+      n++;
+      sum += l;
+      sq += l * l;
+    }
+  }
+  return n > 0 && Math.sqrt(Math.max(0, sq / n - (sum / n) ** 2)) < 2;
+}
+
+// excludeRects(): the app's own windows (screen coordinates); they are blanked out so the hero pictures in the
+// overlay are never taken for picks. getDisplay(): the screen Dota is on (where the user put the overlay).
+function startVision({ root, baseUrl, log = (...a) => console.log(...a), excludeRects = () => [], getDisplay = () => screen.getPrimaryDisplay() }) {
   const cacheDir = path.join(root, 'cache', 'heroimg');
   const layoutFile = path.join(root, 'cache', 'vision-layout.json');
   const debugDir = path.join(root, 'debug');
   const layouts = readJson(layoutFile) || {};
-  const status = { active: true, ready: false, templates: 0, found: null, heroes: [], lastRun: null, ms: null, searched: null, error: null, debugFile: null, screen: null, displays: 0 };
+  const status = { active: true, ready: false, templates: 0, found: null, heroes: [], lastRun: null, ms: null, searched: null, error: null, hint: null, debugFile: null, screen: null, displays: 0 };
+  // Downloads go through Electron's network stack when available (uses the Windows proxy and certificates).
+  const download = (url) => (net?.fetch ? net.fetch(url) : fetch(url));
+  let preferredScreen = null; // the source where heroes were found this match (more than one monitor)
+  let tryScreen = 0;
 
   let PickTracker = null;
   let tracker = null;
@@ -95,7 +121,7 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
   async function heroImage(name) {
     const file = path.join(cacheDir, `${name}.png`);
     if (!fs.existsSync(file)) {
-      const res = await fetch(`${CDN}/${name}.png`);
+      const res = await download(`${CDN}/${name}.png`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
     }
@@ -124,15 +150,44 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
     if (failed.length) log(`  Bildegjenkjenning: mangler bilder for ${failed.length} helter (${failed.slice(0, 5).join(', ')} …)`);
   }
 
+  // All screens are captured at full resolution; returns the one to look at first, and the others.
   async function capture() {
-    const display = screen.getPrimaryDisplay();
-    const width = Math.round(display.size.width * display.scaleFactor);
-    const height = Math.round(display.size.height * display.scaleFactor);
-    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } });
-    status.displays = screen.getAllDisplays().length;
-    const src = sources.find((s) => String(s.display_id) === String(display.id)) || sources[0];
-    if (!src || src.thumbnail.isEmpty()) throw new Error('Fikk ikke tatt skjermbilde');
-    return src.thumbnail;
+    const displays = screen.getAllDisplays();
+    status.displays = displays.length;
+    const width = Math.max(...displays.map((d) => Math.round(d.size.width * d.scaleFactor)));
+    const height = Math.max(...displays.map((d) => Math.round(d.size.height * d.scaleFactor)));
+    const sources = (await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } })).filter((s) => !s.thumbnail.isEmpty());
+    if (!sources.length) throw new Error('Fikk ikke tatt skjermbilde');
+    const displayOf = (src) => displays.find((d) => String(d.id) === String(src.display_id)) || (sources.length === 1 ? displays[0] : null);
+    let wanted = null;
+    try {
+      wanted = getDisplay();
+    } catch {}
+    const first =
+      sources.find((s) => preferredScreen && s.id === preferredScreen) ||
+      sources.find((s) => wanted && String(s.display_id) === String(wanted.id)) ||
+      sources[0];
+    return { first: { src: first, display: displayOf(first) }, others: sources.filter((s) => s !== first).map((src) => ({ src, display: displayOf(src) })) };
+  }
+
+  // Blank out the app's own windows (only the top of the screen matters).
+  function maskOwnWindows(img, display) {
+    if (!display) return;
+    let rects = [];
+    try {
+      rects = excludeRects() || [];
+    } catch {}
+    const sx = img.width / display.bounds.width;
+    const sy = img.height / display.bounds.height;
+    const maxY = Math.round(img.height * 0.15);
+    const d = new Uint8Array(img.data);
+    for (const r of rects) {
+      const x0 = Math.max(0, Math.floor((r.x - display.bounds.x) * sx));
+      const x1 = Math.min(img.width, Math.ceil((r.x + r.width - display.bounds.x) * sx));
+      const y0 = Math.max(0, Math.floor((r.y - display.bounds.y) * sy));
+      const y1 = Math.min(maxY, Math.ceil((r.y + r.height - display.bounds.y) * sy));
+      for (let y = y0; y < y1; y++) d.fill(0, (y * img.width + x0) * 4, (y * img.width + x1) * 4);
+    }
   }
 
   function writeDebug(thumb, result) {
@@ -146,13 +201,38 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
     return file;
   }
 
-  async function scan(phaseGroup) {
-    const thumb = await capture();
+  async function detectOn(shot, phaseGroup) {
+    const thumb = shot.src.thumbnail;
     const img = toImage(thumb);
-    status.screen = `${img.width}x${img.height}`;
+    maskOwnWindows(img, shot.display);
+    const flat = flatTopBand(img);
     const key = `${img.width}x${img.height}:${phaseGroup}`;
     const opts = layouts[key] ? { layout: layouts[key] } : {};
     const { result, layout } = await call({ type: 'detect', screen: img, opts }, [img.data]);
+    return { thumb, img: { width: result.width, height: result.height }, key, opts, result, layout, flat };
+  }
+
+  async function scan(phaseGroup) {
+    const shots = await capture();
+    let shot = shots.first;
+    let r = await detectOn(shot, phaseGroup);
+    // Nothing on this screen during the draft: try another monitor now and then (one per scan).
+    if (!r.result.heroes.length && phaseGroup === 'draft' && shots.others.length) {
+      const other = shots.others[tryScreen++ % shots.others.length];
+      const r2 = await detectOn(other, phaseGroup);
+      if (r2.result.heroes.length) {
+        shot = other;
+        r = r2;
+        preferredScreen = other.src.id;
+      }
+    } else if (r.result.heroes.length) preferredScreen = shot.src.id;
+    const { thumb, key, opts, result, layout } = r;
+    status.screen = `${result.width}x${result.height}`;
+    status.hint = r.flat
+      ? 'Skjermbildet er svart eller helt ensfarget. Sett Dota til «Borderless Window» (Innstillinger → Video).'
+      : !result.heroes.length && phaseGroup === 'draft' && status.displays > 1
+        ? 'Ser ingen helter. Står Dota på en annen skjerm enn overlayet?'
+        : null;
     if (layout && JSON.stringify(layout) !== JSON.stringify(layouts[key])) {
       layouts[key] = layout;
       fs.mkdirSync(path.dirname(layoutFile), { recursive: true });
@@ -163,7 +243,6 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
     status.searched = result.searched;
     status.found = result.heroes.length;
     status.heroes = result.heroes.map((h) => ({ name: h.name, side: h.side, slot: h.slot, score: Math.round(h.score * 100) / 100 }));
-    status.error = null;
     if (saveDebug) {
       saveDebug = false;
       status.debugFile = writeDebug(thumb, { ...result, layout: opts.layout || null });
@@ -173,10 +252,20 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
     if (picks.changed) await api('/api/draft/auto', { left: picks.left, right: picks.right });
   }
 
+  // A screenshot for troubleshooting even when the recognition itself does not work.
+  async function rawDebug() {
+    saveDebug = false;
+    const shots = await capture();
+    status.debugFile = writeDebug(shots.first.src.thumbnail, { error: status.error, note: 'bildegjenkjenningen var ikke klar' });
+    log(`  Lagret skjermbilde for feilsøking: ${status.debugFile}`);
+  }
+
+  let lastError = null;
   async function tick() {
     if (stopped) return;
     let delay = 4000;
     try {
+      if (saveDebug && !status.ready) await rawDebug().catch(() => {});
       if (!PickTracker) {
         ({ PickTracker } = await import(pathToFileURL(path.join(root, 'src', 'vision', 'picks.js')).href));
         tracker = new PickTracker();
@@ -190,6 +279,7 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
         // A new match (or back in the menu): start over.
         if (tracker.confirmed.size) tracker.reset();
         gameScans = 0;
+        preferredScreen = null;
       }
       if (id) matchKey = id;
       const inDraft = DRAFT_PHASES.includes(st.phase);
@@ -199,12 +289,17 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a) }) {
         await scan(inDraft ? 'draft' : 'game');
         delay = inDraft ? 2000 : 5000;
       }
+      status.error = null;
     } catch (err) {
-      status.error = err.message;
+      // desktopCapturer rejects with a plain string.
+      status.error = err?.message || String(err);
+      if (status.error !== lastError) log(`  Bildegjenkjenning: ${status.error}`);
       delay = 10000;
     }
+    lastError = status.error;
     try {
       const r = await api('/api/vision/status', status);
+      if (r?.command?.resetPicks) tracker?.reset();
       if (r?.command?.saveDebug) {
         saveDebug = true;
         delay = Math.min(delay, 500);

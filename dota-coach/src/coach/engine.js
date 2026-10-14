@@ -257,16 +257,25 @@ export class Coach {
 
   // Next ability/talent, the talent choice when one is open, and the neutral item craft.
   skillAdvice(c, stats) {
-    const out = { next: null, talent: null, neutral: null, typical: stats?.typical?.slice(0, 16) || [], games: stats?.games || 0 };
+    const out = { next: null, talent: null, neutral: null, typical: stats?.typical?.slice(0, 16) || [], games: stats?.games || 0, unspent: c.unspent, spent: null };
     if (c.gsi.abilities && c.hero?.level) {
       const cur = this.readSkills(c.gsi, stats?.abilities?.length ? new Set(stats.abilities.map((a) => a.name)) : null);
+      out.spent = Object.values(cur.levels).reduce((sum, v) => sum + v, 0) + cur.talentTiers.size;
       if (c.unspent > 0 && stats) out.next = nextSkillPoint(stats, cur);
-      // A talent tier that is open now (or the next one) – show the pro split ahead of time.
-      const tier = [1, 2, 3, 4].find((t) => !cur.talentTiers.has(t) && c.hero.level >= [10, 15, 20, 25][t - 1] - 1);
+      const dyingALot = c.deathsSince(600) >= 3;
+      // The talent tier the next point goes into, else one that is open now (or the next one): show its pro split.
+      const nextTier = out.next?.talent ? stats.talents.find((t) => t.options.some((o) => o.name === out.next.name))?.tier : null;
+      const tier = nextTier || [1, 2, 3, 4].find((t) => !cur.talentTiers.has(t) && c.hero.level >= [10, 15, 20, 25][t - 1] - 1);
       if (tier && stats) {
-        out.talent = talentAdvice(stats, tier, { dyingALot: c.deathsSince(600) >= 3 });
+        out.talent = talentAdvice(stats, tier, { dyingALot });
         if (out.talent) out.talent.open = c.hero.level >= out.talent.level;
       }
+      // One answer for "which talent": the talent advice (it also weighs win rates and the game) decides.
+      if (out.next?.talent && out.talent && out.talent.pick !== out.next.name) {
+        const opt = out.talent.options.find((o) => o.name === out.talent.pick);
+        const was = { name: out.next.name, dname: out.next.dname, pct: out.next.pct };
+        out.next = { ...out.next, name: opt.name, dname: opt.dname, pct: opt.pct ?? out.next.pct, alternatives: [was], reason: out.talent.reason };
+      } else if (out.next?.talent && out.talent) out.next.reason = out.talent.reason;
     }
     if (c.gsi.neutralitems) {
       try {
@@ -478,6 +487,7 @@ export class Coach {
       inventory: { items: inv.inventory, backpack: inv.backpack, stash: inv.stash, neutral: inv.neutral },
       build: build ? { ...build, owned: [...inv.owned] } : null,
       buildStatus: heroName ? (meta ? (build ? 'ok' : 'none') : 'loading') : null,
+      skillsStatus: heroName ? (meta ? (meta.skills ? (meta.skills.games ? 'ok' : 'none') : 'error') : 'loading') : null,
       next,
       situational: situationalItems(enemies, role, d.itemDb).map((s) => ({ ...s, owned: inv.owned.has(s.item) })),
       enemies: enemies.map((e) => ({ name: e.name, dname: e.dname })),
@@ -485,7 +495,17 @@ export class Coach {
       perf: { ...perf, lhAt10: this.lhAt10 },
       fight,
       skills: c.skills,
-      draft: { allies: draft.allies, enemies: draft.enemies, autoAllies: draft.autoAllies || [], autoEnemies: draft.autoEnemies || [], unassigned: draft.unassigned || [], team: draft.team || null, autoAt: draft.autoAt || 0 },
+      draft: {
+        allies: draft.allies,
+        enemies: draft.enemies,
+        bans: draft.bans || [],
+        autoAllies: draft.autoAllies || [],
+        autoEnemies: draft.autoEnemies || [],
+        unassigned: draft.unassigned || [],
+        team: draft.team || null,
+        autoAt: draft.autoAt || 0,
+        rev: draft.rev || 0,
+      },
       // Pick suggestions while heroes are being picked (filled from the draft the app recognised on screen).
       draftHelp: ['draft', 'strategy'].includes(phase) || (!heroName && phase !== 'menu') ? d.getDraftHelp?.() || null : null,
       matchReady: false,

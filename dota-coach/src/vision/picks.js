@@ -1,6 +1,7 @@
 // Turns single screen detections into the picks of a match. A hero counts once it was seen on the same side in
 // `needed` scans in a row; once confirmed it stays for the rest of the match (portraits of dead heroes are grey and
-// can be missed, and a picked hero never leaves the draft). At most 5 per side: the best scores win.
+// can be missed, and a picked hero never leaves the draft). At most 5 per side: the ones seen most recently win
+// (then the best score), so a real portrait pushes out an old false detection.
 export class PickTracker {
   constructor({ needed = 2 } = {}) {
     this.needed = needed;
@@ -9,12 +10,14 @@ export class PickTracker {
 
   reset() {
     this.streak = new Map(); // name -> { side, n, score }
-    this.confirmed = new Map(); // name -> { side, score }
+    this.confirmed = new Map(); // name -> { side, score, seen }
+    this.scans = 0;
     this.sent = '';
   }
 
   // result: detectTopBar() output. Returns { left, right, changed }.
   add(result) {
+    this.scans++;
     const seen = new Set();
     for (const h of result?.heroes || []) {
       if (!h?.name || (h.side !== 'left' && h.side !== 'right')) continue;
@@ -22,13 +25,15 @@ export class PickTracker {
       const s = this.streak.get(h.name);
       const n = s && s.side === h.side ? s.n + 1 : 1;
       this.streak.set(h.name, { side: h.side, n, score: h.score });
-      if (n >= this.needed) this.confirmed.set(h.name, { side: h.side, score: Math.max(h.score || 0, this.confirmed.get(h.name)?.score || 0) });
+      const old = this.confirmed.get(h.name);
+      if (n >= this.needed) this.confirmed.set(h.name, { side: h.side, score: Math.max(h.score || 0, old?.side === h.side ? old.score : 0), seen: this.scans });
+      else if (old && old.side === h.side) old.seen = this.scans;
     }
     for (const name of this.streak.keys()) if (!seen.has(name)) this.streak.delete(name);
     const side = (s) =>
       [...this.confirmed]
         .filter(([, c]) => c.side === s)
-        .sort((a, b) => b[1].score - a[1].score)
+        .sort((a, b) => b[1].seen - a[1].seen || b[1].score - a[1].score)
         .slice(0, 5)
         .map(([name]) => name)
         .sort();

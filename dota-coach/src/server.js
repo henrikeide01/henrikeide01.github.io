@@ -371,7 +371,16 @@ export async function startServer(opts = {}) {
       patch: bundledHeroes.patch,
       settings: publicSettings(settings),
       tokenIsDefault: settings.token === 'dotacoach-local',
-      vision: { active: Date.now() - (vision.reportedAt || 0) < 15000, found: vision.found ?? null, debugFile: vision.debugFile || null, error: vision.error || null },
+      vision: {
+        active: Date.now() - (vision.reportedAt || 0) < 15000,
+        ready: !!vision.ready,
+        templates: vision.templates || 0,
+        found: vision.found ?? null,
+        screen: vision.screen || null,
+        debugFile: vision.debugFile || null,
+        error: vision.error || null,
+        hint: vision.hint || null,
+      },
     };
   }
 
@@ -420,13 +429,16 @@ export async function startServer(opts = {}) {
   };
 
   // Recomputes the effective draft (manual + recognised); returns true when it changed.
-  function updateDraft() {
+  // `force`: count it as a change even if nothing differs (the dashboards then reload the draft).
+  let draftRev = 0;
+  function updateDraft(force = false) {
     const own = ownHeroName();
     const team = myTeam();
     const autoAllies = team ? auto[team] : [];
     const autoEnemies = team ? auto[team === 'radiant' ? 'dire' : 'radiant'] : [];
     const ok = (n) => heroes.has(n) && !blocked.has(n);
-    const enemies = [...new Set([...manual.enemies, ...autoEnemies.filter((n) => !manual.allies.includes(n))])].filter(ok).slice(0, 5);
+    // Your own hero is never an enemy (a misread portrait) and never one of the four allies.
+    const enemies = [...new Set([...manual.enemies, ...autoEnemies.filter((n) => !manual.allies.includes(n))])].filter((n) => ok(n) && n !== own).slice(0, 5);
     const allies = [...new Set([...manual.allies, ...autoAllies])].filter((n) => ok(n) && n !== own && !enemies.includes(n)).slice(0, 4);
     const next = {
       allies,
@@ -440,8 +452,9 @@ export async function startServer(opts = {}) {
       ownHero: own,
       autoAt: auto.at,
     };
-    const changed = JSON.stringify(next) !== JSON.stringify(draft);
-    draft = next;
+    const { rev, ...old } = draft;
+    const changed = force || JSON.stringify(next) !== JSON.stringify(old);
+    draft = { ...next, rev: changed ? ++draftRev : rev || 0 };
     return changed;
   }
 
@@ -471,13 +484,15 @@ export async function startServer(opts = {}) {
     await loadMatchups(draft.enemies);
     const toHero = (n) => heroes.get(n);
     const enemies = draft.enemies.map(toHero);
+    // The hero you already picked is taken too.
+    const own = draft.ownHero && heroes.has(draft.ownHero) ? [heroes.get(draft.ownHero)] : [];
     const res = suggestHeroes({
       heroes: [...heroes.values()],
       stats,
       matchups: matchupCache,
       allies: draft.allies.map(toHero),
       enemies,
-      bans: draft.bans.map(toHero),
+      bans: [...draft.bans.map(toHero), ...own],
       role,
       bracket,
     });
@@ -569,26 +584,32 @@ export async function startServer(opts = {}) {
     if (p === '/api/draft' && req.method === 'GET') return send(res, 200, draft);
     if (p === '/api/draft' && req.method === 'POST') {
       const body = await readBody(req);
+      const role = Number(body.role) || settings.role;
+      const bracket = Number(body.bracket) || settings.bracket;
+      // Only the suggestions for the draft as it is (a dashboard that just picked up a change from elsewhere).
+      if (body.suggestOnly) return send(res, 200, { draft, suggestions: await draftSuggestions(role, bracket) });
       if (body.reset) {
+        // «Nullstill» forgets what was recognised, and the desktop app starts over from the screen. Heroes the
+        // user removed stay removed for this match (a wrong recognition would just come back).
         auto = { radiant: [], dire: [], at: 0 };
-        blocked = new Set();
+        visionCommand = { ...visionCommand, resetPicks: true };
       }
       // Heroes the user removed stay out even if the screen still shows them (wrong recognition).
-      for (const n of cleanNames(body.removed, 10)) blocked.add(n);
+      const removed = new Set(cleanNames(body.removed, 10));
       // Recognised heroes stay "automatic"; only what the user added is stored as manual.
       const recognised = new Set([...draft.autoAllies, ...draft.autoEnemies]);
-      const allies = cleanNames(body.allies, 4);
-      const enemies = cleanNames(body.enemies, 5);
+      const allies = cleanNames(body.allies, 4).filter((n) => !removed.has(n));
+      const enemies = cleanNames(body.enemies, 5).filter((n) => !removed.has(n));
       manual = {
         allies: allies.filter((n) => !recognised.has(n) || draft.autoEnemies.includes(n)),
         enemies: enemies.filter((n) => !recognised.has(n) || draft.autoAllies.includes(n)),
         bans: cleanNames(body.bans, 10),
         savedAt: Date.now(),
       };
+      // A hero entered by hand is wanted after all.
       for (const n of [...allies, ...enemies]) blocked.delete(n);
-      updateDraft();
-      const role = Number(body.role) || settings.role;
-      const bracket = Number(body.bracket) || settings.bracket;
+      for (const n of removed) blocked.add(n);
+      updateDraft(true);
       const suggestions = await draftSuggestions(role, bracket);
       refreshDraftHelp();
       return send(res, 200, { draft, suggestions });
