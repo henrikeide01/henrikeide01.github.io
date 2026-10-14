@@ -254,20 +254,25 @@ function dot(a, b, offset, n) {
 }
 
 // How colourful a patch is: RMS chroma relative to the luma contrast. A brightness/contrast change keeps it; a
-// greyed-out (dead) portrait drops to ~0. Used to decide how much the colour score may count.
-function colourfulness(r, g, b, y, n) {
+// greyed-out (dead) portrait drops to ~0. Used to decide how much the colour score may count. Pixels set in mask
+// (optional) are left out: a coloured HUD frame around a dead hero's grey portrait must not make it look colourful.
+function colourfulness(r, g, b, y, n, mask = null) {
   let c = 0;
   let s = 0;
   let s2 = 0;
+  let m = 0;
   for (let i = 0; i < n; i++) {
+    if (mask && mask[i]) continue;
     const cr = r[i] - y[i];
     const cb = b[i] - y[i];
     c += cr * cr + cb * cb;
     s += y[i];
     s2 += y[i] * y[i];
+    m++;
   }
-  const varY = s2 / n - (s / n) * (s / n);
-  return Math.sqrt(c / n) / Math.sqrt(Math.max(varY, 1));
+  if (!m) return 0;
+  const varY = s2 / m - (s / m) * (s / m);
+  return Math.sqrt(c / m) / Math.sqrt(Math.max(varY, 1));
 }
 
 // The k-th smallest (0-based) of the first n values of a, by quickselect (a stays as it is).
@@ -506,7 +511,7 @@ export function prepareTemplates(heroes, opts = {}) {
     rs.apply(P.r, fr);
     rs.apply(P.g, fg);
     rs.apply(P.b, fb);
-    fine.rho[k] = colourfulness(fr, fg, fb, gy, nf);
+    fine.rho[k] = colourfulness(fr, fg, fb, gy, nf, fine.mask);
     fine.sigma[k] = normalise(gy) / Math.sqrt(nf);
     maskedUnit(gy, fine.mask, fine.masked.subarray(k * nf, (k + 1) * nf));
     const cv = fine.colour.subarray(k * nf * 3, (k + 1) * nf * 3);
@@ -823,7 +828,7 @@ class Matcher {
     this.rs.apply(this.P.r, this.r);
     this.rs.apply(this.P.g, this.g);
     this.rs.apply(this.P.b, this.b);
-    const rhoW = colourfulness(this.r, this.g, this.b, gy, n);
+    const rhoW = colourfulness(this.r, this.g, this.b, gy, n, L.mask);
     const sigmaW = normalise(gy) / Math.sqrt(n);
     if (sigmaW < 1e-3) return [];
     this.cv.set(this.r, 0);
