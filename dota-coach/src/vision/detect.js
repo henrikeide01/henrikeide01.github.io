@@ -1058,6 +1058,7 @@ function fullSearch(screen, T, o) {
 
   // 3. Fine: refine and classify the best ones.
   let cands = kept.map((c) => m.examine({ cx: c.cx, cy: c.cy, h: c.h }));
+  const open = cands;
 
   // 4. The row: with 3+ strong candidates on one evenly spaced row, only candidates on it count, and every empty
   //    slot of the row is classified directly (robust scoring, like the layout path). That finds what the coarse
@@ -1098,11 +1099,11 @@ function fullSearch(screen, T, o) {
     res.debug = {
       peaks: peaks.length,
       refined: distinct.length,
-      examined: cands.length,
+      examined: open.length,
       evals: m.evals,
       ms: { coarse: Math.round(t1 - t0), medium: Math.round(t2 - t1), fine: Math.round(t3 - t2) },
       grid: grid && { g: round1(grid.g), pitch: round1(grid.p), cy: round1(grid.cy), h: round1(grid.h), count: grid.count },
-      candidates: cands
+      candidates: [...new Set([...open, ...cands])]
         .filter((c) => c.top.length)
         .sort((a, b) => bestScore(b) - bestScore(a))
         .slice(0, 20)
