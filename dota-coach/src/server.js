@@ -14,6 +14,8 @@ import { ItemDb, buildFromPopularity } from './coach/items.js';
 import { tierList, suggestHeroes, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
 import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
+import { computeHeroSkills } from './coach/skills.js';
+import { gsiConfig, install as installGsiConfig } from './setup.js';
 import { Updater, listBackups, compareVersions } from './updater.js';
 
 const maxVersion = (a, b) => (!a ? b || null : !b ? a : compareVersions(a, b) >= 0 ? a : b);
@@ -55,6 +57,7 @@ export async function startServer(opts = {}) {
   const bundledHeroes = readJson('data/heroes.json');
   const heroes = new Map(bundledHeroes.heroes.map((h) => [h.name, h]));
   const bundledItems = readJson('data/items.json');
+  const abilityData = readJson('data/abilities.json');
   let itemDb = new ItemDb(bundledItems.items);
 
   const od = new OpenDota({
@@ -85,13 +88,15 @@ export async function startServer(opts = {}) {
     const hero = heroes.get(name);
     if (!hero) return Promise.resolve(null);
     const job = (async () => {
-      const [pop, bench] = await Promise.allSettled([od.itemPopularity(hero.id), od.benchmarks(hero.id)]);
+      const [pop, bench, skillRows] = await Promise.allSettled([od.itemPopularity(hero.id), od.benchmarks(hero.id), od.heroSkillRows(hero.id)]);
+      const abilities = abilityData.heroes[name];
       const meta = {
         build: pop.status === 'fulfilled' ? buildFromPopularity(pop.value, itemDb) : null,
         benchmarks: bench.status === 'fulfilled' ? bench.value?.result || null : null,
+        skills: skillRows.status === 'fulfilled' && abilities ? computeHeroSkills(skillRows.value, abilities, abilityData.ids, itemDb) : null,
       };
       // Offline? Use what we got, but try again in a minute.
-      if (!meta.build || !meta.benchmarks) meta.retryAt = Date.now() + 60000;
+      if (!meta.build || !meta.benchmarks || !meta.skills) meta.retryAt = Date.now() + 60000;
       heroMeta.set(name, meta);
       return meta;
     })().finally(() => heroMetaPending.delete(name));
@@ -115,7 +120,14 @@ export async function startServer(opts = {}) {
   }
 
   // ---------- Live state ----------
-  let draft = { allies: [], enemies: [], bans: [], savedAt: 0 };
+  // The draft = heroes entered by hand + heroes the desktop app recognised on screen (overlay/vision.cjs).
+  let manual = { allies: [], enemies: [], bans: [], savedAt: 0 };
+  let auto = { radiant: [], dire: [], at: 0 };
+  let blocked = new Set(); // recognised heroes the user removed by hand
+  let draft = { allies: [], enemies: [], bans: [], savedAt: 0, autoAllies: [], autoEnemies: [], unassigned: [], team: null, ownHero: null, autoAt: 0 };
+  let draftHelp = null; // pick suggestions for the current draft, shown in the overlay
+  let vision = {};
+  let visionCommand = {};
   let lastGsi = null;
   let lastGsiAt = 0;
   let lastMatchId = null;
@@ -136,6 +148,8 @@ export async function startServer(opts = {}) {
       return cached || null;
     },
     getDraft: () => draft,
+    getDraftHelp: () => draftHelp,
+    abilityData,
     getSettings: () => settings,
   });
 
@@ -243,10 +257,15 @@ export async function startServer(opts = {}) {
 
     const matchId = payload?.map?.matchid;
     if (matchId && matchId !== lastMatchId) {
-      // A new match started: forget a draft that was entered for an older game.
-      if (lastMatchId && Date.now() - draft.savedAt > 10 * 60 * 1000) draft = { allies: [], enemies: [], bans: [], savedAt: 0 };
+      // A new match started: forget a draft that was entered or recognised for an older game.
+      if (lastMatchId && Date.now() - manual.savedAt > 10 * 60 * 1000) manual = { allies: [], enemies: [], bans: [], savedAt: 0 };
+      if (lastMatchId && Date.now() - auto.at > 3 * 60 * 1000) {
+        auto = { radiant: [], dire: [], at: 0 };
+        blocked = new Set();
+      }
       lastMatchId = matchId;
     }
+    if (updateDraft()) refreshDraftHelp();
     recompute();
     return true;
   }
@@ -352,6 +371,7 @@ export async function startServer(opts = {}) {
       patch: bundledHeroes.patch,
       settings: publicSettings(settings),
       tokenIsDefault: settings.token === 'dotacoach-local',
+      vision: { active: Date.now() - (vision.reportedAt || 0) < 15000, found: vision.found ?? null, debugFile: vision.debugFile || null, error: vision.error || null },
     };
   }
 
@@ -388,6 +408,55 @@ export async function startServer(opts = {}) {
       .sort((a, b) => a.dname.localeCompare(b.dname));
 
   const cleanNames = (arr, max) => (Array.isArray(arr) ? [...new Set(arr)].filter((n) => typeof n === 'string' && heroes.has(n)).slice(0, max) : []);
+
+  const ownHeroName = () => (lastGsi?.hero?.name ? lastGsi.hero.name.replace('npc_dota_hero_', '') : null);
+  const myTeam = () => {
+    const t = lastGsi?.player?.team_name;
+    if (t === 'radiant' || t === 'dire') return t;
+    const own = ownHeroName();
+    if (own && auto.radiant.includes(own)) return 'radiant';
+    if (own && auto.dire.includes(own)) return 'dire';
+    return null;
+  };
+
+  // Recomputes the effective draft (manual + recognised); returns true when it changed.
+  function updateDraft() {
+    const own = ownHeroName();
+    const team = myTeam();
+    const autoAllies = team ? auto[team] : [];
+    const autoEnemies = team ? auto[team === 'radiant' ? 'dire' : 'radiant'] : [];
+    const ok = (n) => heroes.has(n) && !blocked.has(n);
+    const enemies = [...new Set([...manual.enemies, ...autoEnemies.filter((n) => !manual.allies.includes(n))])].filter(ok).slice(0, 5);
+    const allies = [...new Set([...manual.allies, ...autoAllies])].filter((n) => ok(n) && n !== own && !enemies.includes(n)).slice(0, 4);
+    const next = {
+      allies,
+      enemies,
+      bans: manual.bans,
+      savedAt: manual.savedAt,
+      autoAllies: allies.filter((n) => !manual.allies.includes(n)),
+      autoEnemies: enemies.filter((n) => !manual.enemies.includes(n)),
+      unassigned: team ? [] : [...new Set([...auto.radiant, ...auto.dire])].filter(ok),
+      team,
+      ownHero: own,
+      autoAt: auto.at,
+    };
+    const changed = JSON.stringify(next) !== JSON.stringify(draft);
+    draft = next;
+    return changed;
+  }
+
+  let helpSeq = 0;
+  async function refreshDraftHelp() {
+    const seq = ++helpSeq;
+    try {
+      const res = await draftSuggestions(settings.role, settings.bracket);
+      if (seq !== helpSeq) return;
+      draftHelp = { picks: res.picks.slice(0, 6), avoid: (res.avoid || []).slice(0, 3), hasStats: res.hasStats, hasMatchups: res.hasMatchups, enemies: draft.enemies, allies: draft.allies };
+      recompute();
+    } catch (err) {
+      log(`Draft-forslag feilet: ${err.message}`);
+    }
+  }
 
   async function draftSuggestions(role, bracket) {
     await loadHeroStats().catch(() => {});
@@ -456,7 +525,14 @@ export async function startServer(opts = {}) {
       const name = heroMatch[1];
       if (!heroes.has(name)) return send(res, 404, { error: 'Ukjent hero' });
       const meta = await loadHeroMeta(name).catch(() => null);
-      return send(res, 200, { hero: heroes.get(name), build: meta?.build || null, benchmarks: meta?.benchmarks || null, error: meta?.build ? null : od.lastError });
+      const sk = meta?.skills;
+      return send(res, 200, {
+        hero: heroes.get(name),
+        build: meta?.build || null,
+        benchmarks: meta?.benchmarks || null,
+        skills: sk ? { games: sk.games, typical: sk.typical, talents: sk.talents, neutrals: sk.neutrals.slice(0, 15) } : null,
+        error: meta?.build ? null : od.lastError,
+      });
     }
 
     if (p === '/api/matches' && req.method === 'GET') {
@@ -485,12 +561,50 @@ export async function startServer(opts = {}) {
     if (p === '/api/draft' && req.method === 'GET') return send(res, 200, draft);
     if (p === '/api/draft' && req.method === 'POST') {
       const body = await readBody(req);
-      draft = { allies: cleanNames(body.allies, 4), enemies: cleanNames(body.enemies, 5), bans: cleanNames(body.bans, 10), savedAt: Date.now() };
+      if (body.reset) {
+        auto = { radiant: [], dire: [], at: 0 };
+        blocked = new Set();
+      }
+      // Heroes the user removed stay out even if the screen still shows them (wrong recognition).
+      for (const n of cleanNames(body.removed, 10)) blocked.add(n);
+      // Recognised heroes stay "automatic"; only what the user added is stored as manual.
+      const recognised = new Set([...draft.autoAllies, ...draft.autoEnemies]);
+      const allies = cleanNames(body.allies, 4);
+      const enemies = cleanNames(body.enemies, 5);
+      manual = {
+        allies: allies.filter((n) => !recognised.has(n) || draft.autoEnemies.includes(n)),
+        enemies: enemies.filter((n) => !recognised.has(n) || draft.autoAllies.includes(n)),
+        bans: cleanNames(body.bans, 10),
+        savedAt: Date.now(),
+      };
+      for (const n of [...allies, ...enemies]) blocked.delete(n);
+      updateDraft();
       const role = Number(body.role) || settings.role;
       const bracket = Number(body.bracket) || settings.bracket;
       const suggestions = await draftSuggestions(role, bracket);
-      recompute();
+      refreshDraftHelp();
       return send(res, 200, { draft, suggestions });
+    }
+    // Heroes the desktop app recognised on screen: { left: [...], right: [...] } (Radiant left, Dire right).
+    if (p === '/api/draft/auto' && req.method === 'POST') {
+      const body = await readBody(req);
+      auto = { radiant: cleanNames(body.left, 5), dire: cleanNames(body.right, 5), at: Date.now() };
+      if (updateDraft()) {
+        log(`  Gjenkjente helter: ${auto.radiant.join(', ') || '-'} | ${auto.dire.join(', ') || '-'}`);
+        refreshDraftHelp();
+        recompute();
+      }
+      return send(res, 200, { ok: true, draft });
+    }
+    if (p === '/api/vision/status' && req.method === 'POST') {
+      vision = { ...(await readBody(req)), reportedAt: Date.now() };
+      const command = visionCommand;
+      visionCommand = {};
+      return send(res, 200, { ok: true, command });
+    }
+    if (p === '/api/vision/debug' && req.method === 'POST') {
+      visionCommand = { saveDebug: true };
+      return send(res, 200, { ok: true, active: Date.now() - (vision.reportedAt || 0) < 15000 });
     }
 
     // Several windows (dashboard, overlay, phone) may have speech on; only the first one to claim a tip reads it.
@@ -546,6 +660,8 @@ export async function startServer(opts = {}) {
         opendota: { online: od.online, lastError: od.lastError },
         update: { available: update.available, latest: update.latest || null, error: update.error || null },
         errors: recentErrors.slice(-15),
+        vision,
+        draft: { team: draft.team, allies: draft.allies, enemies: draft.enemies, autoAllies: draft.autoAllies, autoEnemies: draft.autoEnemies, unassigned: draft.unassigned },
         matches: reports.map((r) => ({
           hero: r.hero?.name,
           role: r.role,
@@ -562,6 +678,7 @@ export async function startServer(opts = {}) {
     if (p === '/api/settings' && req.method === 'POST') {
       settings = applyPublicSettings(settings, await readBody(req));
       persistSettings();
+      refreshDraftHelp();
       recompute();
       broadcast('status', status());
       return send(res, 200, publicSettings(settings));
@@ -611,6 +728,19 @@ export async function startServer(opts = {}) {
     }
   }
   log('\n  Venter på data fra Dota 2 … (start en kamp, eller kjør "npm run simulate" for en demo)\n');
+
+  // Keep the GSI config in the Dota folder current: new versions can ask Dota for more data.
+  if (settings.dotaDir && !opts.noWarmup) {
+    try {
+      const file = path.join(settings.dotaDir, 'game', 'dota', 'cfg', 'gamestate_integration', 'gamestate_integration_dotacoach.cfg');
+      if (fs.existsSync(path.join(settings.dotaDir, 'game', 'dota')) && (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== gsiConfig(settings))) {
+        installGsiConfig({ dotaDir: settings.dotaDir, port: settings.port, token: settings.token });
+        log('  Oppdaterte GSI-oppsettet i Dota-mappen (mer data til coachen). Start Dota på nytt hvis det kjører.');
+      }
+    } catch (err) {
+      log(`  (Klarte ikke å oppdatere GSI-oppsettet: ${err.message})`);
+    }
+  }
 
   // Look for updates at start-up (and install them straight away if allowed and no game is running),
   // then every three hours.

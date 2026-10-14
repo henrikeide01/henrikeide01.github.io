@@ -30,6 +30,8 @@ export function gsiConfig({ port, token }) {
 		"items"		"1"
 		"events"	"1"
 		"draft"		"1"
+		"neutralitems"	"1"
+		"roshan"		"1"
 		"wearables"	"0"
 	}
 	"auth"
@@ -116,6 +118,7 @@ function main() {
     console.log('\nEller kjør:  npm run setup -- --path "D:\\SteamLibrary\\steamapps\\common\\dota 2 beta"\n');
   } else {
     const file = install({ dotaDir, port: settings.port, token: settings.token });
+    saveSettings({ ...loadSettings(), dotaDir }); // lets the app keep the config current after updates
     console.log(`✔ Fant Dota 2: ${dotaDir}`);
     console.log(`✔ Skrev GSI-konfig: ${file}\n`);
   }

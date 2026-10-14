@@ -9,6 +9,7 @@ export const TTL = {
   heroStats: 6 * HOUR,
   hero: 24 * HOUR,
   constants: 7 * 24 * HOUR,
+  skills: 3 * 24 * HOUR,
 };
 
 const safeName = (p) => p.replace(/^\//, '').replace(/[^a-z0-9]+/gi, '_');
@@ -56,13 +57,15 @@ export class OpenDota {
     return res.json();
   }
 
-  async get(p, ttl) {
+  // key: name of the cache/fixture file (defaults to a name derived from the path).
+  async get(p, ttl, { key = null } = {}) {
+    const name = key || safeName(p);
     if (this.fixturesDir) {
-      const file = path.join(this.fixturesDir, `${safeName(p)}.json`);
+      const file = path.join(this.fixturesDir, `${name}.json`);
       if (!fs.existsSync(file)) throw new Error(`Ingen fixture for ${p}`);
       return JSON.parse(fs.readFileSync(file, 'utf8'));
     }
-    const file = path.join(this.cacheDir, `${safeName(p)}.json`);
+    const file = path.join(this.cacheDir, `${name}.json`);
     const cached = this.readCache(file);
     if (cached && Date.now() - cached.fetchedAt < ttl) return cached.data;
 
@@ -103,6 +106,16 @@ export class OpenDota {
 
   items() {
     return this.get('/constants/items', TTL.constants);
+  }
+
+  // Skill orders, talents and neutral items from recent pro games with this hero (OpenDota SQL explorer).
+  heroSkillRows(heroId) {
+    const id = Number(heroId);
+    const sql = `SELECT pm.ability_upgrades_arr AS a, pm.item_neutral AS n, ((pm.player_slot < 128) = m.radiant_win) AS w
+      FROM player_matches pm JOIN matches m USING(match_id)
+      WHERE pm.hero_id = ${id} AND pm.ability_upgrades_arr IS NOT NULL AND m.start_time > extract(epoch from now() - interval '150 days')
+      ORDER BY pm.match_id DESC LIMIT 400`;
+    return this.get(`/explorer?sql=${encodeURIComponent(sql.replace(/\s+/g, ' '))}`, TTL.skills, { key: `explorer_skills_${id}` }).then((r) => r?.rows || []);
   }
 
   match(matchId) {
