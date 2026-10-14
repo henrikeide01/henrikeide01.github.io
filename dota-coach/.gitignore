@@ -8,3 +8,4 @@ backup/
 .installed.json
 .needs-install
 .update/
+debug/

@@ -30,6 +30,15 @@ export function itemImg(name, dname, cls = '') {
   return `<span class="iimg ${cls}" style="--h:${hue(name)}" data-label="${esc(initials(dname || name))}" title="${esc(dname || name)}"><img src="${CDN}/items/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
 }
 
+export function abilityImg(name, dname, cls = '') {
+  return `<span class="aimg ${cls}" style="--h:${hue(name)}" data-label="${esc(initials(dname || name))}" title="${esc(dname || name)}"><img src="${CDN}/abilities/${esc(name)}.png" alt="" loading="lazy" onerror="${IMG_FAIL}"></span>`;
+}
+
+// Talents have no icon of their own.
+export function skillImg(x, cls = '') {
+  return x.talent || String(x.name).startsWith('special_bonus') ? `<span class="aimg talent ${cls}" title="${esc(x.dname || 'Talent')}">★</span>` : abilityImg(x.name, x.dname, cls);
+}
+
 export function fmtClock(sec) {
   const s = Math.max(0, Math.round(sec || 0));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

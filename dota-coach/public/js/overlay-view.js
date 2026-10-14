@@ -1,5 +1,5 @@
 // Compact coach view used by overlay.html (Electron / browser) and the pop-out window in the dashboard.
-import { esc, heroImg, itemImg, fmtClock, fmtNum } from './common.js';
+import { esc, heroImg, itemImg, skillImg, fmtClock, fmtNum } from './common.js';
 
 const MAX_TIPS = 4;
 const TIMER_ORDER = ['power', 'bounty', 'stack', 'wisdom', 'lotus', 'neutral', 'tormentor', 'roshan', 'aegis', 'daynight'];
@@ -57,13 +57,14 @@ export function mountOverlay(root) {
       <div class="ov-head" data-s="head"></div>
       <div class="ov-fight" data-s="fight"></div>
       <div class="ov-tips" data-s="tips"></div>
+      <div class="ov-skills" data-s="skills"></div>
       <div class="ov-next" data-s="next"></div>
       <div class="ov-timers" data-s="timers"></div>
       <div class="ov-foot" data-s="foot"></div>
       <div class="ov-edit-hint">Flyttemodus: dra vinduet dit du vil ha det. Trykk <b>Alt+Shift+M</b> for å låse.</div>
     </div>`;
   const s = (name) => root.querySelector(`[data-s="${name}"]`);
-  const els = { head: s('head'), fight: s('fight'), tips: s('tips'), next: s('next'), timers: s('timers'), foot: s('foot') };
+  const els = { head: s('head'), fight: s('fight'), tips: s('tips'), skills: s('skills'), next: s('next'), timers: s('timers'), foot: s('foot') };
 
   return function update(state, status) {
     const connected = status?.gsiConnected;
@@ -74,11 +75,27 @@ export function mountOverlay(root) {
         ? 'Kobler til coach-serveren …'
         : connected
           ? state?.phase === 'draft'
-            ? 'Hero-valg pågår. Bruk Draft-fanen i dashboardet.'
+            ? 'Hero-valg pågår. Forslagene kommer når heroene er gjenkjent (eller lagt inn i Draft-fanen).'
             : 'Klar. Venter på at kampen starter.'
           : 'Venter på Dota 2 … Start spillet eller en demo.';
       patch(els.head, `<div class="ov-title"><span class="dot ${connected ? 'on' : 'wait'}"></span><b>Dota Coach</b><span class="ov-muted">${esc(state?.phaseLabel || '')}</span></div>`);
-      patch(els.tips, `<div class="ov-empty">${esc(msg)}</div>`);
+      const dh = state?.draftHelp;
+      if (connected && dh?.picks?.length) {
+        // The pick phase: what to pick against the heroes recognised so far.
+        const vs = dh.enemies?.length ? `${dh.enemies.length} fiende${dh.enemies.length > 1 ? 'r' : ''} kjent` : 'etter meta';
+        patch(
+          els.tips,
+          `<div class="ov-muted">Pick-forslag (${esc(vs)}):</div>${dh.picks
+            .slice(0, 5)
+            .map(
+              (r) => `<div class="ov-pick">${heroImg(r.name, r.dname, 'xs')}<div><b>${esc(r.dname)}</b> <span class="tier ${r.tier}">${r.tier}</span><div class="ov-sub">${esc(
+                [r.good?.length ? `sterk mot ${r.good.join(', ')}` : '', r.bad?.length ? `svak mot ${r.bad.join(', ')}` : '', r.winrate != null ? `${(r.winrate * 100).toFixed(1)} % seier` : ''].filter(Boolean).join(' · '),
+              )}</div></div></div>`,
+            )
+            .join('')}`,
+        );
+      } else patch(els.tips, `<div class="ov-empty">${esc(msg)}</div>`);
+      patch(els.skills, '');
       patch(els.fight, '');
       patch(els.next, '');
       patch(els.timers, '');
@@ -109,7 +126,10 @@ export function mountOverlay(root) {
       patch(els.fight, '');
     }
 
-    const tips = (state.tips || []).filter((t) => !t.id.startsWith('fight-')).slice(0, MAX_TIPS);
+    // Skill and neutral choices get their own rows below, so their tips are only read aloud.
+    const sk = state.skills;
+    const own = (t) => (t.id === 'unspent' && sk?.next) || t.id.startsWith('neutral-') || (t.id.startsWith('talent-') && sk?.next?.talent);
+    const tips = (state.tips || []).filter((t) => !t.id.startsWith('fight-') && !own(t)).slice(0, MAX_TIPS);
     const shown = tips.length ? tips : [{ key: 'calm', level: 'calm', icon: '✅', text: state.focus || 'Alt ser bra ut. Fortsett sånn!' }];
     patchList(
       els.tips,
@@ -118,6 +138,23 @@ export function mountOverlay(root) {
       (t) => `<span>${t.icon}</span><span>${esc(t.text)}</span>`,
       (t) => `ov-tip ${t.level}`,
     );
+
+    const rows = [];
+    if (sk?.next) {
+      const x = sk.next;
+      const tal = x.talent && sk.talent?.pick === x.name ? sk.talent : null;
+      rows.push(
+        `<div class="ov-skill">${skillImg(x, 'sm')}<div><span class="ov-muted">${x.talent ? 'Talent' : 'Skill'}:</span> <b>${esc(x.dname)}</b>${x.toLevel ? ` <span class="ov-muted">nv ${x.toLevel}</span>` : ''}${tal?.hint ? `<div class="ov-sub">${esc(tal.hint)}</div>` : ''}</div><span class="ov-pct">${x.pct} %</span></div>`,
+      );
+    }
+    const nu = sk?.neutral;
+    if (nu && state.phase !== 'post') {
+      const a = !nu.artifacts.some((c) => c.selected) && nu.artifacts.find((c) => c.name === nu.pickArtifact);
+      const e = !nu.enchantments.some((c) => c.selected) && nu.enchantments.find((c) => c.name === nu.pickEnchantment);
+      if (a) rows.push(`<div class="ov-skill">${itemImg(a.name, a.dname, 'sm')}<div><span class="ov-muted">Artefakt T${nu.tier}:</span> <b>${esc(a.dname)}</b></div><span class="ov-pct">${a.pct != null ? `${a.pct} %` : ''}</span></div>`);
+      if (e) rows.push(`<div class="ov-skill">${itemImg(e.name, e.dname, 'sm')}<div><span class="ov-muted">Fortryllelse:</span> <b>${esc(e.dname)}</b>${e.stats ? `<div class="ov-sub">${esc(e.stats)}</div>` : ''}</div><span class="ov-pct"></span></div>`);
+    }
+    patch(els.skills, rows.join(''));
 
     const n = state.next;
     if (n) {

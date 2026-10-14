@@ -1,10 +1,11 @@
-import { esc, heroImg, itemImg, fmtClock, fmtNum, api, connect, Speaker, throttle } from './common.js';
+import { esc, heroImg, itemImg, skillImg, fmtClock, fmtNum, api, connect, Speaker, throttle } from './common.js';
 import { mountOverlay, patch, patchList, layout } from './overlay-view.js';
 import { lineChart, deathMap, scoreColumns } from './charts.js';
 
 const $ = (id) => document.getElementById(id);
 const BRACKET_NAME = { 1: 'Herald', 2: 'Guardian', 3: 'Crusader', 4: 'Archon', 5: 'Legend', 6: 'Ancient', 7: 'Divine', 8: 'Immortal' };
 const ATTR = { str: 'Styrke', agi: 'Smidighet', int: 'Intelligens', all: 'Universal' };
+const ROLE_NAME = { 1: 'pos 1 (carry)', 2: 'pos 2 (mid)', 3: 'pos 3 (offlane)', 4: 'pos 4 (soft support)', 5: 'pos 5 (hard support)' };
 
 let state = null;
 let status = null;
@@ -139,6 +140,7 @@ connect({
     state = s;
     renderState();
     speaker.handleTips(s.tips);
+    syncDraft(s.draft);
   },
   onStatus: (s) => {
     // A new version is running (after an update): load the new pages.
@@ -152,6 +154,7 @@ connect({
     if (document.activeElement !== $('role')) $('role').value = settings.role;
     if (document.activeElement !== $('bracket')) $('bracket').value = settings.bracket;
     renderConn();
+    if (draftReady) renderVisionLine();
     if (!state?.hero) renderLive();
     if (activeTab === 'setup') renderSetup();
     pipUpdate?.(state, status);
@@ -195,7 +198,10 @@ function renderWaiting() {
   } else if (connected && phase === 'draft') {
     big = '🧠';
     title = 'Hero-valg pågår';
-    text = 'Gå til <a href="#" data-goto="draft">Draft-hjelp</a> og legg inn fiendene. Da får du forslag til hero og items.';
+    const dh = state?.draftHelp;
+    text = dh?.picks?.length
+      ? `${draftHelpIntro(dh)}${draftPicksHtml(dh.picks.slice(0, 5))}<div style="margin-top:10px">Mer detaljer og manuell retting under <a href="#" data-goto="draft">Draft-hjelp</a>.</div>`
+      : 'Gå til <a href="#" data-goto="draft">Draft-hjelp</a> og legg inn fiendene. Da får du forslag til hero og items.';
   } else if (connected) {
     big = '✅';
     title = 'Koblet til Dota 2';
@@ -209,6 +215,23 @@ function renderWaiting() {
       </div>`
     : '';
   patch($('live-waiting'), `<div class="big">${big}</div><h2>${title}</h2><p class="muted">${text}</p>${steps}`);
+}
+
+function draftHelpIntro(dh) {
+  const vs = dh.enemies?.length ? `mot ${(dh.enemyNames || dh.enemies).map(esc).join(', ')}` : 'etter meta (ingen fiender kjent ennå)';
+  return `Beste valg for deg som ${esc(ROLE_NAME[settings.role] || `pos ${settings.role}`)} ${vs}:`;
+}
+
+function draftPicksHtml(picks) {
+  return `<div class="draft-picks">${picks
+    .map((r) => {
+      const why = [];
+      if (r.good?.length) why.push(`<span class="pos">Sterk mot ${r.good.map(esc).join(', ')}</span>`);
+      if (r.bad?.length) why.push(`<span class="neg">Svak mot ${r.bad.map(esc).join(', ')}</span>`);
+      if (r.winrate != null) why.push(`${(r.winrate * 100).toFixed(1)} % seier`);
+      return `<div class="sugg">${heroImg(r.name, r.dname)}<div><div class="name"><span class="tier ${r.tier}">${r.tier}</span> ${esc(r.dname)}</div><div class="why">${why.join(' · ')}</div></div></div>`;
+    })
+    .join('')}</div>`;
 }
 
 document.addEventListener('click', (e) => {
@@ -263,6 +286,8 @@ function renderLive() {
 
   renderFight();
   renderNext();
+  renderSkills();
+  renderNeutral();
   renderBuild();
   renderSituational();
   renderTimers();
@@ -326,6 +351,72 @@ function renderNext() {
   patch(box('missing'), missing > 0 ? `Mangler ${fmtNum(missing)} gull${eta}` : '<span style="color:var(--green)">Du har råd. Kjøp nå!</span>');
   box('bar').classList.toggle('green', pct >= 100);
   box('bar').firstChild.style.width = `${pct}%`;
+}
+
+function renderSkills() {
+  const sk = state.skills;
+  const card = $('c-skills');
+  card.classList.toggle('hidden', !sk);
+  if (!sk) return patch(card, '');
+  if (!sk.games) {
+    return patch(
+      card,
+      `<h3>Evner og talenter</h3><div class="muted">${state.buildStatus === 'loading' || state.buildStatus === 'ok' ? '<span class="spinner"></span> Henter skill-builds fra pro-kamper …' : 'Fant ingen skill-data for helten akkurat nå (OpenDota er utilgjengelig). Prøver igjen om litt.'}</div>`,
+    );
+  }
+  const n = sk.next;
+  const nextHtml = n
+    ? `<div class="next-skill">${skillImg(n, 'lg')}<div>
+         <div class="name">${n.talent ? `Talent: ${esc(n.dname)}` : `${esc(n.dname)} <span class="faint">→ nivå ${n.toLevel}</span>`}</div>
+         <div class="muted">${n.pct} % av pro-spillerne${n.exact ? ' med samme build' : ''} tar denne nå</div>
+         ${n.alternatives?.length ? `<div class="alt muted">Ellers: ${n.alternatives.map((a) => `${esc(a.dname)} ${a.pct} %`).join(' · ')}</div>` : ''}
+       </div></div>`
+    : '<div class="muted">Ingen ubrukte poeng. Du får neste råd når du går opp i nivå.</div>';
+  const spent = Math.max(0, (state.hero?.level || 0) - (n ? 1 : 0));
+  const strip = sk.typical?.length
+    ? `<div class="subhead">Vanlig rekkefølge hos pro-spillere</div><div class="skill-strip">${sk.typical
+        .map((t, i) => `<div class="st ${i < spent ? 'done' : i === spent ? 'now' : ''}" title="${esc(`${i + 1}: ${t.dname} (${t.pct} %)`)}">${skillImg(t, 'sm')}<span>${i + 1}</span></div>`)
+        .join('')}</div>`
+    : '';
+  const t = sk.talent;
+  const talent = t
+    ? `<div class="subhead">Talent nivå ${t.level}${t.open ? ' – velg nå' : ' – snart'}</div>${t.options
+        .map((o) => choiceRow('<span class="aimg sm talent">★</span>', o.dname, o.winPct != null ? `${o.winPct} % seier med dette` : '', o.pct, o.name === t.pick, false))
+        .join('')}<div class="muted" style="font-size:12.5px;margin-top:6px">Anbefalt fordi: ${esc(t.reason)}.${t.hint ? ` ${esc(t.hint)}` : ''}</div>`
+    : '';
+  patch(card, `<h3>Evner og talenter <span class="right faint">${sk.games} pro-kamper</span></h3>${nextHtml}${talent}${strip}`);
+}
+
+function choiceRow(img, name, sub, pct, pick, taken) {
+  return `<div class="choice ${taken ? 'taken' : pick ? 'pick' : ''}">${img}<div><div class="nm">${esc(name)}${taken ? '<span class="badge-taken">Valgt</span>' : pick ? '<span class="badge-pick">Anbefalt</span>' : ''}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}${pct != null ? `<div class="bar blue"><i style="width:${Math.max(2, pct)}%"></i></div>` : ''}</div><span class="pct">${pct != null ? `${pct} %` : ''}</span></div>`;
+}
+
+function renderNeutral() {
+  const sk = state.skills;
+  const card = $('c-neutral');
+  const n = sk?.neutral;
+  const pro = sk?.proNeutrals;
+  card.classList.toggle('hidden', !n && !pro);
+  if (n) {
+    const arts = n.artifacts.map((a) => choiceRow(itemImg(a.name, a.dname, 'sm'), a.dname, [a.stats, a.winPct != null ? `${a.winPct} % seier` : ''].filter(Boolean).join(' · '), a.pct, a.name === n.pickArtifact, a.selected)).join('');
+    const ench = n.enchantments.map((e) => choiceRow(itemImg(e.name, e.dname, 'sm'), e.dname, e.stats, null, e.name === n.pickEnchantment, e.selected)).join('');
+    return patch(
+      card,
+      `<h3>Nøytralt item <span class="right faint">tier ${n.tier}${n.madstone != null ? ` · ${n.madstone} madstone` : ''}</span></h3>
+       ${arts ? `<div class="subhead">Artefakt <span class="faint">(% = andel av pro-spillerne på helten)</span></div>${arts}` : ''}
+       ${ench ? `<div class="subhead">Fortryllelse</div>${ench}` : ''}
+       <div class="muted" style="font-size:12.5px;margin-top:6px">Artefakt: ${esc(n.artifactReason)}. Fortryllelse: ${esc(n.enchantmentReason)}.</div>`,
+    );
+  }
+  if (pro) {
+    return patch(
+      card,
+      `<h3>Nøytrale items <span class="right faint">tier ${pro.tier} · pro-spillere</span></h3>${pro.items
+        .map((x) => choiceRow(itemImg(x.name, x.dname, 'sm'), x.dname, x.winPct != null ? `${x.winPct} % seier` : '', x.pct, false, false))
+        .join('')}<div class="muted" style="font-size:12.5px;margin-top:6px">Valgene dukker opp her når du kan lage et nøytralt item.</div>`,
+    );
+  }
+  patch(card, '');
 }
 
 function buildItems(list, owned, next) {
@@ -565,7 +656,7 @@ async function loadHeroes() {
 }
 
 // ---------------- Draft ----------------
-const draft = { enemies: [], allies: [], bans: [], mode: 'enemies' };
+const draft = { enemies: [], allies: [], bans: [], mode: 'enemies', auto: new Set(), removed: new Set(), autoAt: 0 };
 const LIMITS = { enemies: 5, allies: 4, bans: 10 };
 const GROUP_LABEL = { enemies: ['Fiender', 'motstanderlaget'], allies: ['Ditt lag', 'lagkameratene'], bans: ['Bans', 'bannede heroes'] };
 let draftReady = false;
@@ -578,8 +669,7 @@ async function initDraft() {
   await loadHeroes();
   try {
     const saved = await api('/api/draft');
-    draft.enemies = saved.enemies || [];
-    draft.allies = saved.allies || [];
+    applyServerDraft(saved);
     draft.bans = saved.bans || [];
   } catch {
     // start empty
@@ -601,11 +691,60 @@ async function initDraft() {
     draft.enemies = [];
     draft.allies = [];
     draft.bans = [];
+    draft.auto = new Set();
+    draft.removed = new Set();
     draft.mode = 'enemies';
+    draft.reset = true;
     renderSlots();
     renderHeroGrid();
     pushDraft();
   });
+  $('vision-line').addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-vision-debug]')) return;
+    try {
+      const r = await api('/api/vision/debug', {});
+      toast(r.active ? 'Tar et skjermbilde av draften. Det lagres i mappen «debug» i Dota Coach-mappen.' : 'Desktop-appen kjører ikke, så det finnes ikke noe skjermbilde å ta.');
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  renderVisionLine();
+}
+
+// The server's draft = what the user entered + what the desktop app recognised on screen.
+function applyServerDraft(d) {
+  if (!d) return;
+  draft.enemies = d.enemies || [];
+  draft.allies = d.allies || [];
+  draft.auto = new Set([...(d.autoEnemies || []), ...(d.autoAllies || [])]);
+  draft.unassigned = d.unassigned || [];
+  draft.team = d.team || null;
+  draft.autoAt = d.autoAt || 0;
+}
+
+// Called on every state update: pick up heroes the desktop app recognised.
+function syncDraft(d) {
+  if (!d || !draftReady || d.autoAt === draft.autoAt || draftTimer) return;
+  applyServerDraft(d);
+  renderSlots();
+  renderHeroGrid();
+  renderVisionLine();
+  pushDraft();
+}
+
+function renderVisionLine() {
+  const el = $('vision-line');
+  if (!el) return;
+  const v = status?.vision;
+  const unassigned = draft.unassigned?.length
+    ? `<span class="muted">Gjenkjent: ${draft.unassigned.map((n) => esc(heroByName.get(n)?.dname || n)).join(', ')} – venter på å vite hvilket lag du er på.</span>`
+    : '';
+  patch(
+    el,
+    v?.active
+      ? `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Automatisk</span><span class="muted">Desktop-appen leser heroene fra skjermen (merket AUTO). Feil hero? Klikk på den for å fjerne den.</span><button class="btn" data-vision-debug>📸 Lagre skjermbilde</button>${unassigned}`
+      : `<span class="muted">Automatisk gjenkjenning av heroer krever desktop-appen (Dota Coach.bat). Her kan du også legge dem inn selv.</span>${unassigned}`,
+  );
 }
 
 function renderSlots() {
@@ -615,7 +754,7 @@ function renderSlots() {
       const empty = Math.max(0, Math.min(LIMITS[g], g === 'bans' ? Math.max(list.length + 1, 3) : LIMITS[g]) - list.length);
       return `<div class="slot-row ${draft.mode === g ? 'active' : ''}" data-group="${g}">
         <div class="lbl">${GROUP_LABEL[g][0]}<small>${list.length}/${LIMITS[g]}</small></div>
-        <div class="slot-list">${list.map((n) => `<span class="slot-hero" data-remove="${g}:${n}">${heroImg(n, heroByName.get(n)?.dname)}</span>`).join('')}${'<span class="slot"></span>'.repeat(empty)}</div>
+        <div class="slot-list">${list.map((n) => `<span class="slot-hero ${draft.auto.has(n) ? 'auto' : ''}" data-remove="${g}:${n}" title="${draft.auto.has(n) ? 'Gjenkjent automatisk – klikk for å fjerne' : 'Klikk for å fjerne'}">${heroImg(n, heroByName.get(n)?.dname)}</span>`).join('')}${'<span class="slot"></span>'.repeat(empty)}</div>
       </div>`;
     })
     .join('');
@@ -627,6 +766,10 @@ $('draft-slots').addEventListener('click', (e) => {
   if (rm) {
     const [g, n] = rm.dataset.remove.split(':');
     draft[g] = draft[g].filter((x) => x !== n);
+    if (draft.auto.has(n)) {
+      draft.auto.delete(n);
+      draft.removed.add(n);
+    }
     renderSlots();
     renderHeroGrid();
     pushDraft();
@@ -680,8 +823,17 @@ function pushDraft() {
     const seq = ++draftSeq;
     if (draft.enemies.length) patch($('draft-results'), `<div class="card"><span class="spinner"></span> Regner ut forslag … (første gang kan ta noen sekunder)</div>`);
     try {
-      const res = await api('/api/draft', { enemies: draft.enemies, allies: draft.allies, bans: draft.bans, role: settings.role, bracket: settings.bracket });
-      if (seq === draftSeq) renderSuggestions(res.suggestions);
+      const body = { enemies: draft.enemies, allies: draft.allies, bans: draft.bans, removed: [...draft.removed], reset: !!draft.reset, role: settings.role, bracket: settings.bracket };
+      draft.removed = new Set();
+      draft.reset = false;
+      draftTimer = null;
+      const res = await api('/api/draft', body);
+      if (seq === draftSeq) {
+        applyServerDraft(res.draft);
+        renderSlots();
+        renderHeroGrid();
+        renderSuggestions(res.suggestions);
+      }
     } catch (err) {
       if (seq === draftSeq) patch($('draft-results'), `<div class="card"><div class="notice warn">Klarte ikke å regne ut forslag: ${esc(err.message)}</div></div>`);
     }
@@ -776,6 +928,29 @@ function popList(title, list) {
     .join('')}</div>`;
 }
 
+function skillsHtml(sk) {
+  if (!sk?.games) return '';
+  const strip = `<div class="subhead">Vanlig skill-rekkefølge <span class="faint">(${sk.games} pro-kamper)</span></div><div class="skill-strip">${sk.typical
+    .map((t, i) => `<div class="st" title="${esc(`${i + 1}: ${t.dname} (${t.pct} %)`)}">${skillImg(t, 'sm')}<span>${i + 1}</span></div>`)
+    .join('')}</div>`;
+  const talents = `<div class="subhead">Talenter <span class="faint">(andel som velger hver side)</span></div>${[...sk.talents]
+    .reverse()
+    .map((t) => {
+      const best = Math.max(...t.options.map((o) => o.pct ?? -1));
+      return `<div class="talent-tier"><span class="lvl">${t.level}</span>${t.options
+        .map((o) => `<div class="opt ${o.pct != null && o.pct === best ? 'best' : ''}"><span>${esc(o.dname)}</span><b>${o.pct != null ? `${o.pct} %` : '–'}</b></div>`)
+        .join('')}</div>`;
+    })
+    .join('')}`;
+  const neutrals = sk.neutrals?.length
+    ? `<div class="subhead">Nøytrale items <span class="faint">(pro-spillere, alle tiers)</span></div>${sk.neutrals
+        .slice(0, 10)
+        .map((it) => `<div class="pop-item">${itemImg(it.name, it.dname, 'sm')}<div><div>${esc(it.dname)} <span class="faint">tier ${it.tier ?? '?'}${it.winPct != null ? ` · ${it.winPct} % seier` : ''}</span></div><div class="bar blue"><i style="width:${Math.max(2, it.pct)}%"></i></div></div><span class="faint num">${it.pct} %</span></div>`)
+        .join('')}`
+    : '';
+  return strip + talents + neutrals;
+}
+
 async function loadHeroBuild(name) {
   const h = heroByName.get(name);
   $('meta-build').innerHTML = `<h3>Build</h3><span class="spinner"></span> Henter build for ${esc(h?.dname || name)} …`;
@@ -795,6 +970,7 @@ async function loadHeroBuild(name) {
       <div style="display:flex;gap:12px;align-items:center">${heroImg(name, h?.dname, 'lg')}<div><div class="hero-name">${esc(h?.dname || name)}</div>
       <div class="pos-badges" style="margin-top:6px">${(h?.positions || []).map((p, i) => `<span class="${i === 0 ? 'main' : ''}">Pos ${p}</span>`).join('')}</div></div></div>
       ${bench}
+      ${skillsHtml(data.skills)}
       ${b ? popList('Startitems', b.start) + popList('Tidlig (0–10 min)', b.early) + popList('Midgame (10–25 min)', b.mid) + popList('Lategame (25+ min)', b.late) : `<div class="notice warn" style="margin-top:12px">Ingen build-data: ${esc(data.error || 'ukjent feil')}</div>`}`;
   } catch (err) {
     $('meta-build').innerHTML = `<h3>Build</h3><div class="notice warn">${esc(err.message)}</div>`;

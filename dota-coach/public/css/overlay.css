@@ -60,3 +60,10 @@ body.edit .ov-edit-hint { display: block; }
 .ov-fight-row span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .fm-gauge.sm { height: 5px; }
 .fm-gauge.sm i { width: 11px; height: 11px; border-width: 2px; }
+
+.ov-skills { display: grid; gap: 4px; }
+.ov-skills:empty { display: none; }
+.ov-skill, .ov-pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 8px; border-radius: 8px; background: rgba(30, 39, 51, 0.85); border-left: 3px solid var(--gold); font-size: 12.5px; line-height: 1.3; }
+.ov-pick { grid-template-columns: auto minmax(0, 1fr); border-left-color: var(--blue); margin-top: 4px; }
+.ov-pick .tier { width: 16px; height: 16px; font-size: 10px; border-radius: 4px; vertical-align: 1px; }
+.ov-pct { font-family: var(--mono); font-weight: 700; color: var(--gold); font-size: 12px; }

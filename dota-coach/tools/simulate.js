@@ -22,6 +22,52 @@ const DEMO_ENEMIES = ['phantom_assassin', 'lion', 'zuus', 'riki', 'axe'];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+let abilityData = null;
+let itemData = null;
+const readData = (f) => JSON.parse(fs.readFileSync(path.join(ROOT, 'data', f), 'utf8'));
+
+// Q/W/E + ultimate with legal levels for the hero level (ultimate at 6/12/18, max level = (level+1)/2).
+function fakeAbilities(hero, level, skipped) {
+  abilityData ||= readData('abilities.json');
+  const known = abilityData.heroes[hero]?.abilities || [];
+  const names = known.length >= 4 ? [...known.slice(0, 3).map((a) => a.name), known[known.length - 1].name] : [0, 1, 2, 3].map((i) => `${hero}_ability_${i}`);
+  const talents = (level >= 10 ? 1 : 0) + (level >= 15 ? 1 : 0);
+  let points = Math.max(0, Math.min(level, 16) - talents - skipped);
+  const ult = Math.min(points, [6, 12, 18].filter((l) => level >= l).length);
+  points -= ult;
+  const lv = [0, 0, 0];
+  const cap = Math.min(4, Math.floor((level + 1) / 2));
+  for (; points > 0; points--) {
+    const i = [0, 1, 2].find((k) => lv[k] < cap);
+    if (i == null) break;
+    lv[i]++;
+  }
+  const out = {};
+  [...lv, ult].forEach((l, i) => (out[`ability${i}`] = { name: names[i], level: l, can_cast: l > 0, passive: false, ability_active: true, cooldown: 0, ultimate: i === 3 }));
+  return out;
+}
+
+// The neutral item craft (artifact + enchantment choices) the way GSI reports it.
+function fakeNeutrals(clock) {
+  if (clock < 300) return undefined;
+  itemData ||= readData('items.json').items;
+  const tier = clock >= 1500 ? 2 : clock >= 900 ? 1 : 0;
+  const arts = Object.keys(itemData).filter((n) => itemData[n].tier === tier + 1).slice(0, 4);
+  const ench = Object.keys(itemData).filter((n) => n.startsWith('enhancement_')).slice(tier * 3, tier * 3 + 4);
+  const chosen = clock - [300, 900, 1500][tier] > 150;
+  const choices = (list) => Object.fromEntries(list.map((n, i) => [`choice${i}`, { item_name: `item_${n}`, item_level: tier + 1, selected: chosen && i === 0 }]));
+  return {
+    team2: {
+      player0: {
+        current_madstone: chosen ? 0 : 20,
+        total_madstone: 20 * (tier + 1),
+        crafting_tier: tier,
+        [`tier${tier}`]: { tier, trinket_choices: choices(arts), enchantment_choices: choices(ench) },
+      },
+    },
+  };
+}
+
 export function fakePayload(s, token) {
   const { clock, hero } = s;
   const phase = s.phase;
@@ -50,7 +96,9 @@ export function fakePayload(s, token) {
   for (let i = 0; i < 6; i++) items[`stash${i}`] = { name: stash[i] ? `item_${stash[i]}` : 'empty' };
   const noTp = clock > 720 && clock < 770;
   items.teleport0 = { name: noTp ? 'empty' : 'item_tpscroll', charges: 1 };
-  items.neutral0 = { name: 'empty' };
+  const neutrals = fakeNeutrals(clock);
+  const neutralPick = neutrals && Object.values(Object.values(neutrals.team2.player0).find((v) => v?.trinket_choices).trinket_choices).find((c) => c.selected);
+  items.neutral0 = { name: neutralPick ? neutralPick.item_name : 'empty' };
 
   // Position: safe lane in the laning phase, jungle later, a trip into enemy jungle around 17:00.
   let pos = [4200, -6300];
@@ -59,11 +107,8 @@ export function fakePayload(s, token) {
   if (!s.alive) pos = [-7000, -6500];
 
   const hp = !s.alive ? 0 : s.lowHp ? 18 : Math.round(60 + 35 * Math.sin(clock / 23));
-  const abilitiesUsed = level - (clock > 420 && clock < 445 ? 1 : 0) - (level >= 10 ? 1 : 0) - (level >= 15 ? 1 : 0);
-  const abilities = {};
-  const per = [Math.ceil(abilitiesUsed * 0.3), Math.ceil(abilitiesUsed * 0.3), Math.floor(abilitiesUsed * 0.25)];
-  per.push(Math.max(0, abilitiesUsed - per[0] - per[1] - per[2]));
-  per.forEach((lvl, i) => (abilities[`ability${i}`] = { name: `${hero}_ability_${i}`, level: Math.max(0, lvl), can_cast: true, passive: false, ability_active: true, cooldown: 0, ultimate: i === 3 }));
+  // Around 7:00 the simulated player forgets to skill for a while, so the "skill X" tip shows up.
+  const abilities = fakeAbilities(hero, level, clock > 420 && clock < 445 ? 1 : 0);
 
   const state = {
     'DRAFT': 'DOTA_GAMERULES_STATE_HERO_SELECTION',
@@ -97,7 +142,7 @@ export function fakePayload(s, token) {
       steamid: '0', accountid: '0', name: 'Demo', activity: 'playing',
       kills: Math.floor(t / 240), deaths: s.deaths, assists: Math.floor(t / 200),
       last_hits: Math.floor((t / 60) * (clock < 600 ? 4.4 : 7.2)), denies: Math.floor(t / 70),
-      kill_streak: 0, commands_issued: Math.floor(t * 3), kill_list: {}, team_name: 'radiant',
+      kill_streak: 0, commands_issued: Math.floor(t * 3), kill_list: {}, team_name: 'radiant', team_slot: 0, player_slot: 0,
       gold, gold_reliable: Math.floor(gold * 0.3), gold_unreliable: gold - Math.floor(gold * 0.3),
       gold_from_hero_kills: 0, gold_from_creep_kills: 0, gold_from_income: 0, gold_from_shared: 0,
       gpm, xpm: Math.round(gpm * 1.05),
@@ -114,6 +159,7 @@ export function fakePayload(s, token) {
     items: phase === 'DRAFT' ? {} : items,
     buildings: { radiant: { dota_goodguys_tower1_bot: { health: clock > 1300 ? 0 : 1800, max_health: 1800 }, dota_goodguys_tower1_top: { health: 1800, max_health: 1800 } } },
     events,
+    ...(neutrals && phase !== 'DRAFT' ? { neutralitems: neutrals } : {}),
     auth: { token },
   };
 }

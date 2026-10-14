@@ -113,9 +113,39 @@ export const RULES = [
   },
   function unspentSkillPoints(c) {
     if (!playing(c) || c.unspent < 1) return;
-    if (!c.held('unspent', true, 10)) return;
+    const next = c.skills?.next;
+    // With a recommendation the player gets a few seconds to skill on their own; without one, wait longer.
+    if (!c.held('unspent', true, next ? 4 : 10)) return;
     const n = c.unspent;
+    if (next) {
+      const what = next.talent ? `talentet «${next.dname}»` : `${next.dname} (nivå ${next.toLevel})`;
+      const why = next.pct ? ` – ${next.pct} % av pro-spillerne gjør det her` : '';
+      return tip('unspent', 'warn', '⬆️', `Skill ${what}${why}.${n > 1 ? ` Du har ${n} ubrukte poeng.` : ''}`, {
+        say: `Skill ${next.talent ? 'talent' : next.dname}`,
+        cooldown: 90,
+      });
+    }
     return tip('unspent', 'warn', '⬆️', `Du har ${n} ubrukt${n > 1 ? 'e' : ''} ferdighetspoeng!`, { say: 'Husk å skille opp', cooldown: 90 });
+  },
+  function talentChoice(c) {
+    const t = c.skills?.talent;
+    if (!playing(c) || !t?.open || c.unspent < 1) return;
+    const pick = t.options.find((o) => o.name === t.pick);
+    if (!pick) return;
+    const split = t.options.map((o) => `${o.dname}${o.pct != null ? ` ${o.pct} %` : ''}`).join(' / ');
+    return tip(`talent-${t.tier}`, 'info', '🌟', `Talent nivå ${t.level}: ta «${pick.dname}» (${t.reason}). Pro-fordeling: ${split}.${t.hint ? ` ${t.hint}` : ''}`);
+  },
+  function neutralCraft(c) {
+    const n = c.skills?.neutral;
+    if (!inGame(c) || !n || (!n.artifacts.length && !n.enchantments.length)) return;
+    if (n.artifacts.some((a) => a.selected) && n.enchantments.some((e) => e.selected)) return;
+    const a = n.artifacts.find((x) => x.name === n.pickArtifact);
+    const e = n.enchantments.find((x) => x.name === n.pickEnchantment);
+    const parts = [];
+    if (a && !n.artifacts.some((x) => x.selected)) parts.push(`artefakt: ${a.dname}${a.pct != null ? ` (${a.pct} % av pro-spillerne)` : ''}`);
+    if (e && !n.enchantments.some((x) => x.selected)) parts.push(`fortryllelse: ${e.dname}${e.stats ? ` (${e.stats})` : ''}`);
+    if (!parts.length) return;
+    return tip(`neutral-${n.tier}`, 'info', '💎', `Nøytralt item tier ${n.tier} – velg ${parts.join(' og ')}.`, { say: 'Velg nøytralt item', cooldown: 600 });
   },
   function supportWards(c) {
     if (!inGame(c) || c.role < 4 || !alive(c) || c.clock < 120) return;

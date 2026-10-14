@@ -9,10 +9,12 @@ import { percentileOf } from './percentile.js';
 import { fightAdvice } from './fight.js';
 import { MatchRecorder } from './recorder.js';
 import { SPIKE_ITEMS } from '../../data/knowledge.js';
+import { nextSkillPoint, talentAdvice, neutralAdvice } from './skills.js';
 
 export { percentileOf };
 
 const LEVEL_ORDER = { alert: 0, warn: 1, good: 2, info: 3 };
+const playingPhase = (p) => ['strategy', 'pregame', 'laning', 'mid', 'late'].includes(p);
 
 // Tip keys must stay unique across matches and server restarts (clients remember what they have read aloud).
 const BOOT_ID = Math.random().toString(36).slice(2, 7);
@@ -226,16 +228,69 @@ export class Coach {
     }
   }
 
-  unspentPoints(gsi) {
-    const hero = gsi.hero;
-    const abilities = gsi.abilities;
-    if (!hero?.level || !abilities) return 0;
-    let used = 0;
-    for (const a of Object.values(abilities)) {
-      if (a && typeof a.level === 'number' && !String(a.name || '').startsWith('special_bonus')) used += a.level;
+  // Ability levels and talents as GSI reports them. `skillable` (names that really take points, e.g. from
+  // pro builds) keeps innate abilities and sub-spells such as "Release" out of the count.
+  readSkills(gsi, skillable) {
+    const hero = gsi.hero || {};
+    const levels = {};
+    const ultimates = new Set();
+    for (const a of Object.values(gsi.abilities || {})) {
+      const name = String(a?.name || '');
+      if (!name || typeof a.level !== 'number' || name.startsWith('special_bonus')) continue;
+      if (skillable && !skillable.has(name)) continue;
+      levels[name] = a.level;
+      if (a.ultimate) ultimates.add(name);
     }
-    for (let i = 1; i <= 8; i++) if (hero[`talent_${i}`]) used += 1;
+    // talent_1/talent_2 are the two choices at level 10, talent_3/4 at 15, and so on.
+    const talentTiers = new Set();
+    for (let i = 1; i <= 8; i++) if (hero[`talent_${i}`]) talentTiers.add(Math.ceil(i / 2));
+    return { level: hero.level || 0, levels, ultimates, talentTiers };
+  }
+
+  unspentPoints(gsi, skillable) {
+    const hero = gsi.hero;
+    if (!hero?.level || !gsi.abilities) return 0;
+    const cur = this.readSkills(gsi, skillable);
+    const used = Object.values(cur.levels).reduce((s, v) => s + v, 0) + cur.talentTiers.size;
     return Math.max(0, expectedSkillPoints(hero.level) - used);
+  }
+
+  // Next ability/talent, the talent choice when one is open, and the neutral item craft.
+  skillAdvice(c, stats) {
+    const out = { next: null, talent: null, neutral: null, typical: stats?.typical?.slice(0, 16) || [], games: stats?.games || 0 };
+    if (c.gsi.abilities && c.hero?.level) {
+      const cur = this.readSkills(c.gsi, stats?.abilities?.length ? new Set(stats.abilities.map((a) => a.name)) : null);
+      if (c.unspent > 0 && stats) out.next = nextSkillPoint(stats, cur);
+      // A talent tier that is open now (or the next one) – show the pro split ahead of time.
+      const tier = [1, 2, 3, 4].find((t) => !cur.talentTiers.has(t) && c.hero.level >= [10, 15, 20, 25][t - 1] - 1);
+      if (tier && stats) {
+        out.talent = talentAdvice(stats, tier, { dyingALot: c.deathsSince(600) >= 3 });
+        if (out.talent) out.talent.open = c.hero.level >= out.talent.level;
+      }
+    }
+    if (c.gsi.neutralitems) {
+      try {
+        out.neutral = neutralAdvice({
+          gsiNeutral: c.gsi.neutralitems,
+          team: c.team,
+          teamSlot: c.player.team_slot,
+          stats,
+          itemDb: c.db,
+          role: c.role,
+          attr: c.heroAttr,
+        });
+      } catch (err) {
+        console.error('Nøytral-råd feilet:', err.message);
+      }
+    }
+    // No craft choice open: show which artifacts pros use in the current tier.
+    if (!out.neutral && stats?.neutrals?.length) {
+      const tierNow = [60, 35, 25, 15, 0].findIndex((m) => c.clock >= m * 60);
+      const tier = tierNow < 0 ? 1 : 5 - tierNow;
+      const list = stats.neutrals.filter((n) => n.tier === tier).slice(0, 4);
+      if (list.length) out.proNeutrals = { tier, items: list };
+    }
+    return out;
   }
 
   farmAdvice(c) {
@@ -345,7 +400,8 @@ export class Coach {
       T: this.T,
       db: d.itemDb,
       perf,
-      unspent: this.unspentPoints(gsi),
+      unspent: this.unspentPoints(gsi, meta?.skills?.abilities?.length ? new Set(meta.skills.abilities.map((a) => a.name)) : null),
+      heroAttr: heroInfo?.attr || null,
       roshanKilledAt: this.roshanKilledAt,
       lhAt10: this.lhAt10,
       held: (id, cond, secs) => this.held(id, cond, secs),
@@ -359,6 +415,7 @@ export class Coach {
     };
 
     if (['laning', 'mid', 'late'].includes(phase) && heroName) this.trackSpikes(c);
+    c.skills = heroName && playingPhase(phase) ? this.skillAdvice(c, meta?.skills || null) : null;
     const fight = fightAdvice(c);
     this.stabiliseFight(fight);
     c.fight = fight;
@@ -427,6 +484,10 @@ export class Coach {
       enemyTips: enemyTips(enemies),
       perf: { ...perf, lhAt10: this.lhAt10 },
       fight,
+      skills: c.skills,
+      draft: { allies: draft.allies, enemies: draft.enemies, autoAllies: draft.autoAllies || [], autoEnemies: draft.autoEnemies || [], unassigned: draft.unassigned || [], team: draft.team || null, autoAt: draft.autoAt || 0 },
+      // Pick suggestions while heroes are being picked (filled from the draft the app recognised on screen).
+      draftHelp: ['draft', 'strategy'].includes(phase) || (!heroName && phase !== 'menu') ? d.getDraftHelp?.() || null : null,
       matchReady: false,
       updatedAt: Date.now(),
     };

@@ -169,3 +169,64 @@ test('update API: check, install into a copy of the app, then restart', async ()
     fs.rmSync(appRoot, { recursive: true, force: true });
   }
 });
+
+test('heroes recognised on screen fill the draft; the user can remove a wrong one', async () => {
+  const draftPayload = (team) => ({ auth: { token }, map: { matchid: '777', game_state: 'DOTA_GAMERULES_STATE_HERO_SELECTION', clock_time: -60 }, player: { team_name: team }, hero: { id: 0 } });
+  await post('/api/draft', { reset: true, enemies: [], allies: [] }); // start from an empty draft
+  // Team not known yet: the heroes are only listed as recognised.
+  await post('/gsi', { ...draftPayload('radiant'), player: {} });
+  let res = await (await post('/api/draft/auto', { left: ['axe', 'lion'], right: ['phantom_assassin', 'zuus', 'nope'] })).json();
+  assert.deepEqual(res.draft.enemies, []);
+  assert.deepEqual(res.draft.unassigned.sort(), ['axe', 'lion', 'phantom_assassin', 'zuus']);
+
+  // Dire: the heroes on the left are the enemies.
+  await post('/gsi', draftPayload('dire'));
+  const d = await (await fetch(`${base}/api/draft`)).json();
+  assert.deepEqual(d.enemies.sort(), ['axe', 'lion']);
+  assert.deepEqual(d.allies.sort(), ['phantom_assassin', 'zuus']);
+  assert.equal(d.team, 'dire');
+
+  // Pick suggestions for the overlay show up in the state during the draft.
+  let state;
+  for (let i = 0; i < 50 && !state?.draftHelp?.enemies?.length; i++) {
+    await new Promise((r) => setTimeout(r, 50));
+    state = await (await fetch(`${base}/api/state`)).json();
+  }
+  assert.equal(state.phase, 'draft');
+  assert.ok(state.draftHelp.picks.length > 0);
+  assert.ok(!state.draftHelp.picks.some((p) => ['axe', 'lion', 'zuus'].includes(p.name)));
+  assert.deepEqual(state.draft.autoEnemies.sort(), ['axe', 'lion']);
+
+  // Lion was a misdetection: removed by hand, it stays out even though the screen still shows it.
+  res = await (await post('/api/draft', { enemies: ['axe', 'tinker'], allies: ['phantom_assassin', 'zuus'], removed: ['lion'] })).json();
+  assert.deepEqual(res.draft.enemies.sort(), ['axe', 'tinker']);
+  res = await (await post('/api/draft/auto', { left: ['axe', 'lion', 'riki'], right: ['phantom_assassin', 'zuus'] })).json();
+  assert.deepEqual(res.draft.enemies.sort(), ['axe', 'riki', 'tinker']);
+  assert.deepEqual(res.draft.autoEnemies.sort(), ['axe', 'riki']);
+
+  // The desktop app reports in; the status shows it.
+  const v = await (await post('/api/vision/status', { found: 5, heroes: [] })).json();
+  assert.equal(v.ok, true);
+  const st = await (await fetch(`${base}/api/status`)).json();
+  assert.equal(st.vision.active, true);
+  await post('/api/draft', { reset: true });
+});
+
+test('the live coach says which ability to skill and which neutral item to pick', async () => {
+  await fetch(`${base}/api/hero/juggernaut`); // pro skill builds from the fixtures
+  const s = { phase: 'GAME', clock: 425, hero: 'juggernaut', heroId: 8, deaths: 0, alive: true, respawn: 0, lowHp: false, matchId: '778' };
+  let state;
+  for (let i = 0; i < 8; i++) {
+    s.clock += 1;
+    assert.equal((await post('/gsi', fakePayload(s, token))).status, 200);
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  state = await (await fetch(`${base}/api/state`)).json();
+  assert.ok(state.skills?.games > 0, 'skill stats loaded');
+  assert.ok(state.skills.next, 'a recommendation for the unspent point');
+  const tip = state.tips.find((t) => t.id === 'unspent');
+  assert.ok(tip, 'unspent tip');
+  assert.match(tip.text, new RegExp(state.skills.next.dname));
+  assert.ok(state.skills.neutral?.artifacts.length);
+  assert.ok(state.tips.some((t) => t.id.startsWith('neutral-')));
+});

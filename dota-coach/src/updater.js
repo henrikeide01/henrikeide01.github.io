@@ -21,7 +21,7 @@ export const DEFAULT_CHANNEL = {
 };
 
 // Never touched by an update: the user's own data, downloaded packages and the updater's own state.
-const PROTECTED = [/^settings\.json$/, /^overlay-window\.json$/, /^\.installed\.json$/, /^\.needs-install$/, /^(matches|cache|backup|node_modules|\.update)\//, /(^|\/)\.git\//];
+const PROTECTED = [/^settings\.json$/, /^overlay-window\.json$/, /^\.installed\.json$/, /^\.needs-install$/, /^(matches|cache|backup|debug|node_modules|\.update)\//, /(^|\/)\.git\//];
 const TEXT_EXT = new Set(['.js', '.cjs', '.mjs', '.json', '.html', '.css', '.md', '.bat', '.cmd', '.txt', '.cfg', '.svg', '']);
 const CRLF_EXT = new Set(['.bat', '.cmd']);
 const KEEP_BACKUPS = 3;

@@ -18,6 +18,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 let overlay = null;
 let mainWin = null;
 let tray = null;
+let vision = null;
 let editMode = false;
 let quitting = false;
 let baseUrl = '';
@@ -182,6 +183,13 @@ app.whenReady().then(async () => {
   createOverlay();
   createMain();
 
+  // Recognises the heroes in the draft from the screen, so nobody has to enter them by hand.
+  try {
+    vision = require('./vision.cjs').startVision({ root: ROOT, baseUrl });
+  } catch (err) {
+    console.error('Bildegjenkjenningen startet ikke:', err.message);
+  }
+
   globalShortcut.register('Alt+Shift+C', toggleOverlay);
   globalShortcut.register('Alt+Shift+M', () => setEditMode(!editMode));
   globalShortcut.register('Alt+Shift+S', toggleSpeech);
@@ -195,5 +203,6 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   quitting = true;
+  vision?.stop();
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());

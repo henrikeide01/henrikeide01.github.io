@@ -451,7 +451,15 @@ export async function startServer(opts = {}) {
     try {
       const res = await draftSuggestions(settings.role, settings.bracket);
       if (seq !== helpSeq) return;
-      draftHelp = { picks: res.picks.slice(0, 6), avoid: (res.avoid || []).slice(0, 3), hasStats: res.hasStats, hasMatchups: res.hasMatchups, enemies: draft.enemies, allies: draft.allies };
+      const slim = (p) => ({
+        name: p.name,
+        dname: p.dname,
+        tier: p.tier,
+        winrate: p.winrate,
+        good: (p.good || []).slice(0, 2).map((x) => x.dname),
+        bad: (p.bad || []).slice(0, 2).map((x) => x.dname),
+      });
+      draftHelp = { picks: res.picks.slice(0, 6).map(slim), avoid: (res.avoid || []).slice(0, 3).map(slim), hasStats: res.hasStats, hasMatchups: res.hasMatchups, enemies: draft.enemies, enemyNames: draft.enemies.map((n) => heroes.get(n)?.dname || n), allies: draft.allies };
       recompute();
     } catch (err) {
       log(`Draft-forslag feilet: ${err.message}`);

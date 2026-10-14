@@ -48,6 +48,9 @@ export function makeFixtures(dir) {
   const { heroes } = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/heroes.json'), 'utf8'));
   const { items } = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/items.json'), 'utf8'));
   const write = (name, data) => fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify(data));
+  const abilityData = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/abilities.json'), 'utf8'));
+  const abilityId = Object.fromEntries(Object.entries(abilityData.ids).map(([id, n]) => [n, Number(id)]));
+  const neutralIds = [1, 2, 3, 4, 5].map((t) => Object.values(items).filter((it) => it.tier === t && it.id).map((it) => it.id));
 
   write(
     'heroStats',
@@ -86,6 +89,44 @@ export function makeFixtures(dir) {
     const [gpm, xpm, lh] = MEDIAN[pos];
     const pts = (m) => SPREAD.map(([percentile, f]) => ({ percentile, value: Math.round(m * f * 100) / 100 }));
     write(`benchmarks_hero_id_${h.id}`, { hero_id: h.id, result: { gold_per_min: pts(gpm), xp_per_min: pts(xpm), last_hits_per_min: pts(lh) } });
+
+    // Explorer rows: skill orders (ability ids), the neutral item at the end and win/loss.
+    const ab = abilityData.heroes[h.name];
+    if (ab?.abilities?.length >= 4) {
+      const basics = ab.abilities.slice(0, 3).map((a) => abilityId[a.name]);
+      const ult = abilityId[ab.abilities[ab.abilities.length - 1].name];
+      const talent = (tier, k) => abilityId[ab.talents.filter((t) => t.tier === tier)[k]?.name];
+      const rows = [];
+      for (let g = 0; g < 160; g++) {
+        const r = (x) => hash(`${h.name}${g}${x}`);
+        const prio = r('o') < 0.7 ? [0, 1, 2] : r('o2') < 0.5 ? [1, 0, 2] : [2, 0, 1];
+        const lv = [0, 0, 0];
+        let u = 0;
+        const order = [];
+        for (let level = 1; level <= 18; level++) {
+          if ([10, 15].includes(level)) {
+            const id = talent(level === 10 ? 1 : 2, r(`t${level}`) < 0.72 ? 0 : 1);
+            if (id) order.push(id);
+            continue;
+          }
+          if ([6, 12, 18].includes(level) && u < 3) {
+            u++;
+            if (ult) order.push(ult);
+            continue;
+          }
+          const cap = Math.min(4, Math.floor((level + 1) / 2));
+          // Level 1-2: sometimes a different first spell.
+          const pick = (level <= 2 && r(`f${level}`) < 0.3 ? [prio[1], prio[0], prio[2]] : prio).find((i) => lv[i] < cap);
+          if (pick == null) continue;
+          lv[pick]++;
+          if (basics[pick]) order.push(basics[pick]);
+        }
+        const tier = r('nt') < 0.5 ? 2 : 3;
+        const pool = neutralIds[tier - 1];
+        rows.push({ a: order, n: pool.length ? pool[Math.floor(r('n') * r('n2') * pool.length)] : null, w: r('w') < 0.52 });
+      }
+      write(`explorer_skills_${h.id}`, { rows });
+    }
   }
 }
 

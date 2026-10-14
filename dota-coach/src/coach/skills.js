@@ -201,20 +201,66 @@ export function enchantProfile(role, attr) {
   return attr === 'int' ? 'caster' : 'core';
 }
 
-export function enchantScore(item, profile) {
+// Neutral artifacts name their stats differently; map them onto the enchantment keys above.
+const ARTIFACT_KEYS = {
+  bonus_damage: 'bonus_damage', base_damage: 'bonus_damage', bonus_damage_pct: 'bonus_damage',
+  attack_speed: 'attack_speed', aspd: 'attack_speed', bonus_attack_speed: 'attack_speed',
+  bonus_health: 'health_bonus', hp_regen: 'health_regen', bonus_health_regen: 'health_regen', aura_health_regen: 'health_regen',
+  armor: 'armor', bonus_armor: 'armor', ally_armor: 'armor', evasion: 'evasion', lifesteal: 'attack_lifesteal',
+  bonus_mana: 'max_mana', mana: 'max_mana', bonus_mana_regen: 'mana_regen', mana_regen: 'mana_regen', mp_regen: 'mana_regen',
+  spell_amp: 'spell_amp', cast_range: 'cast_range_bonus', manacost_reduction: 'manacost_reduction',
+  magic_resistance: 'magic_res', bonus_magic_resistance: 'magic_res', magic_resist: 'magic_res',
+  movespeed_pct: 'movement_speed', bonus_movespeed: 'movement_speed', move_speed: 'movement_speed', passive_movement_bonus: 'movement_speed',
+  slow_resist: 'slow_resist', max_slow_res: 'slow_resist', bonus_all_stats: 'primary_stat', primary_attribute: 'primary_stat',
+};
+const STAT_ATTR = { bonus_agility: 'agi', bonus_strength: 'str', bonus_intellect: 'int', bonus_int: 'int', intelligence_pct: 'int' };
+
+// How well an artifact's stats fit the role and hero (used when pros give no data for the choices).
+export function artifactScore(item, profile, attr) {
   const w = ENCHANT_WEIGHTS[profile];
   let score = 0;
-  for (const a of item?.attrib || []) score += w[a.key] || 0;
+  for (const a of item?.attrib || []) {
+    const v = Number(String(a.value ?? '').split(' / ').pop());
+    if (!v) continue;
+    if (STAT_ATTR[a.key]) score += STAT_ATTR[a.key] === attr ? 3 : attr === 'all' ? 2 : 1;
+    else score += (w[ARTIFACT_KEYS[a.key]] || 0) * (v < 0 ? -1 : 1);
+  }
+  return score;
+}
+
+// The value of a stat at an enchantment level ("0 / 10 / 13 / 16" at level 2 -> "10"); the last one without a level.
+const valueAt = (a, level) => {
+  const values = String(a.value ?? '').split(' / ');
+  return level > 0 && values[level - 1] != null ? values[level - 1] : values[values.length - 1];
+};
+
+export function enchantScore(item, profile, level = 0) {
+  const w = ENCHANT_WEIGHTS[profile];
+  let score = 0;
+  for (const a of item?.attrib || []) {
+    const v = Number(valueAt(a, level));
+    if (v === 0) continue;
+    // A stat that is negative here (e.g. "-4 Armor") is a cost, not a bonus.
+    score += (w[a.key] || 0) * (v < 0 ? -1 : 1);
+  }
   // Negative side effects.
   if ((item?.attrib || []).some((a) => a.key === 'cost_increase' || a.key === 'incoming_damage')) score -= 1;
   return score;
 }
 
-const stat = (item) =>
+// "+ {value}% Magic Resistance" with "0 / 10 / 13 / 16" at level 2 -> "+10% Magic Resistance".
+const stat = (item, level = 0) =>
   (item?.attrib || [])
     .filter((a) => a.display)
+    .map((a) => {
+      const v = valueAt(a, level);
+      if (Number(v) === 0) return null;
+      const text = a.display.replace(/^([+-]) /, '$1');
+      // "-{value} Armor" with "-4": keep one minus.
+      return (String(v).startsWith('-') ? text.replace(/^[+-]/, '') : text).replace('{value}', v);
+    })
+    .filter(Boolean)
     .slice(0, 3)
-    .map((a) => a.display.replace('{value}', String(a.value).split(' / ').pop()).replace(/^\+ /, '+'))
     .join(', ');
 
 // GSI "neutralitems" block for this player -> the choices for the tier being crafted, ranked.
@@ -236,25 +282,31 @@ export function neutralAdvice({ gsiNeutral, team, teamSlot, stats, itemDb, role,
     .map((c) => {
       const name = strip(c.item_name);
       const p = pro.get(name);
-      return { name, dname: itemDb.dname(name), selected: !!c.selected, pct: p?.pct ?? null, winPct: p?.winPct ?? null, stats: stat(itemDb.get(name)) };
+      return { name, dname: itemDb.dname(name), selected: !!c.selected, pct: p?.pct ?? null, winPct: p?.winPct ?? null, score: artifactScore(itemDb.get(name), profile, attr), stats: stat(itemDb.get(name), c.item_level) };
     })
-    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+    // Pro pick rate first; the stat fit decides between items pros don't use.
+    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || b.score - a.score);
   const enchantments = Object.values(t.enchantment_choices || {})
     .map((c) => {
       const name = strip(c.item_name);
-      return { name, dname: itemDb.dname(name), selected: !!c.selected, score: enchantScore(itemDb.get(name), profile), stats: stat(itemDb.get(name)) };
+      return { name, dname: itemDb.dname(name), selected: !!c.selected, score: enchantScore(itemDb.get(name), profile, c.item_level), stats: stat(itemDb.get(name), c.item_level) };
     })
     .sort((a, b) => b.score - a.score);
 
   const haveData = artifacts.some((a) => a.pct != null);
+  const fits = artifacts[0] && (haveData || artifacts[0].score > 0);
   return {
     tier: tierNo,
     madstone: me.current_madstone ?? null,
     artifacts,
     enchantments,
-    pickArtifact: artifacts[0]?.name || null,
-    pickEnchantment: enchantments[0]?.name || null,
-    artifactReason: haveData ? 'mest brukt av pro-spillere på denne heroen' : 'ingen pro-data for disse, velg etter behov',
+    pickArtifact: fits ? artifacts[0].name : null,
+    pickEnchantment: enchantments[0]?.score > 0 ? enchantments[0].name : null,
+    artifactReason: haveData
+      ? 'mest brukt av pro-spillere på denne helten'
+      : fits
+        ? 'pro-spillerne har ikke disse i sluttbuilden, så den er valgt etter hva statsene gir rollen og helten din'
+        : 'ingen pro-data for disse, velg etter behov',
     enchantmentReason: { core: 'gir mest skade og overlevelse for en kjerne', caster: 'gir mest til en spell-caster', offlane: 'gjør deg tøffest som offlaner', support: 'gir mest til en support (fart, liv og mana)' }[profile],
   };
 }
