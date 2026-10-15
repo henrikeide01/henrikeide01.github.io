@@ -19,7 +19,8 @@ const LEVEL_ORDER = { alert: 0, warn: 1, good: 2, info: 3 };
 const playingPhase = (p) => ['strategy', 'pregame', 'laning', 'mid', 'late'].includes(p);
 const VITALS_SECS = 180; // HP/mana history kept for the live item suggestions
 // Own buildings that mean "the base is under attack" when they lose HP.
-const BASE_BUILDING = /_(tower3|tower4|melee_rax|range_rax|fort)/;
+// GSI names: dota_goodguys_tower3_bot, good_rax_melee_bot, bad_rax_range_top, dota_badguys_fort …
+const BASE_BUILDING = /(tower3|tower4|_rax_(?:melee|range)|_fort)/;
 
 // Tip keys must stay unique across matches and server restarts (clients remember what they have read aloud).
 const BOOT_ID = Math.random().toString(36).slice(2, 7);
@@ -163,6 +164,7 @@ export class Coach {
     this.aegisAt = null;
     this.lhAt10 = null;
     this.lastNeutral = null;
+    this.offeredNeutrals = new Map(); // tier -> names the game offered (craft choices)
     this.clock = 0;
     this.vitals = []; // [{ t, hp, mana, maxMana, alive }] one per game second
     this.liveItems = new LiveItemTracker();
@@ -441,7 +443,13 @@ export class Coach {
       }
     }
     // A payload without the block (or an unreadable one) right after a good one: keep the last choice a few seconds.
-    if (out.neutral) this.lastNeutral = { clock: c.clock, advice: out.neutral };
+    if (out.neutral) {
+      this.lastNeutral = { clock: c.clock, advice: out.neutral };
+      if (out.neutral.tier != null) {
+        const names = [...(out.neutral.artifacts || []), ...(out.neutral.enchantments || [])].map((x) => x.name);
+        this.offeredNeutrals.set(out.neutral.tier, new Set([...(this.offeredNeutrals.get(out.neutral.tier) || []), ...names]));
+      }
+    }
     else if (c.gsi.neutralitems == null && this.lastNeutral && c.clock - this.lastNeutral.clock >= 0 && c.clock - this.lastNeutral.clock <= 10) out.neutral = this.lastNeutral.advice;
     if (inGameNow) {
       const tier = Math.max(open.tier, Math.min(5, out.neutral?.tier || 0));
@@ -451,11 +459,16 @@ export class Coach {
       out.proNeutrals = neutralByTier({ tier, stats, itemDb: c.db, role: c.role, attr: c.heroAttr });
       // What is equipped, and whether it should be upgraded or is clearly worse than the recommendation.
       const equipped = readEquippedNeutral(c.gsi.items, c.db);
+      // What he wears now counts as chosen, even if the game's block has no "selected" flag.
+      if (out.neutral && equipped.seen) {
+        for (const x of out.neutral.artifacts || []) if (x.name === equipped.artifact?.name) x.selected = true;
+        for (const x of out.neutral.enchantments || []) if (x.name === equipped.enchantment?.name) x.selected = true;
+      }
       if (equipped.seen) {
         out.neutralGear = {
           artifact: equipped.artifact,
           enchantment: equipped.enchantment,
-          advice: neutralGearAdvice({ equipped, tier, sinceOpen: out.neutralTier.since, clock: c.clock, rec: out.proNeutrals, stats, itemDb: c.db, role: c.role, attr: c.heroAttr }),
+          advice: neutralGearAdvice({ equipped, tier, sinceOpen: out.neutralTier.since, clock: c.clock, rec: out.proNeutrals, stats, itemDb: c.db, role: c.role, attr: c.heroAttr, offered: this.offeredNeutrals.get(tier) }),
         };
       }
     }

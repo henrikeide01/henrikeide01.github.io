@@ -162,10 +162,10 @@ export function buildDeathRecap(d, live) {
   const add = (id, weight, text, say = null) => m.push({ id, weight, text, say });
   if (unused.length) {
     const what = join(unused.slice(0, 2).map((u) => u.label));
-    add('unused-items', 90, `${what} var klar${unused.length > 1 ? 'e' : ''}, men ble ikke brukt. Bruk det før HP-en blir lav.`, `Du hadde ${SAVE_ACTIVES[unused[0].name]} klar`);
+    add('unused-items', 90, `${what} var klar${unused.length > 1 ? 'e' : ''}, men ble ikke brukt. Bruk ${unused.length > 1 ? 'dem' : 'det'} før HP-en blir lav.`, `Du hadde ${SAVE_ACTIVES[unused[0].name]} klar`);
   } else if (blocked.length) {
     const what = join(blocked.slice(0, 2).map((u) => u.label));
-    add('stunned-first', 70, `Du ble stunnet før du rakk å bruke ${what}. Bruk det tidligere, før stunnen kommer.`, `Bruk ${SAVE_ACTIVES[blocked[0].name]} tidligere`);
+    add('stunned-first', 70, `Du ble stunnet før du rakk å bruke ${what}. Bruk ${blocked.length > 1 ? 'dem' : 'det'} tidligere, før stunnen kommer.`, `Bruk ${SAVE_ACTIVES[blocked[0].name]} tidligere`);
   }
   if (save) add('save-spell', 80, `${dname(save.name)} var klar. Bruk den til å komme deg unna.`, `${dname(save.name)} var klar`);
   if (fight === 'farm' || fight === 'retreat') add('fight-meter', 75, `Fight-meteret sa «${FIGHT_LABEL[fight]}» før fighten. Det var ikke tid for å kjempe.`, `Fight-meteret sa ${FIGHT_LABEL[fight].toLowerCase()}`);

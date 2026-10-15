@@ -315,3 +315,20 @@ test('/api/diagnostics includes the neutral item sample', async () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('review fixes: enchantments are only recommended for tiers where the game offers them', async () => {
+  const { neutralByTier, ENCHANT_TIERS } = await import('../src/coach/skills.js');
+  const { ItemDb } = await import('../src/coach/items.js');
+  const fs = await import('node:fs');
+  const items = JSON.parse(fs.readFileSync(new URL('../data/items.json', import.meta.url), 'utf8')).items;
+  const db = new ItemDb(items);
+  for (const tier of [1, 2, 3, 4, 5]) {
+    for (const role of [1, 3, 5]) {
+      const r = neutralByTier({ tier, stats: null, itemDb: db, role, attr: role === 3 ? 'str' : 'agi' });
+      for (const e of r?.enchantments || []) {
+        const t = ENCHANT_TIERS[e.name.replace('enhancement_', '')];
+        assert.ok(t && tier >= t[0] && tier <= t[1], `${e.name} at tier ${tier}`);
+      }
+    }
+  }
+});

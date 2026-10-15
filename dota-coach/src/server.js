@@ -546,7 +546,9 @@ export async function startServer(opts = {}) {
     if (!parsed) return;
     if (parsed.count) {
       draftSampleWithHeroes = draftSample;
-      gsiDraft = { radiant: parsed.radiant, dire: parsed.dire, bans: parsed.bans, activeTeam: parsed.activeTeam, isPick: parsed.isPick, at: Date.now() };
+      // Dota sends the same draft about 4 times a second: only a different draft counts as a change.
+      const same = JSON.stringify([parsed.radiant, parsed.dire, parsed.bans]) === JSON.stringify([gsiDraft.radiant, gsiDraft.dire, gsiDraft.bans]);
+      gsiDraft = { radiant: parsed.radiant, dire: parsed.dire, bans: parsed.bans, activeTeam: parsed.activeTeam, isPick: parsed.isPick, at: same && gsiDraft.at ? gsiDraft.at : Date.now() };
     } else gsiDraft = { ...gsiDraft, activeTeam: parsed.activeTeam, isPick: parsed.isPick };
   }
 

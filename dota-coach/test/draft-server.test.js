@@ -152,3 +152,12 @@ test('ban suggestions while bans are made', async () => {
   assert.ok(res.suggestions.bans.length > 0);
   assert.ok(typeof res.suggestions.loading === 'boolean');
 });
+
+test('review fix: the same draft block sent 4 times a second is not a new draft each time', async () => {
+  await post('/api/draft', { reset: true, enemies: [], allies: [], bans: [] });
+  const block = { pick: true, team2: { pick0_class: 'axe' }, team3: { pick0_class: 'lion', pick1_id: 22, ban0_class: 'pudge' } };
+  await post('/gsi', gsi('5099', { draft: block }));
+  const first = (await get('/api/draft')).rev;
+  for (let i = 0; i < 6; i++) await post('/gsi', gsi('5099', { draft: block }));
+  assert.equal((await get('/api/draft')).rev, first);
+});

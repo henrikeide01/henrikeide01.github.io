@@ -152,8 +152,14 @@ export function liveItemCandidates(x) {
 
   // 10. Other counters from the draft (evasion, illusions, break, mobility), once they start to matter.
   if (clock >= 900 && enemies.length && x.db) {
+    // A rule is covered once he owns any of its items (Bloodthorn covers evasion as well as MKB does).
+    const ruleList = (id) => {
+      const r = COUNTER_RULES.find((k) => k.id === id);
+      return !r ? [] : role >= 4 ? r.support : role === 3 ? r.off || r.core : r.core;
+    };
     for (const s of situationalItems(enemies, role, x.db)) {
       if (!['evasion', 'illusions', 'break', 'mobile'].includes(s.rule)) continue;
+      if (owns(ruleList(s.rule))) continue;
       if (x.db.cost(s.item) > 3000 && clock < 1200) continue;
       add(s.item, 42, s.why, 'counter', { evasion: 'Evasion', illusions: 'Illusjoner', break: 'Sterke passiver', mobile: 'Mobile helter' }[s.rule]);
     }

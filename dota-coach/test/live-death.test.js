@@ -349,3 +349,16 @@ test('engine: live items show up from the draft and the HP history, and are spok
     assert.doesNotThrow(() => coach.update(bad));
   }
 });
+
+test('review fixes: barracks under attack count as the base, and one counter item covers its rule', async () => {
+  const { Coach } = await import('../src/coach/engine.js');
+  assert.ok(Coach);
+  const re = /(tower3|tower4|_rax_(?:melee|range)|_fort)/;
+  for (const k of ['good_rax_melee_bot', 'bad_rax_range_top', 'dota_goodguys_tower3_mid', 'dota_badguys_fort']) assert.ok(re.test(k), k);
+  assert.ok(!re.test('dota_goodguys_tower1_bot'));
+});
+
+test('review fixes: owning Bloodthorn covers evasion, so MKB is not suggested too', () => {
+  const list = cands({ clock: 1500, phase: 'mid', enemies: foes('phantom_assassin', 'lion', 'zuus', 'riki', 'axe'), inv: inventory('bloodthorn', 'black_king_bar') });
+  assert.ok(!list.some((c) => c.item === 'monkey_king_bar'), JSON.stringify(list.map((c) => c.item)));
+});

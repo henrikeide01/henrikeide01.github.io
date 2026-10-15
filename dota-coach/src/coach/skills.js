@@ -514,6 +514,40 @@ export function readNeutralTiers(me, itemDb) {
 }
 
 const enchantLevelFor = (tier) => Math.min(4, Math.max(1, (tier || 2) - 1));
+
+// Tiers each enchantment is offered at (7.41). Four-level enchantments run tier 1-4, three-level ones tier 2-4
+// (the patch notes confirm Crude at tier 4 = its third value), the strong one-value ones tier 5. Enchantments
+// not listed are never recommended without a choice from the game (we don't know their tier).
+export const ENCHANT_TIERS = {
+  vital: [1, 1],
+  quickened: [1, 4],
+  mystical: [1, 4],
+  alert: [1, 4],
+  brawny: [1, 4],
+  tough: [1, 4],
+  greedy: [2, 3],
+  vast: [2, 4],
+  keen_eyed: [2, 4],
+  titanic: [2, 4],
+  crude: [2, 4],
+  nimble: [2, 4],
+  timeless: [4, 5],
+  vampiric: [5, 5],
+  evolved: [5, 5],
+  fleetfooted: [5, 5],
+  feverish: [5, 5],
+  audacious: [5, 5],
+  boundless: [5, 5],
+  wise: [5, 5],
+  hulking: [5, 5],
+  manic: [5, 5],
+};
+const enchantTiers = (name) => ENCHANT_TIERS[String(name || '').replace(/^(item_)?enhancement_/, '')] || null;
+// The level of an enchantment at a tier (its first tier is level 1).
+const enchantLevelAt = (name, tier) => {
+  const t = enchantTiers(name);
+  return t ? Math.max(1, Math.min(t[1], tier || t[0]) - t[0] + 1) : enchantLevelFor(tier);
+};
 const PROFILE_REASON = { core: 'gir mest skade og overlevelse for en kjerne', caster: 'gir mest til en spell-caster', offlane: 'gjør deg tøffest som offlaner', support: 'gir mest til en support (fart, liv og mana)' };
 
 // GSI "neutralitems" block for this player -> the choices for the tier being crafted, ranked. Never throws.
@@ -534,7 +568,7 @@ export function neutralAdvice({ gsiNeutral, team, teamSlot, who = {}, stats, ite
     if (!pending.length && tierNo != null && clockTier != null && tierNo < clockTier) return null;
     const pro = new Map((stats?.neutrals || []).map((n) => [n.name, n]));
     const profile = enchantProfile(role, attr);
-    const lvl = (c) => c.level ?? enchantLevelFor(tierNo);
+    const lvl = (c) => c.level ?? enchantLevelAt(c.name, tierNo);
 
     const artifacts = g.artifacts
       .map((c) => {
@@ -587,10 +621,12 @@ export function neutralByTier({ tier, stats, itemDb, role, attr }) {
       .filter((a) => a.pct != null || a.score > 0)
       .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || b.score - a.score)
       .slice(0, 4);
-    const level = enchantLevelFor(tier);
     const enchantments = Object.entries(itemDb.items)
-      .filter(([name]) => name.startsWith('enhancement_'))
-      .map(([name, it]) => ({ name, dname: it.dname || name, score: enchantScore(it, profile, level), stats: stat(it, level) }))
+      .filter(([name]) => {
+        const t = name.startsWith('enhancement_') && enchantTiers(name);
+        return t && tier >= t[0] && tier <= t[1];
+      })
+      .map(([name, it]) => ({ name, dname: it.dname || name, score: enchantScore(it, profile, enchantLevelAt(name, tier)), stats: stat(it, enchantLevelAt(name, tier)) }))
       .filter((e) => e.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 3);
@@ -639,7 +675,8 @@ export function readEquippedNeutral(gsiItems, itemDb) {
 //   upgrade: the artifact is from an older tier;  empty: nothing in the slot although a tier has been open a while;
 //   worse-artifact / worse-enchantment: clearly worse than the recommendation for this tier.
 // rec: neutralByTier() for `tier`. sinceOpen: seconds since `tier` opened.
-export function neutralGearAdvice({ equipped, tier, sinceOpen = 0, clock = 0, rec, stats, itemDb, role, attr }) {
+// offered: names the game offered for this tier (what he crafted from those was the best he could get).
+export function neutralGearAdvice({ equipped, tier, sinceOpen = 0, clock = 0, rec, stats, itemDb, role, attr, offered = null }) {
   try {
     if (!equipped?.seen || !tier) return null;
     const a = equipped.artifact;
@@ -662,7 +699,7 @@ export function neutralGearAdvice({ equipped, tier, sinceOpen = 0, clock = 0, re
       };
     }
     const profile = enchantProfile(role, attr);
-    if (a.tier === tier && rec?.items?.length && rec.items[0].name !== a.name && suggest.length) {
+    if (a.tier === tier && rec?.items?.length && rec.items[0].name !== a.name && suggest.length && !offered?.has(a.name)) {
       const top = rec.items[0];
       const p = (stats?.neutrals || []).find((n) => n.name === a.name);
       const mine = p?.pct ?? null;
@@ -680,8 +717,8 @@ export function neutralGearAdvice({ equipped, tier, sinceOpen = 0, clock = 0, re
     }
     const e = equipped.enchantment;
     const best = rec?.enchantments?.[0];
-    if (e && best && best.name !== e.name) {
-      const mine = enchantScore(itemDb.get(e.name), profile, e.level ?? enchantLevelFor(tier));
+    if (e && best && best.name !== e.name && !offered?.has(e.name)) {
+      const mine = enchantScore(itemDb.get(e.name), profile, e.level ?? enchantLevelAt(e.name, tier));
       if (mine <= 0 && best.score >= 4) {
         return { kind: 'worse-enchantment', tier, have: e.name, better: best.name, text: `Fortryllelsen ${e.dname} gir lite til rollen din. Neste gang: ta ${best.dname}${best.stats ? ` (${best.stats})` : ''}.` };
       }

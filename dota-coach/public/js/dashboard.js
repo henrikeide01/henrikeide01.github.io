@@ -35,7 +35,10 @@ function showTab(name) {
   document.querySelectorAll('.nav-item').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
   for (const id of Object.keys(TAB_TITLE)) $(`tab-${id}`).classList.toggle('hidden', id !== name);
   $('page-title').textContent = TAB_TITLE[name];
-  if (name === 'draft') initDraft();
+  if (name === 'draft') {
+    initDraft();
+    if (pendingDraft) syncDraft(pendingDraft);
+  }
   if (name === 'meta') loadMeta();
   if (name === 'setup') {
     renderSetup();
@@ -986,9 +989,18 @@ function applyServerDraft(d) {
 // Called on every state update: pick up changes made elsewhere (heroes recognised on screen, a new match,
 // another window). Skipped while the user's own edit is on its way, so it can't undo that edit.
 let suggestSeq = 0;
+let pendingDraft = null;
 async function syncDraft(d) {
   if (!d || !draftReady || d.rev === draft.rev || draftTimer || draftInFlight) return;
+  // Another tab is open: catch up when the draft tab is shown again.
+  if (activeTab !== 'draft') {
+    pendingDraft = d;
+    return;
+  }
+  pendingDraft = null;
+  const same = ['enemies', 'allies', 'bans'].every((k) => JSON.stringify(d[k] || []) === JSON.stringify(draft[k] || []));
   applyServerDraft(d);
+  if (same) return renderVisionLine();
   renderSlots();
   renderHeroGrid();
   renderVisionLine();

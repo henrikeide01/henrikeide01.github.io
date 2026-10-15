@@ -117,7 +117,7 @@ const NEEDS = [
     // A support is not asked to carry, and a pos 1 picks a carry anyway.
     roles: [0, 2, 3],
     lacking: (t) => !t.some((h) => has(h, 'Carry') && positionsFor(h)[0] === 1),
-    fills: (h) => has(h, 'Carry'),
+    fills: (h) => has(h, 'Carry') && positionsFor(h)[0] === 1,
   },
 ];
 
