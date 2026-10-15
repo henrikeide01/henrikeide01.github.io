@@ -231,7 +231,7 @@ function renderWaiting() {
     title = 'Hero-valg pågår';
     const dh = state?.draftHelp;
     text = dh?.picks?.length
-      ? `${draftHelpIntro(dh)}${draftPicksHtml(dh.picks.slice(0, 5))}<div style="margin-top:10px">Mer detaljer og manuell retting under <a href="#" data-goto="draft">Draft-hjelp</a>.</div>`
+      ? `${draftHelpIntro(dh)}${draftPicksHtml(dh.picks.slice(0, 5))}${dh.banPhase && dh.bans?.length ? `<div class="draft-sub">Foreslåtte bans</div>${draftPicksHtml(dh.bans.slice(0, 3), 'ban')}` : ''}<div style="margin-top:10px">Mer detaljer og manuell retting under <a href="#" data-goto="draft">Draft-hjelp</a>.</div>`
       : 'Gå til <a href="#" data-goto="draft">Draft-hjelp</a> og legg inn fiendene. Da får du forslag til hero og items.';
   } else if (connected) {
     big = '✅';
@@ -248,20 +248,30 @@ function renderWaiting() {
   patch($('live-waiting'), `<div class="big">${big}</div><h2>${title}</h2><p class="muted">${text}</p>${steps}`);
 }
 
+const SRC_TEXT = { gsi: 'fra spillet', screen: 'fra skjermen', manual: 'lagt inn for hånd' };
+
 function draftHelpIntro(dh) {
   const vs = dh.enemies?.length ? `mot ${(dh.enemyNames || dh.enemies).map(esc).join(', ')}` : 'etter meta (ingen fiender kjent ennå)';
-  return `Beste valg for deg som ${esc(ROLE_NAME[settings.role] || `pos ${settings.role}`)} ${vs}:`;
+  const who = dh.forTeam ? `Du har valgt ${esc(dh.ownHero?.dname || '')}. Forslag til lagkameratene` : `Beste valg for deg som ${esc(ROLE_NAME[settings.role] || `pos ${settings.role}`)}`;
+  const src = dh.source ? ` <span class="src-pill ${esc(dh.source)}">Draften ${SRC_TEXT[dh.source] || ''}</span>` : '';
+  const needs = dh.needsText ? `<div class="draft-needs">⚠️ ${esc(dh.needsText)}</div>` : '';
+  return `${who} ${vs}:${src}${needs}`;
 }
 
-function draftPicksHtml(picks) {
+// A reason list from the server: [{ text, kind: 'pos' | 'neg' | 'info' }] (or plain strings for bans).
+function reasonsHtml(r) {
+  const list = (r.reasons || []).map((x) => (typeof x === 'string' ? { text: x } : x));
+  if (!list.length) {
+    if (r.good?.length) list.push({ text: `Sterk mot ${r.good.join(', ')}`, kind: 'pos' });
+    if (r.bad?.length) list.push({ text: `Svak mot ${r.bad.join(', ')}`, kind: 'neg' });
+  }
+  if (r.winrate != null && list.length < 3) list.push({ text: `${(r.winrate * 100).toFixed(1)} % seier` });
+  return list.map((x) => (x.kind === 'pos' || x.kind === 'neg' ? `<span class="${x.kind}">${esc(x.text)}</span>` : esc(x.text))).join(' · ');
+}
+
+function draftPicksHtml(picks, kind = '') {
   return `<div class="draft-picks">${picks
-    .map((r) => {
-      const why = [];
-      if (r.good?.length) why.push(`<span class="pos">Sterk mot ${r.good.map(esc).join(', ')}</span>`);
-      if (r.bad?.length) why.push(`<span class="neg">Svak mot ${r.bad.map(esc).join(', ')}</span>`);
-      if (r.winrate != null) why.push(`${(r.winrate * 100).toFixed(1)} % seier`);
-      return `<div class="sugg">${heroImg(r.name, r.dname)}<div><div class="name"><span class="tier ${r.tier}">${r.tier}</span> ${esc(r.dname)}</div><div class="why">${why.join(' · ')}</div></div></div>`;
-    })
+    .map((r) => `<div class="sugg ${kind}">${heroImg(r.name, r.dname)}<div><div class="name"><span class="tier ${esc(r.tier)}">${esc(r.tier)}</span> ${esc(r.dname)}</div><div class="why">${reasonsHtml(r)}</div></div></div>`)
     .join('')}</div>`;
 }
 
@@ -850,9 +860,9 @@ async function loadHeroes() {
 }
 
 // ---------------- Draft ----------------
-const draft = { enemies: [], allies: [], bans: [], mode: 'enemies', auto: new Set(), removed: new Set(), autoAt: 0, rev: 0 };
+const draft = { enemies: [], allies: [], bans: [], mode: 'enemies', auto: new Set(), removed: new Set(), autoAt: 0, rev: 0, sources: {}, source: null };
 let draftInFlight = 0; // POSTs not answered yet: a state from the server may be older than the user's edit
-const LIMITS = { enemies: 5, allies: 4, bans: 10 };
+const LIMITS = { enemies: 5, allies: 4, bans: 14 };
 const GROUP_LABEL = { enemies: ['Fiender', 'motstanderlaget'], allies: ['Ditt lag', 'lagkameratene'], bans: ['Bans', 'bannede heroes'] };
 let draftReady = false;
 let draftTimer = null;
@@ -914,10 +924,13 @@ function applyServerDraft(d) {
   draft.allies = d.allies || [];
   draft.bans = d.bans || [];
   draft.rev = d.rev || 0;
-  draft.auto = new Set([...(d.autoEnemies || []), ...(d.autoAllies || [])]);
+  draft.auto = new Set([...(d.autoEnemies || []), ...(d.autoAllies || []), ...(d.autoBans || [])]);
   draft.unassigned = d.unassigned || [];
   draft.team = d.team || null;
   draft.autoAt = d.autoAt || 0;
+  // The state's copy of the draft has no sources: keep the last ones then.
+  if (d.sources) draft.sources = d.sources;
+  if ('source' in d) draft.source = d.source;
 }
 
 // Called on every state update: pick up changes made elsewhere (heroes recognised on screen, a new match,
@@ -929,13 +942,32 @@ async function syncDraft(d) {
   renderSlots();
   renderHeroGrid();
   renderVisionLine();
+  fetchSuggestions();
+}
+
+// Asks for the suggestions for the draft as it is. While the server is still fetching matchups (`loading`), it
+// asks again a few times so the list is refined without a click.
+async function fetchSuggestions(retry = 0) {
   const seq = ++suggestSeq;
   try {
     const res = await api('/api/draft', { suggestOnly: true, role: settings.role, bracket: settings.bracket });
-    if (seq === suggestSeq && !draftTimer && !draftInFlight) renderSuggestions(res.suggestions);
+    if (seq !== suggestSeq || draftTimer || draftInFlight) return;
+    if (res.draft && res.draft.rev === draft.rev) {
+      applyServerDraft(res.draft); // with the sources of each hero
+      renderSlots();
+      renderVisionLine();
+    }
+    renderSuggestions(res.suggestions);
+    refineLater(res.suggestions, retry);
   } catch {
     // the next change tries again
   }
+}
+
+let refineTimer = null;
+function refineLater(sg, retry) {
+  clearTimeout(refineTimer);
+  if (sg?.loading && retry < 8) refineTimer = setTimeout(() => fetchSuggestions(retry + 1), 1500);
 }
 
 function renderVisionLine() {
@@ -948,7 +980,10 @@ function renderVisionLine() {
   const debugBtn = '<button class="btn" data-vision-debug>📸 Lagre skjermbilde</button>';
   const toggle = v?.active ? `<label class="switch"><input type="checkbox" data-vision-toggle ${settings.vision !== false ? 'checked' : ''}> Les draften fra skjermen</label>` : '';
   let html;
-  if (v?.active && settings.vision === false) html = '<span class="muted">Skjermlesing er slått av. Legg inn heroene selv, eller slå den på igjen.</span>';
+  const fromGame =
+    draft.source === 'gsi' ? '<span class="pill src-pill gsi">🎮 Fra spillet</span><span class="muted">Dota sender draften direkte. Heroene merket SPILL kommer derfra.</span>' : '';
+  if (fromGame) html = fromGame;
+  else if (v?.active && settings.vision === false) html = '<span class="muted">Skjermlesing er slått av. Legg inn heroene selv, eller slå den på igjen.</span>';
   else if (!v?.active) html = '<span class="muted">Automatisk gjenkjenning av heroer krever desktop-appen (Dota Coach.bat). Her kan du også legge dem inn selv.</span>';
   else if (v.error || !v.ready) {
     html = `<span class="pill" style="background:rgba(230,160,40,.2)">⚠️ Gjenkjenning virker ikke ennå</span><span class="muted">${esc(v.error || 'Laster heltebildene …')} Legg inn heroene selv så lenge.</span>${debugBtn}`;
@@ -956,7 +991,16 @@ function renderVisionLine() {
     html = `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Automatisk</span><span class="muted">Desktop-appen leser heroene fra skjermen (merket AUTO). Feil hero? Klikk på den for å fjerne den.</span>${debugBtn}`;
     if (v.hint) html += `<span class="muted" style="color:var(--gold)">${esc(v.hint)}</span>`;
   }
+  if (fromGame && v?.active) html += debugBtn;
   patch(el, html + toggle + unassigned);
+}
+
+// A hero in the draft, marked with where it came from: SPILL (Dota's own data), AUTO (the screen) or by hand.
+function slotHero(g, n) {
+  const auto = draft.auto.has(n);
+  const src = auto ? (draft.sources?.[n] === 'gsi' ? 'gsi' : 'auto') : '';
+  const title = src === 'gsi' ? 'Fra spillet (Dota) – klikk for å fjerne' : src ? 'Gjenkjent fra skjermen – klikk for å fjerne' : 'Klikk for å fjerne';
+  return `<span class="slot-hero ${src}" data-remove="${g}:${n}" title="${title}">${heroImg(n, heroByName.get(n)?.dname)}</span>`;
 }
 
 function renderSlots() {
@@ -966,7 +1010,7 @@ function renderSlots() {
       const empty = Math.max(0, Math.min(LIMITS[g], g === 'bans' ? Math.max(list.length + 1, 3) : LIMITS[g]) - list.length);
       return `<div class="slot-row ${draft.mode === g ? 'active' : ''}" data-group="${g}">
         <div class="lbl">${GROUP_LABEL[g][0]}<small>${list.length}/${LIMITS[g]}</small></div>
-        <div class="slot-list">${list.map((n) => `<span class="slot-hero ${draft.auto.has(n) ? 'auto' : ''}" data-remove="${g}:${n}" title="${draft.auto.has(n) ? 'Gjenkjent automatisk – klikk for å fjerne' : 'Klikk for å fjerne'}">${heroImg(n, heroByName.get(n)?.dname)}</span>`).join('')}${'<span class="slot"></span>'.repeat(empty)}</div>
+        <div class="slot-list">${list.map((n) => slotHero(g, n)).join('')}${'<span class="slot"></span>'.repeat(empty)}</div>
       </div>`;
     })
     .join('');
@@ -1052,7 +1096,9 @@ function pushDraft() {
         applyServerDraft(res.draft);
         renderSlots();
         renderHeroGrid();
+        renderVisionLine();
         renderSuggestions(res.suggestions);
+        refineLater(res.suggestions, 0);
       }
     } catch (err) {
       for (const n of body.removed) draft.removed.add(n); // send the removals again with the next change
@@ -1066,20 +1112,30 @@ const fmtAdv = (a) => `${a > 0 ? '+' : '−'}${Math.abs(a).toFixed(1)} %`;
 function renderSuggestions(sg) {
   const notices = [];
   if (!sg.hasStats) notices.push('<div class="notice warn">Får ikke hentet meta fra OpenDota akkurat nå. Forslagene bygger bare på det som er lagret lokalt.</div>');
-  if (!draft.enemies.length) notices.push('<div class="notice">Legg inn fiendene, så blir forslagene tilpasset dem (counters). Til nå er listen sortert etter meta for din rolle og rank.</div>');
-  else if (!sg.hasMatchups) notices.push('<div class="notice warn">Matchup-data er ikke tilgjengelig ennå. Forslagene bygger på meta.</div>');
+  if (!draft.enemies.length) notices.push('<div class="notice">Legg inn fiendene, så blir forslagene tilpasset dem (counters). Til nå er listen sortert etter meta for din rolle og rank, laget ditt og bans.</div>');
+  else if (!sg.hasMatchups) notices.push(`<div class="notice warn">${sg.loading ? '<span class="spinner"></span> Henter matchup-data …' : 'Matchup-data er ikke tilgjengelig ennå.'} Forslagene bygger på meta så lenge.</div>`);
+  if (sg.needsText) notices.push(`<div class="draft-needs">⚠️ ${esc(sg.needsText)}</div>`);
 
   const rows = sg.picks
     .map((r) => {
       const why = [];
       if (r.good.length) why.push(`<span class="pos">Sterk mot ${r.good.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}`).join(', ')}</span>`);
+      for (const x of r.synergy || []) why.push(`<span class="pos">Kombo med ${esc(x.dname)}: ${esc(x.why)}</span>`);
+      for (const x of (r.reasons || []).filter((x) => x.text.startsWith('Gir laget'))) why.push(`<span class="pos">${esc(x.text)}</span>`);
       if (r.bad.length) why.push(`<span class="neg">Svak mot ${r.bad.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}`).join(', ')}</span>`);
       if (r.winrate != null) why.push(`${(r.winrate * 100).toFixed(1)} % vinnerrate i ${BRACKET_NAME[settings.bracket]}`);
       return `<div class="sugg">${heroImg(r.name, r.dname)}
-        <div><div class="name"><span class="tier ${r.tier}">${r.tier}</span> ${esc(r.dname)}</div><div class="why">${why.join(' · ')}</div></div>
-        <div class="score" title="Samlet score (meta + counters)">${r.score > 0 ? '+' : ''}${r.score.toFixed(1)}</div></div>`;
+        <div><div class="name"><span class="tier ${esc(r.tier)}">${esc(r.tier)}</span> ${esc(r.dname)}</div><div class="why">${why.join(' · ')}</div></div>
+        <div class="score" title="Samlet score: meta + counters + det laget mangler + kombo med lagkamerater">${r.score > 0 ? '+' : ''}${r.score.toFixed(1)}</div></div>`;
     })
     .join('');
+
+  const bans = (sg.bans || []).length
+    ? `<div class="card"><h3>Foreslåtte bans</h3><div class="muted" style="font-size:12.5px;margin-bottom:4px">${draft.allies.length || state?.draftHelp?.ownHero ? 'Sterke heroes i din rank som er gode mot laget ditt.' : 'De sterkeste heroene i din rank, særlig de du møter i lanen.'}</div>${sg.bans
+        .slice(0, 5)
+        .map((b) => `<div class="sugg">${heroImg(b.name, b.dname)}<div><div class="name"><span class="tier ${esc(b.tier)}">${esc(b.tier)}</span> ${esc(b.dname)}</div><div class="why">${b.reasons.map(esc).join(' · ')}</div></div></div>`)
+        .join('')}</div>`
+    : '';
 
   const avoid = sg.avoid.length
     ? `<div class="card"><h3>Unngå mot dette laget</h3>${sg.avoid
@@ -1094,10 +1150,12 @@ function renderSuggestions(sg) {
     ? `<div class="card"><h3>Husk mot fiendene</h3>${sg.enemyTips.map((t) => `<div class="enemy-tip">${heroImg(t.hero, heroByName.get(t.hero)?.dname, 'xs')}<span>${esc(t.text)}</span></div>`).join('')}</div>`
     : '';
 
+  const title = sg.forTeam ? 'Forslag til lagkameratene' : 'Beste valg for deg';
+  const sub = sg.forTeam ? `Alle posisjoner · ${BRACKET_NAME[settings.bracket]}` : `Pos ${settings.role} · ${BRACKET_NAME[settings.bracket]}`;
   patch(
     $('draft-results'),
-    `<div class="card"><h3>Beste valg for deg <span class="right">Pos ${settings.role} · ${BRACKET_NAME[settings.bracket]}</span></h3>
-      <div style="display:grid;gap:8px;margin-bottom:6px">${notices.join('')}</div>${rows || '<div class="muted">Ingen forslag.</div>'}</div>${avoid}${sit}${tips}`,
+    `<div class="card"><h3>${title} <span class="right">${sub}</span></h3>
+      <div style="display:grid;gap:8px;margin-bottom:6px">${notices.join('')}</div>${rows || '<div class="muted">Ingen forslag.</div>'}</div>${bans}${avoid}${sit}${tips}`,
   );
 }
 

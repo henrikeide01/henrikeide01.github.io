@@ -11,7 +11,7 @@ import { ROOT, loadSettings, saveSettings, publicSettings, applyPublicSettings }
 import { OpenDota, compactItems } from './opendota.js';
 import { Coach, ROLE_LABEL } from './coach/engine.js';
 import { ItemDb, buildFromPopularity } from './coach/items.js';
-import { tierList, suggestHeroes, BRACKETS } from './coach/draft.js';
+import { tierList, suggestHeroes, suggestBans, parseGsiDraft, compactDraftSample, needsText, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
 import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
 import { computeHeroSkills } from './coach/skills.js';
@@ -68,8 +68,10 @@ export async function startServer(opts = {}) {
   });
 
   const stats = new Map(); // hero name -> heroStats row
+  let statsAt = 0;
   async function loadHeroStats() {
     const rows = await od.heroStats();
+    statsAt = Date.now();
     for (const r of rows) {
       const name = String(r.name || '').replace('npc_dota_hero_', '');
       if (!name) continue;
@@ -138,27 +140,77 @@ export async function startServer(opts = {}) {
     return t.pending;
   }
 
-  const matchupCache = new Map(); // enemy name -> rows
-  async function loadMatchups(names) {
-    await Promise.all(
-      names.map(async (n) => {
-        if (matchupCache.has(n) || !heroes.has(n)) return;
-        try {
-          matchupCache.set(n, await od.matchups(heroes.get(n).id));
-        } catch (err) {
+  // Matchups (hero name -> rows) are fetched in the background as soon as a hero shows up in the draft. The
+  // suggestions are shown at once with what is known and refined when each answer arrives (OpenDota's queue
+  // spaces requests ~1.1 s apart, so five heroes take a few seconds).
+  const matchupCache = new Map();
+  const matchupPending = new Map(); // name -> promise
+  const matchupFailedAt = new Map(); // name -> time of the last failure (tried again after a minute)
+  function preloadMatchups(names) {
+    for (const n of names) {
+      if (!n || matchupCache.has(n) || matchupPending.has(n) || !heroes.has(n)) continue;
+      if (Date.now() - (matchupFailedAt.get(n) || 0) < 60000) continue;
+      const job = od
+        .matchups(heroes.get(n).id)
+        .then((rows) => {
+          if (!Array.isArray(rows)) throw new Error('ugyldig svar');
+          matchupCache.set(n, rows);
+          matchupFailedAt.delete(n);
+          scheduleDraftHelp();
+        })
+        .catch((err) => {
+          matchupFailedAt.set(n, Date.now());
           log(`Klarte ikke å hente matchups for ${n}: ${err.message}`);
-        }
-      }),
-    );
-    return matchupCache;
+        })
+        .finally(() => matchupPending.delete(n));
+      matchupPending.set(n, job);
+    }
+  }
+  // Waits (at most `ms`) for the matchups of these heroes; whatever is not there by then comes later.
+  async function awaitMatchups(names, ms) {
+    preloadMatchups(names);
+    const jobs = names.map((n) => matchupPending.get(n)).filter(Boolean);
+    if (!jobs.length) return;
+    let timer;
+    await Promise.race([Promise.allSettled(jobs), new Promise((r) => (timer = setTimeout(r, ms)))]);
+    clearTimeout(timer);
+  }
+
+  // Hero stats (meta) for the suggestions, loaded in the background; tried again after a minute when offline.
+  let statsJob = null;
+  let statsFailedAt = 0;
+  function ensureHeroStats() {
+    if (stats.size && Date.now() - statsAt < 30 * 60 * 1000) return Promise.resolve(stats);
+    if (statsJob) return statsJob;
+    if (Date.now() - statsFailedAt < 60000) return Promise.resolve(stats);
+    const had = stats.size;
+    statsJob = loadHeroStats()
+      .then(() => {
+        if (!had) scheduleDraftHelp();
+        return stats;
+      })
+      .catch(() => {
+        statsFailedAt = Date.now();
+        return stats;
+      })
+      .finally(() => {
+        statsJob = null;
+      });
+    return statsJob;
   }
 
   // ---------- Live state ----------
   // The draft = heroes entered by hand + heroes the desktop app recognised on screen (overlay/vision.cjs).
   let manual = { allies: [], enemies: [], bans: [], savedAt: 0 };
   let auto = { radiant: [], dire: [], at: 0 };
+  // The draft as Dota itself reports it in the GSI "draft" block (spectating, some modes). When it has heroes
+  // for a team, it beats the screen reading for that team.
+  const emptyGsiDraft = () => ({ radiant: [], dire: [], bans: [], activeTeam: null, isPick: null, at: 0 });
+  let gsiDraft = emptyGsiDraft();
+  let draftSample = null; // compact copy of the last raw GSI draft block, for /api/diagnostics
+  let draftSampleWithHeroes = null; // … and of the last one that had heroes in it
   let blocked = new Set(); // recognised heroes the user removed by hand
-  let draft = { allies: [], enemies: [], bans: [], savedAt: 0, autoAllies: [], autoEnemies: [], unassigned: [], team: null, ownHero: null, autoAt: 0 };
+  let draft = { allies: [], enemies: [], bans: [], savedAt: 0, autoAllies: [], autoEnemies: [], autoBans: [], unassigned: [], team: null, ownHero: null, autoAt: 0, sources: {}, source: null };
   let draftHelp = null; // pick suggestions for the current draft, shown in the overlay
   let vision = {};
   let visionCommand = {};
@@ -299,9 +351,12 @@ export async function startServer(opts = {}) {
         auto = { radiant: [], dire: [], at: 0 };
         blocked = new Set();
       }
+      // Dota's own draft data always belongs to the match it came with (this payload's block is read below).
+      if (lastMatchId && String(lastMatchId) !== '0' && String(matchId) !== '0') gsiDraft = emptyGsiDraft();
       lastMatchId = matchId;
     }
-    if (updateDraft()) refreshDraftHelp();
+    if (payload && typeof payload === 'object' && 'draft' in payload) readGsiDraft(payload.draft, payload.map?.game_state);
+    if (updateDraft()) refreshDraftHelp({ silent: true });
     recompute();
     return true;
   }
@@ -456,15 +511,41 @@ export async function startServer(opts = {}) {
 
   const cleanNames = (arr, max) => (Array.isArray(arr) ? [...new Set(arr)].filter((n) => typeof n === 'string' && heroes.has(n)).slice(0, max) : []);
 
-  const ownHeroName = () => (lastGsi?.hero?.name ? lastGsi.hero.name.replace('npc_dota_hero_', '') : null);
+  const ownHeroName = () => {
+    const n = lastGsi?.hero?.name;
+    if (typeof n !== 'string' || !n) return null;
+    const name = n.replace('npc_dota_hero_', '');
+    return heroes.has(name) ? name : null;
+  };
+  // Picks per team: Dota's own draft data when it has heroes for that team, otherwise the screen reading.
+  const teamPicks = (side) => (gsiDraft[side].length ? gsiDraft[side] : auto[side]);
   const myTeam = () => {
     const t = lastGsi?.player?.team_name;
     if (t === 'radiant' || t === 'dire') return t;
     const own = ownHeroName();
-    if (own && auto.radiant.includes(own)) return 'radiant';
-    if (own && auto.dire.includes(own)) return 'dire';
+    if (own && teamPicks('radiant').includes(own)) return 'radiant';
+    if (own && teamPicks('dire').includes(own)) return 'dire';
     return null;
   };
+
+  // The GSI "draft" block. Every block is kept (compact) for the diagnostics, so we can see what Dota really
+  // sends; one with heroes replaces what we had from Dota before. An empty block never wipes a known draft
+  // (Dota stops filling it once the game starts).
+  function readGsiDraft(block, gameState) {
+    let parsed = null;
+    try {
+      parsed = parseGsiDraft(block, heroes);
+      draftSample = { at: new Date().toISOString(), gameState: gameState || null, heroes: parsed?.count ?? 0, block: compactDraftSample(block) };
+    } catch (err) {
+      draftSample = { at: new Date().toISOString(), error: err.message };
+      return;
+    }
+    if (!parsed) return;
+    if (parsed.count) {
+      draftSampleWithHeroes = draftSample;
+      gsiDraft = { radiant: parsed.radiant, dire: parsed.dire, bans: parsed.bans, activeTeam: parsed.activeTeam, isPick: parsed.isPick, at: Date.now() };
+    } else gsiDraft = { ...gsiDraft, activeTeam: parsed.activeTeam, isPick: parsed.isPick };
+  }
 
   // Recomputes the effective draft (manual + recognised); returns true when it changed.
   // `force`: count it as a change even if nothing differs (the dashboards then reload the draft).
@@ -472,23 +553,39 @@ export async function startServer(opts = {}) {
   function updateDraft(force = false) {
     const own = ownHeroName();
     const team = myTeam();
-    const autoAllies = team ? auto[team] : [];
-    const autoEnemies = team ? auto[team === 'radiant' ? 'dire' : 'radiant'] : [];
+    const other = team === 'radiant' ? 'dire' : 'radiant';
+    const autoAllies = team ? teamPicks(team) : [];
+    const autoEnemies = team ? teamPicks(other) : [];
     const ok = (n) => heroes.has(n) && !blocked.has(n);
     // Your own hero is never an enemy (a misread portrait) and never one of the four allies.
     const enemies = [...new Set([...manual.enemies, ...autoEnemies.filter((n) => !manual.allies.includes(n))])].filter((n) => ok(n) && n !== own).slice(0, 5);
     const allies = [...new Set([...manual.allies, ...autoAllies])].filter((n) => ok(n) && n !== own && !enemies.includes(n)).slice(0, 4);
+    const bans = [...new Set([...manual.bans, ...gsiDraft.bans])].filter((n) => ok(n) && n !== own && !allies.includes(n) && !enemies.includes(n)).slice(0, 16);
+    // Where each hero came from: «fra spillet» (GSI), «fra skjermen» (screen reading) or entered by hand.
+    const fromGsi = new Set([...gsiDraft.radiant, ...gsiDraft.dire, ...gsiDraft.bans]);
+    const sources = {};
+    for (const n of [...allies, ...enemies, ...bans]) {
+      const byHand = manual.allies.includes(n) || manual.enemies.includes(n) || manual.bans.includes(n);
+      sources[n] = byHand ? 'manual' : fromGsi.has(n) ? 'gsi' : 'screen';
+    }
+    const unassigned = team ? [] : [...new Set([...teamPicks('radiant'), ...teamPicks('dire')])].filter(ok);
+    const used = [...Object.values(sources), ...unassigned.map((n) => (fromGsi.has(n) ? 'gsi' : 'screen'))];
     const next = {
       allies,
       enemies,
-      bans: manual.bans,
+      bans,
       savedAt: manual.savedAt,
       autoAllies: allies.filter((n) => !manual.allies.includes(n)),
       autoEnemies: enemies.filter((n) => !manual.enemies.includes(n)),
-      unassigned: team ? [] : [...new Set([...auto.radiant, ...auto.dire])].filter(ok),
+      autoBans: bans.filter((n) => !manual.bans.includes(n)),
+      unassigned,
       team,
       ownHero: own,
-      autoAt: auto.at,
+      autoAt: Math.max(auto.at, gsiDraft.at),
+      sources,
+      // The main source: Dota's own data beats the screen reading, which beats what was entered by hand.
+      source: ['gsi', 'screen', 'manual'].find((x) => used.includes(x)) || null,
+      gsiPick: gsiDraft.isPick,
     };
     const { rev, ...old } = draft;
     const changed = force || JSON.stringify(next) !== JSON.stringify(old);
@@ -496,51 +593,105 @@ export async function startServer(opts = {}) {
     return changed;
   }
 
-  let helpSeq = 0;
-  async function refreshDraftHelp() {
-    const seq = ++helpSeq;
+  // The heroes whose data the suggestions need: enemies first (counters), then your team (ban suggestions).
+  const draftHeroes = () => [...draft.enemies, ...(draft.ownHero ? [draft.ownHero] : []), ...draft.allies];
+  const inHeroSelection = () => !lastGsi?.map?.game_state || lastGsi.map.game_state === 'DOTA_GAMERULES_STATE_HERO_SELECTION';
+
+  // Suggestions from what is known right now (synchronous, no network): picks, bans and what the team lacks.
+  // Once your own hero is picked, the picks are for your teammates (any position) and your hero counts as one
+  // of the team.
+  function computeDraft(role, bracket) {
+    const toHero = (n) => heroes.get(n);
+    const enemies = draft.enemies.map(toHero).filter(Boolean);
+    const own = draft.ownHero ? toHero(draft.ownHero) || null : null;
+    const allies = draft.allies.map(toHero).filter(Boolean);
+    const bans = draft.bans.map(toHero).filter(Boolean);
+    const all = [...heroes.values()];
+    const res = suggestHeroes({ heroes: all, stats, matchups: matchupCache, allies: own ? [...allies, own] : allies, enemies, bans, role: own ? 0 : role, bracket });
+    return {
+      ...res,
+      bans: suggestBans({ heroes: all, stats, matchups: matchupCache, allies, ownHero: own, enemies, bans, role, bracket }),
+      needsText: needsText(res.needs),
+      forTeam: !!own,
+      hasStats: stats.size > 0,
+      hasMatchups: draft.enemies.some((n) => matchupCache.has(n)),
+      loading: draftHeroes().some((n) => matchupPending.has(n)) || !!statsJob,
+      situational: situationalItems(enemies, role, itemDb),
+      enemyTips: enemyTips(enemies),
+    };
+  }
+
+  // Starts loading what the suggestions are missing; each answer refreshes them (never waits here).
+  function preloadDraftData() {
+    ensureHeroStats();
+    preloadMatchups(draftHeroes());
+  }
+
+  let helpTimer = null;
+  let helpVersion = 0;
+  function scheduleDraftHelp(delay = 100) {
+    if (helpTimer) return;
+    helpTimer = setTimeout(() => {
+      helpTimer = null;
+      refreshDraftHelp();
+    }, delay);
+    helpTimer.unref?.();
+  }
+
+  // Pick suggestions for the overlay and the live tab (state.draftHelp). Computed at once from what is
+  // cached, so a new pick shows up within a second; refined when the matchups arrive.
+  // `silent`: the caller recomputes the state itself.
+  function refreshDraftHelp({ silent = false } = {}) {
     try {
-      const res = await draftSuggestions(settings.role, settings.bracket);
-      if (seq !== helpSeq) return;
+      preloadDraftData();
+      const res = computeDraft(settings.role, settings.bracket);
+      const dname = (n) => heroes.get(n)?.dname || n;
       const slim = (p) => ({
         name: p.name,
         dname: p.dname,
         tier: p.tier,
         winrate: p.winrate,
+        reasons: (p.reasons || []).slice(0, 3),
         good: (p.good || []).slice(0, 2).map((x) => x.dname),
         bad: (p.bad || []).slice(0, 2).map((x) => x.dname),
       });
-      draftHelp = { picks: res.picks.slice(0, 6).map(slim), avoid: (res.avoid || []).slice(0, 3).map(slim), hasStats: res.hasStats, hasMatchups: res.hasMatchups, enemies: draft.enemies, enemyNames: draft.enemies.map((n) => heroes.get(n)?.dname || n), allies: draft.allies };
-      recompute();
+      const list = (names) => names.map((n) => ({ name: n, dname: dname(n), src: draft.sources?.[n] || 'manual' }));
+      draftHelp = {
+        v: ++helpVersion,
+        picks: res.picks.slice(0, 6).map(slim),
+        avoid: (res.avoid || []).slice(0, 3).map(slim),
+        bans: res.bans.slice(0, 4).map((b) => ({ name: b.name, dname: b.dname, tier: b.tier, reasons: b.reasons.slice(0, 2) })),
+        // Ban suggestions matter while bans are made: Dota says so (captains mode), or nobody has picked yet
+        // (ranked All Pick bans before anyone picks).
+        banPhase: inHeroSelection() && (draft.gsiPick === false || (draft.gsiPick !== true && !draft.allies.length && !draft.enemies.length && !draft.ownHero)),
+        needs: res.needs,
+        needsText: res.needsText,
+        forTeam: res.forTeam,
+        ownHero: draft.ownHero ? { name: draft.ownHero, dname: dname(draft.ownHero) } : null,
+        role: settings.role,
+        source: draft.source,
+        hasStats: res.hasStats,
+        hasMatchups: res.hasMatchups,
+        loading: res.loading,
+        enemies: draft.enemies,
+        enemyNames: draft.enemies.map(dname),
+        allies: draft.allies,
+        enemyList: list(draft.enemies),
+        allyList: list(draft.allies),
+        banList: list(draft.bans),
+      };
+      if (!silent) recompute();
     } catch (err) {
-      log(`Draft-forslag feilet: ${err.message}`);
+      console.error('Draft-forslag feilet:', err);
     }
   }
 
+  // The suggestions for the dashboard's draft tab: waits a little for missing data, then answers with what it
+  // has (`loading` tells the page to ask again shortly).
   async function draftSuggestions(role, bracket) {
-    await loadHeroStats().catch(() => {});
-    await loadMatchups(draft.enemies);
-    const toHero = (n) => heroes.get(n);
-    const enemies = draft.enemies.map(toHero);
-    // The hero you already picked is taken too.
-    const own = draft.ownHero && heroes.has(draft.ownHero) ? [heroes.get(draft.ownHero)] : [];
-    const res = suggestHeroes({
-      heroes: [...heroes.values()],
-      stats,
-      matchups: matchupCache,
-      allies: draft.allies.map(toHero),
-      enemies,
-      bans: [...draft.bans.map(toHero), ...own],
-      role,
-      bracket,
-    });
-    return {
-      ...res,
-      hasStats: stats.size > 0,
-      hasMatchups: draft.enemies.some((n) => matchupCache.has(n)),
-      situational: situationalItems(enemies, role, itemDb),
-      enemyTips: enemyTips(enemies),
-    };
+    const waitStats = stats.size ? null : Promise.race([ensureHeroStats(), new Promise((r) => setTimeout(r, 3000).unref?.())]);
+    await Promise.all([waitStats, awaitMatchups(draftHeroes(), 3000)]);
+    return computeDraft(role, bracket);
   }
 
   async function route(req, res) {
@@ -638,21 +789,21 @@ export async function startServer(opts = {}) {
       // Heroes the user removed stay out even if the screen still shows them (wrong recognition).
       const removed = new Set(cleanNames(body.removed, 10));
       // Recognised heroes stay "automatic"; only what the user added is stored as manual.
-      const recognised = new Set([...draft.autoAllies, ...draft.autoEnemies]);
+      const recognised = new Set([...draft.autoAllies, ...draft.autoEnemies, ...(draft.autoBans || [])]);
       const allies = cleanNames(body.allies, 4).filter((n) => !removed.has(n));
       const enemies = cleanNames(body.enemies, 5).filter((n) => !removed.has(n));
       manual = {
         allies: allies.filter((n) => !recognised.has(n) || draft.autoEnemies.includes(n)),
         enemies: enemies.filter((n) => !recognised.has(n) || draft.autoAllies.includes(n)),
-        bans: cleanNames(body.bans, 10),
+        bans: cleanNames(body.bans, 16).filter((n) => !removed.has(n) && !recognised.has(n)),
         savedAt: Date.now(),
       };
       // A hero entered by hand is wanted after all.
-      for (const n of [...allies, ...enemies]) blocked.delete(n);
+      for (const n of [...allies, ...enemies, ...cleanNames(body.bans, 16)]) blocked.delete(n);
       for (const n of removed) blocked.add(n);
       updateDraft(true);
-      const suggestions = await draftSuggestions(role, bracket);
       refreshDraftHelp();
+      const suggestions = await draftSuggestions(role, bracket);
       return send(res, 200, { draft, suggestions });
     }
     // Heroes the desktop app recognised on screen: { left: [...], right: [...] } (Radiant left, Dire right).
@@ -662,7 +813,6 @@ export async function startServer(opts = {}) {
       if (updateDraft()) {
         log(`  Gjenkjente helter: ${auto.radiant.join(', ') || '-'} | ${auto.dire.join(', ') || '-'}`);
         refreshDraftHelp();
-        recompute();
       }
       return send(res, 200, { ok: true, draft });
     }
@@ -731,7 +881,20 @@ export async function startServer(opts = {}) {
         update: { available: update.available, latest: update.latest || null, error: update.error || null },
         errors: recentErrors.slice(-15),
         vision,
-        draft: { team: draft.team, allies: draft.allies, enemies: draft.enemies, autoAllies: draft.autoAllies, autoEnemies: draft.autoEnemies, unassigned: draft.unassigned },
+        draft: {
+          team: draft.team,
+          allies: draft.allies,
+          enemies: draft.enemies,
+          bans: draft.bans,
+          autoAllies: draft.autoAllies,
+          autoEnemies: draft.autoEnemies,
+          unassigned: draft.unassigned,
+          source: draft.source,
+          sources: draft.sources,
+          gsi: { at: gsiDraft.at ? new Date(gsiDraft.at).toISOString() : null, radiant: gsiDraft.radiant, dire: gsiDraft.dire, bans: gsiDraft.bans, activeTeam: gsiDraft.activeTeam, isPick: gsiDraft.isPick },
+          gsiSample: draftSample,
+          gsiSampleWithHeroes: draftSampleWithHeroes,
+        },
         matches: reports.map((r) => ({
           hero: r.hero?.name,
           role: r.role,

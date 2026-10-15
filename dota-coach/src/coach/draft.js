@@ -96,24 +96,22 @@ const sumOf = (team, f) => team.reduce((s, h) => s + f(h), 0);
 // candidate covers it. `minAllies`: only judge once that many allies are known; `w`: bonus in percentage points
 // (the same scale as the counter score); `roles`: only for players on these positions (0 = position not set).
 const NEEDS = [
-  { id: 'initiation', label: 'initiering', fill: 'Gir laget initiering', w: 2.5, minAllies: 2, lacking: (t) => !t.some((h) => has(h, 'Initiator')), fills: (h) => has(h, 'Initiator') },
-  { id: 'disable', label: 'stuns', fill: 'Gir laget stuns', w: 1.5, minAllies: 2, lacking: (t) => t.filter((h) => has(h, 'Disabler')).length < Math.min(2, t.length), fills: (h) => has(h, 'Disabler') },
-  { id: 'frontline', label: 'en frontlinje', fill: 'Tanky frontlinje', w: 2, minAllies: 2, lacking: (t) => !t.some((h) => has(h, 'Durable')), fills: (h) => has(h, 'Durable') },
+  { id: 'initiation', label: 'initiering', w: 2.5, minAllies: 2, lacking: (t) => !t.some((h) => has(h, 'Initiator')), fills: (h) => has(h, 'Initiator') },
+  { id: 'disable', label: 'stuns', w: 1.5, minAllies: 2, lacking: (t) => t.filter((h) => has(h, 'Disabler')).length < Math.min(2, t.length), fills: (h) => has(h, 'Disabler') },
+  { id: 'frontline', label: 'en frontlinje', w: 2, minAllies: 2, lacking: (t) => !t.some((h) => has(h, 'Durable')), fills: (h) => has(h, 'Durable') },
   {
     id: 'waveclear',
     label: 'waveclear',
-    fill: 'Gir waveclear og push',
     w: 1.5,
     minAllies: 3,
     lacking: (t) => !t.some((h) => has(h, 'Pusher')) && t.filter((h) => has(h, 'Nuker')).length < 2,
     fills: (h) => has(h, 'Pusher') || has(h, 'Nuker'),
   },
-  { id: 'magic', label: 'magisk skade', fill: 'Magisk skade laget mangler', w: 1.5, minAllies: 2, lacking: (t) => sumOf(t, (h) => damageOf(h).magic) < 0.5, fills: (h) => damageOf(h).magic >= 0.5 },
-  { id: 'physical', label: 'fysisk skade', fill: 'Fysisk skade laget mangler', w: 1.5, minAllies: 3, lacking: (t) => sumOf(t, (h) => damageOf(h).phys) < 0.5, fills: (h) => damageOf(h).phys >= 0.5 },
+  { id: 'magic', label: 'magisk skade', w: 1.5, minAllies: 2, lacking: (t) => sumOf(t, (h) => damageOf(h).magic) < 0.5, fills: (h) => damageOf(h).magic >= 0.5 },
+  { id: 'physical', label: 'fysisk skade', w: 1.5, minAllies: 3, lacking: (t) => sumOf(t, (h) => damageOf(h).phys) < 0.5, fills: (h) => damageOf(h).phys >= 0.5 },
   {
     id: 'carry',
     label: 'en lategame-carry',
-    fill: 'Lategame-carry laget mangler',
     w: 2.5,
     minAllies: 3,
     // A support is not asked to carry, and a pos 1 picks a carry anyway.
@@ -126,13 +124,7 @@ const NEEDS = [
 // The needs of a team with these allies (hero objects), for a player on `role` (0 = any).
 export function teamNeeds(allies = [], role = 0) {
   const team = allies.filter(Boolean);
-  return NEEDS.filter((n) => team.length >= n.minAllies && (!n.roles || n.roles.includes(Number(role) || 0)) && n.lacking(team)).map(({ id, label, fill, w, fills }) => ({
-    id,
-    label,
-    fill,
-    w,
-    fills,
-  }));
+  return NEEDS.filter((n) => team.length >= n.minAllies && (!n.roles || n.roles.includes(Number(role) || 0)) && n.lacking(team)).map(({ id, label, w, fills }) => ({ id, label, w, fills }));
 }
 
 // Bonus for a candidate that covers what the team lacks. Grows with the number of allies known (a need seen
@@ -140,7 +132,14 @@ export function teamNeeds(allies = [], role = 0) {
 export function compositionScore(hero, needs, allyCount) {
   const k = Math.min(1, allyCount / 3);
   const fills = needs.filter((n) => n.fills(hero));
-  return { score: fills.reduce((s, n) => s + n.w * k, 0), fills };
+  // Capped, so a hero that ticks every box does not drown out the counters.
+  return { score: Math.min(5, fills.reduce((s, n) => s + n.w * k, 0)), fills };
+}
+
+// "Laget mangler initiering og stuns" (empty when nothing is missing).
+export function needsText(needs = []) {
+  const labels = needs.map((n) => n.label).filter(Boolean);
+  return labels.length ? `Laget mangler ${joinNames(labels)}` : '';
 }
 
 // "A", "A og B", "A, B og C"
@@ -149,7 +148,7 @@ const pct = (x) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 
 // Pick suggestions: meta in the bracket + counters against the enemies + what the team lacks + known combos
 // with the allies. Banned and picked heroes are left out.
-export function suggestHeroes({ heroes, stats, matchups, allies = [], enemies = [], bans = [], role = 0, bracket = 5, limit = 12 }) {
+export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(), allies = [], enemies = [], bans = [], role = 0, bracket = 5, limit = 12 }) {
   allies = allies.filter(Boolean);
   enemies = enemies.filter(Boolean);
   const taken = new Set([...allies, ...enemies, ...bans.filter(Boolean)].map((h) => h.name));
@@ -178,7 +177,7 @@ export function suggestHeroes({ heroes, stats, matchups, allies = [], enemies = 
     const reasons = [];
     if (good.length) reasons.push({ text: `Sterk mot ${joinNames(good.slice(0, 2).map((g) => g.dname))}`, kind: 'pos' });
     for (const s of syn.slice(0, 1)) reasons.push({ text: `Kombo med ${s.dname}: ${s.why}`, kind: 'pos' });
-    for (const n of comp.fills.slice(0, 2)) reasons.push({ text: n.fill, kind: 'pos' });
+    if (comp.fills.length) reasons.push({ text: `Gir laget ${joinNames(comp.fills.map((n) => n.label))}`, kind: 'pos' });
     if (bad.length) reasons.push({ text: `Svak mot ${joinNames(bad.map((b) => b.dname))}`, kind: 'neg' });
     if (t && ['S', 'A'].includes(t.tier) && reasons.length < 2) reasons.push({ text: `${t.tier}-tier i meta`, kind: 'info' });
 
@@ -214,7 +213,7 @@ const LANE_OPPONENTS = { 1: [3, 4], 2: [2], 3: [1, 5], 4: [1, 5], 5: [3, 4] };
 // Heroes worth banning: strong in the bracket and good against our team so far (the allies' and your own
 // matchups, read the other way round). With nobody on our team yet: the strongest meta heroes you would
 // meet in your lane, weighted a little by how often they are picked.
-export function suggestBans({ heroes, stats, matchups, allies = [], ownHero = null, enemies = [], bans = [], role = 0, bracket = 5, limit = 5 }) {
+export function suggestBans({ heroes, stats = new Map(), matchups = new Map(), allies = [], ownHero = null, enemies = [], bans = [], role = 0, bracket = 5, limit = 5 }) {
   const team = [...allies, ownHero].filter(Boolean);
   const taken = new Set([...team, ...enemies, ...bans].filter(Boolean).map((h) => h.name));
   const tiers = tierList(heroes, stats, { bracket, role: 0 });
@@ -225,7 +224,8 @@ export function suggestBans({ heroes, stats, matchups, allies = [], ownHero = nu
 
   const rows = [];
   for (const t of tiers) {
-    if (taken.has(t.name)) continue;
+    // Only heroes that are strong in the bracket are worth a ban (C/D tier counters are rarely picked anyway).
+    if (taken.has(t.name) || t.tier === 'C' || t.tier === 'D') continue;
     const h = byName.get(t.name);
     if (!h) continue;
     let score = t.z * 1.2 + Math.min(1.5, t.pickrate * 4);
