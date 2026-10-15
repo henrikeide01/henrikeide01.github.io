@@ -67,3 +67,14 @@ body.edit .ov-edit-hint { display: block; }
 .ov-pick { grid-template-columns: auto minmax(0, 1fr); border-left-color: var(--blue); margin-top: 4px; }
 .ov-pick .tier { width: 16px; height: 16px; font-size: 10px; border-radius: 4px; vertical-align: 1px; }
 .ov-pct { font-family: var(--mono); font-weight: 700; color: var(--gold); font-size: 12px; }
+
+/* "Kjøp nå" rows and the death recap block */
+.ov-buy { border-left-color: var(--green); }
+.ov-buy.high { border-left-color: var(--gold); background: rgba(100, 76, 20, 0.55); }
+.ov-pct.ok { color: var(--green); }
+.ov-pct.miss { color: var(--muted); font-weight: 600; }
+.ov-fight.ov-death { border-left-color: var(--red); background: rgba(90, 24, 22, 0.7); gap: 4px; }
+.ov-death .ov-fight-row span { white-space: normal; }
+.ov-dr-m { font-size: 12.5px; line-height: 1.35; padding-left: 12px; position: relative; }
+.ov-dr-m::before { content: '•'; position: absolute; left: 2px; color: var(--red); font-weight: 800; }
+.ov-dr-do { font-size: 12px; line-height: 1.35; color: #e3e8ef; }

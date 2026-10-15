@@ -115,7 +115,20 @@ export function mountOverlay(root) {
     patch(head('clock'), `${esc(state.clockText)} ${day}${state.paused ? ' ⏸' : ''}`);
 
     const f = state.fight;
-    if (f && f.level !== 'dead') {
+    const dr = state.deathRecap;
+    if (dr && h.alive === false) {
+      // While dead the fight meter has nothing to say: the death recap takes its place.
+      els.fight.className = 'ov-fight ov-death';
+      const buy = dr.whileDead?.buy;
+      const bb = dr.whileDead?.buyback;
+      patch(
+        els.fight,
+        `<div class="ov-fight-row"><b>💀 Du døde</b><span>${dr.where ? esc(dr.where.label) : ''}${dr.respawn ? ` · respawn ${dr.respawn} s` : ''}</span></div>
+         ${dr.mistakes.slice(0, 2).map((m) => `<div class="ov-dr-m">${esc(m.text)}</div>`).join('')}
+         ${buy ? `<div class="ov-dr-do">🛒 ${esc(buy.text)}</div>` : ''}
+         ${bb && bb.advice !== 'none' ? `<div class="ov-dr-do">💰 ${esc(bb.text)}</div>` : ''}`,
+      );
+    } else if (f && f.level !== 'dead') {
       els.fight.className = `ov-fight ${f.level}`;
       const fb = layout(els.fight, 'fight', '<div class="ov-fight-row"><b data-p="word"></b><span data-p="head"></span></div><div class="fm-gauge sm"><i data-p="marker"></i></div>');
       patch(fb('word'), `${f.icon} ${esc(f.label)}`);
@@ -129,7 +142,7 @@ export function mountOverlay(root) {
     // Skill and neutral choices get their own rows below, so their tips are only read aloud.
     const sk = state.skills;
     const own = (t) => (t.id === 'unspent' && sk?.next) || t.id.startsWith('neutral-') || (t.id.startsWith('talent-') && sk?.next?.talent);
-    const tips = (state.tips || []).filter((t) => !t.id.startsWith('fight-') && !own(t)).slice(0, MAX_TIPS);
+    const tips = (state.tips || []).filter((t) => !t.id.startsWith('fight-') && !t.id.startsWith('death-') && !t.id.startsWith('buy-') && !own(t)).slice(0, MAX_TIPS);
     const shown = tips.length ? tips : [{ key: 'calm', level: 'calm', icon: '✅', text: state.focus || 'Alt ser bra ut. Fortsett sånn!' }];
     patchList(
       els.tips,
@@ -161,6 +174,15 @@ export function mountOverlay(root) {
       const a = pn.items?.[0];
       const e = pn.enchantments?.[0];
       if (a || e) rows.push(`<div class="ov-skill">${a ? itemImg(a.name, a.dname, 'sm') : itemImg(e.name, e.dname, 'sm')}<div><span class="ov-muted">Nøytralt T${pn.tier}:</span> <b>${esc([a?.dname, e?.dname].filter(Boolean).join(' + '))}</b></div><span class="ov-pct">${a?.pct != null ? `${a.pct} %` : ''}</span></div>`);
+    }
+    // "Kjøp nå": the top one or two live item suggestions (the death recap has its own buy line).
+    if (!(dr && h.alive === false)) {
+      for (const x of (state.liveItems || []).slice(0, 2)) {
+        const gold = x.remaining === 0 ? 'gratis' : x.afford ? 'råd nå' : `−${fmtNum(x.missing)}`;
+        rows.push(
+          `<div class="ov-skill ov-buy ${x.priority >= 80 ? 'high' : ''}">${itemImg(x.item, x.dname, 'sm')}<div><span class="ov-muted">Kjøp:</span> <b>${esc(x.dname)}</b>${x.short ? `<div class="ov-sub">${esc(x.short)}</div>` : ''}</div><span class="ov-pct ${x.afford ? 'ok' : 'miss'}">${gold}</span></div>`,
+        );
+      }
     }
     patch(els.skills, rows.join(''));
 

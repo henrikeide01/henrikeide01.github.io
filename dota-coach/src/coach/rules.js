@@ -73,8 +73,14 @@ export const RULES = [
       cooldown: 300,
     });
   },
+  function deathRecap(c) {
+    const d = c.deathRecap;
+    if (!d || !inGame(c) || alive(c)) return;
+    // Shown as its own card/block; the tip carries the spoken sentence (once per death).
+    return tip(`death-${d.n ?? d.t}`, 'warn', '💀', `Du døde: ${d.mistakes[0].text}`, { say: d.say, cooldown: 0 });
+  },
   function dead(c) {
-    if (!playing(c) || alive(c)) return;
+    if (!playing(c) || alive(c) || c.deathRecap) return;
     let text = `Død, ${c.hero.respawn_seconds || 0} s til respawn.`;
     const bb = c.hero.buyback_cost;
     if (c.clock >= 1200 && bb) {
@@ -148,6 +154,13 @@ export const RULES = [
     if (e && !n.enchantments.some((x) => x.selected)) parts.push(`fortryllelse: ${e.dname}${e.stats ? ` (${e.stats})` : ''}`);
     if (!parts.length) return;
     return tip(`neutral-${n.tier}`, 'info', '💎', `Nøytralt item tier ${n.tier} – velg ${parts.join(' og ')}.`, { say: 'Velg nøytralt item', cooldown: 600 });
+  },
+  function buyNow(c) {
+    // Only the most important live suggestion is read aloud, and the same item at most every 10 minutes.
+    const top = (c.liveItems || [])[0];
+    if (!inGame(c) || !top || top.priority < 80) return;
+    const gold = top.afford ? 'Du har råd nå.' : top.goldText ? `${top.goldText}.` : '';
+    return tip(`buy-${top.item}`, 'info', '🛒', `Kjøp ${top.dname}: ${top.reason} ${gold}`.trim(), { say: `Kjøp ${top.dname}`, cooldown: 600 });
   },
   function supportWards(c) {
     if (!inGame(c) || c.role < 4 || !alive(c) || c.clock < 120) return;

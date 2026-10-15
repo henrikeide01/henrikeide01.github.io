@@ -218,3 +218,77 @@ export const KEY_ACTIVES = {
   lotus_orb: 'Lotus Orb',
   aeon_disk: 'Aeon Disk',
 };
+
+// ---------------- Live item suggestions and the death recap ----------------
+
+// Heroes with a lot of magic burst from the laning phase on. Two or more → Infused Raindrops early.
+export const MAGIC_NUKERS = [
+  'lina', 'lion', 'zuus', 'skywrath_mage', 'leshrac', 'tinker', 'pugna', 'queenofpain', 'puck', 'storm_spirit', 'death_prophet',
+  'jakiro', 'witch_doctor', 'shadow_shaman', 'nyx_assassin', 'necrolyte', 'void_spirit', 'ember_spirit', 'earth_spirit',
+  'grimstroke', 'disruptor', 'hoodwink', 'snapfire', 'invoker', 'obsidian_destroyer', 'ancient_apparition', 'dark_willow',
+  'muerta', 'techies', 'crystal_maiden', 'shadow_demon', 'bane', 'ogre_magi', 'keeper_of_the_light', 'dark_seer',
+];
+
+// Heroes that cast spells all the time (Magic Stick/Wand fills up fast against them).
+export const SPELL_SPAMMERS = [
+  'batrider', 'bristleback', 'zuus', 'skywrath_mage', 'storm_spirit', 'ogre_magi', 'shredder', 'weaver', 'venomancer', 'leshrac',
+  'queenofpain', 'puck', 'tinker', 'invoker', 'techies', 'death_prophet', 'ember_spirit', 'earth_spirit', 'jakiro', 'disruptor',
+  'pugna', 'lina', 'silencer', 'necrolyte', 'nyx_assassin', 'sand_king', 'void_spirit', 'pangolier', 'dark_seer', 'abaddon',
+  'windrunner', 'templar_assassin', 'snapfire', 'hoodwink', 'dark_willow', 'witch_doctor', 'mirana', 'keeper_of_the_light',
+];
+
+// Items with an active that can save your life. Name → short label used in the death recap.
+export const SAVE_ACTIVES = {
+  black_king_bar: 'BKB',
+  glimmer_cape: 'Glimmer Cape',
+  force_staff: 'Force Staff',
+  hurricane_pike: 'Hurricane Pike',
+  blink: 'Blink Dagger',
+  overwhelming_blink: 'Blink Dagger',
+  swift_blink: 'Blink Dagger',
+  arcane_blink: 'Blink Dagger',
+  ghost: 'Ghost Scepter',
+  ethereal_blade: 'Ethereal Blade',
+  cyclone: 'Eul’s',
+  wind_waker: 'Wind Waker',
+  manta: 'Manta Style',
+  satanic: 'Satanic',
+  lotus_orb: 'Lotus Orb',
+  invis_sword: 'Shadow Blade',
+  silver_edge: 'Silver Edge',
+  mekansm: 'Mekansm',
+  guardian_greaves: 'Guardian Greaves',
+  pipe: 'Pipe',
+  crimson_guard: 'Crimson Guard',
+  sheepstick: 'Hex',
+  orchid: 'Orchid',
+  bloodthorn: 'Bloodthorn',
+  abyssal_blade: 'Abyssal Blade',
+  heavens_halberd: 'Halberd',
+  solar_crest: 'Solar Crest',
+  disperser: 'Disperser',
+  harpoon: 'Harpoon',
+  blade_mail: 'Blade Mail',
+  eternal_shroud: 'Eternal Shroud',
+  boots_of_bearing: 'Boots of Bearing',
+  holy_locket: 'Holy Locket',
+  magic_wand: 'Magic Wand',
+  magic_stick: 'Magic Stick',
+  faerie_fire: 'Faerie Fire',
+};
+
+// Abilities that save you (escape, invulnerability, dispel, heal). Only these count as "a defensive spell was ready".
+export const SAVE_ABILITIES = [
+  'antimage_blink', 'queenofpain_blink', 'puck_phase_shift', 'puck_ethereal_jaunt', 'slark_dark_pact', 'slark_pounce', 'slark_shadow_dance',
+  'weaver_shukuchi', 'weaver_time_lapse', 'storm_spirit_ball_lightning', 'ember_spirit_activate_fire_remnant', 'faceless_void_time_walk',
+  'morphling_waveform', 'riki_tricks_of_the_trade', 'juggernaut_blade_fury', 'life_stealer_rage', 'omniknight_martyr', 'omniknight_guardian_angel',
+  'dazzle_shallow_grave', 'abaddon_borrowed_time', 'abaddon_aphotic_shield', 'oracle_false_promise', 'oracle_fates_edict', 'mirana_leap',
+  'sandking_burrowstrike', 'void_spirit_dissimilate', 'void_spirit_astral_step', 'pangolier_shield_crash', 'pangolier_gyroshell',
+  'windrunner_windrun', 'nyx_assassin_spiked_carapace', 'templar_assassin_refraction', 'templar_assassin_meld', 'phantom_lancer_doppelwalk',
+  'naga_siren_mirror_image', 'terrorblade_conjure_image', 'terrorblade_sunder', 'bounty_hunter_wind_walk', 'clinkz_wind_walk',
+  'earth_spirit_rolling_boulder', 'tusk_snowball', 'magnataur_skewer', 'phoenix_icarus_dive', 'spectre_haunt', 'meepo_poof',
+  'furion_teleportation', 'wisp_relocate', 'hoodwink_scurry', 'marci_companion_run', 'chen_hand_of_god', 'troll_warlord_battle_trance',
+  'ursa_enrage', 'arc_warden_magnetic_field', 'shadow_demon_disruption', 'winter_wyvern_cold_embrace', 'legion_commander_press_the_attack',
+  'necrolyte_ghost_shroud', 'pugna_decrepify', 'monkey_king_tree_dance', 'kez_grappling_claw', 'dark_willow_shadow_realm',
+  'invoker_ghost_walk', 'spirit_breaker_charge_of_darkness', 'batrider_firefly', 'bristleback_bristleback',
+];

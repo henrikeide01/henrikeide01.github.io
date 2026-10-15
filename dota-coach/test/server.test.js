@@ -278,3 +278,45 @@ test('draft: own hero is never suggested, removals stick, and a new match clears
   res = await (await post('/api/draft', { suggestOnly: true })).json();
   assert.equal(res.draft.rev, rev);
 });
+
+test('a simulated death: the recap appears while dead and is gone after respawn; live items adapt', async () => {
+  const s = { phase: 'GAME', clock: 180, hero: 'antimage', heroId: 1, deaths: 0, alive: true, respawn: 0, lowHp: false, matchId: '990' };
+  const state = async () => (await fetch(`${base}/api/state`)).json();
+  await post('/gsi', fakePayload(s, token));
+  await post('/api/draft', { reset: true, enemies: ['lina', 'lion', 'skywrath_mage', 'riki', 'axe'], allies: [] });
+  for (; s.clock < 240; s.clock += 1) {
+    s.lowHp = s.clock > 225;
+    await post('/gsi', fakePayload(s, token));
+  }
+  let st = await state();
+  assert.equal(st.deathRecap, null);
+  assert.ok(st.liveItems.some((x) => x.item === 'infused_raindrop'), 'Raindrops against three magic nukers');
+  assert.ok(st.liveItems.every((x) => x.reason && typeof x.priority === 'number' && x.goldText));
+
+  s.deaths = 1;
+  s.alive = false;
+  s.respawn = 20;
+  await post('/gsi', fakePayload(s, token));
+  st = await state();
+  assert.ok(st.deathRecap, 'recap while dead');
+  assert.equal(st.deathRecap.n, 1);
+  assert.ok(st.deathRecap.mistakes.length >= 1 && st.deathRecap.mistakes.length <= 3);
+  assert.ok(st.deathRecap.whileDead.buy?.text);
+  assert.ok(st.deathRecap.whileDead.go);
+  assert.ok(st.tips.some((t) => t.id.startsWith('death-') && t.say), 'one spoken sentence');
+
+  for (let i = 0; i < 5; i++) {
+    s.clock += 4;
+    s.respawn -= 4;
+    await post('/gsi', fakePayload(s, token));
+  }
+  assert.ok((await state()).deathRecap, 'still there while dead');
+  s.alive = true;
+  s.respawn = 0;
+  s.lowHp = false;
+  s.clock += 1;
+  await post('/gsi', fakePayload(s, token));
+  st = await state();
+  assert.equal(st.deathRecap, null, 'gone after respawn');
+  assert.equal(st.hero.alive, true);
+});

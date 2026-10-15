@@ -301,8 +301,8 @@ function renderLive() {
      <div class="stat"><div class="k">XPM</div><div class="v">${p.xpm}</div></div>`,
   );
 
-  // The fight meter has its own card, so its tips are only read aloud here.
-  const tips = s.tips.filter((t) => !t.id.startsWith('fight-'));
+  // The fight meter, the death recap and "Kjøp nå" have their own cards, so their tips are only read aloud here.
+  const tips = s.tips.filter((t) => !t.id.startsWith('fight-') && !t.id.startsWith('death-') && !t.id.startsWith('buy-'));
   $('c-tipcount').textContent = tips.length ? `${tips.length} aktive` : '';
   if (tips.length) {
     patchList($('c-tips'), tips, (t) => t.key, (t) => `<div class="ico">${t.icon}</div><div>${esc(t.text)}</div>`, (t) => `tip ${t.level}`);
@@ -316,6 +316,8 @@ function renderLive() {
   );
 
   renderFight();
+  renderDeath();
+  renderBuyNow();
   renderNext();
   renderSkills();
   renderNeutral();
@@ -352,6 +354,52 @@ function renderFight() {
     f.reasons.length
       ? f.reasons.map((r) => `<div class="fm-reason"><b class="${r.delta > 0 ? 'pos' : 'neg'}">${r.delta > 0 ? '+' : '−'}${Math.abs(r.delta)}</b><span>${esc(r.text)}</span></div>`).join('')
       : '<div class="muted">Ingen sterke signaler akkurat nå.</div>',
+  );
+}
+
+// "Kjøp nå": item suggestions that adapt to the match (HP/mana, enemies, gold, role, time).
+function renderBuyNow() {
+  const list = state.liveItems || [];
+  const card = $('c-buy');
+  card.classList.toggle('hidden', !list.length);
+  if (!list.length) return patch(card, '');
+  const pr = (p) => (p >= 80 ? 'high' : p >= 60 ? 'mid' : 'low');
+  const rows = list
+    .map((x) => {
+      const alt = x.alt?.length ? `<div class="buy-alt">Eller: ${x.alt.map((a) => esc(a.dname)).join(', ')}</div>` : '';
+      return `<div class="buy ${pr(x.priority)}">${itemImg(x.item, x.dname)}<div class="buy-body"><div class="buy-top"><b>${esc(x.dname)}</b><span class="buy-gold ${x.afford ? 'ok' : ''}">${esc(x.goldText)}</span></div><div class="why">${esc(x.reason)}</div>${alt}</div></div>`;
+    })
+    .join('');
+  patch(card, `<h3>Kjøp nå <span class="right faint">tilpasses kampen</span></h3>${rows}`);
+}
+
+// Death recap: what most likely went wrong, and what to do while dead. Disappears on respawn.
+function renderDeath() {
+  const d = state.deathRecap;
+  const card = $('c-death');
+  card.classList.toggle('hidden', !d);
+  // While the recap is up, the fight meter only says "dead": the recap takes its place.
+  if (d) $('c-fight').classList.add('hidden');
+  if (!d) return patch(card, '');
+  const facts = [];
+  if (d.where) facts.push(`📍 ${esc(d.where.label)}${d.where.night ? ' · natt' : ''}`);
+  if (d.hp) facts.push(d.hp.lowFor >= 6 ? `❤️ ${d.hp.lowFor} s på lav HP` : `❤️ ${d.hp.from} % → 0 på ${Math.max(1, d.hp.secs)} s`);
+  if (d.fight) facts.push(`Fight-meter: ${esc(d.fight.label)}`);
+  if (d.lost) facts.push(`🪙 −${fmtNum(d.lost)} gull`);
+  if (d.streak >= 2) facts.push(`💀 ${d.streak} på 5 min`);
+  const w = d.whileDead || {};
+  const bb = w.buyback ? `<div class="dr-do bb ${w.buyback.advice}"><span>💰</span><span>${esc(w.buyback.text)}</span></div>` : '';
+  patch(
+    card,
+    `<div class="dr-head"><span class="dr-skull">💀</span><div><div class="dr-title">Du døde ${esc(d.clockText)}${d.n ? ` <span class="faint">(${d.n}. gang)</span>` : ''}</div><div class="dr-facts">${facts.map((f) => `<span>${f}</span>`).join('')}</div></div><div class="dr-respawn num">${d.respawn ? `${d.respawn} s` : ''}</div></div>
+     <div class="dr-cols">
+       <div><span class="label-sm">Hva gikk galt</span><ol class="dr-list">${d.mistakes.map((m) => `<li>${esc(m.text)}</li>`).join('')}</ol></div>
+       <div><span class="label-sm">Mens du er død</span>
+         ${w.buy ? `<div class="dr-do">${w.buy.item ? itemImg(w.buy.item, w.buy.dname, 'sm') : '<span>🛒</span>'}<span>${esc(w.buy.text)}</span></div>` : ''}
+         ${bb}
+         ${w.go ? `<div class="dr-do"><span>🧭</span><span>${esc(w.go)}</span></div>` : ''}
+       </div>
+     </div>`,
   );
 }
 
