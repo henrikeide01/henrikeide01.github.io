@@ -484,8 +484,16 @@ td.hero-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; 
 .subhead { margin: 12px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .slot-hero { position: relative; }
 .slot-hero.auto::after { content: 'AUTO'; position: absolute; right: 2px; bottom: 2px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.04em; padding: 0 3px; border-radius: 3px; background: rgba(60, 140, 255, 0.92); color: #fff; }
+.slot-hero.gsi::after { content: 'SPILL'; position: absolute; right: 2px; bottom: 2px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.04em; padding: 0 3px; border-radius: 3px; background: rgba(40, 150, 80, 0.95); color: #fff; }
+.slot-hero.auto:hover::after, .slot-hero.gsi:hover::after { content: '✕'; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, 0.6); border-radius: 6px; font-size: 14px; padding: 0; }
 .vision-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; margin: 4px 0 10px; }
 .draft-picks { display: grid; gap: 6px; margin-top: 10px; text-align: left; }
+.draft-picks .sugg.ban .name { color: #ffc2bd; }
+.draft-sub { margin-top: 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left; }
+.draft-needs { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(224, 160, 48, 0.1); border: 1px solid rgba(224, 160, 48, 0.35); color: #ffe3b0; font-size: 13px; text-align: left; }
+.src-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: rgba(141, 155, 176, 0.2); color: var(--muted); vertical-align: 1px; }
+.src-pill.gsi { background: rgba(63, 191, 106, 0.2); color: #9be3b4; }
+.src-pill.screen { background: rgba(90, 166, 255, 0.2); color: #b9d8ff; }
 .talent-tier { display: grid; grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr); gap: 6px; margin-top: 4px; }
 .talent-tier .lvl { display: grid; place-items: center; font-weight: 700; color: var(--gold); }
 .talent-tier .opt { display: flex; justify-content: space-between; gap: 6px; padding: 6px 8px; border-radius: 8px; background: var(--panel-3); font-size: 12.5px; }

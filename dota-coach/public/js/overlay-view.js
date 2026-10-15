@@ -51,11 +51,66 @@ export function patchList(container, items, keyOf, htmlOf, wrapClass) {
   for (const el of old.values()) el.remove();
 }
 
+// ---------- The pick phase ----------
+const SRC_LABEL = { gsi: 'fra spillet', screen: 'fra skjermen', manual: 'lagt inn' };
+
+// The most trustworthy source in a list of heroes: Dota's own data, then the screen, then entered by hand.
+const listSource = (list) => ['gsi', 'screen', 'manual'].find((x) => list.some((h) => h.src === x)) || null;
+const srcBadge = (src) => (src ? `<span class="ovd-src ${src}">${SRC_LABEL[src]}</span>` : '');
+
+function teamRow(label, list) {
+  if (!list?.length) return '';
+  return `<div class="ovd-team"><span class="ovd-lbl">${label}</span><span class="ovd-heads">${list.map((h) => heroImg(h.name, h.dname, 'xxs')).join('')}</span>${srcBadge(listSource(list))}</div>`;
+}
+
+// One line of reasons, the most important first (cut with an ellipsis when it is too long).
+function reasonLine(r) {
+  const parts = (r.reasons || []).slice(0, 2).map((x) => (typeof x === 'string' ? { text: x, kind: '' } : x));
+  if (!parts.length && r.winrate != null) parts.push({ text: `${(r.winrate * 100).toFixed(1).replace('.', ',')} % seier`, kind: '' });
+  return parts.map((x) => `<span class="${x.kind === 'neg' ? 'neg' : x.kind === 'pos' ? 'pos' : ''}">${esc(x.text)}</span>`).join(' · ');
+}
+
+function renderDraft(el, dh) {
+  const part = layout(
+    el,
+    'draft',
+    '<div data-p="me"></div><div data-p="needs"></div><div class="ovd-h" data-p="bansHead"></div><div class="ovd-list" data-p="bans"></div><div class="ovd-h" data-p="picksHead"></div><div class="ovd-list" data-p="picks"></div><div class="ovd-teams" data-p="teams"></div>',
+  );
+  patch(part('me'), dh.ownHero ? `<div class="ovd-me">${heroImg(dh.ownHero.name, dh.ownHero.dname, 'xxs')}<span>Du har valgt <b>${esc(dh.ownHero.dname)}</b></span></div>` : '');
+  patch(part('needs'), dh.needsText ? `<div class="ovd-needs">⚠️ ${esc(dh.needsText.replace(/^Laget mangler /, 'Laget mangler: '))}</div>` : '');
+
+  const bans = dh.banPhase ? (dh.bans || []).slice(0, 3) : [];
+  patch(part('bansHead'), bans.length ? 'Foreslåtte bans' : '');
+  patchList(
+    part('bans'),
+    bans,
+    (b) => `ban:${b.name}`,
+    (b) => `${heroImg(b.name, b.dname, 'xs')}<div><b>${esc(b.dname)}</b> <span class="tier ${esc(b.tier)}">${esc(b.tier)}</span><div class="ov-sub">${reasonLine(b)}</div></div>`,
+    () => 'ov-pick ban',
+  );
+
+  const picks = (dh.picks || []).slice(0, bans.length ? 3 : 4);
+  const enemies = dh.enemyList?.length || dh.enemies?.length || 0;
+  const head = dh.forTeam ? 'Forslag til laget' : `Beste valg${dh.role ? ` for pos ${dh.role}` : ''}${enemies ? ` mot ${enemies} fiende${enemies > 1 ? 'r' : ''}` : ''}`;
+  patch(part('picksHead'), picks.length ? `${esc(head)}${dh.loading ? ' <span class="ovd-load">henter data …</span>' : ''}` : '');
+  patchList(
+    part('picks'),
+    picks,
+    (r) => r.name,
+    (r) => `${heroImg(r.name, r.dname, 'xs')}<div><b>${esc(r.dname)}</b> <span class="tier ${esc(r.tier)}">${esc(r.tier)}</span><div class="ov-sub">${reasonLine(r)}</div></div>`,
+    () => 'ov-pick',
+  );
+
+  const banned = dh.banList || [];
+  patch(part('teams'), [teamRow('Fiender', dh.enemyList), teamRow('Laget', dh.allyList), teamRow('Bannet', banned)].join(''));
+}
+
 export function mountOverlay(root) {
   root.innerHTML = `
     <div class="ov">
       <div class="ov-head" data-s="head"></div>
       <div class="ov-fight" data-s="fight"></div>
+      <div class="ov-draft" data-s="draft"></div>
       <div class="ov-tips" data-s="tips"></div>
       <div class="ov-skills" data-s="skills"></div>
       <div class="ov-next" data-s="next"></div>
@@ -64,11 +119,13 @@ export function mountOverlay(root) {
       <div class="ov-edit-hint">Flyttemodus: dra vinduet dit du vil ha det. Trykk <b>Alt+Shift+M</b> for å låse.</div>
     </div>`;
   const s = (name) => root.querySelector(`[data-s="${name}"]`);
-  const els = { head: s('head'), fight: s('fight'), tips: s('tips'), skills: s('skills'), next: s('next'), timers: s('timers'), foot: s('foot') };
+  const els = { head: s('head'), fight: s('fight'), draft: s('draft'), tips: s('tips'), skills: s('skills'), next: s('next'), timers: s('timers'), foot: s('foot') };
 
   return function update(state, status) {
     const connected = status?.gsiConnected;
-    const live = state && state.hero && !['menu', 'loading'].includes(state.phase);
+    // The pick phase keeps the draft view even after your own hero is picked (the rest of the draft matters).
+    const live = state && state.hero && !['menu', 'loading', 'draft'].includes(state.phase);
+    if (live) patch(els.draft, '');
 
     if (!live) {
       const msg = !status
@@ -79,22 +136,14 @@ export function mountOverlay(root) {
             : 'Klar. Venter på at kampen starter.'
           : 'Venter på Dota 2 … Start spillet eller en demo.';
       patch(els.head, `<div class="ov-title"><span class="dot ${connected ? 'on' : 'wait'}"></span><b>Dota Coach</b><span class="ov-muted">${esc(state?.phaseLabel || '')}</span></div>`);
-      const dh = state?.draftHelp;
-      if (connected && dh?.picks?.length) {
-        // The pick phase: what to pick against the heroes recognised so far.
-        const vs = dh.enemies?.length ? `${dh.enemies.length} fiende${dh.enemies.length > 1 ? 'r' : ''} kjent` : 'etter meta';
-        patch(
-          els.tips,
-          `<div class="ov-muted">Pick-forslag (${esc(vs)}):</div>${dh.picks
-            .slice(0, 5)
-            .map(
-              (r) => `<div class="ov-pick">${heroImg(r.name, r.dname, 'xs')}<div><b>${esc(r.dname)}</b> <span class="tier ${r.tier}">${r.tier}</span><div class="ov-sub">${esc(
-                [r.good?.length ? `sterk mot ${r.good.join(', ')}` : '', r.bad?.length ? `svak mot ${r.bad.join(', ')}` : '', r.winrate != null ? `${(r.winrate * 100).toFixed(1)} % seier` : ''].filter(Boolean).join(' · '),
-              )}</div></div></div>`,
-            )
-            .join('')}`,
-        );
-      } else patch(els.tips, `<div class="ov-empty">${esc(msg)}</div>`);
+      const dh = connected ? state?.draftHelp : null;
+      if (dh && (dh.picks?.length || dh.bans?.length)) {
+        renderDraft(els.draft, dh);
+        patch(els.tips, '');
+      } else {
+        patch(els.draft, '');
+        patch(els.tips, `<div class="ov-empty">${esc(msg)}</div>`);
+      }
       patch(els.skills, '');
       patch(els.fight, '');
       patch(els.next, '');
