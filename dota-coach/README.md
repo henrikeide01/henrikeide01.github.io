@@ -2,11 +2,17 @@
 
 Dota Coach er en coach for Dota 2 som kjører på din egen PC, litt som Blitz for League of Legends:
 
-- **Før kampen – automatisk draft-hjelp:** desktop-appen kjenner igjen heroene i draften fra skjermen, og overlayet viser hva du bør picke for din posisjon og rank, mens du picker. Hvert forslag har en forklaring, f.eks. «Sterk mot Axe +6 %». Du kan også legge inn eller rette heroer selv.
+- **Før kampen – automatisk draft-hjelp:** appen leser draften rett fra spillet når Dota sender den, ellers fra skjermen. Overlayet viser mens du picker:
+  - de beste pickene for din posisjon og rank, ut fra fiendene, lagkameratene og bans, f.eks. «Sterk mot Axe +6 %» eller «Gir laget initiering»,
+  - hva laget ditt mangler («Laget mangler en frontlinje»),
+  - forslag til bans.
+  Du kan også legge inn eller rette heroer selv.
 - **I kampen – live-coach og overlay:**
   - **Fight-meter** som sier om du bør *kjempe*, *presse*, *farme* eller *trekke deg* akkurat nå, og hvorfor.
   - Neste item, hvor mye gull du mangler, og items mot akkurat dette fiendelaget.
-  - **Neste evne å skille**, **talentvalg** med prosent fra pro-kamper, og hvilket **nøytralt item** og hvilken **fortryllelse** du bør velge.
+  - **Neste evne å skille**, **talentvalg** med prosent fra pro-kamper, og hvilket **nøytralt item** og hvilken **fortryllelse** du bør velge (sier fra når et nytt tier åpner, og når du bør oppgradere).
+  - **«Kjøp nå»** som tilpasser seg kampen: Healing Salve når du ofte har lite HP, Clarity eller Soul Ring når du går tom for mana, Infused Raindrops mot magiske laners, Magic Wand mot spell-spammere, Dust mot usynlige helter, og mer.
+  - **Når du dør:** hva som gikk galt (f.eks. «BKB var klar, men ble ikke brukt», «ingen TP»), hva du bør kjøpe mens du er død, og om du bør kjøpe deg tilbake.
   - Varsler som lav HP, ingen TP, items i stashen, ubrukte skill-poeng og at du står dypt på fiendens side.
   - Timere for runer, stacks, neutral items, Tormentor og Roshan.
   - Hvor du bør farme, og tips som leses opp med stemme.

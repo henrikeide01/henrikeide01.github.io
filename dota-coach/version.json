@@ -1,7 +1,18 @@
 {
-  "version": "1.3.3",
-  "date": "2026-10-14",
+  "version": "1.4.0",
+  "date": "2026-10-15",
   "changes": [
+    {
+      "version": "1.4.0",
+      "date": "2026-10-15",
+      "notes": [
+        "Draften leses rett fra spillet når Dota sender den, og pick-forslagene tar hensyn til bans, lagkamerater og fiender. Du ser hva laget mangler og får forslag til bans.",
+        "«Kjøp nå»: item-forslag som tilpasser seg kampen (healing, mana, Raindrops, Magic Wand, Dust, BKB …) og sier om du har råd.",
+        "Oppsummering når du dør: hva som gikk galt, hva du bør kjøpe nå og om du bør kjøpe deg tilbake.",
+        "Nøytrale items virker mer pålitelig, med beskjed når et nytt tier åpner og når du bør oppgradere.",
+        "Draft-hjelpen i overlayet vises med en gang Dota er koblet til."
+      ]
+    },
     {
       "version": "1.3.3",
       "date": "2026-10-14",
