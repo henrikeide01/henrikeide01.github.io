@@ -43,6 +43,7 @@ export function applyPublicSettings(s, patch) {
   if (typeof patch.voice === 'string') out.voice = patch.voice.slice(0, 200);
   if (patch.ttsRate !== undefined) out.ttsRate = Math.min(2, Math.max(0.5, Number(patch.ttsRate) || 1));
   if (typeof patch.autoUpdate === 'boolean') out.autoUpdate = patch.autoUpdate;
+  if (typeof patch.showMinimap === 'boolean') out.showMinimap = patch.showMinimap;
   if (typeof patch.vision === 'boolean') out.vision = patch.vision;
   return out;
 }

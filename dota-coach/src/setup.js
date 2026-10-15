@@ -32,6 +32,7 @@ export function gsiConfig({ port, token }) {
 		"draft"		"1"
 		"neutralitems"	"1"
 		"roshan"		"1"
+		"minimap"	"1"
 		"wearables"	"0"
 	}
 	"auth"
