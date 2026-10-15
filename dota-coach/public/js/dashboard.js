@@ -217,7 +217,7 @@ connect({
 
 // ---------------- Live ----------------
 function renderWaiting() {
-  const connected = status?.gsiConnected;
+  const connected = status?.gsiConnected || (!!state?.phase && state.phase !== 'menu' && Date.now() - (state.updatedAt || 0) < 35000);
   const phase = state?.phase;
   let big = '🎮';
   let title = 'Venter på Dota 2';
@@ -312,7 +312,9 @@ function renderLive() {
   );
 
   // The fight meter, the death recap and "Kjøp nå" have their own cards, so their tips are only read aloud here.
-  const tips = s.tips.filter((t) => !t.id.startsWith('fight-') && !t.id.startsWith('death-') && !t.id.startsWith('buy-'));
+  // The death card already says what to buy while dead.
+  const deadBuy = s.deathRecap?.whileDead?.buy?.item;
+  const tips = s.tips.filter((t) => !t.id.startsWith('fight-') && !t.id.startsWith('death-') && !t.id.startsWith('buy-') && !(deadBuy && t.id === `afford-${deadBuy}`));
   $('c-tipcount').textContent = tips.length ? `${tips.length} aktive` : '';
   if (tips.length) {
     patchList($('c-tips'), tips, (t) => t.key, (t) => `<div class="ico">${t.icon}</div><div>${esc(t.text)}</div>`, (t) => `tip ${t.level}`);

@@ -122,7 +122,8 @@ export function mountOverlay(root) {
   const els = { head: s('head'), fight: s('fight'), draft: s('draft'), tips: s('tips'), skills: s('skills'), next: s('next'), timers: s('timers'), foot: s('foot') };
 
   return function update(state, status) {
-    const connected = status?.gsiConnected;
+    // A fresh game state means Dota is connected, even before the next status message arrives.
+    const connected = status?.gsiConnected || (!!state?.phase && state.phase !== 'menu' && Date.now() - (state.updatedAt || 0) < 35000);
     // The pick phase keeps the draft view even after your own hero is picked (the rest of the draft matters).
     const live = state && state.hero && !['menu', 'loading', 'draft'].includes(state.phase);
     if (live) patch(els.draft, '');
@@ -191,7 +192,10 @@ export function mountOverlay(root) {
     // Skill and neutral choices get their own rows below, so their tips are only read aloud.
     const sk = state.skills;
     const own = (t) => (t.id === 'unspent' && sk?.next) || t.id.startsWith('neutral-') || (t.id.startsWith('talent-') && sk?.next?.talent);
-    const tips = (state.tips || []).filter((t) => !t.id.startsWith('fight-') && !t.id.startsWith('death-') && !t.id.startsWith('buy-') && !own(t)).slice(0, MAX_TIPS);
+    const deadBuy = state.deathRecap?.whileDead?.buy?.item;
+    const tips = (state.tips || [])
+      .filter((t) => !t.id.startsWith('fight-') && !t.id.startsWith('death-') && !t.id.startsWith('buy-') && !own(t) && !(deadBuy && t.id === `afford-${deadBuy}`))
+      .slice(0, MAX_TIPS);
     const shown = tips.length ? tips : [{ key: 'calm', level: 'calm', icon: '✅', text: state.focus || 'Alt ser bra ut. Fortsett sånn!' }];
     patchList(
       els.tips,
