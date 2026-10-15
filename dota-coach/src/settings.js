@@ -15,9 +15,10 @@ export const DEFAULTS = {
   opendotaApiKey: '',
   autoUpdate: true, // install new versions automatically when the app starts
   vision: true, // the desktop app reads the hero picks from the screen during the draft
+  showMinimap: true, // the overlay shows the small minimap with the live route
 };
 
-const PUBLIC_KEYS = ['role', 'bracket', 'voice', 'ttsRate', 'autoUpdate', 'vision'];
+const PUBLIC_KEYS = ['role', 'bracket', 'voice', 'ttsRate', 'autoUpdate', 'vision', 'showMinimap'];
 
 export function loadSettings() {
   try {
@@ -43,6 +44,7 @@ export function applyPublicSettings(s, patch) {
   if (typeof patch.voice === 'string') out.voice = patch.voice.slice(0, 200);
   if (patch.ttsRate !== undefined) out.ttsRate = Math.min(2, Math.max(0.5, Number(patch.ttsRate) || 1));
   if (typeof patch.autoUpdate === 'boolean') out.autoUpdate = patch.autoUpdate;
+  if (typeof patch.showMinimap === 'boolean') out.showMinimap = patch.showMinimap;
   if (typeof patch.vision === 'boolean') out.vision = patch.vision;
   return out;
 }

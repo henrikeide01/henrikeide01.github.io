@@ -7,6 +7,18 @@ const tip = (id, level, icon, text, extra = {}) => ({ id, level, icon, text, ...
 const playing = (c) => ['pregame', 'laning', 'mid', 'late'].includes(c.phase);
 const inGame = (c) => ['laning', 'mid', 'late'].includes(c.phase);
 const alive = (c) => c.hero?.alive !== false;
+// The live route switched to a timed stop (stack, rune, shrine): its own tip says where to go, so the plain
+// timing tip for the same thing is hidden. While a route exists, only the route tip reads timings aloud (when the
+// player has to leave), so the same timing is never spoken twice.
+const routeCovers = (c, kinds) => !!(c.route?.timing && c.route.changeWhy === 'timing' && kinds.includes(c.route.target?.kind));
+const ROUTE_SAY = {
+  stack: ['Gå og stack', 170],
+  power: ['Gå til power-runen', 100],
+  water: ['Gå til runen', 100],
+  bounty: ['Ta bounty-runen', 200],
+  wisdom: ['Gå til wisdom shrinen', 300],
+  lotus: [null, 0],
+};
 
 // Level 1-16 gives one point each; after that points only come at 18, 20 and 25.
 export function expectedSkillPoints(level) {
@@ -214,38 +226,44 @@ export const RULES = [
   },
 
   // ---------------- Map timings ----------------
+  function routeTiming(c) {
+    const r = c.route;
+    if (!inGame(c) || !alive(c) || !routeCovers(c, Object.keys(ROUTE_SAY))) return;
+    const [say, cooldown] = ROUTE_SAY[r.target.kind];
+    return tip(`route-${r.target.kind}`, 'info', '🧭', `${r.target.label}: ${r.reason}`, say ? { say, cooldown } : {});
+  },
   function powerRune(c) {
-    if (!inGame(c) || !alive(c) || (c.role !== 2 && c.role !== 4)) return;
+    if (!inGame(c) || !alive(c) || (c.role !== 2 && c.role !== 4) || routeCovers(c, ['power', 'water'])) return;
     const T = c.T.powerRune;
     const t = nextOccurrence(c.clock, T.first, T.every);
     const s = Math.round(t - c.clock);
     if (s <= 0 || s > 20) return;
     const what = c.role === 2 ? 'Ta kontroll over runen og bruk den til en gank.' : 'Hjelp mid med runen, eller ta den og roter.';
-    return tip(`power-${t}`, 'info', '✨', `Power rune om ${s} s. ${what}`, { say: 'Power rune snart' });
+    return tip(`power-${t}`, 'info', '✨', `Power rune om ${s} s. ${what}`, c.route ? {} : { say: 'Power rune snart' });
   },
   function waterRune(c) {
-    if (!inGame(c) || c.role !== 2) return;
+    if (!inGame(c) || c.role !== 2 || routeCovers(c, ['power', 'water'])) return;
     const t = c.T.waterRunes.find((w) => w > c.clock && w - c.clock <= 15);
     if (!t) return;
     return tip(`water-${t}`, 'info', '💧', `Water rune om ${Math.round(t - c.clock)} s. Den fyller på HP og mana.`);
   },
   function bountyRune(c) {
-    if (!inGame(c) || !alive(c)) return;
+    if (!inGame(c) || !alive(c) || routeCovers(c, ['bounty'])) return;
     if (c.role < 4 && c.clock > 600) return;
     const T = c.T.bountyRune;
     const t = nextOccurrence(c.clock, T.first, T.every);
     const s = Math.round(t - c.clock);
     if (t <= 0 || s <= 0 || s > 20) return;
     const what = c.role >= 4 ? 'Ta den nærmeste.' : 'Supportene bør ta dem.';
-    return tip(`bounty-${t}`, 'info', '🪙', `Bounty runes om ${s} s. ${what}`, c.role >= 4 ? { say: 'Bounty rune snart' } : {});
+    return tip(`bounty-${t}`, 'info', '🪙', `Bounty runes om ${s} s. ${what}`, c.role >= 4 && !c.route ? { say: 'Bounty rune snart' } : {});
   },
   function wisdomShrine(c) {
-    if (!inGame(c) || (c.role !== 3 && c.role !== 4)) return;
+    if (!inGame(c) || (c.role !== 3 && c.role !== 4) || routeCovers(c, ['wisdom'])) return;
     const T = c.T.wisdomShrine;
     const t = nextOccurrence(c.clock, T.first, T.every);
     const s = Math.round(t - c.clock);
     if (s <= 0 || s > 25) return;
-    return tip(`wisdom-${t}`, 'info', '📘', `Wisdom shrine aktiveres om ${s} s (offlane-jungelen). Gratis XP, ikke la fienden ta den.`, { say: 'Wisdom shrine snart' });
+    return tip(`wisdom-${t}`, 'info', '📘', `Wisdom shrine aktiveres om ${s} s (offlane-jungelen). Gratis XP, ikke la fienden ta den.`, c.route ? {} : { say: 'Wisdom shrine snart' });
   },
   function lotusPool(c) {
     if (!inGame(c) || c.role < 4 || c.clock > 2100) return;
@@ -260,7 +278,8 @@ export const RULES = [
     const sec = Math.floor(c.clock % 60);
     if (sec < 38 || sec > c.T.stackSecond) return;
     if (c.role >= 4 && c.hero.health_percent > 40) {
-      return tip('stack', 'info', '🧺', `Stack-tid: trekk leiren ved :53–:55 (om ${c.T.stackSecond - sec} s).`, { say: 'Stack-tid', cooldown: 170 });
+      if (routeCovers(c, ['stack'])) return;
+      return tip('stack', 'info', '🧺', `Stack-tid: trekk leiren ved :53–:55 (om ${c.T.stackSecond - sec} s).`, c.route ? {} : { say: 'Stack-tid', cooldown: 170 });
     }
     if (c.role === 1 && c.clock > 600 && c.loc?.zone === 'jungle' && c.loc.side === 'own') {
       return tip('stack-core', 'info', '🧺', 'Tips: trekk leiren ved siden av ved :53 mens du farmer, så får du en ekstra stack.');

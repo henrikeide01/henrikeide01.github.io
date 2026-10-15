@@ -1,6 +1,7 @@
 import { esc, heroImg, itemImg, abilityImg, skillImg, fmtClock, fmtNum, api, connect, Speaker, throttle } from './common.js';
 import { mountOverlay, patch, patchList, layout } from './overlay-view.js';
 import { lineChart, deathMap, scoreColumns } from './charts.js';
+import { mountRouteMap, stepsHtml } from './route-map.js';
 
 const $ = (id) => document.getElementById(id);
 const BRACKET_NAME = { 1: 'Herald', 2: 'Guardian', 3: 'Crusader', 4: 'Archon', 5: 'Legend', 6: 'Ancient', 7: 'Divine', 8: 'Immortal' };
@@ -331,6 +332,7 @@ function renderLive() {
   );
 
   renderFight();
+  renderRoute();
   renderDeath();
   renderBuyNow();
   renderNext();
@@ -370,6 +372,18 @@ function renderFight() {
       ? f.reasons.map((r) => `<div class="fm-reason"><b class="${r.delta > 0 ? 'pos' : 'neg'}">${r.delta > 0 ? '+' : '−'}${Math.abs(r.delta)}</b><span>${esc(r.text)}</span></div>`).join('')
       : '<div class="muted">Ingen sterke signaler akkurat nå.</div>',
   );
+}
+
+// The live route: the minimap is built once and then only moved with attribute changes (smooth at 4 updates/s).
+let routeMap = null;
+const ROUTE_WHY = { timing: 'endret: timing', danger: 'endret: fare', reached: 'neste stopp', better: 'bedre mål', expired: 'nytt mål' };
+function renderRoute() {
+  const r = state.route;
+  routeMap ||= mountRouteMap($('c-route-map'));
+  routeMap(state);
+  const sub = !r?.target ? '' : r.respawn ? 'mens du er død' : r.changedAt != null && state.clock - r.changedAt < 8 && ROUTE_WHY[r.changeWhy] ? ROUTE_WHY[r.changeWhy] : 'oppdateres live';
+  $('c-route-sub').textContent = sub;
+  patch($('c-route-steps'), `${stepsHtml(r, { clock: state.clock })}${r?.target ? '<div class="rm-note">Posisjonene er omtrentlige (sone-nivå), og bølgene er et estimat fra klokka.</div>' : ''}`);
 }
 
 // "Kjøp nå": item suggestions that adapt to the match (HP/mana, enemies, gold, role, time).
@@ -1356,10 +1370,12 @@ function renderVoices() {
     sel._opts = opts;
   }
   $('rate').value = settings.ttsRate || 1.05;
+  $('show-minimap').checked = settings.showMinimap !== false;
 }
 if (speaker.supported) speechSynthesis.addEventListener?.('voiceschanged', () => activeTab === 'setup' && renderVoices());
 $('voice').addEventListener('change', (e) => saveSettings({ voice: e.target.value }));
 $('rate').addEventListener('change', (e) => saveSettings({ ttsRate: Number(e.target.value) }));
+$('show-minimap').addEventListener('change', (e) => saveSettings({ showMinimap: e.target.checked }));
 $('voice-test').addEventListener('click', () => speaker.say('Du har råd til Black King Bar. Kjøp den nå!'));
 
 // ---------------- Updates ----------------
@@ -1517,6 +1533,7 @@ api('/api/settings')
     Object.assign(speaker.settings, s);
     $('role').value = settings.role;
     $('bracket').value = settings.bracket;
+    $('show-minimap').checked = settings.showMinimap !== false;
   })
   .catch(() => {});
 loadHeroes().catch(() => {});

@@ -58,6 +58,14 @@
               <div class="col">
                 <div class="card hero-card" id="c-hero"></div>
                 <div class="card"><h3>Gjør dette nå <span class="right faint" id="c-tipcount"></span></h3><div class="tips" id="c-tips"></div></div>
+                <div class="card route-card" id="c-route">
+                  <h3>Rute og minimap <span class="right faint" id="c-route-sub"></span></h3>
+                  <div class="route-body">
+                    <div id="c-route-map"></div>
+                    <div id="c-route-steps"></div>
+                  </div>
+                  <div class="rm-legend"><span><i class="hero"></i>Du</span><span><i class="path"></i>Ruten</span><span><i class="wave"></i>Bølge (estimat)</span><span><i class="camp"></i>Egen jungel</span><span><i class="rune"></i>Rune</span></div>
+                </div>
                 <div class="card" id="c-focus"></div>
               </div>
               <div class="col">
@@ -154,6 +162,7 @@
                 <div class="check"><span class="st">🪟</span><div><b>Dota Coach-appen (anbefalt):</b> kjør <code>Dota Coach.bat</code>. Du får appvinduet og et gjennomsiktig overlay oppå spillet. <kbd>Alt+Shift+M</kbd> flytter og låser, <kbd>Alt+Shift+C</kbd> viser og skjuler, <kbd>Alt+Shift+S</kbd> slår tale av og på, <kbd>Alt+Shift+D</kbd> åpner appvinduet.</div></div>
                 <div class="check"><span class="st">⧉</span><div><b>Overlay-vindu i nettleseren:</b> trykk «Overlay-vindu» øverst (Chrome/Edge). Du får et lite vindu som alltid ligger øverst.</div></div>
                 <div class="check"><span class="st">📱</span><div><b>Mobil eller nettbrett som skjerm nr. 2:</b> start med <code>start.bat --lan</code> og åpne adressen den skriver ut, på samme Wi-Fi.</div></div>
+                <label class="switch" style="margin-top:10px"><input type="checkbox" id="show-minimap"> Vis minikartet med ruten i overlayet</label>
               </div>
               <div class="card">
                 <h3>Fair play</h3>

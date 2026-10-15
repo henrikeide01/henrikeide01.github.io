@@ -20,6 +20,7 @@ import { Updater, listBackups, compareVersions } from './updater.js';
 
 const maxVersion = (a, b) => (!a ? b || null : !b ? a : compareVersions(a, b) >= 0 ? a : b);
 import { positionsFor } from '../data/positions.js';
+import { MAP } from '../data/map.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 const MATCHES = path.join(ROOT, 'matches');
@@ -723,6 +724,7 @@ export async function startServer(opts = {}) {
     }
 
     if (p === '/api/status') return send(res, 200, status());
+    if (p === '/api/map') return send(res, 200, MAP);
     if (p === '/api/state') return send(res, 200, state || idleState());
     if (p === '/api/heroes') return send(res, 200, { patch: bundledHeroes.patch, brackets: BRACKETS, heroes: heroList() });
 
@@ -888,6 +890,8 @@ export async function startServer(opts = {}) {
         vision,
         // Raw GSI neutral item data (compact), to check the real shape of the madstone crafting block.
         neutral: coach.neutralDiag,
+        // A short sample of the GSI minimap block (if Dota sends one), to see what it really contains.
+        minimap: coach.minimapDiagnostics(),
         draft: {
           team: draft.team,
           allies: draft.allies,

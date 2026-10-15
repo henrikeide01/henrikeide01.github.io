@@ -12,6 +12,7 @@ import { SPIKE_ITEMS } from '../../data/knowledge.js';
 import { nextSkillPoint, talentAdvice, neutralAdvice, neutralByTier, readEquippedNeutral, neutralGearAdvice, compactSample } from './skills.js';
 import { liveItemCandidates, vitalStats, LiveItemTracker } from './live-items.js';
 import { snapshot, pushSnapshot, freezeDeath, buildDeathRecap } from './death.js';
+import { RoutePlanner } from './routes.js';
 
 export { percentileOf };
 
@@ -154,6 +155,9 @@ export class Coach {
     this.fightStable = null;
     this.fightCandidate = null;
     this.tips = new TipTracker();
+    // The minimap sample survives a new match, so /api/diagnostics still shows it after the game.
+    this.lastMinimap = this.router?.mem?.minimap || this.lastMinimap || null;
+    this.router = new RoutePlanner();
     this.holds = new Map();
     this.events = [];
     this.seenGsiEvents = new Set();
@@ -269,6 +273,11 @@ export class Coach {
     if (!this.rec || this.rec.done) return;
     const roshan = this.roshanKills.map((r) => ({ t: r.t, ours: r.team === this.team }));
     this.finished.push(this.rec.finish({ result, roshan }));
+  }
+
+  // What the optional GSI minimap block looked like (for /api/diagnostics).
+  minimapDiagnostics() {
+    return this.router?.mem?.minimap || this.lastMinimap || { received: false };
   }
 
   // Matches that ended since the last call (for the post-game analysis).
@@ -489,15 +498,21 @@ export class Coach {
       }[r];
     }
     if (!['laning', 'mid', 'late'].includes(c.phase)) return null;
-    if (c.hero && c.hero.alive === false) return 'Bruk tiden mens du er død: se hvor bølgene og fiendene er, og bestem hvor du skal når du spawner.';
+    // The live route decides where to go; the text says the same thing as the arrow on the minimap.
+    const route = c.route?.target ? c.route : null;
+    const plan = route ? `Ruten nå: ${route.steps.map((s) => s.label).join(' → ')}.` : '';
+    if (c.hero && c.hero.alive === false) {
+      return `Bruk tiden mens du er død: se hvor bølgene og fiendene er.${route ? ` Når du spawner: ${route.steps.map((s) => s.label).join(' → ')}.` : ''}`;
+    }
     if (c.phase === 'laning') {
-      return {
+      const base = {
         1: `Bli i ${safe}. Ta small- eller medium-leiren i egen jungel hvis bølgen er pushet eller lanen er for farlig.`,
         2: 'Bli mid. Ta en leir på egen side når bølgen er pushet, og vær ved runen når den spawner.',
         3: `Hold deg i ${off}. Trekk leiren hvis bølgen presses mot tårnet ditt, og få nivåer.`,
         4: 'Roter mellom lanene, stack leirer ved :53 og ta runer.',
         5: 'Pull leiren når lanen presses mot carryen, og stack ved :53.',
       }[r];
+      return route && route.target.kind !== 'lane' ? `${plan} ${route.reason}` : `${base}${plan ? ` ${plan}` : ''}`;
     }
 
     let eta = '';
@@ -505,6 +520,7 @@ export class Coach {
       const mins = (c.next.remaining - c.player.gold) / c.player.gpm;
       eta = ` Du trenger ${c.next.remaining - c.player.gold} gull til ${c.next.dname} (ca. ${Math.max(1, Math.round(mins))} min med din GPM).`;
     }
+    if (route) return `${plan} ${route.reason}${r <= 3 ? eta : ''}`;
     const lostSafeT1 = c.towerDown(1, safeLane(c.team));
     if (r === 1 || r === 2) {
       const lane = lostSafeT1 ? `${safe}-bølgen ved T2-tårnet` : `${safe}-bølgen`;
@@ -605,6 +621,15 @@ export class Coach {
     c.fight = fight;
     this.trackBase(gsi, team);
     this.trackLive(c);
+    c.fightLevel = this.fightStable || fight?.level || null;
+    c.route = null;
+    if (playingPhase(phase) && heroName) {
+      try {
+        c.route = this.router.update(c);
+      } catch (err) {
+        console.error('Ruteplanleggeren feilet:', err.message);
+      }
+    }
 
     const raw = [];
     for (const rule of RULES) {
@@ -657,6 +682,7 @@ export class Coach {
       location: c.loc ? { label: c.loc.label, side: c.loc.side } : null,
       focus: focusPhase ? FOCUS[focusPhase][role] : null,
       farm: this.farmAdvice(c),
+      route: c.route,
       tips,
       timers: ['pregame', 'laning', 'mid', 'late'].includes(phase)
         ? computeTimers(this.clock, this.T, { daytime: map.daytime, roshanKilledAt: this.roshanKilledAt, aegisAt: this.aegisAt })

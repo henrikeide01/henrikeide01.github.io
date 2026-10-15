@@ -1,5 +1,6 @@
 // Compact coach view used by overlay.html (Electron / browser) and the pop-out window in the dashboard.
 import { esc, heroImg, itemImg, skillImg, fmtClock, fmtNum } from './common.js';
+import { mountRouteMap, stepsHtml } from './route-map.js';
 
 const MAX_TIPS = 4;
 const TIMER_ORDER = ['power', 'bounty', 'stack', 'wisdom', 'lotus', 'neutral', 'tormentor', 'roshan', 'aegis', 'daynight'];
@@ -112,6 +113,7 @@ export function mountOverlay(root) {
       <div class="ov-fight" data-s="fight"></div>
       <div class="ov-draft" data-s="draft"></div>
       <div class="ov-tips" data-s="tips"></div>
+      <div class="ov-route hidden" data-s="route"><div class="ov-route-row"><div class="ov-route-map" data-s="routeMap"></div><div class="ov-route-text" data-s="routeText"></div></div></div>
       <div class="ov-skills" data-s="skills"></div>
       <div class="ov-next" data-s="next"></div>
       <div class="ov-timers" data-s="timers"></div>
@@ -120,6 +122,18 @@ export function mountOverlay(root) {
     </div>`;
   const s = (name) => root.querySelector(`[data-s="${name}"]`);
   const els = { head: s('head'), fight: s('fight'), draft: s('draft'), tips: s('tips'), skills: s('skills'), next: s('next'), timers: s('timers'), foot: s('foot') };
+  // The small route minimap is built once (on first use) and then only moved, never re-rendered.
+  let routeMap = null;
+  function renderRoute(state, status) {
+    const box = s('route');
+    const r = state?.route;
+    const show = !!r?.target && status?.settings?.showMinimap !== false;
+    box.classList.toggle('hidden', !show);
+    if (!show) return;
+    routeMap ||= mountRouteMap(s('routeMap'), { compact: true });
+    routeMap(state);
+    patch(s('routeText'), stepsHtml(r, { compact: true, clock: state.clock }));
+  }
 
   return function update(state, status) {
     // A fresh game state means Dota is connected, even before the next status message arrives.
@@ -145,6 +159,7 @@ export function mountOverlay(root) {
         patch(els.draft, '');
         patch(els.tips, `<div class="ov-empty">${esc(msg)}</div>`);
       }
+      renderRoute(null, status);
       patch(els.skills, '');
       patch(els.fight, '');
       patch(els.next, '');
@@ -204,6 +219,8 @@ export function mountOverlay(root) {
       (t) => `<span>${t.icon}</span><span>${esc(t.text)}</span>`,
       (t) => `ov-tip ${t.level}`,
     );
+
+    renderRoute(state, status);
 
     const rows = [];
     if (sk?.next) {
