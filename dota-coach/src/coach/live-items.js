@@ -157,9 +157,11 @@ export function liveItemCandidates(x) {
       const r = COUNTER_RULES.find((k) => k.id === id);
       return !r ? [] : role >= 4 ? r.support : role === 3 ? r.off || r.core : r.core;
     };
+    const shownRule = new Set(); // one card per problem: MKB or Bloodthorn, not both
     for (const s of situationalItems(enemies, role, x.db)) {
       if (!['evasion', 'illusions', 'break', 'mobile'].includes(s.rule)) continue;
-      if (owns(ruleList(s.rule))) continue;
+      if (owns(ruleList(s.rule)) || shownRule.has(s.rule)) continue;
+      shownRule.add(s.rule);
       if (x.db.cost(s.item) > 3000 && clock < 1200) continue;
       add(s.item, 42, s.why, 'counter', { evasion: 'Evasion', illusions: 'Illusjoner', break: 'Sterke passiver', mobile: 'Mobile helter' }[s.rule]);
     }

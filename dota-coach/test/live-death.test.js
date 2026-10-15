@@ -362,3 +362,9 @@ test('review fixes: owning Bloodthorn covers evasion, so MKB is not suggested to
   const list = cands({ clock: 1500, phase: 'mid', enemies: foes('phantom_assassin', 'lion', 'zuus', 'riki', 'axe'), inv: inventory('bloodthorn', 'black_king_bar') });
   assert.ok(!list.some((c) => c.item === 'monkey_king_bar'), JSON.stringify(list.map((c) => c.item)));
 });
+
+test('one card per counter problem: MKB or Bloodthorn, not both', () => {
+  const list = cands({ clock: 1500, phase: 'mid', gold: 9000, enemies: foes('phantom_assassin', 'lion', 'zuus', 'riki', 'axe'), inv: inventory('black_king_bar') });
+  const evasion = list.filter((c) => ['monkey_king_bar', 'bloodthorn'].includes(c.item));
+  assert.equal(evasion.length, 1, JSON.stringify(list.map((c) => c.item)));
+});
