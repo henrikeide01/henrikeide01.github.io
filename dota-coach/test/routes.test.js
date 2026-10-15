@@ -203,3 +203,47 @@ test('a few hundred route updates take little time', () => {
   for (let i = 0; i < 400; i++) planRoute(ctx({ phase: 'mid', clock: 900 + i / 4, fightLevel: 'farm', hero: { xpos: (i * 37) % 8000 - 4000, ypos: -4000 } }), mem);
   assert.ok(performance.now() - t0 < 2000);
 });
+
+// Walks the hero along the planned path at about 310 units/s, 4 updates a second.
+function walk({ team = 'radiant', role, x, y, from, secs, extra = {} }) {
+  const mem = newMemory();
+  const seq = [];
+  let px = x;
+  let py = y;
+  for (let t = from; t < from + secs; t += 0.25) {
+    const r = planRoute(ctx({ team, role, clock: t, ...extra, hero: { xpos: px, ypos: py, ...(extra.hero || {}) } }), mem);
+    if (seq[seq.length - 1] !== r.target.id) seq.push(r.target.id);
+    const p = r.path;
+    if (p && p.length > 1) {
+      const dx = p[1].x - px;
+      const dy = p[1].y - py;
+      const dd = Math.hypot(dx, dy) || 1;
+      const st = Math.min(dd, 77);
+      px += (dx / dd) * st;
+      py += (dy / dd) * st;
+    }
+  }
+  return seq;
+}
+const flips = (seq) => seq.filter((id, i) => i >= 2 && id === seq[i - 2]).length;
+
+test('review fix: timed stops go to the nearest spot and do not flicker while walking there', () => {
+  // Pos 5 in his own bot lane at 3:12: not the bounty rune on the other side of the map.
+  const r = planRoute(ctx({ role: 5, clock: 192, hero: { xpos: 4249, ypos: -5910 } }));
+  assert.notEqual(r.target.id, 'bounty:bounty_r_top');
+  for (const w of [
+    { role: 5, x: 4249, y: -5910, from: 180, secs: 60 },
+    { team: 'dire', role: 5, x: -4300, y: 5900, from: 180, secs: 60 },
+    { role: 4, x: -3600, y: 6150, from: 65, secs: 40 },
+  ]) {
+    const seq = walk(w);
+    assert.ok(flips(seq) <= 1, seq.join(' > '));
+  }
+});
+
+test('review fix: a low-HP retreat holds all the way to the fountain', () => {
+  for (const [team, x, y] of [['radiant', 2500, -5600], ['dire', -2500, 5600]]) {
+    const seq = walk({ team, role: 1, x, y, from: 1500, secs: 40, extra: { phase: 'late', fightLevel: 'retreat', hero: { health_percent: 18 } } });
+    assert.deepEqual(seq, ['retreat:fountain'], `${team}: ${seq.join(' > ')}`);
+  }
+});

@@ -106,31 +106,61 @@ function renderDraft(el, dh) {
   patch(part('teams'), [teamRow('Fiender', dh.enemyList), teamRow('Laget', dh.allyList), teamRow('Bannet', banned)].join(''));
 }
 
-export function mountOverlay(root) {
+// The route minimap on its own (the desktop app shows it in a separate small window, e.g. next to Dota's minimap).
+export function mountMapView(root) {
+  root.innerHTML = `<div class="ovm hidden" data-s="box"><div class="ovm-map" data-s="map"></div><div class="ovm-text ov-route-text" data-s="text"></div><div class="ov-edit-hint">Flyttemodus: dra kartet dit du vil ha det. Trykk <b>Alt+Shift+M</b> for å låse.</div></div>`;
+  const s = (name) => root.querySelector(`[data-s="${name}"]`);
+  let map = null;
+  return function update(state, status) {
+    const r = state?.route;
+    const show = !!r?.target && status?.settings?.showMinimap !== false && !['menu', 'post', 'draft'].includes(state?.phase);
+    s('box').classList.toggle('hidden', !show);
+    if (!show) return;
+    map ||= mountRouteMap(s('map'), { compact: true, maxStops: 3 });
+    map(state);
+    patch(s('text'), stepsHtml(r, { compact: true, clock: state.clock }));
+  };
+}
+
+// inlineMap: show the route minimap inside the overlay (the browser pop-out). The desktop app has a map window.
+export function mountOverlay(root, { inlineMap = true } = {}) {
   root.innerHTML = `
     <div class="ov">
       <div class="ov-head" data-s="head"></div>
       <div class="ov-fight" data-s="fight"></div>
       <div class="ov-draft" data-s="draft"></div>
       <div class="ov-tips" data-s="tips"></div>
-      <div class="ov-route hidden" data-s="route"><div class="ov-route-row"><div class="ov-route-map" data-s="routeMap"></div><div class="ov-route-text" data-s="routeText"></div></div></div>
       <div class="ov-skills" data-s="skills"></div>
       <div class="ov-next" data-s="next"></div>
       <div class="ov-timers" data-s="timers"></div>
       <div class="ov-foot" data-s="foot"></div>
+      <div class="ov-route hidden" data-s="route"><div class="ov-route-row"><div class="ov-route-map" data-s="routeMap"></div><div class="ov-route-text" data-s="routeText"></div></div></div>
       <div class="ov-edit-hint">Flyttemodus: dra vinduet dit du vil ha det. Trykk <b>Alt+Shift+M</b> for å låse.</div>
     </div>`;
   const s = (name) => root.querySelector(`[data-s="${name}"]`);
   const els = { head: s('head'), fight: s('fight'), draft: s('draft'), tips: s('tips'), skills: s('skills'), next: s('next'), timers: s('timers'), foot: s('foot') };
   // The small route minimap is built once (on first use) and then only moved, never re-rendered.
   let routeMap = null;
+  // The map comes last and only shows when there is room for it: it never pushes the timers off the window.
+  let fitsSince = 0;
   function renderRoute(state, status) {
     const box = s('route');
     const r = state?.route;
-    const show = !!r?.target && status?.settings?.showMinimap !== false;
+    let show = inlineMap && !!r?.target && status?.settings?.showMinimap !== false;
+    if (show) {
+      const win = root.ownerDocument.defaultView;
+      const foot = s('foot');
+      const bottom = foot.getBoundingClientRect().bottom;
+      const room = win.innerHeight - bottom - 26;
+      if (room < 160) fitsSince = 0;
+      else fitsSince ||= Date.now();
+      // Shown after a few seconds of steady room, so it does not blink as tips come and go.
+      if (box.classList.contains('hidden') && (!fitsSince || Date.now() - fitsSince < 3000)) show = false;
+      if (!box.classList.contains('hidden') && room + box.getBoundingClientRect().height < 160) show = false;
+    }
     box.classList.toggle('hidden', !show);
     if (!show) return;
-    routeMap ||= mountRouteMap(s('routeMap'), { compact: true });
+    routeMap ||= mountRouteMap(s('routeMap'), { compact: true, maxStops: 3 });
     routeMap(state);
     patch(s('routeText'), stepsHtml(r, { compact: true, clock: state.clock }));
   }

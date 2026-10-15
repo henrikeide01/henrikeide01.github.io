@@ -11,12 +11,16 @@
   <div id="root"></div>
   <script type="module">
     import { connect, api, Speaker, throttle } from './js/common.js';
-    import { mountOverlay } from './js/overlay-view.js';
+    import { mountOverlay, mountMapView } from './js/overlay-view.js';
 
     const params = new URLSearchParams(location.search);
     if (params.has('electron')) document.documentElement.classList.add('transparent');
 
-    const update = mountOverlay(document.getElementById('root'));
+    // ?view=map: only the route minimap (its own window in the desktop app). In the desktop app the main overlay
+    // leaves the map out, because the map window shows it.
+    const mapView = params.get('view') === 'map';
+    if (mapView) document.body.classList.add('map-page');
+    const update = mapView ? mountMapView(document.getElementById('root')) : mountOverlay(document.getElementById('root'), { inlineMap: !params.has('electron') });
     const speaker = new Speaker('dotacoach.tts.overlay', true, { alwaysAllowed: params.has('electron') });
     let state = null;
     let status = null;
@@ -29,7 +33,8 @@
       onState: (s) => {
         state = s;
         render();
-        speaker.handleTips(s.tips);
+        // Only the main overlay speaks (the map window would read the same tips).
+        if (!mapView) speaker.handleTips(s.tips);
       },
       onStatus: (s) => {
         // Reload after an update so the overlay runs the new version too.

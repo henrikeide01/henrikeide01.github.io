@@ -622,3 +622,5 @@ td.hero-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; 
 .rm-legend i.wave { background: #d9d2a0; border-radius: 1px; transform: rotate(45deg) scale(0.8); }
 .rm-legend i.camp { background: rgba(63, 191, 106, 0.35); border: 1px dashed rgba(63, 191, 106, 0.8); }
 .rm-legend i.rune { background: #c77dff; }
+
+.rm-note { color: var(--faint); font-size: 11.5px; margin-top: 8px; line-height: 1.35; }

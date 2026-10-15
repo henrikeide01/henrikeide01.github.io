@@ -9,3 +9,4 @@ backup/
 .needs-install
 .update/
 debug/
+overlay-map-window.json

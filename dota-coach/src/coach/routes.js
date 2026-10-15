@@ -375,15 +375,17 @@ function candidates(x, mem) {
 
   // Retreat beats everything while it lasts.
   const hp = x.hpPct;
-  const inOwnBase = enemyDepth(pos, team) < -6500;
+  // The base line has some hysteresis, so standing at the base edge does not toggle the retreat on and off.
+  const inOwnBase = enemyDepth(pos, team) < (mem.current?.kind === 'retreat' ? -7000 : -6500);
   // Low HP starts a retreat at 25 % and keeps it until 45 %, so the target does not flip around one value.
   const lowHp = typeof hp === 'number' && (hp <= 25 || (mem.current?.kind === 'retreat' && hp < 45));
-  if (!early && (level === 'retreat' || lowHp) && !inOwnBase) {
+  // Low HP always goes home (to heal), also inside the base; the fight meter's "retreat" ends at the base.
+  if (!early && (lowHp || (level === 'retreat' && !inOwnBase))) {
     const depth = enemyDepth(pos, team);
     const behind = Object.entries(TOWERS)
       .filter(([name, t]) => t.team === team && towerAlive(x.buildings, name) !== false && enemyDepth(t.pos, team) < depth - 400)
       .sort((a, b) => dist(a[1].pos, pos) - dist(b[1].pos, pos))[0];
-    const toFountain = !behind || (typeof hp === 'number' && hp <= 20);
+    const toFountain = !behind || (typeof hp === 'number' && hp <= 20) || mem.current?.id === 'retreat:fountain' || (lowHp && depth < -6500);
     add({
       id: toFountain ? 'retreat:fountain' : `retreat:${behind[0]}`,
       kind: 'retreat',
@@ -613,14 +615,27 @@ export function planRoute(c, mem = newMemory()) {
       const eta = r.len / HERO_SPEED;
       return { ...c2, eta, score: c2.value - r.cost / HERO_SPEED };
     })
-    .filter((c2) => {
-      if (!c2.timed || c2.lead === undefined) return true;
-      if (c2.maxEta !== undefined && c2.eta > c2.maxEta) return false;
-      const left = c2.at - clock;
-      // `late`: how many seconds after the event arriving still counts (a stack needs you there before the pull).
-      if (c2.late !== undefined && c2.eta > left + c2.late) return false;
-      return left <= c2.eta + c2.lead && left + c2.after >= c2.eta - 3 && clock <= c2.at + c2.after;
-    });
+    ;
+  // One candidate per timed event (both bounty spots, both power spots, the stack areas): the nearest one, with a
+  // little bonus for the current target so two equally near spots do not swap.
+  const nearestOf = new Map();
+  for (const c2 of list) {
+    if (!c2.timed || c2.lead === undefined) continue;
+    const k = `${c2.kind}@${c2.at}`;
+    const e = c2.eta - (c2.id === mem.current?.id ? 5 : 0);
+    if (!nearestOf.has(k) || e < nearestOf.get(k).eta) nearestOf.set(k, { id: c2.id, eta: e });
+  }
+  list = list.filter((c2) => {
+    if (!c2.timed || c2.lead === undefined) return true;
+    if (nearestOf.get(`${c2.kind}@${c2.at}`)?.id !== c2.id) return false;
+    if (c2.maxEta !== undefined && c2.eta > c2.maxEta) return false;
+    const left = c2.at - clock;
+    // `late`: how many seconds after the event arriving still counts (a stack needs you there before the pull).
+    if (c2.late !== undefined && c2.eta > left + c2.late) return false;
+    // Too early to leave yet, unless it is already the target (walking towards it must not cancel it).
+    if (c2.id !== mem.current?.id && left > c2.eta + c2.lead) return false;
+    return left + c2.after >= c2.eta - 3 && clock <= c2.at + c2.after;
+  });
 
   // Reached the current target?
   let reachedWhy = null;
@@ -629,6 +644,8 @@ export function planRoute(c, mem = newMemory()) {
     if (cur.timed && cur.at !== undefined) {
       if (clock >= cur.at) {
         mem.done[`${cur.id}@${cur.at}`] = clock;
+        // The other spots of the same event (the other bounty rune, the other stack area) are done too.
+        for (const c2 of candidates(x, mem)) if (c2.timed && c2.kind === cur.kind && c2.at === cur.at) mem.done[`${c2.id}@${c2.at}`] = clock;
         reachedWhy = 'reached';
       }
     } else if (!PERSISTENT.has(cur.kind)) {

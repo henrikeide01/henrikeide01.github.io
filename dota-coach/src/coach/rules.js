@@ -10,7 +10,7 @@ const alive = (c) => c.hero?.alive !== false;
 // The live route switched to a timed stop (stack, rune, shrine): its own tip says where to go, so the plain
 // timing tip for the same thing is hidden. While a route exists, only the route tip reads timings aloud (when the
 // player has to leave), so the same timing is never spoken twice.
-const routeCovers = (c, kinds) => !!(c.route?.timing && c.route.changeWhy === 'timing' && kinds.includes(c.route.target?.kind));
+const routeCovers = (c, kinds) => !!(c.route?.target && kinds.includes(c.route.target.kind));
 const ROUTE_SAY = {
   stack: ['Gå og stack', 170],
   power: ['Gå til power-runen', 100],
@@ -271,6 +271,7 @@ export const RULES = [
     const t = nextOccurrence(c.clock, T.first, T.every);
     const s = Math.round(t - c.clock);
     if (s <= 0 || s > 15) return;
+    if (routeCovers(c, ['lotus'])) return;
     return tip(`lotus-${t}`, 'info', '🪷', `Lotus pool gir en ny Healing Lotus om ${s} s.`);
   },
   function stackCamps(c) {

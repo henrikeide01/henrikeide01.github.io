@@ -114,3 +114,12 @@ body.edit .ov-edit-hint { display: block; }
 .ov-route-text .rm-next { display: flex; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); }
 .ov-route-text .rm-n { width: 16px; height: 16px; font-size: 10px; }
 .ov-route-text .rm-at { font-size: 11px; }
+
+/* The route minimap in its own window (overlay.html?view=map). */
+.ovm { margin: 4px; display: grid; gap: 6px; padding: 6px; border-radius: 12px; background: rgba(10, 13, 18, 0.78); border: 1px solid rgba(255, 255, 255, 0.08); }
+.ovm.hidden { display: none; }
+.ovm-map { width: 100%; max-width: 260px; }
+.ovm-text { font-size: 12px; }
+body.map-page.edit .ovm { outline: 2px dashed var(--gold); -webkit-app-region: drag; cursor: move; }
+body.map-page.edit .ovm.hidden { display: grid; min-height: 120px; }
+body.map-page.edit .ov-edit-hint { display: block; }

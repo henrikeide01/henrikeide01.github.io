@@ -119,6 +119,16 @@ Dota gir ikke andre apper beskjed om hvilke heroer fiendene picker. Desktop-appe
 
 Gjenkjenningen virker best når Dota står i *Borderless Window*. Bommer den, trykk **📸 Lagre skjermbilde** under draften, og send bildet og «Kopier diagnose» til Claude, så blir den justert i neste oppdatering.
 
+## Minimap med live-rute
+
+Desktop-appen viser et eget lite kart (som standard rett over minimapet i spillet, nederst til venstre). Det viser hvor du er, og en stiplet rute med nummererte stopp til der du bør gå nå:
+
+- **Laning:** bli i lanen, stack nærmeste leir ved :53 (supports), power-runen før 6:00 (mid), bounty- og wisdom-runer.
+- **Midgame og lategame:** en farm-rute på egen side (bølge → egen jungel → neste bølge), objektiver når laget presser, og «Tilbake til fontenen» når HP-en er lav eller fight-meteret sier trekk deg.
+- **Mens du er død:** hvor du bør gå etter respawn.
+
+Ruten oppdateres live mens du beveger deg, og hopper ikke fram og tilbake. Kartet er omtrentlig (soner, ikke eksakte leirer), og bølgene er beregnet ut fra klokka. Flytt kartet med <kbd>Alt+Shift+M</kbd>, eller slå det av under *Oppsett*.
+
 ## Evner, talenter og nøytrale items
 
 Coachen henter skill-rekkefølgen, talentene og de nøytrale itemene fra de siste ~400 pro-kampene med heroen din (OpenDota), og bruker dem live:

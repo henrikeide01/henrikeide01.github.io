@@ -1,7 +1,16 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "date": "2026-10-15",
   "changes": [
+    {
+      "version": "1.5.0",
+      "date": "2026-10-15",
+      "notes": [
+        "Minimap med live-rute: et lite kart (eget vindu ved minimapet i spillet) viser hvor du bør gå nå – lane, stack, runer, jungel, objektiver eller hjem – og oppdateres mens du beveger deg.",
+        "Overlayet har plass til timere og KDA igjen: kartet ligger i sitt eget vindu.",
+        "«Kjøp nå» viser bare ett item per problem (f.eks. MKB eller Bloodthorn, ikke begge)."
+      ]
+    },
     {
       "version": "1.4.0",
       "date": "2026-10-15",

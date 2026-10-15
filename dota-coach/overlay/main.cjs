@@ -9,6 +9,7 @@ const { spawn } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const BOUNDS_FILE = path.join(ROOT, 'overlay-window.json');
+const MAP_BOUNDS_FILE = path.join(ROOT, 'overlay-map-window.json');
 const ICON = nativeImage.createFromDataURL(
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAASklEQVR4nGN4FGzPQAkmpOA/FJNlwH80TJIB6JpxGkKKZqyG4NUMA/gMIaiZkCFEacZnCNUMoNgLVAlEqkQjVRISVZIyVTITURgADhoIh7/697sAAAAASUVORK5CYII=',
 );
@@ -67,7 +68,62 @@ function followDota(display) {
   saveBounds();
 }
 
+// ---- The route minimap window: its own small click-through window, by default just above Dota's minimap ----
+let mapWin = null;
+let mapPlaced = false;
+function mapDefaultBounds(display = screen.getPrimaryDisplay(), size = { width: 250, height: 300 }) {
+  const wa = display.workArea;
+  return { ...size, x: wa.x + 10, y: wa.y + wa.height - size.height - Math.round(wa.height * 0.27) };
+}
+function loadMapBounds() {
+  try {
+    const b = JSON.parse(fs.readFileSync(MAP_BOUNDS_FILE, 'utf8'));
+    mapPlaced = !!b.userPlaced;
+    const visible = screen.getAllDisplays().some((d) => b.x < d.bounds.x + d.bounds.width - 40 && b.x + b.width > d.bounds.x + 40 && b.y < d.bounds.y + d.bounds.height - 40 && b.y + b.height > d.bounds.y);
+    if (!visible) return mapDefaultBounds();
+    return { x: b.x, y: b.y, width: b.width, height: b.height };
+  } catch {
+    return mapDefaultBounds();
+  }
+}
+function saveMapBounds() {
+  if (!mapWin || mapWin.isDestroyed()) return;
+  if (editMode) mapPlaced = true;
+  fs.writeFileSync(MAP_BOUNDS_FILE, JSON.stringify({ ...mapWin.getBounds(), userPlaced: mapPlaced }));
+}
+function createMapWindow() {
+  mapWin = new BrowserWindow({
+    ...loadMapBounds(),
+    minWidth: 160,
+    minHeight: 160,
+    transparent: true,
+    frame: false,
+    hasShadow: false,
+    resizable: true,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: false,
+    show: false,
+    webPreferences: { backgroundThrottling: false },
+  });
+  mapWin.setAlwaysOnTop(true, 'screen-saver');
+  mapWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  mapWin.setIgnoreMouseEvents(true);
+  mapWin.loadURL(`${baseUrl}/overlay.html?electron=1&view=map`);
+  mapWin.once('ready-to-show', () => mapWin.showInactive());
+  mapWin.on('moved', saveMapBounds);
+  mapWin.on('resized', saveMapBounds);
+}
+function followDotaMap(display) {
+  if (!mapWin || mapWin.isDestroyed() || mapPlaced) return;
+  if (screen.getDisplayMatching(mapWin.getBounds()).id === display.id) return;
+  const b = mapWin.getBounds();
+  mapWin.setBounds(mapDefaultBounds(display, { width: b.width, height: b.height }));
+  saveMapBounds();
+}
+
 const runInOverlay = (js) => overlay.webContents.executeJavaScript(js).catch(() => undefined);
+const runInMap = (js) => (mapWin && !mapWin.isDestroyed() ? mapWin.webContents.executeJavaScript(js).catch(() => undefined) : undefined);
 
 function setEditMode(on) {
   editMode = on;
@@ -75,13 +131,25 @@ function setEditMode(on) {
   overlay.setIgnoreMouseEvents(!on);
   overlay.setFocusable(on);
   runInOverlay(`window.dotaCoach && window.dotaCoach.setEditMode(${on})`);
-  if (!on) saveBounds();
+  if (mapWin && !mapWin.isDestroyed()) {
+    mapWin.setIgnoreMouseEvents(!on);
+    mapWin.setFocusable(on);
+    runInMap(`window.dotaCoach && window.dotaCoach.setEditMode(${on})`);
+  }
+  if (!on) {
+    saveBounds();
+    saveMapBounds();
+  }
   updateTray();
 }
 
 function toggleOverlay() {
-  if (overlay.isVisible()) overlay.hide();
-  else overlay.showInactive();
+  const show = !overlay.isVisible();
+  for (const w of [overlay, mapWin]) {
+    if (!w || w.isDestroyed()) continue;
+    if (show) w.showInactive();
+    else w.hide();
+  }
   updateTray();
 }
 
@@ -213,6 +281,7 @@ app.whenReady().then(async () => {
   }
   baseUrl = `http://127.0.0.1:${port}`;
   createOverlay();
+  createMapWindow();
   createMain();
 
   // Recognises the heroes in the draft from the screen, so nobody has to enter them by hand.
@@ -221,10 +290,13 @@ app.whenReady().then(async () => {
       root: ROOT,
       baseUrl,
       // Our own windows show hero pictures too: they must not be read as picks.
-      excludeRects: () => [overlay, mainWin].filter((w) => w && !w.isDestroyed() && w.isVisible() && !w.isMinimized()).map((w) => w.getBounds()),
+      excludeRects: () => [overlay, mapWin, mainWin].filter((w) => w && !w.isDestroyed() && w.isVisible() && !w.isMinimized()).map((w) => w.getBounds()),
       // The user puts the overlay over Dota, so that is the screen to look at.
       getDisplay: () => (overlay && !overlay.isDestroyed() ? screen.getDisplayMatching(overlay.getBounds()) : screen.getPrimaryDisplay()),
-      onDotaDisplay: followDota,
+      onDotaDisplay: (display) => {
+        followDota(display);
+        followDotaMap(display);
+      },
     });
   } catch (err) {
     console.error('Bildegjenkjenningen startet ikke:', err.message);

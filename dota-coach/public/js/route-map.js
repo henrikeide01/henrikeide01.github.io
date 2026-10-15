@@ -38,7 +38,8 @@ function title(doc, parent, text) {
 }
 
 // compact: the small overlay version (bigger markers relative to the map, no tooltips needed).
-export function mountRouteMap(container, { compact = false } = {}) {
+// maxStops: how many numbered stops to draw (the compact text explains three).
+export function mountRouteMap(container, { compact = false, maxStops = 4 } = {}) {
   const doc = container.ownerDocument;
   const id = `rm${++mountCount}`;
   const k = compact ? 1.5 : 1;
@@ -99,7 +100,7 @@ export function mountRouteMap(container, { compact = false } = {}) {
     for (const a of map.jungle) {
       const [cx, cy] = P(...a.pos);
       const c = el(doc, 'circle', { cx, cy, r: ((a.r / span) * 100).toFixed(2), class: `rm-jungle ${side(a.team)}` }, statics);
-      title(doc, c, `${a.team === own ? 'Egen' : 'Fiendens'} ${a.label} (omtrentlig)`);
+      title(doc, c, `${a.label[0].toUpperCase()}${a.label.slice(1)} – ${a.team === own ? 'din side' : 'fiendens side'}, omtrentlig`);
     }
     for (const [t, p] of Object.entries(map.fountains)) {
       const [cx, cy] = P(...p);
@@ -151,7 +152,7 @@ export function mountRouteMap(container, { compact = false } = {}) {
   }
 
   function placeStops(route) {
-    const steps = route?.steps || [];
+    const steps = (route?.steps || []).slice(0, maxStops);
     stops.forEach((g, i) => {
       const s = steps[i];
       if (!s) return setAttr(g, 'style', 'display:none');
@@ -164,6 +165,12 @@ export function mountRouteMap(container, { compact = false } = {}) {
   }
 
   function placeWaves(list = []) {
+    // Lanes without an estimate (and everything after the match) are hidden.
+    const shown = new Set(list.map((w) => w.lane));
+    for (const [lane, g] of waves) {
+      const d = shown.has(lane) ? '' : 'none';
+      if (g.style.display !== d) g.style.display = d;
+    }
     for (const w of list) {
       let g = waves.get(w.lane);
       if (!g) {
