@@ -10,11 +10,16 @@ import { fightAdvice } from './fight.js';
 import { MatchRecorder } from './recorder.js';
 import { SPIKE_ITEMS } from '../../data/knowledge.js';
 import { nextSkillPoint, talentAdvice, neutralAdvice, neutralByTier } from './skills.js';
+import { liveItemCandidates, vitalStats, LiveItemTracker } from './live-items.js';
+import { snapshot, pushSnapshot, freezeDeath, buildDeathRecap } from './death.js';
 
 export { percentileOf };
 
 const LEVEL_ORDER = { alert: 0, warn: 1, good: 2, info: 3 };
 const playingPhase = (p) => ['strategy', 'pregame', 'laning', 'mid', 'late'].includes(p);
+const VITALS_SECS = 180; // HP/mana history kept for the live item suggestions
+// Own buildings that mean "the base is under attack" when they lose HP.
+const BASE_BUILDING = /_(tower3|tower4|melee_rax|range_rax|fort)/;
 
 // Tip keys must stay unique across matches and server restarts (clients remember what they have read aloud).
 const BOOT_ID = Math.random().toString(36).slice(2, 7);
@@ -118,6 +123,103 @@ export class Coach {
     this.aegisAt = null;
     this.lhAt10 = null;
     this.clock = 0;
+    this.vitals = []; // [{ t, hp, mana, maxMana, alive }] one per game second
+    this.liveItems = new LiveItemTracker();
+    this.deathSnaps = []; // the last seconds while alive (death recap input)
+    this.death = null; // frozen death while the hero is dead
+    this.lastAlive = null;
+    this.buildingHp = new Map();
+    this.baseHitAt = null;
+  }
+
+  // HP/mana once per game second while alive (rolling window).
+  trackVitals(hero, playingNow) {
+    if (!playingNow || !hero || typeof hero.health_percent !== 'number') return;
+    const last = this.vitals[this.vitals.length - 1];
+    if (last && this.clock < last.t - 5) this.vitals = []; // clock went back
+    if (last && Math.floor(this.clock) <= last.t) return;
+    this.vitals.push({ t: Math.floor(this.clock), hp: hero.health_percent, mana: hero.mana_percent ?? 100, maxMana: hero.max_mana ?? 0, alive: hero.alive !== false });
+    while (this.vitals.length && this.clock - this.vitals[0].t > VITALS_SECS) this.vitals.shift();
+  }
+
+  // Remembers when a tier-3/4 tower, barracks or the Ancient last lost HP (GSI sends your own buildings).
+  trackBase(gsi, team) {
+    const own = gsi.buildings?.[team];
+    if (!own || typeof own !== 'object') return;
+    for (const [k, b] of Object.entries(own)) {
+      if (!BASE_BUILDING.test(k) || typeof b?.health !== 'number') continue;
+      const prev = this.buildingHp.get(k);
+      if (prev !== undefined && b.health < prev) this.baseHitAt = this.clock;
+      this.buildingHp.set(k, b.health);
+    }
+  }
+
+  // Live "buy now" suggestions (with hysteresis) and the death recap; both go into c and the state.
+  trackLive(c) {
+    const playingNow = ['pregame', 'laning', 'mid', 'late'].includes(c.phase) && !!c.heroKey;
+    this.trackVitals(c.hero, playingNow);
+    c.liveItems = [];
+    try {
+      const cands = playingNow
+        ? liveItemCandidates({
+            clock: c.clock,
+            phase: c.phase,
+            role: c.role,
+            heroAttr: c.heroAttr,
+            inv: c.inv,
+            gold: c.player.gold ?? 0,
+            enemies: c.enemies,
+            vitals: vitalStats(this.vitals, c.clock),
+            deathsRecent: c.deathsSince(300),
+            db: c.db,
+            active: this.liveItems.shown(),
+          })
+        : [];
+      c.liveItems = this.liveItems.update(cands, { clock: c.clock, inv: c.inv, gold: c.player.gold ?? 0, db: c.db, playing: playingNow });
+    } catch (err) {
+      console.error('Live-items feilet:', err.message);
+    }
+
+    c.deathRecap = null;
+    const alive = c.hero?.alive !== false;
+    if (!playingNow || !['laning', 'mid', 'late'].includes(c.phase)) {
+      this.death = null;
+      this.lastAlive = playingNow ? alive : null;
+      if (playingNow && alive) pushSnapshot(this.deathSnaps, snapshot(c));
+      return;
+    }
+    if (alive) {
+      this.death = null;
+      pushSnapshot(this.deathSnaps, snapshot(c));
+    } else if (this.lastAlive === true && !this.death && this.deathSnaps.length) {
+      this.death = freezeDeath(this.deathSnaps, { clock: c.clock, unreliable: c.player.gold_unreliable });
+      this.deathSnaps = [];
+    }
+    this.lastAlive = alive;
+    if (!this.death) return;
+    // The gold loss may arrive a moment after the death.
+    if (this.death.unAfter === this.death.unBefore && c.clock - this.death.t <= 2) this.death.unAfter = c.player.gold_unreliable ?? this.death.unAfter;
+    try {
+      c.deathRecap = buildDeathRecap(this.death, {
+        clock: c.clock,
+        role: c.role,
+        team: c.team,
+        phase: c.phase,
+        hero: c.hero,
+        player: c.player,
+        inv: c.inv,
+        next: c.next,
+        liveItems: c.liveItems,
+        db: c.db,
+        teamKills: c.teamKills,
+        deaths: c.player.deaths ?? null,
+        streak: c.deathsSince(300),
+        baseThreat: this.baseHitAt !== null && c.clock - this.baseHitAt <= 20 && c.clock >= this.baseHitAt,
+        enemyAegis: !!(c.aegisTeam && c.aegisTeam !== c.team && c.roshanKilledAt != null && c.clock - c.roshanKilledAt < 300),
+      });
+    } catch (err) {
+      console.error('Dødsoppsummering feilet:', err.message);
+    }
   }
 
   finishMatch(result) {
@@ -400,6 +502,7 @@ export class Coach {
       coreItems,
       coreOwned: coreItems.filter((n) => inv.owned.has(n)).length,
       enemyKeys: enemies.map((e) => e.name),
+      enemies: enemies.map((e) => ({ name: e.name, dname: e.dname })),
       allyKeys: draft.allies.filter((n) => n !== heroName && d.heroes.has(n)),
       teamKills: (radiant ? map.radiant_score : map.dire_score) ?? 0,
       enemyKills: (radiant ? map.dire_score : map.radiant_score) ?? 0,
@@ -427,6 +530,8 @@ export class Coach {
     const fight = fightAdvice(c);
     this.stabiliseFight(fight);
     c.fight = fight;
+    this.trackBase(gsi, team);
+    this.trackLive(c);
 
     const raw = [];
     for (const rule of RULES) {
@@ -490,6 +595,8 @@ export class Coach {
       skillsError: meta?.skillsError || null,
       next,
       situational: situationalItems(enemies, role, d.itemDb).map((s) => ({ ...s, owned: inv.owned.has(s.item) })),
+      liveItems: c.liveItems,
+      deathRecap: c.deathRecap,
       enemies: enemies.map((e) => ({ name: e.name, dname: e.dname })),
       enemyTips: enemyTips(enemies),
       perf: { ...perf, lhAt10: this.lhAt10 },
@@ -514,6 +621,9 @@ export class Coach {
 
     if (this.rec) {
       this.rec.update(c, state);
+      // The post-game report keeps what the recap said about each death.
+      const rd = this.rec.deaths[this.rec.deaths.length - 1];
+      if (c.deathRecap && rd && !rd.mistakes && Math.abs(rd.t - c.deathRecap.t) <= 3) rd.mistakes = c.deathRecap.mistakes.map((m) => m.id);
       if (phase === 'post') {
         const win = map.win_team;
         this.finishMatch(win === team ? 'win' : win === 'radiant' || win === 'dire' ? 'loss' : 'unknown');

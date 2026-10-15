@@ -499,3 +499,33 @@ td.hero-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; 
 .talent-tier .opt { display: flex; justify-content: space-between; gap: 6px; padding: 6px 8px; border-radius: 8px; background: var(--panel-3); font-size: 12.5px; }
 .talent-tier .opt.best { outline: 1px solid rgba(231, 181, 74, 0.6); }
 .talent-tier .opt b { font-variant-numeric: tabular-nums; }
+
+/* ---------- "Kjøp nå" (live item suggestions) ---------- */
+.buy-card { border-left: 4px solid var(--gold); }
+.buy { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; }
+.buy + .buy { border-top: 1px solid var(--border); }
+.buy .iimg { margin-top: 2px; }
+.buy-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.buy-top b { font-size: 14.5px; }
+.buy-gold { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.buy-gold.ok { color: var(--green); }
+.buy .why { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.buy-alt { color: var(--faint); font-size: 12px; margin-top: 2px; }
+.buy.high .buy-top b { color: var(--gold); }
+.buy.low { opacity: 0.8; }
+
+/* ---------- Death recap ---------- */
+.death-card { margin-bottom: 16px; border-left: 4px solid var(--red); background: linear-gradient(90deg, rgba(240, 88, 78, 0.12), var(--panel) 50%); display: grid; gap: 12px; }
+.dr-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.dr-skull { font-size: 28px; line-height: 1; }
+.dr-title { font-size: 17px; font-weight: 800; }
+.dr-facts { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.dr-respawn { font-family: var(--mono); font-weight: 800; font-size: 20px; color: var(--red); }
+.dr-cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .dr-cols { grid-template-columns: 1fr; } }
+.dr-list { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.4; }
+.dr-list li::marker { color: var(--red); font-weight: 800; }
+.dr-do { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 0; line-height: 1.4; }
+.dr-do.bb.yes span:last-child { color: var(--green); font-weight: 700; }
+.dr-do.bb.maybe span:last-child { color: var(--amber); }
+.dr-do.bb.none span:last-child, .dr-do.bb.no span:last-child { color: var(--muted); }
