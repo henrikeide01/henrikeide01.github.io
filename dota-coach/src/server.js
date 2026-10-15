@@ -287,9 +287,12 @@ export async function startServer(opts = {}) {
       settings = { ...settings, token: fresh.token };
     }
     const first = !lastGsiAt;
+    const reconnected = Date.now() - lastGsiAt > 35000;
     lastGsi = payload;
     lastGsiAt = Date.now();
     if (first) log('✔ Mottok data fra Dota 2. Coachen er koblet til!');
+    // Tell the windows at once that Dota is connected (not only with the 5-second status ping).
+    if (reconnected) broadcast('status', status());
 
     const matchId = payload?.map?.matchid;
     if (matchId && matchId !== lastMatchId) {
