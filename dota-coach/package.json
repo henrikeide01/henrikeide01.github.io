@@ -13,7 +13,7 @@
     "simulate": "node tools/simulate.js",
     "demo": "node tools/demo.js",
     "build-data": "node tools/build-data.js",
-    "test": "node --test"
+    "test": "node --test \"test/*.test.js\""
   },
   "engines": {
     "node": ">=18.17"
