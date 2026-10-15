@@ -734,6 +734,8 @@ export async function startServer(opts = {}) {
         update: { available: update.available, latest: update.latest || null, error: update.error || null },
         errors: recentErrors.slice(-15),
         vision,
+        // Raw GSI neutral item data (compact), to check the real shape of the madstone crafting block.
+        neutral: coach.neutralDiag,
         draft: { team: draft.team, allies: draft.allies, enemies: draft.enemies, autoAllies: draft.autoAllies, autoEnemies: draft.autoEnemies, unassigned: draft.unassigned },
         matches: reports.map((r) => ({
           hero: r.hero?.name,

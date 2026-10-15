@@ -139,15 +139,20 @@ export const RULES = [
   },
   function neutralCraft(c) {
     const n = c.skills?.neutral;
-    if (!inGame(c) || !n || (!n.artifacts.length && !n.enchantments.length)) return;
-    if (n.artifacts.some((a) => a.selected) && n.enchantments.some((e) => e.selected)) return;
-    const a = n.artifacts.find((x) => x.name === n.pickArtifact);
-    const e = n.enchantments.find((x) => x.name === n.pickEnchantment);
+    if (!inGame(c) || !n || (!n.artifacts?.length && !n.enchantments?.length)) return;
+    const artTaken = n.artifacts.some((a) => a.selected);
+    const enchTaken = !n.enchantments.length || n.enchantments.some((e) => e.selected);
+    if (artTaken && enchTaken) return;
+    const a = !artTaken && n.artifacts.find((x) => x.name === n.pickArtifact);
+    const e = !enchTaken && n.enchantments.find((x) => x.name === n.pickEnchantment);
     const parts = [];
-    if (a && !n.artifacts.some((x) => x.selected)) parts.push(`artefakt: ${a.dname}${a.pct != null ? ` (${a.pct} % av pro-spillerne)` : ''}`);
-    if (e && !n.enchantments.some((x) => x.selected)) parts.push(`fortryllelse: ${e.dname}${e.stats ? ` (${e.stats})` : ''}`);
+    if (a) parts.push(`artefakt: ${a.dname}${a.pct != null ? ` (${a.pct} % av pro-spillerne)` : ''}`);
+    if (e) parts.push(`fortryllelse: ${e.dname}${e.stats ? ` (${e.stats})` : ''}`);
     if (!parts.length) return;
-    return tip(`neutral-${n.tier}`, 'info', '💎', `Nøytralt item tier ${n.tier} – velg ${parts.join(' og ')}.`, { say: 'Velg nøytralt item', cooldown: 600 });
+    const tier = n.tier ? ` tier ${n.tier}` : '';
+    const names = [a?.dname, e?.dname].filter(Boolean);
+    // One id per tier: said once when the choice shows up, not again for ten minutes even if it flickers.
+    return tip(`neutral-craft-${n.tier ?? 'x'}`, 'info', '💎', `Nøytralt item${tier} – velg ${parts.join(' og ')}.`, { say: `Velg ${names.join(' og ')}`, cooldown: 600 });
   },
   function supportWards(c) {
     if (!inGame(c) || c.role < 4 || !alive(c) || c.clock < 120) return;
@@ -250,11 +255,33 @@ export const RULES = [
   },
   function neutralTier(c) {
     if (!inGame(c)) return;
-    const tier = c.T.neutralTiers.find((t) => t.tier > 1 && c.clock >= t.at && c.clock < t.at + 60);
-    if (!tier) return;
-    return tip(`neutral-${tier.tier}`, 'info', '🪨', `Tier ${tier.tier} neutral items er tilgjengelige nå. Rydd leirer for Madstone og craft et nytt item.`, {
-      say: `Tier ${tier.tier} neutral items er klare`,
-    });
+    const out = [];
+    const n = c.skills?.neutral;
+    // A craft choice is on screen (the same test as neutralCraft): that tip leads, these stay quiet.
+    const pending = !!n && (n.artifacts.length > 0 || n.enchantments.length > 0) && !(n.artifacts.some((x) => x.selected) && (!n.enchantments.length || n.enchantments.some((x) => x.selected)));
+    const craftPending = (t) => pending && (n.tier == null || n.tier === t);
+    // A new tier just opened: say what to take (the craft tip above takes over when the game shows the choice).
+    const open = c.T.neutralTiers.find((t) => t.tier > 1 && c.clock >= t.at && c.clock < t.at + 75);
+    if (open && !craftPending(open.tier)) {
+      const rec = c.skills?.proNeutrals?.tier === open.tier ? c.skills.proNeutrals : null;
+      const names = [rec?.items?.[0]?.dname, rec?.enchantments?.[0]?.dname].filter(Boolean);
+      const take = names.length ? ` Ta ${names.join(' og ')} hvis du får valget.` : '';
+      out.push(
+        tip(`neutral-tier-${open.tier}`, 'info', '🪨', `Nøytrale items tier ${open.tier} er åpne. Rydd leirer for madstone og craft et nytt item.${take}`, {
+          say: `Nøytrale items tier ${open.tier} er åpne${names.length ? ` – ta ${names.join(' og ')}` : ''}`,
+          cooldown: 600,
+        }),
+      );
+    }
+    // What is equipped: an old-tier artifact, an empty slot, or a clearly worse pick than the recommendation.
+    const g = c.skills?.neutralGear?.advice;
+    const show = c.held('neutral-gear', !!g && !open && !pending, 15);
+    if (show && g) {
+      // Only the upgrade is read aloud; the rest (empty slot, a weak pick) is a quiet hint for the next craft.
+      const speak = g.kind === 'upgrade';
+      out.push(tip(`swap-neutral-${g.kind}-${g.tier}`, speak ? 'warn' : 'info', '🔁', g.text, speak ? { say: g.say, cooldown: 600 } : {}));
+    }
+    return out;
   },
   function tormentor(c) {
     if (!inGame(c)) return;

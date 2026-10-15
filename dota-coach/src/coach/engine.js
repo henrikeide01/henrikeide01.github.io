@@ -9,7 +9,7 @@ import { percentileOf } from './percentile.js';
 import { fightAdvice } from './fight.js';
 import { MatchRecorder } from './recorder.js';
 import { SPIKE_ITEMS } from '../../data/knowledge.js';
-import { nextSkillPoint, talentAdvice, neutralAdvice, neutralByTier } from './skills.js';
+import { nextSkillPoint, talentAdvice, neutralAdvice, neutralByTier, readEquippedNeutral, neutralGearAdvice, compactSample } from './skills.js';
 
 export { percentileOf };
 
@@ -93,7 +93,47 @@ export class Coach {
     this.deps = deps;
     this.T = deps.timings || TIMINGS;
     this.finished = [];
+    // A compact sample of the raw GSI neutral item data, for /api/diagnostics (the real shape is unverified).
+    this.neutralDiag = null;
     this.reset(null);
+  }
+
+  // Keeps a small copy of gsi.neutralitems and the neutral item slots (at most every 5 s, and always the first
+  // time the parser finds a craft choice), with what the parser made of them.
+  recordNeutralSample(gsi, skills) {
+    try {
+      const block = gsi.neutralitems;
+      const slots = Object.fromEntries(Object.entries(gsi.items || {}).filter(([k]) => /neutral|enchant|enhance/i.test(k)));
+      if (block == null && !Object.keys(slots).length) return;
+      const d = (this.neutralDiag ||= { updates: 0, withBlock: 0, sampledAt: 0, last: null, withChoices: null });
+      d.updates++;
+      if (block != null) d.withBlock++;
+      const n = skills?.neutral;
+      const choices = !!(n && (n.artifacts.length || n.enchantments.length));
+      const now = Date.now();
+      if (now - d.sampledAt < 5000 && !(choices && !d.withChoices)) return;
+      d.sampledAt = now;
+      const sample = {
+        clock: this.clock,
+        match: this.matchId,
+        block: block === undefined ? '(ingen neutralitems i GSI)' : compactSample(block, 3500),
+        slots: compactSample(slots, 600),
+        parsed: {
+          player: n ? n.source || '(rot)' : null,
+          tier: n?.tier ?? null,
+          madstone: n?.madstone ?? null,
+          artifacts: n ? n.artifacts.map((a) => `${a.name}${a.selected ? '*' : ''}`) : [],
+          enchantments: n ? n.enchantments.map((e) => `${e.name}${e.selected ? '*' : ''}`) : [],
+          openTier: skills?.neutralTier?.tier ?? null,
+          equipped: skills?.neutralGear ? [skills.neutralGear.artifact?.name || null, skills.neutralGear.enchantment?.name || null] : null,
+          gear: skills?.neutralGear?.advice?.kind || null,
+        },
+      };
+      d.last = sample;
+      if (choices) d.withChoices = sample;
+    } catch {
+      /* diagnostics must never break the coach */
+    }
   }
 
   reset(matchId) {
@@ -117,6 +157,7 @@ export class Coach {
     this.roshanKilledAt = null;
     this.aegisAt = null;
     this.lhAt10 = null;
+    this.lastNeutral = null;
     this.clock = 0;
   }
 
@@ -277,26 +318,44 @@ export class Coach {
         out.next = { ...out.next, name: opt.name, dname: opt.dname, pct: opt.pct ?? out.next.pct, alternatives: [was], reason: out.talent.reason };
       } else if (out.next?.talent && out.talent) out.next.reason = out.talent.reason;
     }
-    if (c.gsi.neutralitems) {
+    // Neutral items. The tier open by the clock, unless the game shows a craft for a higher one.
+    const inGameNow = ['laning', 'mid', 'late'].includes(c.phase);
+    const open = [...(this.T.neutralTiers || [])].reverse().find((t) => c.clock >= t.at) || { tier: 1, at: 0 };
+    if (c.gsi.neutralitems != null) {
       try {
         out.neutral = neutralAdvice({
           gsiNeutral: c.gsi.neutralitems,
           team: c.team,
           teamSlot: c.player.team_slot,
+          who: { playerSlot: c.player.player_slot, steamid: c.player.steamid, accountid: c.player.accountid, name: c.player.name },
           stats,
           itemDb: c.db,
           role: c.role,
           attr: c.heroAttr,
+          clockTier: open.tier,
         });
       } catch (err) {
         console.error('Nøytral-råd feilet:', err.message);
       }
     }
-    // No craft choice from the game: the best artifacts and enchantments for the tier that is open now
-    // (pro pick rates when OpenDota has them, otherwise by what the stats give this hero and role).
-    if (!out.neutral && ['laning', 'mid', 'late'].includes(c.phase)) {
-      const tier = [...(this.T.neutralTiers || [])].reverse().find((t) => c.clock >= t.at)?.tier || 1;
+    // A payload without the block (or an unreadable one) right after a good one: keep the last choice a few seconds.
+    if (out.neutral) this.lastNeutral = { clock: c.clock, advice: out.neutral };
+    else if (c.gsi.neutralitems == null && this.lastNeutral && c.clock - this.lastNeutral.clock >= 0 && c.clock - this.lastNeutral.clock <= 10) out.neutral = this.lastNeutral.advice;
+    if (inGameNow) {
+      const tier = Math.max(open.tier, Math.min(5, out.neutral?.tier || 0));
+      out.neutralTier = { tier, since: tier === open.tier ? Math.max(0, c.clock - open.at) : 0 };
+      // The best artifacts and enchantments for the tier that is open now (pro pick rates when OpenDota has them,
+      // otherwise by what the stats give this hero and role). Shown when the game offers no craft choice.
       out.proNeutrals = neutralByTier({ tier, stats, itemDb: c.db, role: c.role, attr: c.heroAttr });
+      // What is equipped, and whether it should be upgraded or is clearly worse than the recommendation.
+      const equipped = readEquippedNeutral(c.gsi.items, c.db);
+      if (equipped.seen) {
+        out.neutralGear = {
+          artifact: equipped.artifact,
+          enchantment: equipped.enchantment,
+          advice: neutralGearAdvice({ equipped, tier, sinceOpen: out.neutralTier.since, clock: c.clock, rec: out.proNeutrals, stats, itemDb: c.db, role: c.role, attr: c.heroAttr }),
+        };
+      }
     }
     return out;
   }
@@ -424,6 +483,7 @@ export class Coach {
 
     if (['laning', 'mid', 'late'].includes(phase) && heroName) this.trackSpikes(c);
     c.skills = heroName && playingPhase(phase) ? this.skillAdvice(c, meta?.skills || null) : null;
+    this.recordNeutralSample(gsi, c.skills);
     const fight = fightAdvice(c);
     this.stabiliseFight(fight);
     c.fight = fight;
