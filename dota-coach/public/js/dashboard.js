@@ -28,6 +28,80 @@ function toast(msg, ms = 3500) {
   setTimeout(() => el.remove(), ms);
 }
 
+// <details> that stay open across re-renders (patch() replaces the HTML when the content changes).
+const openDetails = new Set();
+document.addEventListener(
+  'toggle',
+  (e) => {
+    const key = e.target?.dataset?.keep;
+    if (!key) return;
+    if (e.target.open) openDetails.add(key);
+    else openDetails.delete(key);
+  },
+  true,
+);
+const keepOpen = (key) => `data-keep="${esc(key)}"${openDetails.has(key) ? ' open' : ''}`;
+
+// 👎 on a suggestion: stored locally and sent along with «Kopier diagnose», so wrong advice can be fixed.
+const flagged = new Set();
+const flagBtn = (kind, id, dname) =>
+  `<button class="flag ${flagged.has(`${kind}:${id}`) ? 'done' : ''}" data-flag="${esc(kind)}" data-id="${esc(id)}" data-dname="${esc(dname || id)}" title="Feil forslag? Trykk her, så blir det sett på.">${flagged.has(`${kind}:${id}`) ? '✓' : '👎'}</button>`;
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest?.('[data-flag]');
+  if (!b) return;
+  e.preventDefault();
+  const key = `${b.dataset.flag}:${b.dataset.id}`;
+  if (flagged.has(key)) return;
+  try {
+    await api('/api/feedback', {
+      kind: b.dataset.flag,
+      id: b.dataset.id,
+      context: { hero: state?.hero?.name || state?.draftHelp?.ownHero?.name || null, role: settings.role, enemies: state?.enemies?.map((x) => x.name) || draft?.enemies || [], allies: draft?.allies || [], clock: state?.clock ?? null },
+    });
+    flagged.add(key);
+    b.classList.add('done');
+    b.textContent = '✓';
+    toast(`Merket «${b.dataset.dname}» som feil. Send «Kopier diagnose» til Claude, så blir det rettet.`, 5000);
+  } catch (err) {
+    toast(`Klarte ikke å lagre: ${err.message}`);
+  }
+});
+
+// ---------------- Counters: items and picks against the enemy heroes ----------------
+const WHEN_TEXT = { lane: 'tidlig', mid: 'midtgame', late: 'sent' };
+const THREAT_TEXT = {
+  invis: 'usynlig', evasion: 'evasion', illusions: 'illusjoner', summons: 'summons', heal: 'healing', magic: 'magisk burst',
+  physical: 'fysisk skade', passives: 'sterke passiver', mobile: 'mobil', disable: 'mye disable', spellspam: 'spammer evner',
+  buffs: 'sterke buffs', targeted: 'målrettede evner', push: 'pusher fort', mana: 'trenger mana',
+};
+
+// Items against the enemies: every enemy the item answers, with the reason, and why it fits your hero.
+function counterItemsHtml(list) {
+  return list
+    .map((x) => {
+      const lines = (x.vs || []).map((v) => `<div class="ci-why">${heroImg(v.hero, v.dname, 'xs')}<span><b>${esc(v.dname)}:</b> ${esc(v.why)}</span></div>`).join('');
+      const tags = [x.owned ? '<span class="ci-tag ok">✓ har</span>' : '', WHEN_TEXT[x.when] ? `<span class="ci-tag">${WHEN_TEXT[x.when]}</span>` : ''].join('');
+      return `<div class="sit ci ${x.owned ? 'owned' : ''}">${itemImg(x.item, x.dname)}<div><div class="ci-top"><b>${esc(x.dname)}</b> <span class="faint num">${fmtNum(x.cost)} g</span>${tags}${flagBtn('counter', x.item, x.dname)}</div>${lines}${x.fit?.text ? `<div class="ci-fit">${esc(x.fit.text)}</div>` : ''}</div></div>`;
+    })
+    .join('');
+}
+
+// Per enemy: what it brings, the tip, the best items for you and the heroes that counter it.
+function enemyBreakdownHtml(list, key) {
+  if (!list?.length) return '';
+  const rows = list
+    .map((e) => {
+      const tags = (e.threats || []).map((t) => THREAT_TEXT[t]).filter(Boolean);
+      const items = e.items?.length
+        ? e.items.map((i) => `<div class="eb-item ${i.owned ? 'owned' : ''}">${itemImg(i.item, i.dname, 'sm')}<span><b>${esc(i.dname)}</b> – ${esc(i.why)}</span></div>`).join('')
+        : '<div class="faint">Ingen items i listen passer helten og rollen din mot denne.</div>';
+      const picks = e.counters?.length ? `<div class="eb-picks"><span class="label-sm">Gode picks mot ${esc(e.dname)}</span>${e.counters.map((c) => `<div class="eb-pick">${heroImg(c.hero, c.dname, 'xs')}<span><b>${esc(c.dname)}</b> – ${esc(c.why)}</span></div>`).join('')}</div>` : '';
+      return `<div class="eb-row">${heroImg(e.hero, e.dname)}<div><div class="eb-name">${esc(e.dname)}${tags.length ? ` <span class="eb-tags">${tags.map(esc).join(' · ')}</span>` : ''}</div>${e.tip ? `<div class="eb-tip">${esc(e.tip)}</div>` : ''}${items}${picks}</div></div>`;
+    })
+    .join('');
+  return `<details class="eb" ${keepOpen(key)}><summary>Per fiende: hva de gjør, hva du kjøper og hvem som countrer dem</summary>${rows}</details>`;
+}
+
 // ---------------- Navigation ----------------
 const TAB_TITLE = { live: 'Live-coach', draft: 'Draft-hjelp', meta: 'Meta og builds', matches: 'Kamper og analyse', setup: 'Oppsett' };
 let activeTab = 'live';
@@ -396,7 +470,8 @@ function renderBuyNow() {
   const rows = list
     .map((x) => {
       const alt = x.alt?.length ? `<div class="buy-alt">Eller: ${x.alt.map((a) => esc(a.dname)).join(', ')}</div>` : '';
-      return `<div class="buy ${pr(x.priority)}">${itemImg(x.item, x.dname)}<div class="buy-body"><div class="buy-top"><b>${esc(x.dname)}</b><span class="buy-gold ${x.afford ? 'ok' : ''}">${esc(x.goldText)}</span></div><div class="why">${esc(x.reason)}</div>${alt}</div></div>`;
+      const fit = x.fit ? `<div class="buy-alt">${esc(x.fit)}</div>` : '';
+      return `<div class="buy ${pr(x.priority)}">${itemImg(x.item, x.dname)}<div class="buy-body"><div class="buy-top"><b>${esc(x.dname)}</b><span class="buy-gold ${x.afford ? 'ok' : ''}">${esc(x.goldText)}</span>${flagBtn('buy', x.item, x.dname)}</div><div class="why">${esc(x.reason)}</div>${alt}${fit}</div></div>`;
     })
     .join('');
   patch(card, `<h3>Kjøp nå <span class="right faint">tilpasses kampen</span></h3>${rows}`);
@@ -451,13 +526,19 @@ function renderNext() {
   const box = layout(
     $('c-next'),
     'next',
-    '<h3>Neste item <span class="right" data-p="full"></span></h3><div class="next-item"><span data-p="img"></span><div><div class="name" data-p="name"></div><div class="muted num" data-p="missing"></div><div class="bar" data-p="bar"><i></i></div></div></div>',
+    '<h3>Neste item <span class="right" data-p="full"></span></h3><div class="next-item"><span data-p="img"></span><div><div class="name" data-p="name"></div><div class="muted num" data-p="missing"></div><div class="bar" data-p="bar"><i></i></div></div></div><div class="next-src faint" data-p="src"></div><div data-p="hint"></div>',
   );
   patch(box('full'), n.cost !== n.remaining ? `fullpris ${fmtNum(n.cost)} g` : '');
   patch(box('img'), itemImg(n.name, n.dname, 'lg'));
   patch(box('name'), esc(n.dname));
   patch(box('missing'), missing > 0 ? `Mangler ${fmtNum(missing)} gull${eta}` : '<span style="color:var(--green)">Du har råd. Kjøp nå!</span>');
   box('bar').classList.toggle('green', pct >= 100);
+  const h = s.counterHint;
+  patch(
+    box('hint'),
+    h ? `<div class="next-hint">${itemImg(h.item, h.dname, 'sm')}<span>Vurder <b>${esc(h.dname)}</b> først: den svarer på ${esc(h.vs.join(', '))}. ${esc(h.why)}</span></div>` : '',
+  );
+  patch(box('src'), n.core ? 'Neste item i den populære builden (pro-kamper), et viktig powerspike.' : 'Neste item i den populære builden (pro-kamper).');
   box('bar').firstChild.style.width = `${pct}%`;
 }
 
@@ -551,19 +632,23 @@ function renderBuild() {
   patch(
     $('c-build'),
     `<h3>Populær build <span class="right faint">fra pro-kamper (OpenDota)</span></h3>
+     <div class="muted ci-sub">Det pro-spillere på ${esc(state.hero?.dname || 'helten')} kjøper oftest i hver fase, det mest kjøpte først. Builden tar ikke hensyn til fiendene: se «Mot fiendelaget» og «Kjøp nå».</div>
      ${row('Start', b.start)}${row('Tidlig', b.early)}${row('Mid', b.mid)}${row('Sent', b.late)}`,
   );
 }
 
 function renderSituational() {
-  const list = state.situational || [];
+  const list = state.counterItems || [];
   if (!state.enemies?.length) {
-    return patch($('c-sit'), '<h3>Mot fiendelaget</h3><div class="muted">Legg inn fiendene under <a href="#" data-goto="draft">Draft-hjelp</a>, så får du item-råd mot akkurat dem.</div>');
+    return patch($('c-sit'), '<h3>Mot fiendelaget</h3><div class="muted">Fiendene kommer fra draften (automatisk) eller fra <a href="#" data-goto="draft">Draft-hjelp</a>. Da får du items mot akkurat dem.</div>');
   }
+  const role = ROLE_NAME[state.role] || '';
   patch(
     $('c-sit'),
     `<h3>Mot fiendelaget <span class="right">${state.enemies.map((e) => heroImg(e.name, e.dname, 'xs')).join(' ')}</span></h3>
-     ${list.length ? list.map((x) => `<div class="sit ${x.owned ? 'owned' : ''}">${itemImg(x.item, x.dname)}<div><b>${esc(x.dname)}</b> <span class="faint num">${fmtNum(x.cost)} g</span>${x.owned ? ' ✓' : ''}<div class="why">${esc(x.why)}</div></div></div>`).join('') : '<div class="muted">Ingen spesielle items trengs mot dette laget. Følg builden.</div>'}`,
+     <div class="muted ci-sub">For ${esc(state.hero?.dname || 'helten din')} som ${esc(role)}. Sortert etter hvor mange av fiendene itemet svarer på.</div>
+     ${list.length ? counterItemsHtml(list) : '<div class="muted">Ingen items i kunnskapsbasen passer helten og rollen din mot dette laget. Følg builden.</div>'}
+     ${enemyBreakdownHtml(state.enemyBreakdown, 'eb-live')}`,
   );
 }
 
@@ -1183,26 +1268,63 @@ function pushDraft() {
   }, 200);
 }
 
-const fmtAdv = (a) => `${a > 0 ? '+' : '−'}${Math.abs(a).toFixed(1)} %`;
+const fmtAdv = (a) => `${a > 0 ? '+' : '−'}${Math.abs(a).toFixed(1).replace('.', ',')} %`;
+const fmtPP = (v) => `${v > 0.05 ? '+' : v < -0.05 ? '−' : '±'}${Math.abs(v).toFixed(1).replace('.', ',')}`;
+const fmtPct = (x) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
+const games = (n) => (n ? `${fmtNum(n)} ${n === 1 ? 'kamp' : 'kamper'}` : '');
+
+// The score of a pick suggestion, part by part, in plain words with the numbers behind it.
+function whyPickHtml(r) {
+  const p = r.parts || {};
+  const rows = [];
+  const row = (v, label, text) => rows.push(`<div class="wp-row"><b class="${v > 0.05 ? 'pos' : v < -0.05 ? 'neg' : ''}">${fmtPP(v)}</b><span><span class="wp-label">${label}</span> ${text}</span></div>`);
+  row(p.meta || 0, 'Meta:', r.winrate != null ? `${fmtPct(r.winrate)} seier i ${BRACKET_NAME[settings.bracket]}${r.picks ? ` (${games(r.picks)})` : ''}, ${esc(r.tier)}-tier.` : 'ingen tall for din rank ennå.');
+  const mu = [...(r.good || []), ...(r.bad || [])];
+  if (mu.length) row(p.matchups || 0, 'Matchups:', `${mu.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}${g.games ? ` (${games(g.games)})` : ''}`).join(', ')}.`);
+  else if (Math.abs(p.matchups || 0) >= 0.1) row(p.matchups, 'Matchups:', 'små forskjeller mot fiendene.');
+  for (const k of r.knownGood || []) row(2, 'Counter:', `mot ${esc(k.dname)}: ${esc(k.why)}`);
+  for (const k of r.knownBad || []) row(-2, 'Blir countret:', `${esc(k.dname)} – ${esc(k.why)}`);
+  const fills = (r.reasons || []).find((x) => x.text.startsWith('Gir laget'));
+  if (p.team) row(p.team, 'Laget:', `${esc(fills?.text || 'dekker det laget mangler')}.`);
+  for (const x of r.synergy || []) row(x.bonus, 'Kombo:', `med ${esc(x.dname)}: ${esc(x.why)}`);
+  if ((p.role || 0) < -0.05) row(p.role, 'Rolle:', `spilles sjeldnere i rollen din (vanligvis pos ${(r.positions || []).join('/')}).`);
+  return `<details class="wp" ${keepOpen(`why-${r.name}`)}><summary>Hvorfor? Score ${fmtPP(r.score)}</summary>${rows.join('')}</details>`;
+}
+
+// How the suggestions are made, for players who want to know what to trust.
+const howItWorks = () => `<details class="card how" ${keepOpen('how')}><summary><b>Slik regnes forslagene ut</b></summary>
+  <ul>
+    <li><b>Meta</b>: vinnerraten til helten i offentlige kamper i ranken din (OpenDota). Gir opptil ±3 poeng.</li>
+    <li><b>Matchups</b>: hvor ofte helten vinner mot hver fiende i pro-kamper det siste året (OpenDota). Med få kamper blir tallet trukket mot 0, så tilfeldigheter ikke gir store utslag. Antall kamper står ved tallet.</li>
+    <li><b>Counter</b>: kjente counters fra Dota Coach sin kunnskapsbase for patch 7.41, med evnen som gjør jobben. Hver påstand er sjekket mot evne- og item-beskrivelsene i 7.41. Gir +2 per fiende (maks +5), og −2 når en fiende countrer helten.</li>
+    <li><b>Laget</b>: det laget ditt mangler (initiering, stuns, frontlinje, waveclear, magisk eller fysisk skade, lategame-carry).</li>
+    <li><b>Kombo</b>: kjente kombinasjoner med lagkameratene dine.</li>
+    <li><b>Items mot fiendene</b>: fra den samme kunnskapsbasen, filtrert til det helten og rollen din faktisk kjøper. Står helten din i pro-statistikken for itemet, står det «Pro-spillere på … kjøper den».</li>
+  </ul>
+  <div class="faint">Ser du et forslag som er feil? Trykk 👎 ved det, så kommer det med i «Kopier diagnose» og blir rettet i neste oppdatering.</div>
+</details>`;
 
 function renderSuggestions(sg) {
   const notices = [];
   if (!sg.hasStats) notices.push('<div class="notice warn">Får ikke hentet meta fra OpenDota akkurat nå. Forslagene bygger bare på det som er lagret lokalt.</div>');
   if (!draft.enemies.length) notices.push('<div class="notice">Legg inn fiendene, så blir forslagene tilpasset dem (counters). Til nå er listen sortert etter meta for din rolle og rank, laget ditt og bans.</div>');
-  else if (!sg.hasMatchups) notices.push(`<div class="notice warn">${sg.loading ? '<span class="spinner"></span> Henter matchup-data …' : 'Matchup-data er ikke tilgjengelig ennå.'} Forslagene bygger på meta så lenge.</div>`);
+  else if (!sg.hasMatchups) notices.push(`<div class="notice warn">${sg.loading ? '<span class="spinner"></span> Henter matchup-data …' : 'Matchup-data er ikke tilgjengelig ennå.'} Forslagene bygger på meta og kjente counters så lenge.</div>`);
   if (sg.needsText) notices.push(`<div class="draft-needs">⚠️ ${esc(sg.needsText)}</div>`);
 
   const rows = sg.picks
     .map((r) => {
       const why = [];
-      if (r.good.length) why.push(`<span class="pos">Sterk mot ${r.good.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}`).join(', ')}</span>`);
-      for (const x of r.synergy || []) why.push(`<span class="pos">Kombo med ${esc(x.dname)}: ${esc(x.why)}</span>`);
+      for (const k of (r.knownGood || []).slice(0, 2)) why.push(`<span class="pos">Counter mot ${esc(k.dname)}</span>`);
+      const dataGood = (r.good || []).filter((g) => !(r.knownGood || []).some((k) => k.name === g.name));
+      if (dataGood.length) why.push(`<span class="pos">Sterk mot ${dataGood.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}`).join(', ')}</span>`);
+      for (const x of r.synergy || []) why.push(`<span class="pos">Kombo med ${esc(x.dname)}</span>`);
       for (const x of (r.reasons || []).filter((x) => x.text.startsWith('Gir laget'))) why.push(`<span class="pos">${esc(x.text)}</span>`);
-      if (r.bad.length) why.push(`<span class="neg">Svak mot ${r.bad.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}`).join(', ')}</span>`);
-      if (r.winrate != null) why.push(`${(r.winrate * 100).toFixed(1)} % vinnerrate i ${BRACKET_NAME[settings.bracket]}`);
+      const weak = [...(r.knownBad || []).map((b) => b.dname), ...(r.bad || []).map((b) => b.dname)].filter((n, i, a) => a.indexOf(n) === i);
+      if (weak.length) why.push(`<span class="neg">Svak mot ${weak.map(esc).join(', ')}</span>`);
+      if (r.winrate != null) why.push(`${fmtPct(r.winrate)} seier i ${BRACKET_NAME[settings.bracket]}`);
       return `<div class="sugg">${heroImg(r.name, r.dname)}
-        <div><div class="name"><span class="tier ${esc(r.tier)}">${esc(r.tier)}</span> ${esc(r.dname)}</div><div class="why">${why.join(' · ')}</div></div>
-        <div class="score" title="Samlet score: meta + counters + det laget mangler + kombo med lagkamerater">${r.score > 0 ? '+' : ''}${r.score.toFixed(1)}</div></div>`;
+        <div><div class="name"><span class="tier ${esc(r.tier)}">${esc(r.tier)}</span> ${esc(r.dname)}</div><div class="why">${why.join(' · ')}</div>${whyPickHtml(r)}</div>
+        <div class="sugg-side"><div class="score" title="Samlet score: meta + matchups + kjente counters + det laget mangler + kombo">${fmtPP(r.score)}</div>${flagBtn('pick', r.name, r.dname)}</div></div>`;
     })
     .join('');
 
@@ -1215,13 +1337,21 @@ function renderSuggestions(sg) {
 
   const avoid = sg.avoid.length
     ? `<div class="card"><h3>Unngå mot dette laget</h3>${sg.avoid
-        .map((r) => `<div class="sugg">${heroImg(r.name, r.dname)}<div><div class="name">${esc(r.dname)}</div><div class="why"><span class="neg">Svak mot ${r.bad.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}`).join(', ')}</span></div></div><div class="score" style="color:var(--red)">${r.counter.toFixed(1)}</div></div>`)
+        .map((r) => {
+          const lines = [
+            ...(r.knownBad || []).map((k) => `<div class="ci-why">${heroImg(k.name, k.dname, 'xs')}<span><b>${esc(k.dname)}:</b> ${esc(k.why)}</span></div>`),
+            ...(r.bad || []).filter((b) => !(r.knownBad || []).some((k) => k.name === b.name)).map((b) => `<div class="ci-why">${heroImg(b.name, b.dname, 'xs')}<span><b>${esc(b.dname)}:</b> vinner ${Math.abs(b.adv).toFixed(1).replace('.', ',')} prosentpoeng sjeldnere mot ham i pro-kamper${b.games ? ` (${games(b.games)})` : ''}</span></div>`),
+          ];
+          return `<div class="sugg">${heroImg(r.name, r.dname)}<div><div class="name">${esc(r.dname)}</div>${lines.join('')}</div><div class="score" style="color:var(--red)">${fmtPP(r.parts.matchups + r.parts.known)}</div></div>`;
+        })
         .join('')}</div>`
     : '';
 
-  const sit = sg.situational.length
-    ? `<div class="card"><h3>Items mot dette laget</h3>${sg.situational.map((x) => `<div class="sit">${itemImg(x.item, x.dname)}<div><b>${esc(x.dname)}</b><div class="why">${esc(x.why)}</div></div></div>`).join('')}</div>`
-    : '';
+  const sit = (sg.situational || []).length
+    ? `<div class="card"><h3>Items mot dette laget <span class="right faint">for ${esc(sg.forTeam && state?.draftHelp?.ownHero ? state.draftHelp.ownHero.dname : ROLE_NAME[settings.role] || 'deg')}</span></h3>${counterItemsHtml(sg.situational)}${enemyBreakdownHtml(sg.enemyBreakdown, 'eb-draft')}</div>`
+    : draft.enemies.length && (sg.enemyBreakdown || []).length
+      ? `<div class="card"><h3>Mot fiendene</h3>${enemyBreakdownHtml(sg.enemyBreakdown, 'eb-draft')}</div>`
+      : '';
   const tips = sg.enemyTips.length
     ? `<div class="card"><h3>Husk mot fiendene</h3>${sg.enemyTips.map((t) => `<div class="enemy-tip">${heroImg(t.hero, heroByName.get(t.hero)?.dname, 'xs')}<span>${esc(t.text)}</span></div>`).join('')}</div>`
     : '';
@@ -1231,7 +1361,7 @@ function renderSuggestions(sg) {
   patch(
     $('draft-results'),
     `<div class="card"><h3>${title} <span class="right">${sub}</span></h3>
-      <div style="display:grid;gap:8px;margin-bottom:6px">${notices.join('')}</div>${rows || '<div class="muted">Ingen forslag.</div>'}</div>${bans}${avoid}${sit}${tips}`,
+      <div style="display:grid;gap:8px;margin-bottom:6px">${notices.join('')}</div>${rows || '<div class="muted">Ingen forslag.</div>'}</div>${bans}${avoid}${sit}${tips}${howItWorks()}`,
   );
 }
 

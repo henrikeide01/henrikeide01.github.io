@@ -10,3 +10,4 @@ backup/
 .update/
 debug/
 overlay-map-window.json
+feedback.json

@@ -1,21 +1,29 @@
 // "Kjøp nå": item suggestions that adapt during the match. Recomputed on every update from what we know
 // live (HP/mana history, the enemy draft, gold, role, game time). `liveItemCandidates` is pure; the
-// `LiveItemTracker` adds hysteresis so suggestions do not flicker in and out.
+// `LiveItemTracker` adds hysteresis so suggestions do not flicker in and out. The answers to the enemy heroes
+// come from the counter knowledge base (src/coach/counters.js), already filtered to what your hero buys.
 import { COUNTER_RULES, MAGIC_NUKERS, SPELL_SPAMMERS } from '../../data/knowledge.js';
-import { situationalItems } from './situational.js';
+import { HERO_COUNTERS } from '../../data/counters.js';
+import { counterItems, coveredByOwned } from './counters.js';
 
-const heroList = (id) => COUNTER_RULES.find((r) => r.id === id)?.heroes || [];
-const INVIS = heroList('invis');
-const PHYSICAL = heroList('physical');
-const LOCKDOWN = heroList('lockdown');
-const HEALERS = heroList('heal');
+// A threat tag from the knowledge base; heroes it does not know fall back to the old hero lists.
+const legacy = { invis: COUNTER_RULES.find((r) => r.id === 'invis')?.heroes || [], magic: MAGIC_NUKERS, spellspam: SPELL_SPAMMERS };
+const threat = (tag, enemies) => enemies.filter((e) => (HERO_COUNTERS[e.name] ? (HERO_COUNTERS[e.name].threats || []).includes(tag) : (legacy[tag] || []).includes(e.name)));
 
 const HP_REGEN = ['tango', 'tango_single', 'flask', 'faerie_fire', 'famango', 'great_famango', 'bottle', 'royal_jelly'];
 const MANA_REGEN = ['clarity', 'enchanted_mango', 'bottle', 'soul_ring', 'arcane_boots', 'guardian_greaves', 'famango', 'great_famango', 'royal_jelly'];
 const DETECTION = ['ward_sentry', 'ward_dispenser', 'dust', 'gem'];
 const MAGIC_DEFENSE = ['black_king_bar', 'pipe', 'eternal_shroud', 'glimmer_cape', 'mage_slayer', 'cloak', 'sphere', 'lotus_orb'];
-const ARMOR_DEFENSE = ['blade_mail', 'crimson_guard', 'heavens_halberd', 'shivas_guard', 'assault', 'butterfly', 'ghost', 'solar_crest', 'force_staff', 'ethereal_blade'];
-const DISABLE_DEFENSE = ['black_king_bar', 'sphere', 'lotus_orb', 'glimmer_cape', 'force_staff', 'hurricane_pike', 'cyclone', 'wind_waker', 'manta'];
+// Items that keep you alive: they rank higher when you keep dying.
+const DEFENSIVE = new Set([
+  'black_king_bar', 'pipe', 'eternal_shroud', 'glimmer_cape', 'mage_slayer', 'sphere', 'lotus_orb', 'ghost', 'force_staff', 'hurricane_pike',
+  'blade_mail', 'crimson_guard', 'heavens_halberd', 'aeon_disk', 'cyclone', 'manta', 'satanic', 'butterfly', 'assault', 'shivas_guard',
+  'solar_crest', 'pavise', 'consecrated_wraps', 'crellas_crozier', 'ethereal_blade', 'wind_waker', 'heart', 'vanguard', 'infused_raindrop',
+]);
+// These have their own rules below (with live data), so the counter rule leaves them alone.
+const OWN_RULES = new Set(['dust', 'ward_sentry', 'gem', 'magic_stick', 'magic_wand', 'infused_raindrop', 'ward_observer', 'smoke_of_deceit', 'flask', 'tango', 'clarity', 'bottle']);
+// When a counter item from the knowledge base is worth buying (game seconds).
+const WHEN = { lane: [0, 900], mid: [600, 2700], late: [1500, Infinity], any: [300, Infinity] };
 
 // Higher-level items that make a suggestion pointless ("outgrown"), on top of owning the item or what it builds into.
 const OUTGROWN = {
@@ -25,7 +33,6 @@ const OUTGROWN = {
   enchanted_mango: ['bottle', 'arcane_boots', 'guardian_greaves', 'soul_ring'],
 };
 
-const names = (list, enemies) => enemies.filter((e) => list.includes(e.name));
 // Short hero list for the compact overlay row: "Lina, Lion +1".
 const short = (list) => (list.length <= 2 ? list.map((e) => e.dname).join(', ') : `${list.slice(0, 2).map((e) => e.dname).join(', ')} +${list.length - 2}`);
 const join = (list) => {
@@ -50,8 +57,9 @@ export function vitalStats(vitals, clock, { window = 150 } = {}) {
   };
 }
 
-// x: { clock, phase, role, heroAttr, inv, gold, enemies: [{name,dname}], vitals (vitalStats), deathsRecent, db }
-// Returns [{ item, priority, reason, kind, until?, alt? }] (not yet filtered for owned items).
+// x: { clock, phase, role, heroAttr, hero, build, inv, gold, enemies: [{name,dname}], vitals (vitalStats), deathsRecent, db,
+//      counters? (counterItems output; computed here when missing) }
+// Returns [{ item, priority, reason, kind, short, until?, alt?, vs?, fit? }] (not yet filtered for owned items).
 export function liveItemCandidates(x) {
   if (!['pregame', 'laning', 'mid', 'late'].includes(x.phase)) return [];
   const { clock, role, inv, enemies = [], vitals = {} } = x;
@@ -71,7 +79,8 @@ export function liveItemCandidates(x) {
     const often = vitals.lowHpShare >= (was ? 0.2 : 0.3) || vitals.lowHpEpisodes >= (was ? 1 : 2);
     if (often) {
       const severe = vitals.lowHpShare >= 0.45 || vitals.lowHpEpisodes >= 3;
-      const why = 'Du er ofte på lav HP og har ingen regen.';
+      const pct = Math.round(vitals.lowHpShare * 100);
+      const why = `Du har vært på lav HP ${pct} % av de siste 2,5 minuttene${vitals.lowHpEpisodes >= 2 ? ` (${vitals.lowHpEpisodes} ganger)` : ''}, og har ingen regen.`;
       if (role === 2 && clock < 720 && !inv.owned.has('bottle')) add('bottle', severe ? 82 : 72, `${why} Bottle fylles på med runer og holder deg i lanen.`, 'regen', 'Ofte lav HP', { until: 720, alt: ['flask'] });
       else add('flask', severe ? 82 : 72, `${why} En Healing Salve gjør at du slipper å gå tilbake.`, 'regen', 'Ofte lav HP', { until: 900, alt: clock < 480 ? ['tango'] : [] });
     }
@@ -80,7 +89,7 @@ export function liveItemCandidates(x) {
   // 2. Often out of mana, and nothing that gives mana back.
   if (clock < 1500 && (vitals.manaSamples || 0) >= 15 && vitals.lowManaShare >= (on(['bottle', 'soul_ring', 'arcane_boots', 'clarity', 'enchanted_mango']) ? 0.25 : 0.35) && !holds(MANA_REGEN) && !owns(['arcane_boots', 'guardian_greaves', 'soul_ring', 'bottle'])) {
     const severe = vitals.lowManaShare >= 0.5;
-    const why = 'Du går ofte tom for mana.';
+    const why = `Du har vært under 25 % mana ${Math.round(vitals.lowManaShare * 100)} % av de siste 2,5 minuttene.`;
     if (role === 2 && clock < 600) add('bottle', severe ? 80 : 70, `${why} Bottle gir mana og HP hele lanefasen.`, 'mana', 'Ofte tom for mana', { until: 720 });
     else if (x.heroAttr === 'str' && role <= 3 && clock < 1200) add('soul_ring', severe ? 78 : 68, `${why} Soul Ring gir mana når du trenger den, og passer styrkehelter.`, 'mana', 'Ofte tom for mana', { until: 1200 });
     else if ((role >= 4 || x.heroAttr === 'int') && !inv.hasBootUpgrade && clock < 1200) add('arcane_boots', severe ? 78 : 68, `${why} Arcane Boots gir mana til deg og laget.`, 'mana', 'Ofte tom for mana', { until: 1200 });
@@ -88,82 +97,53 @@ export function liveItemCandidates(x) {
     else if (clock < 1200) add('enchanted_mango', 60, `${why} Enchanted Mango gir mana med en gang.`, 'mana', 'Ofte tom for mana', { until: 1200 });
   }
 
-  // 3. Magic burst laners: Infused Raindrops early, real magic defence later.
-  const nukers = names(MAGIC_NUKERS, enemies);
-  if (nukers.length >= 2) {
-    if (clock < 900 && !owns(MAGIC_DEFENSE)) {
-      let p = nukers.length >= 3 ? 85 : 70;
-      if (enoughData && vitals.lowHpShare >= 0.3) p += 8;
-      add('infused_raindrop', p, `${join(nukers)} har mye magisk burst. Raindrops tar av magisk skade tidlig (bare verdt det før ca. 15 min).`, 'counter', `Magisk burst: ${short(nukers)}`, { until: 900 });
-    }
-    if (clock >= 720 && clock < 2400 && !owns(MAGIC_DEFENSE.filter((n) => n !== 'cloak'))) {
-      const item = role >= 4 ? 'glimmer_cape' : role === 3 ? 'pipe' : 'black_king_bar';
-      const what = { glimmer_cape: 'Glimmer Cape gir magisk resistens og redder deg eller en kjerne', pipe: 'Pipe beskytter hele laget mot magisk skade', black_king_bar: 'BKB gjør deg immun mot magi i fights' }[item];
-      add(item, (nukers.length >= 3 ? 68 : 58) + (dying ? 15 : 0), `${join(nukers)} har mye magisk skade. ${what}.`, 'counter', `Magisk skade: ${short(nukers)}`, { until: 2400 });
-    }
+  // 3. Magic burst laners: Infused Raindrops early (real magic defence comes from the counter rule below).
+  const nukers = threat('magic', enemies);
+  if (nukers.length >= 2 && clock < 900 && !owns(MAGIC_DEFENSE)) {
+    let p = nukers.length >= 3 ? 85 : 70;
+    if (enoughData && vitals.lowHpShare >= 0.3) p += 8;
+    add('infused_raindrop', p, `${join(nukers)} har mye magisk burst. Raindrops tar av magisk skade tidlig (bare verdt det før ca. 15 min).`, 'counter', `Magisk burst: ${short(nukers)}`, { until: 900, vs: nukers.map((e) => e.name) });
   }
 
   // 4. Spell spammers: Magic Stick early, Wand once the stick is there.
-  const spam = names(SPELL_SPAMMERS, enemies);
+  const spam = threat('spellspam', enemies);
   if (spam.length && clock < 1200) {
     const p = spam.length >= 2 ? 64 : 54;
-    if (!inv.owned.has('magic_stick')) add('magic_stick', p, `${join(spam.slice(0, 3))} bruker evner hele tiden. Magic Stick lader seg fort og gir gratis HP og mana.`, 'counter', `Spammer evner: ${short(spam)}`, { until: 1200 });
-    else if (!inv.owned.has('magic_wand') && !inv.owned.has('holy_locket') && clock < 900) add('magic_wand', p - 10, 'Gjør Magic Stick om til Magic Wand: flere ladninger og stats.', 'counter', `Spammer evner: ${short(spam)}`, { until: 900 });
+    if (!inv.owned.has('magic_stick')) add('magic_stick', p, `${join(spam.slice(0, 3))} bruker evner hele tiden. Magic Stick lader seg fort og gir gratis HP og mana.`, 'counter', `Spammer evner: ${short(spam)}`, { until: 1200, vs: spam.map((e) => e.name) });
+    else if (!inv.owned.has('magic_wand') && !inv.owned.has('holy_locket') && clock < 900) add('magic_wand', p - 10, 'Gjør Magic Stick om til Magic Wand: flere ladninger og stats.', 'counter', `Spammer evner: ${short(spam)}`, { until: 900, vs: spam.map((e) => e.name) });
   }
 
   // 5. Invisible heroes: sentries for supports, Dust for cores.
-  const invis = names(INVIS, enemies);
+  const invis = threat('invis', enemies);
   if (invis.length && !holds(DETECTION)) {
-    if (role >= 4) add('ward_sentry', 76, `${join(invis)} kan bli usynlig. Ha alltid sentry wards på deg.`, 'vision', `Usynlige: ${short(invis)}`);
-    else if (clock >= 240) add('dust', 58, `${join(invis)} kan bli usynlig. Dust i inventaret avslører dem i fights.`, 'counter', `Usynlige: ${short(invis)}`);
+    if (role >= 4) add('ward_sentry', 76, `${join(invis)} kan bli usynlig. Ha alltid sentry wards på deg.`, 'vision', `Usynlige: ${short(invis)}`, { vs: invis.map((e) => e.name) });
+    else if (clock >= 240) add('dust', 58, `${join(invis)} kan bli usynlig. Dust i inventaret avslører dem i fights.`, 'counter', `Usynlige: ${short(invis)}`, { vs: invis.map((e) => e.name) });
   }
 
-  // 6. Heavy physical damage: armour and saves.
-  const phys = names(PHYSICAL, enemies);
-  if (phys.length >= 2 && clock >= 600 && !owns(ARMOR_DEFENSE)) {
-    let item = null;
-    if (role >= 4) item = clock < 1800 ? 'ghost' : 'force_staff';
-    else if (role === 3) item = clock < 1500 ? 'blade_mail' : 'crimson_guard';
-    else if (clock >= 1500) item = x.heroAttr === 'agi' ? 'butterfly' : 'assault';
-    else if (role === 2 && x.heroAttr === 'int') item = 'ghost';
-    const what = { ghost: 'Ghost Scepter stopper right-click i kritiske sekunder', force_staff: 'Force Staff tar deg ut av fights', blade_mail: 'Blade Mail straffer dem som slår deg', crimson_guard: 'Crimson Guard blokkerer skade for hele laget', butterfly: 'Butterfly gir evasion mot right-click', assault: 'Assault Cuirass gir mye armor' }[item];
-    if (item) add(item, 55 + (dying ? 15 : 0), `${join(phys.slice(0, 3))} gjør mye fysisk skade. ${what}.`, 'counter', `Fysisk skade: ${short(phys)}`);
-  }
-
-  // 7. A lot of disables: BKB / Lotus / Glimmer / Force.
-  const lock = names(LOCKDOWN, enemies);
-  if (lock.length >= 3 && clock >= 900 && clock < 2700 && !owns(DISABLE_DEFENSE)) {
-    const item = role >= 4 ? 'glimmer_cape' : role === 3 ? 'lotus_orb' : 'black_king_bar';
-    add(item, 60 + (dying ? 15 : 0), `${join(lock.slice(0, 3))} har mye disable. ${item === 'black_king_bar' ? 'BKB' : item === 'lotus_orb' ? 'Lotus Orb' : 'Glimmer Cape'} hjelper deg å overleve stunnene.`, 'counter', `Mye disable: ${short(lock)}`);
-  }
-
-  // 8. Healing enemies: anti-heal for supports and the offlaner.
-  const heal = names(HEALERS, enemies);
-  if (heal.length && role >= 3 && clock >= 600 && clock < 2400 && !inv.owned.has('spirit_vessel')) {
-    add('spirit_vessel', 50, `${join(heal.slice(0, 3))} healer mye. Spirit Vessel kutter healingen.`, 'counter', `Healing: ${short(heal)}`);
-  }
-
-  // 9. Supports: vision and smoke.
+  // 6. Supports: vision and smoke.
   if (role >= 4 && clock >= 120) {
     if (!inv.wards) add('ward_observer', 66, 'Du har ingen observer wards. Vision redder liv og finner kills.', 'vision', 'Ingen observers');
     if (role === 5 && !holds(DETECTION)) add('ward_sentry', 46, 'Sentry wards: deward fiendens wards og beskytt leirene.', 'vision', 'Deward');
     if (role === 4 && clock >= 360 && clock < 2400 && !inv.held.includes('smoke_of_deceit')) add('smoke_of_deceit', 40, 'Smoke of Deceit til ganks rundt runer og leirer.', 'vision', 'Smoke-ganks');
   }
 
-  // 10. Other counters from the draft (evasion, illusions, break, mobility), once they start to matter.
-  if (clock >= 900 && enemies.length && x.db) {
-    // A rule is covered once he owns any of its items (Bloodthorn covers evasion as well as MKB does).
-    const ruleList = (id) => {
-      const r = COUNTER_RULES.find((k) => k.id === id);
-      return !r ? [] : role >= 4 ? r.support : role === 3 ? r.off || r.core : r.core;
-    };
-    const shownRule = new Set(); // one card per problem: MKB or Bloodthorn, not both
-    for (const s of situationalItems(enemies, role, x.db)) {
-      if (!['evasion', 'illusions', 'break', 'mobile'].includes(s.rule)) continue;
-      if (owns(ruleList(s.rule)) || shownRule.has(s.rule)) continue;
-      shownRule.add(s.rule);
-      if (x.db.cost(s.item) > 3000 && clock < 1200) continue;
-      add(s.item, 42, s.why, 'counter', { evasion: 'Evasion', illusions: 'Illusjoner', break: 'Sterke passiver', mobile: 'Mobile helter' }[s.rule]);
+  // 7. Answers to the enemy heroes from the knowledge base, for your hero and position. The more enemies an item
+  // answers, the higher it ranks; at most three at a time, when the item is worth buying (time and price).
+  if (enemies.length && x.db) {
+    const list = x.counters || counterItems({ enemies, hero: x.hero || null, role, build: x.build || null, db: x.db, owned: inv.owned, limit: 12 });
+    let n = 0;
+    for (const c of list) {
+      if (n >= 3) break;
+      if (c.owned || OWN_RULES.has(c.item) || inv.owned.has(c.item) || coveredByOwned(c.item, inv.owned)) continue;
+      const [from, to] = WHEN[c.when] || WHEN.any;
+      if (clock < from || clock >= to) continue;
+      if (c.cost > 3000 && clock < 1200) continue;
+      const p = 42 + Math.round(12 * Math.min(2.5, c.score)) + (dying && DEFENSIVE.has(c.item) ? 12 : 0);
+      const first = c.vs[0];
+      const others = c.vs.slice(1).map((v) => ({ dname: v.dname }));
+      const reason = `Mot ${first.dname}: ${first.why}${others.length ? ` Hjelper også mot ${join(others)}.` : ''}`;
+      add(c.item, Math.min(80, p), reason, 'counter', `Mot ${short(c.vs)}`, { vs: c.vs.map((v) => v.hero), fit: c.fit.text, details: c.vs });
+      n++;
     }
   }
 
@@ -179,6 +159,7 @@ export function isOutgrown(item, inv) {
   if (item === 'ward_observer') return inv.wards > 0;
   if (item === 'arcane_boots' && inv.hasBootUpgrade) return true;
   if (inv.owned.has(item)) return true; // held, or a component of something held
+  if (coveredByOwned(item, inv.owned)) return true; // an owned item already does its job (Bloodthorn → MKB)
   return (OUTGROWN[item] || []).some((n) => inv.owned.has(n));
 }
 
@@ -247,6 +228,9 @@ export class LiveItemTracker {
         priority: e.peak,
         kind: c.kind,
         alt: (c.alt || []).filter((a) => !isOutgrown(a, inv)).map((a) => ({ item: a, dname: db.dname(a), cost: db.cost(a) })),
+        vs: c.vs || [],
+        fit: c.fit || null,
+        details: c.details || null,
         since: e.shownAt,
       });
     }

@@ -1,6 +1,7 @@
 // Hero meta (tier list) from OpenDota /heroStats and draft suggestions from /heroes/{id}/matchups.
 import { positionsFor } from '../../data/positions.js';
 import { synergiesWith } from '../../data/synergy.js';
+import { knownMatchups } from './counters.js';
 
 export const BRACKETS = { 1: 'Herald', 2: 'Guardian', 3: 'Crusader', 4: 'Archon', 5: 'Legend', 6: 'Ancient', 7: 'Divine', 8: 'Immortal' };
 
@@ -146,9 +147,14 @@ export function needsText(needs = []) {
 const joinNames = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} og ${list[list.length - 1]}` : list[0] || '');
 const pct = (x) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 
-// Pick suggestions: meta in the bracket + counters against the enemies + what the team lacks + known combos
-// with the allies. Banned and picked heroes are left out.
-export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(), allies = [], enemies = [], bans = [], role = 0, bracket = 5, limit = 12 }) {
+// Known counters (knowledge base) are worth this much per enemy, in the same percentage points as the rest.
+const KNOWN_GOOD = 2;
+const KNOWN_BAD = 2;
+
+// Pick suggestions: meta in the bracket + counters against the enemies (pro matchups and known counters) + what
+// the team lacks + known combos with the allies. Banned and picked heroes are left out. Every row carries the
+// parts of its score (`parts`), so the page can show why it is there.
+export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(), allies = [], enemies = [], bans = [], role = 0, bracket = 5, limit = 12, kb }) {
   allies = allies.filter(Boolean);
   enemies = enemies.filter(Boolean);
   const taken = new Set([...allies, ...enemies, ...bans.filter(Boolean)].map((h) => h.name));
@@ -166,19 +172,25 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
     const metaPP = t ? (t.winrate !== null ? t.z * 1.5 : 0) : 0;
     const adv = counterAdvantages(h, enemies, matchups);
     const counterPP = adv.reduce((s, a) => s + a.adv, 0);
+    const known = knownMatchups(h, enemies, kb);
+    const knownPP = Math.min(5, known.good.length * KNOWN_GOOD) - Math.min(5, known.bad.length * KNOWN_BAD);
     const comp = compositionScore(h, needs, allies.length);
     const syn = synergiesWith(h.name, allyNames).map((s) => ({ ...s, dname: allyDname.get(s.ally) || s.ally }));
     const synergyPP = Math.min(6, syn.reduce((s, x) => s + x.bonus, 0));
-    const score = metaPP + counterPP * 0.5 + (fit - 1) * 3 + comp.score + synergyPP;
-    const good = adv.filter((a) => a.adv >= 1.5).sort((a, b) => b.adv - a.adv).slice(0, 3).map((a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv }));
-    const bad = adv.filter((a) => a.adv <= -1.5).sort((a, b) => a.adv - b.adv).slice(0, 2).map((a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv }));
+    const rolePP = (fit - 1) * 3;
+    const score = metaPP + counterPP * 0.5 + knownPP + rolePP + comp.score + synergyPP;
+    const good = adv.filter((a) => a.adv >= 1.5).sort((a, b) => b.adv - a.adv).slice(0, 3).map((a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv, games: a.games }));
+    const bad = adv.filter((a) => a.adv <= -1.5).sort((a, b) => a.adv - b.adv).slice(0, 2).map((a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv, games: a.games }));
 
     // Short reasons, the most important first (the overlay shows one line of them).
     const reasons = [];
-    if (good.length) reasons.push({ text: `Sterk mot ${joinNames(good.slice(0, 2).map((g) => g.dname))}`, kind: 'pos' });
+    if (known.good.length) reasons.push({ text: `Counter mot ${joinNames(known.good.slice(0, 2).map((g) => g.dname))}`, kind: 'pos' });
+    const dataGood = good.filter((g) => !known.good.some((k) => k.name === g.name));
+    if (dataGood.length) reasons.push({ text: `Sterk mot ${joinNames(dataGood.slice(0, 2).map((g) => g.dname))}`, kind: 'pos' });
     for (const s of syn.slice(0, 1)) reasons.push({ text: `Kombo med ${s.dname}: ${s.why}`, kind: 'pos' });
     if (comp.fills.length) reasons.push({ text: `Gir laget ${joinNames(comp.fills.map((n) => n.label))}`, kind: 'pos' });
-    if (bad.length) reasons.push({ text: `Svak mot ${joinNames(bad.map((b) => b.dname))}`, kind: 'neg' });
+    const weak = [...known.bad.map((b) => b.dname), ...bad.map((b) => b.dname)].filter((n, i, a) => a.indexOf(n) === i);
+    if (weak.length) reasons.push({ text: `Svak mot ${joinNames(weak.slice(0, 2))}`, kind: 'neg' });
     if (t && ['S', 'A'].includes(t.tier) && reasons.length < 2) reasons.push({ text: `${t.tier}-tier i meta`, kind: 'info' });
 
     rows.push({
@@ -188,21 +200,36 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
       score,
       tier: t?.tier || '?',
       winrate: t?.winrate ?? null,
+      picks: t?.picks ?? 0,
       meta: metaPP,
       counter: counterPP,
+      known: knownPP,
       comp: comp.score,
       synergy: syn.map((s) => ({ name: s.ally, dname: s.dname, why: s.why, bonus: s.bonus })),
       fills: comp.fills.map((n) => n.id),
       reasons: reasons.slice(0, 4),
       good,
       bad,
+      knownGood: known.good,
+      knownBad: known.bad,
+      // The score, part by part (percentage points), for the "Hvorfor?" view.
+      parts: {
+        meta: metaPP,
+        matchups: counterPP * 0.5,
+        known: knownPP,
+        team: comp.score,
+        combo: synergyPP,
+        role: rolePP,
+      },
       positions: positionsFor(h),
     });
   }
   rows.sort((a, b) => b.score - a.score);
+  // Heroes worth avoiding: strong in the meta, but countered by the enemies (matchups and known counters).
+  const against = (r) => r.parts.matchups + r.parts.known;
   const avoid = rows
-    .filter((r) => r.counter <= -4 && (r.tier === 'S' || r.tier === 'A' || r.tier === 'B'))
-    .sort((a, b) => a.counter - b.counter)
+    .filter((r) => against(r) <= -2 && (r.tier === 'S' || r.tier === 'A' || r.tier === 'B'))
+    .sort((a, b) => against(a) - against(b))
     .slice(0, 5);
   return { picks: rows.slice(0, limit), avoid, needs: needs.map(({ id, label }) => ({ id, label })) };
 }
@@ -213,7 +240,7 @@ const LANE_OPPONENTS = { 1: [3, 4], 2: [2], 3: [1, 5], 4: [1, 5], 5: [3, 4] };
 // Heroes worth banning: strong in the bracket and good against our team so far (the allies' and your own
 // matchups, read the other way round). With nobody on our team yet: the strongest meta heroes you would
 // meet in your lane, weighted a little by how often they are picked.
-export function suggestBans({ heroes, stats = new Map(), matchups = new Map(), allies = [], ownHero = null, enemies = [], bans = [], role = 0, bracket = 5, limit = 5 }) {
+export function suggestBans({ heroes, stats = new Map(), matchups = new Map(), allies = [], ownHero = null, enemies = [], bans = [], role = 0, bracket = 5, limit = 5, kb }) {
   const team = [...allies, ownHero].filter(Boolean);
   const taken = new Set([...team, ...enemies, ...bans].filter(Boolean).map((h) => h.name));
   const tiers = tierList(heroes, stats, { bracket, role: 0 });
@@ -231,13 +258,21 @@ export function suggestBans({ heroes, stats = new Map(), matchups = new Map(), a
     let score = t.z * 1.2 + Math.min(1.5, t.pickrate * 4);
     const reasons = [];
     let threat = 0;
+    // A known counter to someone on our team (knowledge base).
+    const kv = team.length ? knownMatchups(h, team, kb).good : [];
+    if (kv.length) {
+      threat += Math.min(5, kv.length * KNOWN_GOOD);
+      score += Math.min(5, kv.length * KNOWN_GOOD) * 0.6;
+      reasons.push(`Counter mot ${joinNames(kv.slice(0, 2).map((k) => k.dname))}`);
+    }
     if (known.length) {
       const adv = counterAdvantages(h, known, matchups);
-      threat = adv.reduce((s, a) => s + a.adv, 0);
-      score += threat * 0.6;
-      const vs = adv.filter((a) => a.adv >= 1.5).sort((a, b) => b.adv - a.adv).slice(0, 2);
+      const data = adv.reduce((s, a) => s + a.adv, 0);
+      threat += data;
+      score += data * 0.6;
+      const vs = adv.filter((a) => a.adv >= 1.5 && !kv.some((k) => k.name === a.enemy.name)).sort((a, b) => b.adv - a.adv).slice(0, 2);
       if (vs.length) reasons.push(`Sterk mot ${joinNames(vs.map((a) => a.enemy.dname))}`);
-    } else if (opp.length) {
+    } else if (!kv.length && opp.length) {
       if (!t.positions.some((p) => opp.includes(p))) continue;
       if (opp.includes(t.positions[0])) score += 0.5;
       reasons.push('Møter deg ofte i lanen');

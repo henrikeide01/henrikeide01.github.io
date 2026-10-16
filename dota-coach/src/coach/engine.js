@@ -4,7 +4,8 @@ import { RULES, expectedSkillPoints } from './rules.js';
 import { readInventory, nextItem } from './items.js';
 import { locate, safeLane, offLane } from './map.js';
 import { computeTimers, fmtGameClock } from './timers.js';
-import { situationalItems, enemyTips } from './situational.js';
+import { enemyTips } from './situational.js';
+import { counterItems, enemyBreakdown } from './counters.js';
 import { percentileOf } from './percentile.js';
 import { fightAdvice } from './fight.js';
 import { MatchRecorder } from './recorder.js';
@@ -201,6 +202,19 @@ export class Coach {
     }
   }
 
+  // For the "Neste item" card: a counter item that answers several enemies and may be worth buying before the
+  // next item of the popular build. Null when there is none, or the build's next item is that item anyway.
+  counterHint(c) {
+    if (!['laning', 'mid', 'late'].includes(c.phase) || !c.counters?.length) return null;
+    const window = { lane: [0, 900], mid: [600, 2700], late: [1500, Infinity], any: [300, Infinity] };
+    const hit = c.counters.find((x) => {
+      const [from, to] = window[x.when] || window.any;
+      return !x.owned && x.score >= 1.5 && x.cost >= 1000 && c.clock >= from && c.clock < to && x.item !== c.next?.name && !(x.cost > 3000 && c.clock < 1200);
+    });
+    if (!hit) return null;
+    return { item: hit.item, dname: hit.dname, cost: hit.cost, vs: hit.vs.map((v) => v.dname), why: hit.vs[0].why, fit: hit.fit.text };
+  }
+
   // Live "buy now" suggestions (with hysteresis) and the death recap; both go into c and the state.
   trackLive(c) {
     const playingNow = ['pregame', 'laning', 'mid', 'late'].includes(c.phase) && !!c.heroKey;
@@ -213,6 +227,9 @@ export class Coach {
             phase: c.phase,
             role: c.role,
             heroAttr: c.heroAttr,
+            hero: c.heroInfo,
+            build: c.build,
+            counters: c.counters,
             inv: c.inv,
             gold: c.player.gold ?? 0,
             enemies: c.enemies,
@@ -601,6 +618,7 @@ export class Coach {
       perf,
       unspent: this.unspentPoints(gsi, meta?.skills?.abilities?.length ? new Set(meta.skills.abilities.map((a) => a.name)) : null),
       heroAttr: heroInfo?.attr || null,
+      heroInfo,
       roshanKilledAt: this.roshanKilledAt,
       lhAt10: this.lhAt10,
       held: (id, cond, secs) => this.held(id, cond, secs),
@@ -613,6 +631,8 @@ export class Coach {
       },
     };
 
+    // Answers to the enemy heroes for this hero and position (knowledge base, filtered to what the hero buys).
+    c.counters = enemies.length ? counterItems({ enemies: c.enemies, hero: heroInfo, role, build, db: d.itemDb, owned: inv.owned, limit: 12 }) : [];
     if (['laning', 'mid', 'late'].includes(phase) && heroName) this.trackSpikes(c);
     c.skills = heroName && playingPhase(phase) ? this.skillAdvice(c, meta?.skills || null) : null;
     this.recordNeutralSample(gsi, c.skills);
@@ -693,7 +713,9 @@ export class Coach {
       skillsStatus: heroName ? (meta ? (meta.skills ? (meta.skills.games ? 'ok' : 'none') : meta.skillsError ? 'error' : 'loading') : 'loading') : null,
       skillsError: meta?.skillsError || null,
       next,
-      situational: situationalItems(enemies, role, d.itemDb).map((s) => ({ ...s, owned: inv.owned.has(s.item) })),
+      counterItems: c.counters.slice(0, 8),
+      enemyBreakdown: enemies.length ? enemyBreakdown({ enemies: c.enemies, hero: heroInfo, role, build, db: d.itemDb, owned: inv.owned, heroes: d.heroes }) : [],
+      counterHint: this.counterHint(c),
       liveItems: c.liveItems,
       deathRecap: c.deathRecap,
       enemies: enemies.map((e) => ({ name: e.name, dname: e.dname })),

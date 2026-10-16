@@ -1,25 +1,17 @@
-import { COUNTER_RULES, ENEMY_TIPS } from '../../data/knowledge.js';
+import { ENEMY_TIPS } from '../../data/knowledge.js';
+import { counterItems, counterTips } from './counters.js';
 
-// enemies: [{name, dname}], role: 1-5. Returns [{item, dname, why}] with the most relevant first.
-export function situationalItems(enemies, role, db) {
-  const names = new Set(enemies.map((e) => e.name));
-  const dnames = new Map(enemies.map((e) => [e.name, e.dname]));
-  const out = [];
-  const seen = new Set();
-  for (const rule of COUNTER_RULES) {
-    const hits = rule.heroes.filter((h) => names.has(h));
-    if (hits.length < (rule.min || 1)) continue;
-    const list = role >= 4 ? rule.support : role === 3 ? rule.off || rule.core : rule.core;
-    const why = rule.why.replace('{heroes}', hits.map((h) => dnames.get(h) || h).join(', '));
-    for (const item of list.slice(0, 2)) {
-      if (seen.has(item)) continue;
-      seen.add(item);
-      out.push({ item, dname: db.dname(item), cost: db.cost(item), why, rule: rule.id, weight: hits.length });
-    }
-  }
-  return out.sort((a, b) => b.weight - a.weight).slice(0, 6);
+// Items against the enemy heroes, for your hero (or null before you picked) and position.
+// Returns [{ item, dname, cost, why, vs, fit, score, when, owned }] with the most relevant first.
+export function situationalItems(enemies, role, db, { hero = null, build = null, owned = new Set(), limit = 6 } = {}) {
+  return counterItems({ enemies, hero, role, build, db, owned, limit }).map((c) => ({
+    ...c,
+    why: c.vs.length > 1 ? `Mot ${c.vs.map((v) => v.dname).join(', ')}. ${c.vs[0].why}` : `Mot ${c.vs[0].dname}: ${c.vs[0].why}`,
+  }));
 }
 
+// One tip per enemy hero: the knowledge base first, the old hand-written tips for anything it lacks.
 export function enemyTips(enemies) {
-  return enemies.filter((e) => ENEMY_TIPS[e.name]).map((e) => ({ hero: e.name, text: ENEMY_TIPS[e.name] }));
+  const known = new Map(counterTips(enemies).map((t) => [t.hero, t.text]));
+  return enemies.map((e) => ({ hero: e.name, text: known.get(e.name) || ENEMY_TIPS[e.name] })).filter((t) => t.text);
 }

@@ -31,7 +31,7 @@ does nothing for the user.
    on their next start, or within 3 hours if the app is already running.
 
 Never edit files the updater treats as user data: `settings.json`, `matches/`, `cache/`, `backup/`,
-`overlay-window.json`, `.installed.json`.
+`overlay-window.json`, `overlay-map-window.json`, `.installed.json`, `feedback.json`, `debug/`.
 
 ## Where things live
 
@@ -47,6 +47,15 @@ Never edit files the updater treats as user data: `settings.json`, `matches/`, `
   draft (`detect.js`: template matching against the hero images, `picks.js`: confirms picks over several scans) and
   posts them to `/api/draft/auto`. Tuning input: «📸 Lagre skjermbilde» writes `debug/draft-*.png` + `.json`, and
   `/api/diagnostics` has the last detection (`vision`). Test detection changes against such screenshots.
+- `data/counters.js` + `src/coach/counters.js` – the counter knowledge base: per hero its style, threat tags, a
+  tip, the items that answer it (`who` = carry/caster/offlane/support/any, `when`, Norwegian `why` naming the
+  ability) and the heroes that counter it. Every claim was checked against the 7.41 ability/item text from
+  dotaconstants (Linken's/Lotus only vs unit-targeted spells, BKB only vs non-piercing, Break only vs passives …).
+  `counterItems` filters to what the player's hero/position buys (or what its pro players buy) and drives
+  «Mot fiendelaget», «Kjøp nå» (live-items rule 7), the draft's known counters (+2/−2 per enemy) and bans.
+  When a patch changes heroes or items, re-check the affected entries against the new dotaconstants text.
+- 👎 on a suggestion posts to `/api/feedback` and is stored in `feedback.json`; `/api/diagnostics` includes the
+  last 40 entries. Use them to fix wrong advice.
 - `src/coach/skills.js` – skill order / talent / neutral item stats from OpenDota explorer rows, and the live advice.
 - `tools/` – `simulate.js` / `demo.js` (fake match), `make-fixtures.js` (fake OpenDota data for tests),
   `release.js`, `rollback.js`.

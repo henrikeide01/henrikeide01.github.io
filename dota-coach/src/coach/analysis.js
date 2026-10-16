@@ -214,9 +214,10 @@ export function analyzeMatch(rec, { meta = null, itemDb = null, heroes = new Map
   if (stashTime >= 120) flag('stash', `Items lå i stashen i ${minutes(stashTime)} min.`);
 
   const enemies = (rec.enemies || []).map((n) => heroes.get(n)).filter(Boolean);
-  const counters = itemDb && enemies.length ? situationalItems(enemies, role, itemDb) : [];
   const ownedNames = new Set((rec.items || []).map((i) => i.name));
-  const missedCounters = counters.filter((x) => !ownedNames.has(x.item) && x.cost >= 1000).slice(0, 2);
+  // Only clear answers (a standard counter to one enemy, or one that helps against several) that fit the hero.
+  const counters = itemDb && enemies.length ? situationalItems(enemies, role, itemDb, { hero: heroes.get(rec.hero?.name) || null, build: meta?.build || null, owned: ownedNames }) : [];
+  const missedCounters = counters.filter((x) => !x.owned && x.cost >= 1000 && x.score >= 1).slice(0, 2);
   cat.items = clamp(
     100 - Math.min(45, Math.max(0, avgUnspent - unspentLimit) / 30) - (noTp / 60) * 6 - (stashTime / 60) * 6 - lateCore * 10 - (support ? 0 : missedCounters.length * 6),
   );

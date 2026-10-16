@@ -119,6 +119,29 @@ Dota gir ikke andre apper beskjed om hvilke heroer fiendene picker. Desktop-appe
 
 Gjenkjenningen virker best når Dota står i *Borderless Window*. Bommer den, trykk **📸 Lagre skjermbilde** under draften, og send bildet og «Kopier diagnose» til Claude, så blir den justert i neste oppdatering.
 
+## Hvor kommer forslagene fra? (og hvorfor de er der)
+
+Hvert forslag sier hvorfor det står der. Under *Draft-hjelp* har hver pick en **Hvorfor?**-knapp som viser scoren del for del:
+
+| Del | Hva den betyr | Kilde |
+|---|---|---|
+| **Meta** | Vinnerraten til helten i ranken din, opptil ±3 poeng | Offentlige kamper (OpenDota) |
+| **Matchups** | Hvor ofte helten vinner mot hver fiende, med antall kamper ved tallet. Få kamper trekker tallet mot 0. | Pro-kamper det siste året (OpenDota) |
+| **Counter** | Kjente counters, med evnen som gjør jobben, f.eks. «Counter Helix treffer alle illusjonene». +2 per fiende, −2 når en fiende countrer helten. | Dota Coach sin kunnskapsbase for 7.41 |
+| **Laget** | Det laget mangler: initiering, stuns, frontlinje, waveclear og så videre | Draften |
+| **Kombo** | Kjente kombinasjoner med lagkameratene | Dota Coach |
+
+**Items mot fiendene** (*Mot fiendelaget*, *Kjøp nå* og *Draft-hjelp*) kommer fra den samme kunnskapsbasen. For alle 127 heroene står det hva som virker mot dem og hvorfor, og hver påstand er sjekket mot evne- og item-beskrivelsene i 7.41 (BKB bare mot ting som ikke går gjennom BKB, Linken's bare mot målrettede evner, og så videre). Listen tilpasses deg:
+
+- **Bare items helten og rollen din faktisk kjøper.** En support får ikke MKB, og Zeus får ikke Silver Edge. Kjøper pro-spillere på helten din itemet, står det «Pro-spillere på … kjøper den».
+- **Items som svarer på flere fiender kommer først.** Du ser hvilke fiender det gjelder, og grunnen for hver av dem.
+- **Det du allerede har, telles med.** Har du Bloodthorn, foreslås ikke MKB for å treffe gjennom evasion.
+- **Per fiende** finner du hva de gjør, de beste itemene for deg og hvilke heroer som countrer dem.
+
+*Populær build* og *Neste item* er det pro-spillere på helten din kjøper oftest, og tar ikke hensyn til fiendene. Svarer et counter-item på flere fiender, står det **«Vurder … først»** under *Neste item*.
+
+**Feil forslag?** Trykk 👎 ved det. Det lagres hos deg (`feedback.json`) og kommer med i «Kopier diagnose», så kan det rettes i neste oppdatering.
+
 ## Minimap med live-rute
 
 Desktop-appen viser et eget lite kart (som standard rett over minimapet i spillet, nederst til venstre). Det viser hvor du er, og en stiplet rute med nummererte stopp til der du bør gå nå:

@@ -50,6 +50,14 @@ try {
   const state = srv.getState();
   if (!ok || !state || state.phase !== 'laning' || !state.hero) fail('coachen ga ingen gyldig tilstand');
   if (!state.skills?.neutral?.artifacts?.length) fail('rådene for nøytrale items mangler');
+  // The counter knowledge base: items against a known lineup, for a carry.
+  const { counterItems } = await import('./coach/counters.js');
+  const { HERO_COUNTERS } = await import('../data/counters.js');
+  const { ItemDb } = await import('./coach/items.js');
+  const db = new ItemDb(JSON.parse(fs.readFileSync(path.join(root, 'data/items.json'), 'utf8')).items);
+  const am = { name: 'antimage', dname: 'Anti-Mage', attr: 'agi', roles: ['Carry', 'Escape', 'Nuker'] };
+  const vsPa = counterItems({ enemies: [{ name: 'phantom_assassin', dname: 'Phantom Assassin' }], hero: am, role: 1, db });
+  if (Object.keys(HERO_COUNTERS).length < 100 || !vsPa.length) fail('kunnskapsbasen for counters mangler');
   for (const page of ['/', '/overlay.html', '/js/dashboard.js', '/api/status']) {
     const res = await fetch(`http://127.0.0.1:${srv.port}${page}`);
     if (!res.ok) fail(`${page} svarte ${res.status}`);

@@ -13,6 +13,7 @@ import { Coach, ROLE_LABEL } from './coach/engine.js';
 import { ItemDb, buildFromPopularity } from './coach/items.js';
 import { tierList, suggestHeroes, suggestBans, parseGsiDraft, compactDraftSample, needsText, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
+import { enemyBreakdown } from './coach/counters.js';
 import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
 import { computeHeroSkills } from './coach/skills.js';
 import { gsiConfig, install as installGsiConfig, findDota } from './setup.js';
@@ -243,6 +244,16 @@ export async function startServer(opts = {}) {
   });
 
   // ---------- Post-game analysis and match history ----------
+  // 👎 on suggestions (kept locally, included in /api/diagnostics so wrong advice can be fixed).
+  const feedbackFile = opts.feedbackFile || (opts.matchesDir ? path.join(opts.matchesDir, '..', 'feedback.json') : path.join(ROOT, 'feedback.json'));
+  const readFeedback = () => {
+    try {
+      const list = JSON.parse(fs.readFileSync(feedbackFile, 'utf8'));
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  };
   const matchesDir = opts.matchesDir || MATCHES;
   fs.mkdirSync(matchesDir, { recursive: true });
   const reportFile = (id) => path.join(matchesDir, `${String(id).replace(/[^0-9a-z_-]/gi, '')}.json`);
@@ -622,8 +633,22 @@ export async function startServer(opts = {}) {
       hasStats: stats.size > 0,
       hasMatchups: draft.enemies.some((n) => matchupCache.has(n)),
       loading: draftHeroes().some((n) => matchupPending.has(n)) || !!statsJob,
-      situational: situationalItems(enemies, role, itemDb),
+      ...counterHelp(enemies, own, role),
       enemyTips: enemyTips(enemies),
+    };
+  }
+
+  // Items against the enemies for your hero (once picked) and position, and the same per enemy hero.
+  function counterHelp(enemies, own, role) {
+    let build = null;
+    if (own) {
+      const meta = heroMeta.get(own.name);
+      build = meta?.build || null;
+      if (!meta && !heroMetaPending.has(own.name)) loadHeroMeta(own.name).then(() => scheduleDraftHelp(), () => {});
+    }
+    return {
+      situational: situationalItems(enemies, role, itemDb, { hero: own, build, limit: 8 }),
+      enemyBreakdown: enemyBreakdown({ enemies, hero: own, role, build, db: itemDb, heroes }),
     };
   }
 
@@ -874,6 +899,32 @@ export async function startServer(opts = {}) {
         return send(res, 200, { ok: false, error: err.message });
       }
     }
+    if (p === '/api/feedback' && req.method === 'POST') {
+      const b = await readBody(req);
+      const clip = (v, n) => (typeof v === 'string' ? v.slice(0, n) : null);
+      const c = b?.context && typeof b.context === 'object' ? b.context : {};
+      const names = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 5).map((x) => x.slice(0, 40)) : []);
+      const entry = {
+        at: new Date().toISOString(),
+        app: appVersion(),
+        kind: clip(b?.kind, 20),
+        id: clip(b?.id, 60),
+        text: clip(b?.text, 300) || undefined,
+        hero: clip(c.hero, 40),
+        role: Number(c.role) || null,
+        enemies: names(c.enemies),
+        allies: names(c.allies),
+        clock: typeof c.clock === 'number' ? Math.round(c.clock) : null,
+      };
+      if (!entry.kind || !entry.id) return send(res, 400, { ok: false, error: 'mangler kind/id' });
+      const list = [...readFeedback(), entry].slice(-200);
+      try {
+        fs.writeFileSync(feedbackFile, JSON.stringify(list, null, 1));
+      } catch (err) {
+        return send(res, 500, { ok: false, error: err.message });
+      }
+      return send(res, 200, { ok: true, count: list.length });
+    }
     if (p === '/api/diagnostics') {
       const reports = listReports().slice(0, 5);
       return send(res, 200, {
@@ -906,6 +957,8 @@ export async function startServer(opts = {}) {
           gsiSample: draftSample,
           gsiSampleWithHeroes: draftSampleWithHeroes,
         },
+        // Suggestions the player marked as wrong (👎), newest last.
+        feedback: readFeedback().slice(-40),
         matches: reports.map((r) => ({
           hero: r.hero?.name,
           role: r.role,
