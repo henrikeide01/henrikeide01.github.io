@@ -318,7 +318,7 @@
   <div class="melding" id="melding" role="status" aria-live="polite"></div>
 
   <script type="module">
-    import { lagMatcher, vurder, erMat, kr, lagHistorikk, NIVAA_REKKEFOLGE, normaliser } from './motor.js';
+    import { lagTilbudsfilter, vurder, erMat, kr, lagHistorikk, NIVAA_REKKEFOLGE, normaliser } from './motor.js';
 
     // ---------- Lagring (tåler privat modus) ----------
     const lager = {
@@ -419,8 +419,7 @@
     }
 
     function antallTreff(vare) {
-      const passer = lagMatcher(vare);
-      return aktiveTilbud().filter((t) => passer(t.tittel, t.info)).length;
+      return aktiveTilbud().filter(lagTilbudsfilter(vare)).length;
     }
 
     function ledigeForslag() {
@@ -493,9 +492,9 @@
       const aktive = aktiveTilbud();
       const alleIder = new Set(S.data.tilbud.map((t) => t.id));
       const grupper = S.varer.map((vare, indeks) => {
-        const passer = lagMatcher(vare);
+        const passer = lagTilbudsfilter(vare);
         const hist = lagHistorikk(vare, S.historikk, alleIder);
-        const treff = aktive.filter((t) => passer(t.tittel, t.info)).map((t) => ({ t, v: vurder(t, vare, hist), vare }));
+        const treff = aktive.filter(passer).map((t) => ({ t, v: vurder(t, vare, hist), vare }));
         treff.sort(sorterTreff(vare.enhet || 'kg'));
         const beste = treff.reduce((m, x) => (NIVAA_REKKEFOLGE[x.v.nivaa] < NIVAA_REKKEFOLGE[m] ? x.v.nivaa : m), 'vanlig');
         const maksAndel = Math.max(0, ...treff.map((x) => x.v.andel));
@@ -715,7 +714,7 @@
         <div class="varerad">
           <span class="ikon">${esc(v.ikon || '🛒')}</span>
           <div>
-            <div class="navn">${esc(v.navn)}${v.normalpris ? ` <span class="ord">· vanlig ~${kr(v.normalpris)} kr/${esc(v.enhet || 'kg')}</span>` : ''}</div>
+            <div class="navn">${esc(v.navn)}${v.normalpris ? ` <span class="ord">· vanlig ~${kr(v.normalpris)} kr/${esc(v.enhet || 'kg')}</span>` : ''}${v.minPakning ? ` <span class="ord">· minst ${kr(v.minPakning)} ${esc(v.enhet || 'kg')}</span>` : ''}</div>
             <div class="ord">${esc(tilTekst(v.sok?.length ? v.sok : [v.navn]))}${v.ikke?.length ? ` · ikke: ${esc(tilTekst(v.ikke))}` : ''}</div>
           </div>
           <div class="knapper">
@@ -748,6 +747,10 @@
               <select id="fEnhet">${['kg', 'l', 'stk'].map((e) => `<option ${(v.enhet || 'kg') === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
             </div>
           </div>
+          <div class="felt">
+            <label for="fMin">Bare store pakker <span class="hjelp">– minste pakning i samme enhet (valgfritt), f.eks. 2 = minst 2 kg</span></label>
+            <input id="fMin" type="number" inputmode="decimal" min="0" step="any" value="${v.minPakning ?? ''}" placeholder="Alle størrelser">
+          </div>
           <div class="forhandsvisning" id="forhand"></div>
           <div class="knapprad">
             <button class="knapp hoved" type="submit">${indeks >= 0 ? 'Lagre' : 'Legg til'}</button>
@@ -759,20 +762,22 @@
         const navn = $('fNavn').value.trim();
         const sok = tilListe($('fSok').value);
         const pris = parseFloat(String($('fPris').value).replace(',', '.'));
+        const minPakning = parseFloat(String($('fMin').value).replace(',', '.'));
         return {
           navn, ikon: $('fIkon').value.trim(), sok: sok.length ? sok : (navn ? [navn] : []), ikke: tilListe($('fIkke').value),
           ...($('fBeskrivelse').checked ? { sokIBeskrivelse: true } : {}),
-          ...(pris > 0 ? { normalpris: pris, enhet: $('fEnhet').value } : {}),
+          ...(pris > 0 ? { normalpris: pris } : {}),
+          ...(minPakning > 0 ? { minPakning } : {}),
+          ...(pris > 0 || minPakning > 0 ? { enhet: $('fEnhet').value } : {}),
         };
       };
       const oppdaterForhand = () => {
         const v2 = lesSkjema();
         if (!v2.sok.length) { $('forhand').textContent = ''; return; }
-        const passer = lagMatcher(v2);
-        const treff = S.data.tilbud.filter((t) => passer(t.tittel, t.info));
+        const treff = S.data.tilbud.filter(lagTilbudsfilter(v2));
         $('forhand').innerHTML = treff.length
           ? `Treffer <b>${treff.length}</b> tilbud nå: ${treff.slice(0, 6).map((t) => esc(pentNavn(t.tittel))).join(', ')}${treff.length > 6 ? ' …' : ''}`
-          : 'Ingen tilbud akkurat nå – men du får beskjed her når det dukker opp.';
+          : 'Ingen tilbud akkurat nå – varen dukker opp på siden så snart det kommer et.';
       };
       skjema.addEventListener('input', oppdaterForhand);
       oppdaterForhand();

@@ -42,6 +42,19 @@ export function lagMatcher(vare) {
   };
 }
 
+// Bare pakninger på minst X kg/l/stk (f.eks. «ris – bare store pakker»).
+export function storNok(vare, pris, enhetspris, enhet, stk = 1) {
+  if (!(vare.minPakning > 0)) return true;
+  if (!(enhetspris > 0) || enhet !== (vare.enhet || 'kg')) return false;
+  return pris / enhetspris / (stk || 1) >= vare.minPakning * 0.98;
+}
+
+// Alt som avgjør om et tilbud hører til en vare: navn/beskrivelse + ev. pakningsstørrelse.
+export function lagTilbudsfilter(vare) {
+  const passer = lagMatcher(vare);
+  return (t) => passer(t.tittel, t.info) && storNok(vare, t.pris, t.enhetspris, t.enhet, t.stk);
+}
+
 // Ord som avslører at et tilbud ikke er mat (brukes for «andre kupp»).
 const IKKE_MAT = [
   'libresse', 'truseinnlegg', 'bind ', 'tampong', 'bleie', 'pampers', 'libero',
@@ -73,8 +86,8 @@ export function lagHistorikk(vare, historikk, naavaerendeIder) {
   const perEnhet = {};
   for (const [id, h] of Object.entries(historikk)) {
     if (naavaerendeIder.has(id)) continue;
-    const [dato, , tittel, enhet, enhetspris] = h;
-    if (!enhet || enhetspris == null || !passer(tittel)) continue;
+    const [dato, , tittel, enhet, enhetspris, pris] = h;
+    if (!enhet || enhetspris == null || !passer(tittel) || !storNok(vare, pris, enhetspris, enhet)) continue;
     (perEnhet[enhet] ??= []).push({ dato, enhetspris });
   }
   const ut = {};
