@@ -22,6 +22,6 @@
     { "navn": "Bananer", "ikon": "🍌", "sok": ["banan"], "ikke": ["chips", "sjokolade", "smoothie", "skum", "\"is\""], "normalpris": 30, "enhet": "kg" },
     { "navn": "Frossenpizza", "ikon": "🍕", "sok": ["pizza", "grandiosa", "la mia grande", "ristorante", "big one"], "ikke": ["pizzabunn", "pizzasaus", "pizzaost", "pizzakrydder", "pizzadeig", "pizzamel", "pizzaskinke", "pizzafyll", "tipo"], "normalpris": 120, "enhet": "kg" },
     { "navn": "Kaffe", "ikon": "☕", "sok": ["kaffe", "espresso", "friele", "evergood", "kjeldsberg"], "ikke": ["fløte", "iskaffe", "kaffemelk", "kopp", "maskin", "filterpapir", "kaffefilter", "kake"], "normalpris": 240, "enhet": "kg" },
-    { "navn": "Brus", "ikon": "🥤", "sok": ["coca-cola", "\"cola\"", "pepsi", "\"solo\"", "fanta", "sprite", "mozell", "\"urge\"", "brus"], "ikke": ["sjokolade", "kake", "godteri"], "normalpris": 25, "enhet": "l" }
+    { "navn": "Brus", "ikon": "🥤", "sok": ["coca-cola", "\"cola\"", "pepsi", "\"solo\"", "fanta", "sprite", "mozell", "\"urge\"", "brus"], "ikke": ["sjokolade", "kake", "godteri"], "normalpris": 22, "enhet": "l" }
   ]
 }

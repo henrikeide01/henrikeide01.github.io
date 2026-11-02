@@ -54,8 +54,6 @@ export function erMat(tilbud) {
   return !IKKE_MAT.some((o) => t.includes(o));
 }
 
-const ENHETSNAVN = { kg: 'kilopris', l: 'literpris', stk: 'stykkpris' };
-
 export function kr(n, desimaler = true) {
   if (n == null) return '';
   const fast = desimaler && Math.round(n) !== n;
@@ -97,7 +95,7 @@ export function vurder(tilbud, vare, hist) {
     const under = 1 - ep / vare.normalpris;
     if (under >= 0.1) {
       andel = Math.max(andel, under);
-      grunner.push(`${Math.round(under * 100)} % under vanlig ${ENHETSNAVN[tilbud.enhet] || 'pris'} (~${kr(vare.normalpris)} kr)`);
+      grunner.push(`${Math.round(under * 100)} % under vanlig (~${kr(vare.normalpris)} kr/${tilbud.enhet})`);
     }
   }
 

@@ -443,9 +443,12 @@
         return { vare, indeks, treff, beste, maksAndel };
       });
       const brukt = new Set(grupper.flatMap((g) => g.treff.map((x) => x.t.id)));
+      // Høydepunkter: de beste kjempetilbudene, maks to per vare så det blir variasjon
+      const perVare = {};
       const kjempe = grupper
         .flatMap((g) => g.treff.filter((x) => x.v.nivaa === 'kjempe'))
-        .sort((a, b) => b.v.andel - a.v.andel);
+        .sort((a, b) => b.v.andel - a.v.andel)
+        .filter((x) => (perVare[x.vare.navn] = (perVare[x.vare.navn] || 0) + 1) <= 2);
       const andre = aktive
         .filter((t) => !brukt.has(t.id) && t.rabatt >= 35 && erMat(t))
         .map((t) => ({ t, v: vurder(t, null, null), vare: null }))
@@ -507,7 +510,7 @@
             ${t.forpris ? `<div class="forpris tall">${kr(t.forpris)}</div>` : ''}
             <div class="handlinger">
               <button class="ikonknapp ${iListe ? 'paa' : ''}" data-handle="${esc(t.id)}" aria-label="${iListe ? 'Fjern fra handlelista' : 'Legg i handlelista'}" title="${iListe ? 'Fjern fra handlelista' : 'Legg i handlelista'}">${iListe ? '✓' : '＋'}</button>
-              <button class="ikonknapp" data-skjul="${esc(t.id)}" aria-label="Skjul dette tilbudet" title="Skjul (ikke relevant)">⊘</button>
+              <button class="ikonknapp" data-skjul="${esc(t.id)}" aria-label="Skjul dette tilbudet" title="Skjul (ikke relevant)">✕</button>
             </div>
           </div>
         </article>`;
@@ -573,7 +576,7 @@
           <div class="seksjonstopp"><h2 id="h-andre">💥 Andre kupp denne uka</h2><p>${andre.length} stk</p></div>
           <p class="forklaring">Mat som ikke står på lista di, men som er minst 35 % billigere enn førprisen.</p>
           <div class="kort">
-            ${andreSynlige.map((x) => tilbudHtml(x)).join('')}
+            ${andreSynlige.map((x) => tilbudHtml(x, { visKjempe: false })).join('')}
             ${andre.length > 6 ? `<button class="visflere" data-andre>${visFlereAndre ? 'Vis færre' : `Vis alle ${andre.length}`}</button>` : ''}
           </div>
         </section>` : ''}`;
@@ -660,7 +663,7 @@
     }
 
     function visSkjema(indeks = -1, forslag = '') {
-      const v = indeks >= 0 ? S.varer[indeks] : { navn: forslag, ikon: '', sok: forslag ? [forslag] : [], ikke: [], enhet: 'kg' };
+      const v = indeks >= 0 ? S.varer[indeks] : { navn: forslag, ikon: '', sok: forslag ? [forslag.toLocaleLowerCase('nb')] : [], ikke: [], enhet: 'kg' };
       $('skjemaplass').innerHTML = `
         <form class="skjema" id="vareskjema">
           <div class="to">
@@ -807,7 +810,7 @@
       }
       if ('andre' in ds) { visFlereAndre = !visFlereAndre; tegnInnhold(); return; }
       if ('kjempe' in ds) { visFlereKjempe = !visFlereKjempe; tegnInnhold(); return; }
-      if ('nyFraSok' in ds) { apneVarer(S.sok.trim()); return; }
+      if ('nyFraSok' in ds) { const q = S.sok.trim(); apneVarer(q.charAt(0).toLocaleUpperCase('nb') + q.slice(1)); return; }
       if (ds.fjernHandle) { veksleHandle(ds.fjernHandle); tegnHandleDialog(); tegnInnhold(); return; }
       if (ds.rediger !== undefined) { visSkjema(Number(ds.rediger)); return; }
       if (ds.slett !== undefined) {
