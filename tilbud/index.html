@@ -176,6 +176,11 @@
 
     .ingen-tilbud { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; color: var(--dempet); font-size: 14px; }
     .ingen-tilbud .brikke { font-size: 13px; padding: 5px 10px; }
+    .brikke.forslag { border-style: dashed; color: var(--tekst); }
+    .brikke.forslag:hover { border-color: var(--aksent); border-style: solid; }
+    .brikke.forslag .treff { background: var(--aksent); color: var(--aksent-tekst); border-radius: 999px; padding: 0 7px; font-size: 12px; font-weight: 700; }
+    .forslagsrad { display: flex; flex-wrap: wrap; gap: 6px; }
+    .undertittel { font-size: 16px; margin-bottom: 2px; }
 
     .tomt { padding: 28px 18px; text-align: center; color: var(--dempet); }
     .tomt b { color: var(--tekst); display: block; font-size: 17px; margin-bottom: 4px; }
@@ -285,6 +290,11 @@
       <div class="knapprad"><button class="knapp hoved" id="nyVare">＋ Legg til vare</button></div>
       <div id="skjemaplass"></div>
       <div class="vareliste" id="vareliste"></div>
+      <div>
+        <h4 class="undertittel">Forslag – trykk for å legge til</h4>
+        <p class="forklaring" style="margin:0 0 8px">Tallet viser hvor mange tilbud varen har akkurat nå.</p>
+        <div class="forslagsrad" id="forslagsliste"></div>
+      </div>
       <div class="knapprad">
         <button class="knapp" id="delVarer">🔗 Kopier lenke med lista (til mobil/PC)</button>
         <button class="knapp fare" id="nullstillVarer">Tilbakestill til standard</button>
@@ -325,6 +335,7 @@
     const S = {
       data: null,
       standardVarer: [],
+      forslag: [],
       varer: [],
       historikk: null,
       avslaatt: new Set(lager.les('avslaatteButikker', [])),
@@ -383,6 +394,49 @@
 
     function lagreVarer() {
       lager.skriv('varer', S.varer);
+      lager.skriv('varerBasis', S.standardVarer);
+    }
+
+    // Har du endret lista på siden, og standardlista senere blir oppdatert (f.eks. nye varer),
+    // flettes endringene inn: nye standardvarer legges til, og varer du ikke har rørt oppdateres.
+    function slaaSammen(mine, basis, std) {
+      const json = (v) => JSON.stringify(v);
+      if (!basis) { lager.skriv('varerBasis', std); return mine; }
+      if (json(basis) === json(std)) return mine;
+      const iBasis = new Map(basis.map((v) => [v.navn, v]));
+      const iStd = new Map(std.map((v) => [v.navn, v]));
+      const ut = mine.flatMap((v) => {
+        const b = iBasis.get(v.navn);
+        if (!b || json(b) !== json(v)) return [v]; // din egen eller endret vare beholdes
+        const ny = iStd.get(v.navn);
+        return ny ? [structuredClone(ny)] : []; // oppdatert eller fjernet fra standardlista
+      });
+      const finnes = new Set(ut.map((v) => v.navn));
+      for (const v of std) if (!iBasis.has(v.navn) && !finnes.has(v.navn)) ut.push(structuredClone(v));
+      lager.skriv('varer', ut);
+      lager.skriv('varerBasis', std);
+      return ut;
+    }
+
+    function antallTreff(vare) {
+      const passer = lagMatcher(vare);
+      return aktiveTilbud().filter((t) => passer(t.tittel, t.info)).length;
+    }
+
+    function ledigeForslag() {
+      const har = new Set(S.varer.map((v) => normaliser(v.navn)));
+      return S.forslag.filter((f) => !har.has(normaliser(f.navn))).map((f) => ({ f, n: antallTreff(f) }));
+    }
+
+    function forslagKnapp({ f, n }) {
+      return `<button class="brikke forslag" data-forslag="${esc(f.navn)}">＋ ${esc(f.ikon || '')} ${esc(f.navn)}${n ? ` <span class="treff">${n}</span>` : ''}</button>`;
+    }
+
+    function tegnForslag() {
+      const liste = ledigeForslag().sort((a, b) => b.n - a.n);
+      $('forslagsliste').innerHTML = liste.length
+        ? liste.map(forslagKnapp).join('')
+        : '<span class="forklaring" style="margin:0">Du har lagt til alle forslagene.</span>';
     }
 
     function importerFraLenke() {
@@ -407,7 +461,9 @@
         const [data, std] = await Promise.all([hentJson('data/tilbud.json'), hentJson('mine-varer.json')]);
         S.data = data;
         S.standardVarer = std.varer;
-        S.varer = lager.les('varer', null) || structuredClone(std.varer);
+        S.forslag = std.forslag || [];
+        const lagret = lager.les('varer', null);
+        S.varer = lagret ? slaaSammen(lagret, lager.les('varerBasis', null), std.varer) : structuredClone(std.varer);
       } catch (e) {
         $('innhold').innerHTML = `<div class="kort tomt"><b>Fant ingen tilbud ennå</b>Tilbudene hentes automatisk hver morgen. Prøv igjen litt senere.</div>`;
         $('meta').textContent = '';
@@ -572,6 +628,10 @@
           ${medTreff.length ? `<div class="liste">${medTreff.map(gruppeHtml).join('')}</div>`
             : `<div class="kort tomt"><b>Ingen av varene dine er på tilbud</b>Legg til flere varer under «Mine varer», eller slå på flere butikker.</div>`}
           ${utenTreff.length ? `<div class="ingen-tilbud"><span>Ingen tilbud nå:</span>${utenTreff.map((g) => `<span class="brikke">${esc(g.vare.ikon || '')} ${esc(g.vare.navn)}</span>`).join('')}</div>` : ''}
+          ${(() => {
+            const aktuelle = ledigeForslag().filter((x) => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 8);
+            return aktuelle.length ? `<div class="ingen-tilbud"><span>Forslag med tilbud nå:</span>${aktuelle.map(forslagKnapp).join('')}</div>` : '';
+          })()}
         </section>
 
         ${andre.length ? `
@@ -723,7 +783,7 @@
         if (indeks >= 0) S.varer[indeks] = ny; else S.varer.push(ny);
         lagreVarer();
         $('skjemaplass').innerHTML = '';
-        tegnVareliste(); tegnButikker(); tegnInnhold();
+        tegnVareliste(); tegnForslag(); tegnButikker(); tegnInnhold();
         vis(indeks >= 0 ? 'Lagret ✓' : `${ny.navn} er lagt til ✓`);
       });
       $('avbrytSkjema').addEventListener('click', () => { $('skjemaplass').innerHTML = ''; });
@@ -732,6 +792,7 @@
 
     function apneVarer(forslag) {
       tegnVareliste();
+      tegnForslag();
       $('skjemaplass').innerHTML = '';
       $('varerDialog').showModal();
       if (forslag) visSkjema(-1, forslag);
@@ -815,6 +876,17 @@
       }
       if ('andre' in ds) { visFlereAndre = !visFlereAndre; tegnInnhold(); return; }
       if ('kjempe' in ds) { visFlereKjempe = !visFlereKjempe; tegnInnhold(); return; }
+      if (ds.forslag) {
+        const f = S.forslag.find((x) => x.navn === ds.forslag);
+        if (f && !S.varer.some((v) => v.navn === f.navn)) {
+          S.varer.push(structuredClone(f));
+          lagreVarer();
+          tegnButikker(); tegnInnhold();
+          if ($('varerDialog').open) { tegnVareliste(); tegnForslag(); }
+          vis(`${f.navn} er lagt til ✓`);
+        }
+        return;
+      }
       if ('nyFraSok' in ds) { const q = S.sok.trim(); apneVarer(q.charAt(0).toLocaleUpperCase('nb') + q.slice(1)); return; }
       if (ds.fjernHandle) { veksleHandle(ds.fjernHandle); tegnHandleDialog(); tegnInnhold(); return; }
       if (ds.rediger !== undefined) { visSkjema(Number(ds.rediger)); return; }
@@ -822,7 +894,7 @@
         const v = S.varer[Number(ds.slett)];
         if (v && confirm(`Fjerne «${v.navn}» fra mine varer?`)) {
           S.varer.splice(Number(ds.slett), 1);
-          lagreVarer(); tegnVareliste(); tegnButikker(); tegnInnhold();
+          lagreVarer(); tegnVareliste(); tegnForslag(); tegnButikker(); tegnInnhold();
         }
         return;
       }
@@ -847,8 +919,8 @@
         }
         case 'nullstillVarer':
           if (confirm('Bytte ut lista di med standardlista?')) {
-            S.varer = structuredClone(S.standardVarer); lager.slett('varer');
-            tegnVareliste(); tegnButikker(); tegnInnhold(); vis('Standardlista er tilbake');
+            S.varer = structuredClone(S.standardVarer); lager.slett('varer'); lager.slett('varerBasis');
+            tegnVareliste(); tegnForslag(); tegnButikker(); tegnInnhold(); vis('Standardlista er tilbake');
           }
           break;
       }
