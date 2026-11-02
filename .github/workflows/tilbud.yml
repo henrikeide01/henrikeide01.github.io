@@ -1,0 +1,17 @@
+name: Hent matvaretilbud
+
+on:
+  push:
+    branches: [claude/tilbudsavis]
+    paths: ['tilbud/scripts/**', '.github/workflows/tilbud.yml']
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tilbud/scripts/probe.mjs
