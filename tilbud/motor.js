@@ -14,7 +14,12 @@ const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Et søkeord i "anførselstegn" må være et helt ord ("egg" treffer ikke «eggenudler»).
 // Ellers holder det at ordet står et sted i navnet («laks» treffer «laksefilet»).
+// «cola + zero» betyr at begge ordene må finnes.
 function lagTest(ord) {
+  if (ord.includes('+')) {
+    const deler = ord.split('+').map((d) => d.trim()).filter(Boolean).map(lagTest).filter(Boolean);
+    return deler.length ? (tekst) => deler.every((f) => f(tekst)) : null;
+  }
   const helt = /^\s*["“”«»].*["“”«»]\s*$/.test(ord);
   const n = normaliser(ord.replace(/["“”«»]/g, '')).trim();
   if (!n) return null;
@@ -30,8 +35,9 @@ const delOpp = (v) => (Array.isArray(v) ? v : String(v || '').split(',')).map((s
 export function lagMatcher(vare) {
   const ja = delOpp(vare.sok?.length ? vare.sok : [vare.navn]).map(lagTest).filter(Boolean);
   const nei = delOpp(vare.ikke).map(lagTest).filter(Boolean);
-  return (tittel) => {
-    const t = normaliser(tittel);
+  // Noen varer (f.eks. «Coca-Cola – original/zero») står med variantene i beskrivelsen
+  return (tittel, info = '') => {
+    const t = normaliser(vare.sokIBeskrivelse ? `${tittel} ${info}` : tittel);
     return ja.some((f) => f(t)) && !nei.some((f) => f(t));
   };
 }
