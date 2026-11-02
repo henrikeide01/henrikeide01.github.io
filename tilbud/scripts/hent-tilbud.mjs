@@ -222,8 +222,10 @@ if (gammel?.hash === hash) {
 const historikk = await lesJson('historikk.json', { tilbud: {} });
 let nye = 0;
 for (const t of tilbud) {
-  if (historikk.tilbud[t.id] || t.enhetspris == null) continue;
-  historikk.tilbud[t.id] = [t.fra.slice(0, 10), t.butikk, t.tittel, t.enhet, t.enhetspris, t.pris, t.rabatt];
+  if (t.enhetspris == null) continue;
+  const innslag = [t.fra.slice(0, 10), t.butikk, t.tittel, t.enhet, t.enhetspris, t.pris, t.rabatt];
+  if (JSON.stringify(historikk.tilbud[t.id]) === JSON.stringify(innslag)) continue;
+  historikk.tilbud[t.id] = innslag;
   nye++;
 }
 const grense = new Date(naa.getTime() - (cfg.historikkDager || 180) * 864e5).toISOString().slice(0, 10);
