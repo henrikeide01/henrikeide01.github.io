@@ -5,19 +5,20 @@
   "radiusMeter": 15000,
   "butikker": [
     "REMA 1000",
-    "KIWI",
     "Extra",
     "Coop Extra",
-    "Coop Prix",
-    "Coop Mega",
-    "Coop Marked",
     "Obs",
-    "MENY",
+    "Coop Obs",
     "SPAR",
-    "Joker",
-    "Bunnpris",
-    "Nærbutikken",
-    "Matkroken"
+    "EUROSPAR",
+    "Eurospar"
   ],
-  "historikkDager": 180
+  "historikkDager": 180,
+  "visningsnavn": {
+    "Extra": "Coop Extra",
+    "Obs": "Coop Obs",
+    "SPAR": "Eurospar",
+    "EUROSPAR": "Eurospar"
+  },
+  "_merknad": "Eurospar har ikke egen kundeavis på eTilbudsavis – SPAR-avisen gjelder også i Eurospar, så den vises som «Eurospar»."
 }

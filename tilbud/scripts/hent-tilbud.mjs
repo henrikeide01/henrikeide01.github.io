@@ -13,6 +13,7 @@ const API = 'https://squid-api.tjek.com/v2';
 
 const cfg = JSON.parse(await readFile(new URL('innstillinger.json', MAPPE), 'utf8'));
 const tillatteButikker = new Set(cfg.butikker.map((n) => n.toLowerCase()));
+const visningsnavn = (n) => cfg.visningsnavn?.[n] ?? n;
 const naa = new Date();
 
 const vent = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -163,9 +164,11 @@ function lesbarFarge(hex) {
 
 // ---------- Hent ----------
 
-const kataloger = (await hentAlle('/catalogs', { order_by: '-publication_date' }))
-  .filter((k) => tillatteButikker.has(String(k.branding?.name || k.dealer?.name || '').toLowerCase()))
-  .filter((k) => new Date(k.run_till) > naa);
+const katalogNavn = (k) => String(k.branding?.name || k.dealer?.name || '');
+const alleKataloger = (await hentAlle('/catalogs', { order_by: '-publication_date' })).filter((k) => new Date(k.run_till) > naa);
+const kataloger = alleKataloger.filter((k) => tillatteButikker.has(katalogNavn(k).toLowerCase()));
+const hoppetOver = [...new Set(alleKataloger.filter((k) => !kataloger.includes(k)).map(katalogNavn))].sort();
+console.log(`Hopper over (ikke valgt): ${hoppetOver.join(', ') || '–'}`);
 
 console.log(`Fant ${kataloger.length} kundeaviser fra matbutikker rundt ${cfg.sted}:`);
 
@@ -173,7 +176,7 @@ const butikker = {};
 const tilbud = [];
 const sett = new Set();
 for (const k of kataloger) {
-  const navn = k.branding?.name || k.dealer?.name;
+  const navn = visningsnavn(katalogNavn(k));
   butikker[navn] ??= { farge: lesbarFarge(k.branding?.color || k.dealer?.color), logo: k.branding?.logo || null };
   const rå = await hentAlle('/offers', { catalog_ids: k.id });
   let antall = 0;
@@ -224,9 +227,10 @@ for (const t of tilbud) {
   nye++;
 }
 const grense = new Date(naa.getTime() - (cfg.historikkDager || 180) * 864e5).toISOString().slice(0, 10);
+const valgteNavn = new Set(cfg.butikker.map(visningsnavn));
 let fjernet = 0;
 for (const [id, h] of Object.entries(historikk.tilbud)) {
-  if (h[0] < grense) { delete historikk.tilbud[id]; fjernet++; }
+  if (h[0] < grense || !valgteNavn.has(h[1])) { delete historikk.tilbud[id]; fjernet++; }
 }
 if (nye || fjernet) {
   historikk.oppdatert = naa.toISOString();
