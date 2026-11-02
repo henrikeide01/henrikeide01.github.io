@@ -1,17 +1,43 @@
 name: Hent matvaretilbud
 
 on:
-  push:
-    branches: [claude/tilbudsavis]
-    paths: ['tilbud/scripts/**', '.github/workflows/tilbud.yml']
+  schedule:
+    - cron: '17 4 * * *'   # hver morgen ca. kl. 05/06 norsk tid
+    - cron: '43 15 * * 6'  # lørdag ettermiddag, når neste ukes aviser ofte kommer
   workflow_dispatch:
+  push:
+    paths:
+      - 'tilbud/scripts/**'
+      - 'tilbud/innstillinger.json'
+      - '.github/workflows/tilbud.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tilbud-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  probe:
+  hent:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: node tilbud/scripts/probe.mjs
+      - name: Hent tilbud fra eTilbudsavis
+        run: node tilbud/scripts/hent-tilbud.mjs
+      - name: Lagre endringer
+        run: |
+          git config user.name "tilbud-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tilbud/data
+          if git diff --cached --quiet; then
+            echo "Ingen nye tilbud å lagre."
+            exit 0
+          fi
+          git commit -m "Oppdater matvaretilbud"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

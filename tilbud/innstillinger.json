@@ -1,0 +1,23 @@
+{
+  "sted": "Tromsø",
+  "lat": 69.6496,
+  "lng": 18.956,
+  "radiusMeter": 15000,
+  "butikker": [
+    "REMA 1000",
+    "KIWI",
+    "Extra",
+    "Coop Extra",
+    "Coop Prix",
+    "Coop Mega",
+    "Coop Marked",
+    "Obs",
+    "MENY",
+    "SPAR",
+    "Joker",
+    "Bunnpris",
+    "Nærbutikken",
+    "Matkroken"
+  ],
+  "historikkDager": 180
+}
