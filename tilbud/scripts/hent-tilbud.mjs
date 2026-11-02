@@ -73,6 +73,29 @@ function finnForpris(pris, stk, beskrivelse, apiForpris) {
   return rund(forpris);
 }
 
+// Fjerner pris-/mengdetekst som allerede vises for seg (kilopris, førpris, «1 stk 34,50» osv.)
+const N = String.raw`\d+(?:[.,]\d{1,2})?`;
+const R = String.raw`${N}(?:\s*[-–/]\s*${N})?`;
+const ENH = '(?:kg|l|liter|stk|pk|pakke|pose|glass|flaske|fl|kartong|boks|beger|kapsel|strømpe|bukett|brett|bunt|beholder|pakning|enhet|rull|tube|kurv|stykk|bx)';
+function rensInfo(info, mengde) {
+  let s = ' ' + String(info || '') + ' ';
+  const fjern = [
+    new RegExp(String.raw`enh\.?\s*pris:?\s*${R}\s*(?:pr\.?\s*${ENH}\.?)?`, 'gi'),
+    new RegExp(String.raw`\bpris\s+pr\.?\s*${ENH}\b\.?`, 'gi'),
+    new RegExp(String.raw`f[øo]r(?:pris)?:?\s*(?:fra\s*)?(?:kr\.?\s*)?${R}(?:\s*,-)?`, 'gi'),
+    new RegExp(String.raw`spar(?:\s+fra)?\s*(?:kr\.?\s*)?${N}\s*(?:kr|,-|%)?!?`, 'gi'),
+    new RegExp(String.raw`(?:fra\s*)?${R}\s*(?:kr\s*)?(?:pr\.?\s*|\/\s*)${ENH}\b\.?`, 'gi'),
+    new RegExp(String.raw`\bpr\.?\s*${ENH}\b\.?(?:\s*(?:fra\s*)?${R})?`, 'gi'),
+    new RegExp(String.raw`\b1\s*${ENH}\.?\s*(?:fra\s*)?(?:kr\.?\s*)?${R}`, 'gi'),
+  ];
+  for (const re of fjern) s = s.replace(re, ' ');
+  if (mengde) {
+    const m = mengde.replace(/^\d+ × /, '').replace('–', '-');
+    for (const v of [m, m.replace(' ', ''), m.replace('-', '/')]) s = s.replace(new RegExp(`(^|[\\s,.(])(?:fra\\s+|ca\\.?\\s*)?(?:\\d+\\s*[x×]\\s*)?${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[\\s,.)]|$)`, 'i'), '$1 ');
+  }
+  return s.replace(/\s*([,.])(\s*[,.])+/g, '$1').replace(/\s+([,.!])/g, '$1').replace(/\s+/g, ' ').replace(/^[\s,.·\-–]+|[\s,·\-–]+$/g, '').replace(/^\.$/, '').trim();
+}
+
 function fmtMengde(fra, til, symbol) {
   const f = (n) => String(rund(n, 3)).replace('.', ',');
   const sym = symbol === 'pcs' ? 'stk' : symbol;
@@ -113,7 +136,7 @@ function behandle(o, butikk) {
     id: o.id,
     butikk,
     tittel: rensTekst(o.heading, 90),
-    info: rensTekst(o.description),
+    info: rensTekst(rensInfo(String(o.description || '').replace(/Ukens Joker GARANTI[\s\S]*$/i, ''), mengde)),
     pris: rund(pris),
     forpris,
     rabatt: forpris ? Math.round((1 - pris / forpris) * 100) : null,

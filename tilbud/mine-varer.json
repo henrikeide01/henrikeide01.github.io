@@ -1,0 +1,27 @@
+{
+  "_forklaring": "Standardlista over varer du kjøper ofte. 'sok' = ord som skal finnes i tilbudsnavnet (\"i anførselstegn\" = helt ord), 'ikke' = ord som utelukker treff, 'normalpris' = omtrentlig vanlig pris per 'enhet' (kg, l eller stk) – brukes for å se om et tilbud er ekstraordinært. Kan også endres direkte på siden.",
+  "varer": [
+    { "navn": "Kjøttdeig", "ikon": "🥩", "sok": ["kjøttdeig", "karbonadedeig"], "ikke": ["saus", "lasagne", "pizza", "krydder", "gryte"], "normalpris": 190, "enhet": "kg" },
+    { "navn": "Kylling", "ikon": "🍗", "sok": ["kyllingfilet", "kyllingbryst", "kyllinglår", "kylling lårfilet", "kylling filet", "kyllingkjøttdeig", "hel kylling", "kyllinginnerfilet"], "ikke": ["stekt", "skivet", "pålegg", "nuggets", "burger", "korv", "pølse", "vårrull", "pizza", "salat", "wrap"], "normalpris": 200, "enhet": "kg" },
+    { "navn": "Laks", "ikon": "🐟", "sok": ["laks"], "ikke": ["tilbehør", "saus", "rogn", "kaviar", "postei", "pålegg", "smørbar"], "normalpris": 230, "enhet": "kg" },
+    { "navn": "Torsk, sei og hyse", "ikon": "🐠", "sok": ["torsk", "\"sei\"", "seifilet", "hyse", "hvitfisk"], "ikke": ["rogn", "lever", "kaker", "pudding", "boller", "grateng", "burger"], "normalpris": 200, "enhet": "kg" },
+    { "navn": "Bacon", "ikon": "🥓", "sok": ["bacon", "flesk"], "ikke": ["postei", "chips", "ost", "dressing", "pizza"], "normalpris": 200, "enhet": "kg" },
+    { "navn": "Pølser", "ikon": "🌭", "sok": ["pølse", "wiener"], "ikke": ["brød", "lompe", "pålegg", "salami", "skivet"], "normalpris": 120, "enhet": "kg" },
+    { "navn": "Egg", "ikon": "🥚", "sok": ["\"egg\"", "frokostegg", "gårdsegg", "frittgående egg"], "ikke": ["sjokolade", "kinder", "påske", "likør"], "normalpris": 4.5, "enhet": "stk" },
+    { "navn": "Melk", "ikon": "🥛", "sok": ["lettmelk", "helmelk", "skummet", "\"melk\"", "mjølk"], "ikke": ["sjokolade", "sjoko", "kokos", "havre", "mandel", "kondens"], "normalpris": 25, "enhet": "l" },
+    { "navn": "Ost", "ikon": "🧀", "sok": ["gulost", "norvegia", "jarlsberg", "revet ost", "revet lettost", "ekte revet", "cheese mix", "hvitost", "pizzaost"], "ikke": ["chips", "snacks", "kjeks", "bagels", "brunost", "smøreost"], "normalpris": 160, "enhet": "kg" },
+    { "navn": "Smør", "ikon": "🧈", "sok": ["\"smør\"", "meierismør", "olivero"], "ikke": ["kylling", "peanøtt", "smørbrød", "kjeks", "saus"], "normalpris": 120, "enhet": "kg" },
+    { "navn": "Rømme og fløte", "ikon": "🥄", "sok": ["rømme", "matfløte", "kremfløte", "crème fraîche", "creme fraiche"], "ikke": ["dressing", "dip", "potet", "saus", "\"is\""] },
+    { "navn": "Pasta", "ikon": "🍝", "sok": ["pasta", "spaghetti", "penne", "fusilli", "makaroni", "tagliatelle", "lasagneplater", "farfalle", "rigatoni", "tortelloni"], "ikke": ["pastasaus", "saus", "salat", "ferdigrett", "capri"], "normalpris": 35, "enhet": "kg" },
+    { "navn": "Ris", "ikon": "🍚", "sok": ["\"ris\"", "jasminris", "basmatiris", "boil in bag", "fullkornsris", "parboiled", "sushiris", "ben's original"], "ikke": ["grøt", "krem", "pudding", "lunsj", "kaker", "melk"], "normalpris": 45, "enhet": "kg" },
+    { "navn": "Poteter", "ikon": "🥔", "sok": ["potet", "pottet"], "ikke": ["gull", "chips", "mos", "stappe", "fløtepotet", "båt", "pommes", "fries", "grateng", "salat", "lompe", "lefse", "staver"], "normalpris": 28, "enhet": "kg" },
+    { "navn": "Brød", "ikon": "🍞", "sok": ["brød", "loff", "rundstykker", "baguette", "morgenstykker", "kneipp"], "ikke": ["knekkebrød", "smørbrød", "pølsebrød", "skolebrød", "pita", "tortilla", "kake"], "normalpris": 50, "enhet": "kg" },
+    { "navn": "Taco", "ikon": "🌮", "sok": ["taco", "tortilla", "nachochips", "salsa"], "ikke": [] },
+    { "navn": "Hakkede tomater", "ikon": "🥫", "sok": ["hakkede tomater", "knuste tomater", "polpa", "passata", "tomater i boks"], "ikke": [], "normalpris": 38, "enhet": "kg" },
+    { "navn": "Løk", "ikon": "🧅", "sok": ["\"løk\"", "rødløk", "gul løk", "løk i strømpe", "sjalottløk"], "ikke": ["chips", "potegull", "stekt", "dressing", "suppe"], "normalpris": 30, "enhet": "kg" },
+    { "navn": "Bananer", "ikon": "🍌", "sok": ["banan"], "ikke": ["chips", "sjokolade", "smoothie", "skum", "\"is\""], "normalpris": 30, "enhet": "kg" },
+    { "navn": "Frossenpizza", "ikon": "🍕", "sok": ["pizza", "grandiosa", "la mia grande", "ristorante", "big one"], "ikke": ["pizzabunn", "pizzasaus", "pizzaost", "pizzakrydder", "pizzadeig", "pizzamel", "pizzaskinke", "pizzafyll", "tipo"], "normalpris": 120, "enhet": "kg" },
+    { "navn": "Kaffe", "ikon": "☕", "sok": ["kaffe", "espresso", "friele", "evergood", "kjeldsberg"], "ikke": ["fløte", "iskaffe", "kaffemelk", "kopp", "maskin", "filterpapir", "kaffefilter", "kake"], "normalpris": 240, "enhet": "kg" },
+    { "navn": "Brus", "ikon": "🥤", "sok": ["coca-cola", "\"cola\"", "pepsi", "\"solo\"", "fanta", "sprite", "mozell", "\"urge\"", "brus"], "ikke": ["sjokolade", "kake", "godteri"], "normalpris": 25, "enhet": "l" }
+  ]
+}

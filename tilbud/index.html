@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Min tilbudsavis</title>
+  <meta name="description" content="Ukens matvaretilbud på varene jeg kjøper oftest – pluss de ekstraordinære kuppene.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --flate: #ffffff;
+      --flate-2: #f1eee6;
+      --tekst: #1d2433;
+      --dempet: #5f6b7a;
+      --linje: #e5e0d5;
+      --aksent: #0b8f63;
+      --aksent-svak: #e1f3ea;
+      --aksent-tekst: #ffffff;
+      --kupp: #d93a24;
+      --kupp-svak: #fdebe6;
+      --kupp-tekst: #ffffff;
+      --bra: #0b8f63;
+      --bra-svak: #e1f3ea;
+      --gul: #ffd84d;
+      --skygge: 0 1px 2px rgba(20, 25, 35, .05), 0 6px 18px rgba(20, 25, 35, .06);
+      --radius: 18px;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111419;
+        --flate: #1a1f27;
+        --flate-2: #232a34;
+        --tekst: #e9edf3;
+        --dempet: #9ca7b6;
+        --linje: #2d3542;
+        --aksent: #3ad29f;
+        --aksent-svak: #143429;
+        --aksent-tekst: #04261a;
+        --kupp: #ff7559;
+        --kupp-svak: #3a1d17;
+        --kupp-tekst: #2a0b04;
+        --bra: #3ad29f;
+        --bra-svak: #143429;
+        --skygge: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #111419;
+      --flate: #1a1f27;
+      --flate-2: #232a34;
+      --tekst: #e9edf3;
+      --dempet: #9ca7b6;
+      --linje: #2d3542;
+      --aksent: #3ad29f;
+      --aksent-svak: #143429;
+      --aksent-tekst: #04261a;
+      --kupp: #ff7559;
+      --kupp-svak: #3a1d17;
+      --kupp-tekst: #2a0b04;
+      --bra: #3ad29f;
+      --bra-svak: #143429;
+      --skygge: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--tekst);
+      line-height: 1.4;
+      min-height: 100vh;
+      padding-bottom: 96px;
+    }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--aksent); }
+    .tall { font-variant-numeric: tabular-nums; }
+
+    .side { max-width: 780px; margin: 0 auto; padding: 0 16px; }
+
+    /* ---------- Topp ---------- */
+    header.topp { padding: 20px 0 8px; }
+    .tilbake { display: inline-flex; align-items: center; gap: 6px; color: var(--dempet); text-decoration: none; font-size: 14px; }
+    .tilbake:hover { color: var(--tekst); }
+    h1 { font-size: clamp(30px, 7vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin-top: 14px; }
+    h1 .uke { display: inline-block; font-size: .42em; vertical-align: middle; background: var(--gul); color: #1d2433; padding: 4px 10px; border-radius: 999px; letter-spacing: 0; margin-left: 6px; transform: translateY(-4px); }
+    .meta { color: var(--dempet); font-size: 15px; margin-top: 8px; }
+
+    .verktoy { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 12px 0 10px; display: grid; gap: 10px; }
+    .sokefelt { position: relative; }
+    .sokefelt input {
+      width: 100%; padding: 13px 44px 13px 44px; border-radius: 14px; border: 1px solid var(--linje);
+      background: var(--flate); font-size: 16px; outline: none; box-shadow: var(--skygge);
+    }
+    .sokefelt input:focus { border-color: var(--aksent); }
+    .sokefelt .lupe { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--dempet); pointer-events: none; }
+    .sokefelt .tom { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: var(--dempet); width: 32px; height: 32px; border-radius: 8px; display: none; font-size: 18px; }
+    .sokefelt.har-tekst .tom { display: block; }
+    .rad { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .rad::-webkit-scrollbar { display: none; }
+    .brikke {
+      flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
+      border: 1px solid var(--linje); background: var(--flate); font-size: 14px; font-weight: 500; white-space: nowrap;
+    }
+    .brikke .prikk { width: 9px; height: 9px; border-radius: 50%; background: var(--farge, var(--dempet)); }
+    .brikke[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+    .brikke.knapp-varer { background: var(--tekst); color: var(--bg); border-color: var(--tekst); font-weight: 600; }
+
+    /* ---------- Seksjoner ---------- */
+    section { margin-top: 26px; }
+    .seksjonstopp { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+    .seksjonstopp p { color: var(--dempet); font-size: 14px; }
+    .forklaring { color: var(--dempet); font-size: 14px; margin: -6px 0 12px; }
+
+    .liste { display: grid; gap: 8px; }
+    .kort {
+      background: var(--flate); border: 1px solid var(--linje); border-radius: var(--radius); box-shadow: var(--skygge);
+      overflow: hidden;
+    }
+
+    /* Ett tilbud */
+    .tilbud { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; padding: 12px; align-items: start; position: relative; }
+    .tilbud + .tilbud { border-top: 1px solid var(--linje); }
+    .tilbud.kjempe { background: linear-gradient(90deg, var(--kupp-svak), transparent 70%); }
+    .bildeknapp { width: 64px; height: 64px; border-radius: 12px; border: 1px solid var(--linje); background: #fff; padding: 3px; overflow: hidden; display: grid; place-items: center; }
+    .bildeknapp img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+    .bildeknapp .ingen { font-size: 26px; }
+    .tekst { min-width: 0; }
+    .tittel { font-weight: 600; font-size: 16px; line-height: 1.25; overflow-wrap: anywhere; }
+    .detaljer { color: var(--dempet); font-size: 13.5px; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+    .etiketter { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; align-items: center; }
+    .butikk { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; padding: 2px 8px 2px 6px; border-radius: 999px; background: var(--flate-2); }
+    .butikk .prikk { width: 8px; height: 8px; border-radius: 50%; background: var(--farge, var(--dempet)); }
+    .gyldig { font-size: 12.5px; color: var(--dempet); }
+    .gyldig.snart { color: var(--kupp); font-weight: 600; }
+    .grunn { font-size: 12.5px; font-weight: 600; color: var(--bra); background: var(--bra-svak); padding: 2px 8px; border-radius: 999px; }
+    .kjempe .grunn { color: var(--kupp); background: var(--kupp-svak); }
+
+    .prisfelt { text-align: right; display: grid; justify-items: end; gap: 3px; }
+    .pris { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+    .pris small { font-size: 13px; font-weight: 600; }
+    .enhetspris { font-size: 13px; color: var(--dempet); white-space: nowrap; }
+    .rabatt { font-size: 13px; font-weight: 800; color: var(--kupp-tekst); background: var(--kupp); padding: 2px 7px; border-radius: 6px; }
+    .forpris { font-size: 12px; color: var(--dempet); text-decoration: line-through; }
+    .handlinger { display: flex; gap: 4px; margin-top: 4px; }
+    .ikonknapp {
+      width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--linje); background: var(--flate);
+      display: grid; place-items: center; font-size: 16px; line-height: 1; color: var(--dempet);
+    }
+    .ikonknapp:hover { color: var(--tekst); border-color: var(--dempet); }
+    .ikonknapp.paa { background: var(--aksent); border-color: var(--aksent); color: var(--aksent-tekst); }
+
+    /* Vare-gruppe */
+    .gruppe > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px; }
+    .gruppe > summary::-webkit-details-marker { display: none; }
+    .gruppe .ikon { font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; background: var(--flate-2); border-radius: 12px; }
+    .gruppe .navn { font-weight: 700; font-size: 17px; }
+    .gruppetekst { min-width: 0; display: grid; }
+    .gruppe .best { color: var(--dempet); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gruppe .best b { color: var(--tekst); font-weight: 600; }
+    .gruppe .antall { display: flex; align-items: center; gap: 8px; color: var(--dempet); font-size: 14px; }
+    .gruppe .pil { transition: transform .2s; }
+    .gruppe[open] .pil { transform: rotate(90deg); }
+    .gruppe .innhold { border-top: 1px solid var(--linje); }
+    .flamme { font-size: 12px; font-weight: 700; color: var(--kupp-tekst); background: var(--kupp); padding: 2px 7px; border-radius: 999px; }
+    .visflere { width: 100%; border: 0; border-top: 1px solid var(--linje); background: transparent; padding: 12px; color: var(--aksent); font-weight: 600; }
+
+    .ingen-tilbud { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; color: var(--dempet); font-size: 14px; }
+    .ingen-tilbud .brikke { font-size: 13px; padding: 5px 10px; }
+
+    .tomt { padding: 28px 18px; text-align: center; color: var(--dempet); }
+    .tomt b { color: var(--tekst); display: block; font-size: 17px; margin-bottom: 4px; }
+
+    .fot { margin: 40px 0 0; color: var(--dempet); font-size: 13px; display: grid; gap: 6px; }
+
+    /* ---------- Handleliste-linje ---------- */
+    .handlelinje {
+      position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 30;
+      width: min(748px, calc(100% - 32px)); display: none; align-items: center; justify-content: space-between; gap: 12px;
+      background: var(--tekst); color: var(--bg); border: 0; border-radius: 16px; padding: 14px 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      font-weight: 600; font-size: 16px;
+    }
+    .handlelinje.vis { display: flex; }
+
+    /* ---------- Dialoger ---------- */
+    dialog {
+      border: 0; padding: 0; background: var(--flate); color: var(--tekst); border-radius: 22px;
+      width: min(640px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    dialog::backdrop { background: rgba(10, 12, 16, .55); }
+    .dialogtopp { position: sticky; top: 0; background: var(--flate); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 18px 12px; border-bottom: 1px solid var(--linje); z-index: 1; }
+    .dialogtopp h3 { font-size: 20px; }
+    .dialoginnhold { padding: 14px 18px 20px; display: grid; gap: 14px; }
+    .lukk { border: 0; background: var(--flate-2); width: 36px; height: 36px; border-radius: 10px; font-size: 18px; }
+    .knapp { border: 1px solid var(--linje); background: var(--flate); padding: 10px 14px; border-radius: 12px; font-weight: 600; font-size: 15px; }
+    .knapp.hoved { background: var(--aksent); border-color: var(--aksent); color: var(--aksent-tekst); }
+    .knapp.fare { color: var(--kupp); }
+    .knapprad { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .vareliste { display: grid; gap: 8px; }
+    .varerad { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--linje); border-radius: 14px; }
+    .varerad .ikon { font-size: 22px; width: 38px; height: 38px; display: grid; place-items: center; background: var(--flate-2); border-radius: 10px; }
+    .varerad .navn { font-weight: 600; }
+    .varerad .ord { color: var(--dempet); font-size: 13px; overflow-wrap: anywhere; }
+    .varerad .knapper { display: flex; gap: 4px; }
+
+    form.skjema { display: grid; gap: 12px; padding: 14px; border-radius: 16px; background: var(--flate-2); }
+    .felt { display: grid; gap: 5px; }
+    .felt label { font-size: 14px; font-weight: 600; }
+    .felt .hjelp { font-size: 12.5px; color: var(--dempet); font-weight: 400; }
+    .felt input, .felt select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--linje); background: var(--flate); font-size: 16px; }
+    .to { display: grid; grid-template-columns: 88px 1fr; gap: 10px; }
+    .tre { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
+    .forhandsvisning { font-size: 13.5px; color: var(--dempet); }
+    .forhandsvisning b { color: var(--tekst); }
+
+    .handlegruppe h4 { font-size: 15px; display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .handlevare { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--linje); font-size: 15px; }
+    .handlevare small { color: var(--dempet); display: block; }
+    .totalt { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; padding-top: 10px; border-top: 2px solid var(--tekst); }
+
+    #bildeDialog { width: min(900px, calc(100% - 24px)); background: #fff; }
+    #bildeDialog img { display: block; width: 100%; height: auto; }
+    #bildeDialog .lukk { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.6); color: #fff; }
+
+    .melding { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: var(--tekst); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+    .melding.vis { opacity: 1; }
+
+    .laster { padding: 60px 0; text-align: center; color: var(--dempet); }
+
+    @media (max-width: 480px) {
+      .tilbud { grid-template-columns: 52px 1fr auto; gap: 10px; padding: 11px; }
+      .bildeknapp { width: 52px; height: 52px; }
+      .pris { font-size: 20px; }
+      .gruppe > summary { padding: 12px; gap: 10px; }
+      .gruppe .ikon { width: 40px; height: 40px; font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="side">
+    <header class="topp">
+      <a class="tilbake" href="../">← Prosjekter</a>
+      <h1>Min tilbudsavis <span class="uke" id="uke"></span></h1>
+      <p class="meta" id="meta">Henter ukens tilbud…</p>
+    </header>
+
+    <div class="verktoy">
+      <div class="sokefelt" id="sokefelt">
+        <span class="lupe" aria-hidden="true">🔍</span>
+        <input id="sok" type="search" placeholder="Søk i alle tilbud – f.eks. «kyllingfilet»" autocomplete="off" aria-label="Søk i alle tilbud">
+        <button class="tom" id="tomSok" aria-label="Tøm søk">✕</button>
+      </div>
+      <div class="rad" id="butikkrad" aria-label="Velg butikker"></div>
+    </div>
+
+    <main id="innhold"><div class="laster">Laster tilbud…</div></main>
+
+    <footer class="fot" id="fot"></footer>
+  </div>
+
+  <button class="handlelinje" id="handlelinje" aria-haspopup="dialog">
+    <span id="handletekst">🛒 Handleliste</span><span id="handlesum" class="tall"></span>
+  </button>
+
+  <dialog id="varerDialog" aria-labelledby="varerTittel">
+    <div class="dialogtopp">
+      <h3 id="varerTittel">Mine varer</h3>
+      <button class="lukk" data-lukk aria-label="Lukk">✕</button>
+    </div>
+    <div class="dialoginnhold">
+      <p class="forklaring" style="margin:0">Varene du kjøper ofte. Siden viser alle tilbud på disse, og merker de som er ekstraordinært billige. Lista lagres i denne nettleseren.</p>
+      <div class="knapprad"><button class="knapp hoved" id="nyVare">＋ Legg til vare</button></div>
+      <div id="skjemaplass"></div>
+      <div class="vareliste" id="vareliste"></div>
+      <div class="knapprad">
+        <button class="knapp" id="delVarer">🔗 Kopier lenke med lista (til mobil/PC)</button>
+        <button class="knapp fare" id="nullstillVarer">Tilbakestill til standard</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="handleDialog" aria-labelledby="handleTittel">
+    <div class="dialogtopp">
+      <h3 id="handleTittel">Handleliste</h3>
+      <button class="lukk" data-lukk aria-label="Lukk">✕</button>
+    </div>
+    <div class="dialoginnhold" id="handleinnhold"></div>
+  </dialog>
+
+  <dialog id="bildeDialog" aria-label="Utsnitt fra kundeavisen">
+    <button class="lukk" data-lukk aria-label="Lukk">✕</button>
+    <img id="storBilde" alt="">
+  </dialog>
+
+  <div class="melding" id="melding" role="status" aria-live="polite"></div>
+
+  <script type="module">
+    import { lagMatcher, vurder, erMat, kr, lagHistorikk, NIVAA_REKKEFOLGE, normaliser } from './motor.js';
+
+    // ---------- Lagring (tåler privat modus) ----------
+    const lager = {
+      les(nokkel, standard) {
+        try { const v = localStorage.getItem('tilbudsavis.' + nokkel); return v == null ? standard : JSON.parse(v); }
+        catch { return standard; }
+      },
+      skriv(nokkel, verdi) {
+        try { localStorage.setItem('tilbudsavis.' + nokkel, JSON.stringify(verdi)); } catch {}
+      },
+      slett(nokkel) { try { localStorage.removeItem('tilbudsavis.' + nokkel); } catch {} },
+    };
+
+    const S = {
+      data: null,
+      standardVarer: [],
+      varer: [],
+      historikk: null,
+      avslaatt: new Set(lager.les('avslaatteButikker', [])),
+      skjult: new Set(lager.les('skjult', [])),
+      handleliste: lager.les('handleliste', []),
+      sok: '',
+      gruppevalg: new Map(), // navn → åpen/lukket, når brukeren har valgt selv
+      visAlle: new Set(),
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const OSLO = 'Europe/Oslo';
+
+    function pentNavn(s) {
+      // KJØTTDEIG AV STORFE → Kjøttdeig av storfe
+      const bokstaver = s.replace(/[^A-Za-zÆØÅæøåÄÖäö]/g, '');
+      if (bokstaver.length > 2 && bokstaver === bokstaver.toUpperCase()) {
+        const l = s.toLocaleLowerCase('nb');
+        return l.charAt(0).toLocaleUpperCase('nb') + l.slice(1);
+      }
+      return s;
+    }
+
+    function ukenummer(d) {
+      const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dag = t.getUTCDay() || 7;
+      t.setUTCDate(t.getUTCDate() + 4 - dag);
+      const aar = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+      return Math.ceil(((t - aar) / 864e5 + 1) / 7);
+    }
+
+    const dagFmt = new Intl.DateTimeFormat('nb-NO', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: OSLO });
+    const tidFmt = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: OSLO });
+    const datoUtenPunktum = (d) => dagFmt.format(d).replace(/\.$/, '');
+
+    function gyldighet(t) {
+      const naa = Date.now();
+      const fra = new Date(t.fra), til = new Date(t.til);
+      if (fra.getTime() > naa) return { tekst: `Fra ${datoUtenPunktum(fra)}`, snart: false };
+      const timerIgjen = (til.getTime() - naa) / 36e5;
+      if (timerIgjen < 30) return { tekst: timerIgjen < 14 ? 'Siste dag i dag' : `Slutter ${datoUtenPunktum(til)}`, snart: true };
+      return { tekst: `t.o.m. ${datoUtenPunktum(til)}`, snart: false };
+    }
+
+    function butikkFarge(navn) {
+      return S.data?.butikker?.[navn]?.farge || ({ 'REMA 1000': '#0b2a6b' })[navn] || '#7b8794';
+    }
+
+    // ---------- Henting ----------
+    async function hentJson(sti) {
+      const res = await fetch(sti, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`${sti}: ${res.status}`);
+      return res.json();
+    }
+
+    function lagreVarer() {
+      lager.skriv('varer', S.varer);
+    }
+
+    function importerFraLenke() {
+      const m = location.hash.match(/varer=([^&]+)/);
+      if (!m) return;
+      try {
+        const json = decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))));
+        const varer = JSON.parse(json);
+        if (Array.isArray(varer) && varer.every((v) => v && v.navn)) {
+          if (confirm(`Vil du bruke vare-lista fra lenken (${varer.length} varer)? Den erstatter lista i denne nettleseren.`)) {
+            S.varer = varer;
+            lagreVarer();
+            vis('Vare-lista er importert ✓');
+          }
+        }
+      } catch (e) { console.warn('Kunne ikke lese vare-lista fra lenken', e); }
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+
+    async function start() {
+      try {
+        const [data, std] = await Promise.all([hentJson('data/tilbud.json'), hentJson('mine-varer.json')]);
+        S.data = data;
+        S.standardVarer = std.varer;
+        S.varer = lager.les('varer', null) || structuredClone(std.varer);
+      } catch (e) {
+        $('innhold').innerHTML = `<div class="kort tomt"><b>Fant ingen tilbud ennå</b>Tilbudene hentes automatisk hver morgen. Prøv igjen litt senere.</div>`;
+        $('meta').textContent = '';
+        console.error(e);
+        return;
+      }
+      importerFraLenke();
+      tegnAlt();
+      hentJson('data/historikk.json').then((h) => { S.historikk = h.tilbud || null; tegnInnhold(); }).catch(() => {});
+    }
+
+    // ---------- Beregning ----------
+    function aktiveTilbud() {
+      return S.data.tilbud.filter((t) => !S.avslaatt.has(t.butikk) && !S.skjult.has(t.id));
+    }
+
+    function sorterTreff(enhet) {
+      return (a, b) => {
+        const ea = a.t.enhet === enhet ? 0 : 1, eb = b.t.enhet === enhet ? 0 : 1;
+        if (ea !== eb) return ea - eb;
+        if (a.t.enhet !== b.t.enhet) return String(a.t.enhet).localeCompare(String(b.t.enhet));
+        return (a.t.enhetspris ?? 1e9) - (b.t.enhetspris ?? 1e9);
+      };
+    }
+
+    function beregn() {
+      const aktive = aktiveTilbud();
+      const alleIder = new Set(S.data.tilbud.map((t) => t.id));
+      const grupper = S.varer.map((vare, indeks) => {
+        const passer = lagMatcher(vare);
+        const hist = lagHistorikk(vare, S.historikk, alleIder);
+        const treff = aktive.filter((t) => passer(t.tittel)).map((t) => ({ t, v: vurder(t, vare, hist), vare }));
+        treff.sort(sorterTreff(vare.enhet || 'kg'));
+        const beste = treff.reduce((m, x) => (NIVAA_REKKEFOLGE[x.v.nivaa] < NIVAA_REKKEFOLGE[m] ? x.v.nivaa : m), 'vanlig');
+        const maksAndel = Math.max(0, ...treff.map((x) => x.v.andel));
+        return { vare, indeks, treff, beste, maksAndel };
+      });
+      const brukt = new Set(grupper.flatMap((g) => g.treff.map((x) => x.t.id)));
+      const kjempe = grupper
+        .flatMap((g) => g.treff.filter((x) => x.v.nivaa === 'kjempe'))
+        .sort((a, b) => b.v.andel - a.v.andel);
+      const andre = aktive
+        .filter((t) => !brukt.has(t.id) && t.rabatt >= 35 && erMat(t))
+        .map((t) => ({ t, v: vurder(t, null, null), vare: null }))
+        .sort((a, b) => b.t.rabatt - a.t.rabatt);
+      return { aktive, grupper, kjempe, andre };
+    }
+
+    // ---------- Tegning ----------
+    function tegnAlt() {
+      const d = S.data;
+      const naa = new Date();
+      $('uke').textContent = `Uke ${ukenummer(naa)}`;
+      const antallButikker = Object.keys(d.butikker).length;
+      $('meta').textContent = `${d.antall} tilbud fra ${antallButikker} butikker rundt ${d.sted} · oppdatert ${tidFmt.format(new Date(d.hentet))}`;
+      tegnButikker();
+      tegnInnhold();
+      tegnHandlelinje();
+      $('fot').innerHTML = `
+        <p>Tilbudene hentes automatisk fra kundeavisene på eTilbudsavis hver morgen. Sjekk alltid prisen i butikken.</p>
+        <p>«Vanlig pris» er et anslag du kan endre under <a href="#" data-apne-varer>Mine varer</a>. Etter noen uker lærer siden også hva som er laveste tilbudspris.</p>`;
+    }
+
+    function tegnButikker() {
+      const tall = {};
+      for (const t of S.data.tilbud) tall[t.butikk] = (tall[t.butikk] || 0) + 1;
+      const navn = Object.keys(tall).sort((a, b) => a.localeCompare(b, 'nb'));
+      $('butikkrad').innerHTML =
+        `<button class="brikke knapp-varer" data-apne-varer>⭐ Mine varer (${S.varer.length})</button>` +
+        navn.map((n) => `<button class="brikke" style="--farge:${butikkFarge(n)}" data-butikk="${esc(n)}" aria-pressed="${!S.avslaatt.has(n)}"><span class="prikk"></span>${esc(n)}</button>`).join('');
+    }
+
+    function tilbudHtml(x, { visVare = false, visKjempe = true } = {}) {
+      const { t, v, vare } = x;
+      const g = gyldighet(t);
+      const iListe = S.handleliste.some((h) => h.id === t.id);
+      const enhetstekst = t.enhetspris != null && !(t.enhet === 'stk' && !t.mengde)
+        ? `${t.enhetsprisMaks ? 'fra ' : ''}${kr(t.enhetspris)} kr/${t.enhet}` : '';
+      const detaljer = [t.mengde, t.info].filter(Boolean).join(' · ');
+      const grunner = v.nivaa !== 'vanlig' ? v.grunner.filter((s) => !s.startsWith('−')) : [];
+      return `
+        <article class="tilbud ${v.nivaa}">
+          <button class="bildeknapp" data-bilde="${esc(t.bildeStort || '')}" aria-label="Vis i kundeavisen">
+            ${t.bilde ? `<img src="${esc(t.bilde)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="ingen">${vare?.ikon || '🏷️'}</span>`}
+          </button>
+          <div class="tekst">
+            <div class="tittel">${visVare && vare ? `${vare.ikon || ''} ` : ''}${esc(pentNavn(t.tittel))}</div>
+            ${detaljer ? `<div class="detaljer">${esc(detaljer)}</div>` : ''}
+            <div class="etiketter">
+              <span class="butikk" style="--farge:${butikkFarge(t.butikk)}"><span class="prikk"></span>${esc(t.butikk)}</span>
+              <span class="gyldig ${g.snart ? 'snart' : ''}">${esc(g.tekst)}</span>
+              ${v.nivaa === 'kjempe' && visKjempe ? '<span class="grunn">🔥 Kjempetilbud</span>' : ''}
+              ${grunner.map((s) => `<span class="grunn">${esc(s)}</span>`).join('')}
+            </div>
+          </div>
+          <div class="prisfelt">
+            ${t.rabatt ? `<span class="rabatt">−${t.rabatt} %</span>` : ''}
+            <div class="pris tall">${kr(t.pris)}${Number.isInteger(t.pris) ? '<small>,-</small>' : ''}</div>
+            ${enhetstekst ? `<div class="enhetspris tall">${esc(enhetstekst)}</div>` : ''}
+            ${t.forpris ? `<div class="forpris tall">${kr(t.forpris)}</div>` : ''}
+            <div class="handlinger">
+              <button class="ikonknapp ${iListe ? 'paa' : ''}" data-handle="${esc(t.id)}" aria-label="${iListe ? 'Fjern fra handlelista' : 'Legg i handlelista'}" title="${iListe ? 'Fjern fra handlelista' : 'Legg i handlelista'}">${iListe ? '✓' : '＋'}</button>
+              <button class="ikonknapp" data-skjul="${esc(t.id)}" aria-label="Skjul dette tilbudet" title="Skjul (ikke relevant)">⊘</button>
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function gruppeHtml(g) {
+      const { vare, treff, beste } = g;
+      const f = treff[0].t;
+      const besteTekst = f.enhetspris != null && !(f.enhet === 'stk' && !f.mengde)
+        ? `<b>${kr(f.enhetspris)} kr/${f.enhet}</b> · ${esc(pentNavn(f.tittel))} · ${esc(f.butikk)}`
+        : `<b>${kr(f.pris)} kr</b> · ${esc(pentNavn(f.tittel))} · ${esc(f.butikk)}`;
+      const antallKjempe = treff.filter((x) => x.v.nivaa === 'kjempe').length;
+      const apen = S.gruppevalg.get(vare.navn) ?? false;
+      const visAlle = S.visAlle.has(vare.navn);
+      const synlige = visAlle ? treff : treff.slice(0, 3);
+      return `
+        <details class="kort gruppe" data-gruppe="${esc(vare.navn)}" ${apen ? 'open' : ''}>
+          <summary>
+            <span class="ikon" aria-hidden="true">${esc(vare.ikon || '🛒')}</span>
+            <span class="gruppetekst"><span class="navn">${esc(vare.navn)}</span><span class="best tall">${besteTekst}</span></span>
+            <span class="antall">${antallKjempe ? `<span class="flamme">🔥 ${antallKjempe}</span>` : ''}${treff.length} <span class="pil" aria-hidden="true">›</span></span>
+          </summary>
+          <div class="innhold">
+            ${synlige.map((x) => tilbudHtml(x)).join('')}
+            ${treff.length > 3 ? `<button class="visflere" data-visalle="${esc(vare.navn)}">${visAlle ? 'Vis færre' : `Vis alle ${treff.length} tilbud`}</button>` : ''}
+          </div>
+        </details>`;
+    }
+
+    let visFlereAndre = false;
+    let visFlereKjempe = false;
+
+    function tegnInnhold() {
+      if (!S.data) return;
+      if (S.sok.trim()) return tegnSok();
+      const { grupper, kjempe, andre } = beregn();
+      const medTreff = grupper.filter((g) => g.treff.length)
+        .sort((a, b) => NIVAA_REKKEFOLGE[a.beste] - NIVAA_REKKEFOLGE[b.beste] || b.maksAndel - a.maksAndel || a.indeks - b.indeks);
+      const utenTreff = grupper.filter((g) => !g.treff.length);
+      const andreSynlige = visFlereAndre ? andre : andre.slice(0, 6);
+
+      $('innhold').innerHTML = `
+        ${kjempe.length ? `
+        <section aria-labelledby="h-kjempe">
+          <div class="seksjonstopp"><h2 id="h-kjempe">🔥 Kjempetilbud på dine varer</h2><p>${kjempe.length} stk</p></div>
+          <p class="forklaring">Rundt 40 % billigere enn vanlig (etter førpris eller vanlig kilopris), eller laveste pris på lenge.</p>
+          <div class="kort">
+            ${(visFlereKjempe ? kjempe : kjempe.slice(0, 6)).map((x) => tilbudHtml(x, { visVare: true, visKjempe: false })).join('')}
+            ${kjempe.length > 6 ? `<button class="visflere" data-kjempe>${visFlereKjempe ? 'Vis færre' : `Vis alle ${kjempe.length}`}</button>` : ''}
+          </div>
+        </section>` : ''}
+
+        <section aria-labelledby="h-varer">
+          <div class="seksjonstopp"><h2 id="h-varer">Dine varer på tilbud</h2><p>${medTreff.length} av ${grupper.length} varer</p></div>
+          <p class="forklaring">Billigste tilbud per kilo/liter først. Trykk på en vare for å se alle.</p>
+          ${medTreff.length ? `<div class="liste">${medTreff.map(gruppeHtml).join('')}</div>`
+            : `<div class="kort tomt"><b>Ingen av varene dine er på tilbud</b>Legg til flere varer under «Mine varer», eller slå på flere butikker.</div>`}
+          ${utenTreff.length ? `<div class="ingen-tilbud"><span>Ingen tilbud nå:</span>${utenTreff.map((g) => `<span class="brikke">${esc(g.vare.ikon || '')} ${esc(g.vare.navn)}</span>`).join('')}</div>` : ''}
+        </section>
+
+        ${andre.length ? `
+        <section aria-labelledby="h-andre">
+          <div class="seksjonstopp"><h2 id="h-andre">💥 Andre kupp denne uka</h2><p>${andre.length} stk</p></div>
+          <p class="forklaring">Mat som ikke står på lista di, men som er minst 35 % billigere enn førprisen.</p>
+          <div class="kort">
+            ${andreSynlige.map((x) => tilbudHtml(x)).join('')}
+            ${andre.length > 6 ? `<button class="visflere" data-andre>${visFlereAndre ? 'Vis færre' : `Vis alle ${andre.length}`}</button>` : ''}
+          </div>
+        </section>` : ''}`;
+    }
+
+    function tegnSok() {
+      const ord = normaliser(S.sok).trim().split(' ').filter(Boolean);
+      const aktive = aktiveTilbud();
+      const treff = aktive
+        .filter((t) => { const n = normaliser(`${t.tittel} ${t.info}`); return ord.every((o) => n.includes(o)); })
+        .map((t) => ({ t, v: vurder(t, null, null), vare: null }))
+        .sort((a, b) => (a.t.enhet || '').localeCompare(b.t.enhet || '') || (a.t.enhetspris ?? 1e9) - (b.t.enhetspris ?? 1e9));
+      const finnes = S.varer.some((v) => normaliser(v.navn).trim() === ord.join(' '));
+      $('innhold').innerHTML = `
+        <section>
+          <div class="seksjonstopp"><h2>Treff på «${esc(S.sok.trim())}»</h2><p>${treff.length} tilbud</p></div>
+          ${!finnes ? `<div class="knapprad" style="margin-bottom:12px"><button class="knapp" data-ny-fra-sok>⭐ Legg «${esc(S.sok.trim())}» til i mine varer</button></div>` : ''}
+          ${treff.length ? `<div class="kort">${treff.slice(0, 80).map((x) => tilbudHtml(x)).join('')}</div>`
+            : `<div class="kort tomt"><b>Ingen tilbud på dette nå</b>Prøv et annet ord, eller slå på flere butikker.</div>`}
+        </section>`;
+    }
+
+    // ---------- Handleliste ----------
+    function sumHandleliste() { return S.handleliste.reduce((s, h) => s + h.pris, 0); }
+
+    function tegnHandlelinje() {
+      const n = S.handleliste.length;
+      $('handlelinje').classList.toggle('vis', n > 0);
+      $('handletekst').textContent = `🛒 ${n} ${n === 1 ? 'vare' : 'varer'} i handlelista`;
+      $('handlesum').textContent = `${kr(sumHandleliste())} kr`;
+    }
+
+    function tegnHandleDialog() {
+      const perButikk = {};
+      for (const h of S.handleliste) (perButikk[h.butikk] ??= []).push(h);
+      const html = Object.entries(perButikk).map(([b, liste]) => `
+        <div class="handlegruppe">
+          <h4><span><span class="butikk" style="--farge:${butikkFarge(b)}"><span class="prikk"></span>${esc(b)}</span></span><span class="tall">${kr(liste.reduce((s, h) => s + h.pris, 0))} kr</span></h4>
+          ${liste.map((h) => `
+            <div class="handlevare">
+              <span>${esc(pentNavn(h.tittel))}<small>${esc([h.mengde, `t.o.m. ${datoUtenPunktum(new Date(h.til))}`].filter(Boolean).join(' · '))}</small></span>
+              <span class="tall">${kr(h.pris)} kr</span>
+              <button class="ikonknapp" data-fjern-handle="${esc(h.id)}" aria-label="Fjern">✕</button>
+            </div>`).join('')}
+        </div>`).join('');
+      $('handleinnhold').innerHTML = S.handleliste.length ? `
+        ${html}
+        <div class="totalt"><span>Totalt</span><span class="tall">${kr(sumHandleliste())} kr</span></div>
+        <div class="knapprad">
+          <button class="knapp hoved" id="kopierHandle">📋 Kopier lista</button>
+          <button class="knapp fare" id="tomHandle">Tøm lista</button>
+        </div>` : `<div class="tomt"><b>Handlelista er tom</b>Trykk ＋ på et tilbud for å legge det til.</div>`;
+    }
+
+    function veksleHandle(id) {
+      const i = S.handleliste.findIndex((h) => h.id === id);
+      if (i >= 0) S.handleliste.splice(i, 1);
+      else {
+        const t = S.data.tilbud.find((x) => x.id === id);
+        if (!t) return;
+        S.handleliste.push({ id: t.id, tittel: t.tittel, butikk: t.butikk, pris: t.pris, mengde: t.mengde, til: t.til });
+      }
+      lager.skriv('handleliste', S.handleliste);
+      tegnHandlelinje();
+    }
+
+    // ---------- Mine varer ----------
+    const tilListe = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
+    const tilTekst = (l) => (l || []).join(', ');
+
+    function tegnVareliste() {
+      $('vareliste').innerHTML = S.varer.map((v, i) => `
+        <div class="varerad">
+          <span class="ikon">${esc(v.ikon || '🛒')}</span>
+          <div>
+            <div class="navn">${esc(v.navn)}${v.normalpris ? ` <span class="ord">· vanlig ~${kr(v.normalpris)} kr/${esc(v.enhet || 'kg')}</span>` : ''}</div>
+            <div class="ord">${esc(tilTekst(v.sok?.length ? v.sok : [v.navn]))}${v.ikke?.length ? ` · ikke: ${esc(tilTekst(v.ikke))}` : ''}</div>
+          </div>
+          <div class="knapper">
+            <button class="ikonknapp" data-rediger="${i}" aria-label="Endre ${esc(v.navn)}">✎</button>
+            <button class="ikonknapp" data-slett="${i}" aria-label="Fjern ${esc(v.navn)}">🗑</button>
+          </div>
+        </div>`).join('') || '<div class="tomt"><b>Ingen varer ennå</b>Legg til det du kjøper ofte.</div>';
+    }
+
+    function visSkjema(indeks = -1, forslag = '') {
+      const v = indeks >= 0 ? S.varer[indeks] : { navn: forslag, ikon: '', sok: forslag ? [forslag] : [], ikke: [], enhet: 'kg' };
+      $('skjemaplass').innerHTML = `
+        <form class="skjema" id="vareskjema">
+          <div class="to">
+            <div class="felt"><label for="fIkon">Ikon</label><input id="fIkon" maxlength="4" value="${esc(v.ikon || '')}" placeholder="🧀"></div>
+            <div class="felt"><label for="fNavn">Navn</label><input id="fNavn" required value="${esc(v.navn)}" placeholder="F.eks. Yoghurt"></div>
+          </div>
+          <div class="felt">
+            <label for="fSok">Søkeord <span class="hjelp">– kommaseparert. "I anførselstegn" = helt ord.</span></label>
+            <input id="fSok" value="${esc(tilTekst(v.sok))}" placeholder="yoghurt, skyr">
+          </div>
+          <div class="felt">
+            <label for="fIkke">Ikke ta med <span class="hjelp">– ord som gir feil treff</span></label>
+            <input id="fIkke" value="${esc(tilTekst(v.ikke))}" placeholder="drikke, is">
+          </div>
+          <div class="tre">
+            <div class="felt"><label for="fPris">Vanlig pris <span class="hjelp">(valgfritt)</span></label><input id="fPris" type="number" inputmode="decimal" min="0" step="any" value="${v.normalpris ?? ''}" placeholder="f.eks. 120"></div>
+            <div class="felt"><label for="fEnhet">per</label>
+              <select id="fEnhet">${['kg', 'l', 'stk'].map((e) => `<option ${(v.enhet || 'kg') === e ? 'selected' : ''}>${e}</option>`).join('')}</select>
+            </div>
+          </div>
+          <div class="forhandsvisning" id="forhand"></div>
+          <div class="knapprad">
+            <button class="knapp hoved" type="submit">${indeks >= 0 ? 'Lagre' : 'Legg til'}</button>
+            <button class="knapp" type="button" id="avbrytSkjema">Avbryt</button>
+          </div>
+        </form>`;
+      const skjema = $('vareskjema');
+      const lesSkjema = () => {
+        const navn = $('fNavn').value.trim();
+        const sok = tilListe($('fSok').value);
+        const pris = parseFloat(String($('fPris').value).replace(',', '.'));
+        return {
+          navn, ikon: $('fIkon').value.trim(), sok: sok.length ? sok : (navn ? [navn] : []), ikke: tilListe($('fIkke').value),
+          ...(pris > 0 ? { normalpris: pris, enhet: $('fEnhet').value } : {}),
+        };
+      };
+      const oppdaterForhand = () => {
+        const v2 = lesSkjema();
+        if (!v2.sok.length) { $('forhand').textContent = ''; return; }
+        const passer = lagMatcher(v2);
+        const treff = S.data.tilbud.filter((t) => passer(t.tittel));
+        $('forhand').innerHTML = treff.length
+          ? `Treffer <b>${treff.length}</b> tilbud nå: ${treff.slice(0, 6).map((t) => esc(pentNavn(t.tittel))).join(', ')}${treff.length > 6 ? ' …' : ''}`
+          : 'Ingen tilbud akkurat nå – men du får beskjed her når det dukker opp.';
+      };
+      skjema.addEventListener('input', oppdaterForhand);
+      oppdaterForhand();
+      skjema.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const ny = lesSkjema();
+        if (!ny.navn) return;
+        if (indeks >= 0) S.varer[indeks] = ny; else S.varer.push(ny);
+        lagreVarer();
+        $('skjemaplass').innerHTML = '';
+        tegnVareliste(); tegnButikker(); tegnInnhold();
+        vis(indeks >= 0 ? 'Lagret ✓' : `${ny.navn} er lagt til ✓`);
+      });
+      $('avbrytSkjema').addEventListener('click', () => { $('skjemaplass').innerHTML = ''; });
+      $('fNavn').focus();
+    }
+
+    function apneVarer(forslag) {
+      tegnVareliste();
+      $('skjemaplass').innerHTML = '';
+      $('varerDialog').showModal();
+      if (forslag) visSkjema(-1, forslag);
+    }
+
+    // ---------- Småting ----------
+    let meldingTimer;
+    function vis(tekst) {
+      const m = $('melding');
+      m.textContent = tekst;
+      m.classList.add('vis');
+      clearTimeout(meldingTimer);
+      meldingTimer = setTimeout(() => m.classList.remove('vis'), 2200);
+    }
+
+    async function kopier(tekst, ok) {
+      try { await navigator.clipboard.writeText(tekst); vis(ok); }
+      catch { prompt('Kopier teksten:', tekst); }
+    }
+
+    // ---------- Hendelser ----------
+    let sokTimer;
+    $('sok').addEventListener('input', (e) => {
+      $('sokefelt').classList.toggle('har-tekst', !!e.target.value);
+      clearTimeout(sokTimer);
+      sokTimer = setTimeout(() => { S.sok = e.target.value; tegnInnhold(); }, 120);
+    });
+    $('tomSok').addEventListener('click', () => {
+      $('sok').value = ''; S.sok = ''; $('sokefelt').classList.remove('har-tekst'); tegnInnhold(); $('sok').focus();
+    });
+
+    // Husk grupper brukeren selv åpner/lukker (ellers er de med gode tilbud åpne)
+    document.addEventListener('click', (e) => {
+      const summary = e.target.closest('details[data-gruppe] > summary');
+      if (!summary) return;
+      const d = summary.parentElement;
+      S.gruppevalg.set(d.dataset.gruppe, !d.open);
+    });
+
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('button, a');
+      if (!el) return;
+      const ds = el.dataset;
+
+      if ('lukk' in ds) { el.closest('dialog').close(); return; }
+      if ('apneVarer' in ds) { e.preventDefault(); apneVarer(); return; }
+      if (ds.butikk) {
+        const n = ds.butikk;
+        if (S.avslaatt.has(n)) S.avslaatt.delete(n); else S.avslaatt.add(n);
+        lager.skriv('avslaatteButikker', [...S.avslaatt]);
+        el.setAttribute('aria-pressed', String(!S.avslaatt.has(n)));
+        tegnInnhold();
+        return;
+      }
+      if (ds.handle) {
+        veksleHandle(ds.handle);
+        const paa = S.handleliste.some((h) => h.id === ds.handle);
+        document.querySelectorAll(`[data-handle="${CSS.escape(ds.handle)}"]`).forEach((b) => {
+          b.classList.toggle('paa', paa); b.textContent = paa ? '✓' : '＋';
+          b.setAttribute('aria-label', paa ? 'Fjern fra handlelista' : 'Legg i handlelista');
+        });
+        return;
+      }
+      if (ds.skjul) {
+        S.skjult.add(ds.skjul);
+        lager.skriv('skjult', [...S.skjult]);
+        tegnInnhold();
+        vis('Tilbudet er skjult');
+        return;
+      }
+      if (ds.bilde !== undefined) {
+        if (!ds.bilde) return;
+        $('storBilde').src = ds.bilde;
+        $('bildeDialog').showModal();
+        return;
+      }
+      if (ds.visalle) {
+        if (S.visAlle.has(ds.visalle)) S.visAlle.delete(ds.visalle); else S.visAlle.add(ds.visalle);
+        tegnInnhold();
+        return;
+      }
+      if ('andre' in ds) { visFlereAndre = !visFlereAndre; tegnInnhold(); return; }
+      if ('kjempe' in ds) { visFlereKjempe = !visFlereKjempe; tegnInnhold(); return; }
+      if ('nyFraSok' in ds) { apneVarer(S.sok.trim()); return; }
+      if (ds.fjernHandle) { veksleHandle(ds.fjernHandle); tegnHandleDialog(); tegnInnhold(); return; }
+      if (ds.rediger !== undefined) { visSkjema(Number(ds.rediger)); return; }
+      if (ds.slett !== undefined) {
+        const v = S.varer[Number(ds.slett)];
+        if (v && confirm(`Fjerne «${v.navn}» fra mine varer?`)) {
+          S.varer.splice(Number(ds.slett), 1);
+          lagreVarer(); tegnVareliste(); tegnButikker(); tegnInnhold();
+        }
+        return;
+      }
+      switch (el.id) {
+        case 'handlelinje': tegnHandleDialog(); $('handleDialog').showModal(); break;
+        case 'nyVare': visSkjema(-1); break;
+        case 'tomHandle':
+          if (confirm('Tømme handlelista?')) { S.handleliste = []; lager.skriv('handleliste', []); tegnHandlelinje(); tegnHandleDialog(); tegnInnhold(); }
+          break;
+        case 'kopierHandle': {
+          const perButikk = {};
+          for (const h of S.handleliste) (perButikk[h.butikk] ??= []).push(h);
+          const tekst = Object.entries(perButikk).map(([b, l]) => `${b}:\n` + l.map((h) => `- ${pentNavn(h.tittel)}${h.mengde ? ` (${h.mengde})` : ''} – ${kr(h.pris)} kr`).join('\n')).join('\n\n')
+            + `\n\nTotalt: ${kr(sumHandleliste())} kr`;
+          kopier(tekst, 'Handlelista er kopiert ✓');
+          break;
+        }
+        case 'delVarer': {
+          const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(S.varer)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+          kopier(`${location.origin}${location.pathname}#varer=${b64}`, 'Lenken er kopiert – åpne den på den andre enheten ✓');
+          break;
+        }
+        case 'nullstillVarer':
+          if (confirm('Bytte ut lista di med standardlista?')) {
+            S.varer = structuredClone(S.standardVarer); lager.slett('varer');
+            tegnVareliste(); tegnButikker(); tegnInnhold(); vis('Standardlista er tilbake');
+          }
+          break;
+      }
+    });
+
+    // Bilde som ikke laster → vis et ikon i stedet
+    document.addEventListener('error', (e) => {
+      if (e.target.tagName === 'IMG' && e.target.closest('.bildeknapp')) {
+        e.target.outerHTML = '<span class="ingen">🏷️</span>';
+      }
+    }, true);
+
+    // Lukk dialog ved klikk utenfor
+    document.querySelectorAll('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+
+    start();
+  </script>
+</body>
+</html>
