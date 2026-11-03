@@ -13,23 +13,24 @@ export const LOPENDE = new Set(['mat', 'forbruk']);
 
 export const STANDARD_PERSONER = [
   { id: 'meg', navn: 'Henrik' },
-  { id: 'p2', navn: 'Person 2' },
+  { id: 'p2', navn: 'Hanna' },
 ];
 
-// Startforslag for to i en husstand i Tromsø, studieåret 2026–2027.
+// Budsjett for Henrik og Hanna i Tromsø, studieåret 2026–2027. Husleie, strøm og støtte er deres tall;
+// resten er anslag som kan endres på siden.
 // «hvem» er 'felles' (deles mellom dere) eller en person-id. Felles beløp er totalen for husstanden.
 export const STANDARD_PLAN = {
   personer: STANDARD_PERSONER,
   andelMeg: 50, // hvor mange prosent av felles utgifter person 1 betaler
   inntekter: [
-    { id: 'lan', navn: 'Lånekassen (basislån)', belop: 15488, hvem: 'meg' },
+    { id: 'lan', navn: 'Støtte fra Lånekassen', belop: 11616, hvem: 'meg' },
     { id: 'jobb', navn: 'Deltidsjobb', belop: 0, hvem: 'meg' },
-    { id: 'lan-p2', navn: 'Lånekassen (basislån)', belop: 15488, hvem: 'p2' },
+    { id: 'lan-p2', navn: 'Støtte fra Lånekassen', belop: 11616, hvem: 'p2' },
     { id: 'jobb-p2', navn: 'Deltidsjobb', belop: 0, hvem: 'p2' },
   ],
   utgifter: [
-    { id: 'husleie', navn: 'Husleie', belop: 10000, gruppe: 'fast', hvem: 'felles' },
-    { id: 'strom', navn: 'Strøm og internett', belop: 1000, gruppe: 'fast', hvem: 'felles' },
+    { id: 'husleie', navn: 'Husleie', belop: 18000, gruppe: 'fast', hvem: 'felles' },
+    { id: 'strom', navn: 'Strøm', belop: 700, gruppe: 'fast', hvem: 'felles' },
     { id: 'forsikring', navn: 'Innboforsikring', belop: 150, gruppe: 'fast', hvem: 'felles' },
     { id: 'abonnement', navn: 'Abonnementer', belop: 300, gruppe: 'fast', hvem: 'felles' },
     { id: 'mobil', navn: 'Mobil', belop: 300, gruppe: 'fast', hvem: 'meg' },
@@ -54,11 +55,13 @@ export const STANDARD_PLAN = {
   ],
 };
 
-// Forrige standardplan (én person). Har noen den uendret lagret, bytter vi til den nye.
+// Tidligere standardplaner. Brukes for å oppdatere linjer du ikke har endret selv.
+const STANDARD_V2 = '{"personer":[{"id":"meg","navn":"Henrik"},{"id":"p2","navn":"Person 2"}],"andelMeg":50,"inntekter":[{"id":"lan","navn":"Lånekassen (basislån)","belop":15488,"hvem":"meg"},{"id":"jobb","navn":"Deltidsjobb","belop":0,"hvem":"meg"},{"id":"lan-p2","navn":"Lånekassen (basislån)","belop":15488,"hvem":"p2"},{"id":"jobb-p2","navn":"Deltidsjobb","belop":0,"hvem":"p2"}],"utgifter":[{"id":"husleie","navn":"Husleie","belop":10000,"gruppe":"fast","hvem":"felles"},{"id":"strom","navn":"Strøm og internett","belop":1000,"gruppe":"fast","hvem":"felles"},{"id":"forsikring","navn":"Innboforsikring","belop":150,"gruppe":"fast","hvem":"felles"},{"id":"abonnement","navn":"Abonnementer","belop":300,"gruppe":"fast","hvem":"felles"},{"id":"mobil","navn":"Mobil","belop":300,"gruppe":"fast","hvem":"meg"},{"id":"mobil-p2","navn":"Mobil","belop":300,"gruppe":"fast","hvem":"p2"},{"id":"buss","navn":"Buss (Svipper)","belop":450,"gruppe":"fast","hvem":"meg"},{"id":"buss-p2","navn":"Buss (Svipper)","belop":450,"gruppe":"fast","hvem":"p2"},{"id":"trening","navn":"Trening","belop":300,"gruppe":"fast","hvem":"meg"},{"id":"trening-p2","navn":"Trening","belop":300,"gruppe":"fast","hvem":"p2"},{"id":"semester","navn":"Semesteravgift","belop":120,"gruppe":"fast","hvem":"meg"},{"id":"semester-p2","navn":"Semesteravgift","belop":120,"gruppe":"fast","hvem":"p2"},{"id":"mat","navn":"Matbutikk","belop":7000,"gruppe":"mat","hvem":"felles"},{"id":"kantine","navn":"Kantine og take-away","belop":400,"gruppe":"mat","hvem":"meg"},{"id":"kantine-p2","navn":"Kantine og take-away","belop":400,"gruppe":"mat","hvem":"p2"},{"id":"hygiene","navn":"Hygiene og husholdning","belop":600,"gruppe":"forbruk","hvem":"felles"},{"id":"uforutsett","navn":"Uforutsett","belop":600,"gruppe":"forbruk","hvem":"felles"},{"id":"klaer","navn":"Klær og sko","belop":400,"gruppe":"forbruk","hvem":"meg"},{"id":"klaer-p2","navn":"Klær og sko","belop":400,"gruppe":"forbruk","hvem":"p2"},{"id":"fritid","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk","hvem":"meg"},{"id":"fritid-p2","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk","hvem":"p2"},{"id":"sparing","navn":"Sparing","belop":500,"gruppe":"sparing","hvem":"meg"},{"id":"sparing-p2","navn":"Sparing","belop":500,"gruppe":"sparing","hvem":"p2"}]}';
 const GAMMEL_STANDARD = '{"inntekter":[{"id":"lan","navn":"Lånekassen (basislån)","belop":15488},{"id":"jobb","navn":"Deltidsjobb","belop":0},{"id":"annet-inn","navn":"Annen inntekt","belop":0}],"utgifter":[{"id":"husleie","navn":"Husleie","belop":5500,"gruppe":"fast"},{"id":"strom","navn":"Strøm og internett","belop":300,"gruppe":"fast"},{"id":"mobil","navn":"Mobil","belop":300,"gruppe":"fast"},{"id":"forsikring","navn":"Innboforsikring","belop":120,"gruppe":"fast"},{"id":"buss","navn":"Buss (Svipper)","belop":450,"gruppe":"fast"},{"id":"trening","navn":"Trening","belop":300,"gruppe":"fast"},{"id":"abonnement","navn":"Abonnementer","belop":200,"gruppe":"fast"},{"id":"semester","navn":"Semesteravgift","belop":120,"gruppe":"fast"},{"id":"mat","navn":"Matbutikk","belop":4000,"gruppe":"mat"},{"id":"kantine","navn":"Kantine og take-away","belop":400,"gruppe":"mat"},{"id":"hygiene","navn":"Hygiene og husholdning","belop":400,"gruppe":"forbruk"},{"id":"klaer","navn":"Klær og sko","belop":400,"gruppe":"forbruk"},{"id":"fritid","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk"},{"id":"uforutsett","navn":"Uforutsett","belop":400,"gruppe":"forbruk"},{"id":"sparing","navn":"Sparing","belop":500,"gruppe":"sparing"}]}';
 const TYPISK_FELLES = new Set(['husleie', 'strom', 'forsikring', 'abonnement', 'mat', 'hygiene', 'uforutsett']);
 
 const NOKKEL_PLAN = 'budsjett.plan';
+const NOKKEL_BASIS = 'budsjett.planBasis'; // standardplanen slik den var da du sist lagret
 const NOKKEL_POSTER = 'budsjett.poster';
 const NOKKEL_LONN = 'budsjett.lonn';
 
@@ -69,10 +72,44 @@ function skriv(nokkel, verdi) {
   try { localStorage.setItem(nokkel, JSON.stringify(verdi)); return true; } catch { return false; }
 }
 
-// Sørger for at eldre lagrede planer (fra før husstand-støtten) fortsatt virker.
-export function normaliserPlan(p) {
-  if (!p || JSON.stringify(p) === GAMMEL_STANDARD) return structuredClone(STANDARD_PLAN);
-  const plan = structuredClone(p);
+const lik = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+// Når standardplanen blir oppdatert (f.eks. nye tall fra deg), flettes den inn i den lagrede planen:
+// linjer du ikke har rørt får de nye tallene, nye linjer legges til, og alt du har endret selv beholdes.
+function flettListe(mine = [], basis = [], std = []) {
+  const iBasis = new Map(basis.map((x) => [x.id, x]));
+  const iStd = new Map(std.map((x) => [x.id, x]));
+  const ut = mine.flatMap((l) => {
+    const b = iBasis.get(l.id);
+    if (!b || !lik(b, l)) return [l];
+    const ny = iStd.get(l.id);
+    return ny ? [structuredClone(ny)] : [];
+  });
+  const finnes = new Set(ut.map((x) => x.id));
+  for (const l of std) if (!iBasis.has(l.id) && !finnes.has(l.id)) ut.push(structuredClone(l));
+  return ut;
+}
+
+function flett(mine, basis, std) {
+  if (lik(basis, std)) return mine;
+  return {
+    ...mine,
+    personer: flettListe(mine.personer, basis.personer, std.personer),
+    andelMeg: mine.andelMeg === basis.andelMeg ? std.andelMeg : mine.andelMeg,
+    inntekter: flettListe(mine.inntekter, basis.inntekter, std.inntekter),
+    utgifter: flettListe(mine.utgifter, basis.utgifter, std.utgifter),
+  };
+}
+
+// Sørger for at eldre lagrede planer fortsatt virker, og tar inn oppdateringer i standardplanen.
+export function normaliserPlan(p, basis = null) {
+  if (!p) return structuredClone(STANDARD_PLAN);
+  const json = JSON.stringify(p);
+  if (json === GAMMEL_STANDARD || json === STANDARD_V2) return structuredClone(STANDARD_PLAN);
+  let plan = structuredClone(p);
+  if (Array.isArray(plan.personer) && plan.personer.length) {
+    plan = flett(plan, basis || JSON.parse(STANDARD_V2), STANDARD_PLAN);
+  }
   if (!Array.isArray(plan.personer) || !plan.personer.length) {
     plan.personer = structuredClone(STANDARD_PERSONER);
     plan.migrert = true;
@@ -88,8 +125,8 @@ export function normaliserPlan(p) {
   return plan;
 }
 
-export const lesPlan = () => normaliserPlan(les(NOKKEL_PLAN, null));
-export const lagrePlan = (plan) => skriv(NOKKEL_PLAN, plan);
+export const lesPlan = () => normaliserPlan(les(NOKKEL_PLAN, null), les(NOKKEL_BASIS, null));
+export const lagrePlan = (plan) => skriv(NOKKEL_PLAN, plan) && skriv(NOKKEL_BASIS, STANDARD_PLAN);
 export const lesPoster = () => les(NOKKEL_POSTER, []);
 export const lagrePoster = (poster) => skriv(NOKKEL_POSTER, poster);
 export const lesLonn = () => {

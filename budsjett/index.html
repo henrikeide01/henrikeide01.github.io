@@ -309,7 +309,7 @@
       <section aria-labelledby="h-info">
         <h2 id="h-info">Greit å vite</h2>
         <div class="kort infoboks">
-          <p><b>Lånekassen 2026–2027:</b> Basislånet er <b>15 488 kr i måneden</b> for heltidsstudenter (170 368 kr for hele studieåret). Det betales ut den 15. hver måned. Inntil <b>40 % (ca. 6 195 kr i måneden)</b> kan bli gjort om til stipend. Da må du bestå, bo borte fra foreldrene og ha inntekt og formue under grensene.</p>
+          <p><b>Lånekassen 2026–2027:</b> I budsjettet står det 11 616 kr hver, som er det dere får fra staten. Fullt basislån for heltidsstudenter er <b>15 488 kr i måneden</b> (170 368 kr for hele studieåret). Det betales ut den 15. hver måned. Inntil <b>40 % (ca. 6 195 kr i måneden)</b> kan bli gjort om til stipend. Da må du bestå, bo borte fra foreldrene og ha inntekt og formue under grensene.</p>
           <p><b>Jobb ved siden av:</b> Tjener du mye i løpet av året, kan du få mindre av lånet gjort om til stipend. Sjekk inntektsgrensen hos Lånekassen hvis du planlegger mange timer.</p>
           <p><b>Skatt på lønn:</b> Har du tabelltrekk, trekkes det vanligvis ingen skatt i juni og halv skatt i desember. Har du frikort, trekkes det ingen skatt før du når frikortgrensen. Derfor kan utbetalingen variere fra måned til måned.</p>
           <p><b>Feriepenger:</b> Arbeidsgiveren setter vanligvis av 10,2 % av bruttolønna som feriepenger. De betales ut i juni året etter.</p>
@@ -481,11 +481,15 @@
           <div class="felt"><label for="aTimer">Timer du skal jobbe</label><input id="aTimer" type="number" inputmode="decimal" min="0" step="any" value="${lp.timer ?? ''}"></div>
           <div class="felt"><label for="aPer">per</label><select id="aPer"><option value="uke" ${lp.per === 'uke' ? 'selected' : ''}>uke</option><option value="maaned" ${lp.per !== 'uke' ? 'selected' : ''}>måned</option></select></div>
         </div>`;
+      const mangler = Math.max(0, -summerPlan(S.plan, 'alle').tilOvers);
+      const genitiv = navn.endsWith('s') ? `${navn}'` : `${navn}s`;
       if (!stat) {
         $('lonnsanslag').innerHTML = `<h3>Hvor mye får ${flerePersoner() ? esc(navn) : 'jeg'} utbetalt?</h3>${felt}
-          <p class="grunnlag">Legg inn minst én lønnsslipp${flerePersoner() ? ` for ${esc(navn)}` : ''} nedenfor, så regner siden ut hvor mye du får for timene du skal jobbe.</p>`;
+          <p class="grunnlag">Legg inn minst én lønnsslipp${flerePersoner() ? ` for ${esc(navn)}` : ''} nedenfor, så regner siden ut hvor mye du får for timene du skal jobbe.</p>
+          ${mangler ? `<p class="varsel kritisk">⚠️ Budsjettet mangler ${kroner(mangler)} kr i måneden. Når du har lagt inn en lønnsslipp, regner siden ut hvor mange timer jobb som trengs for å dekke det.</p>` : ''}`;
         return;
       }
+      const timerNull = mangler / stat.perTimeNetto;
       const a = anslagLonn(stat, Number(lp.timer) || 0, lp.per);
       $('lonnsanslag').innerHTML = `
         <h3>Hvor mye får ${flerePersoner() ? esc(navn) : 'jeg'} utbetalt?</h3>
@@ -497,6 +501,8 @@
           <div class="kort"><div class="etikett">Brutto per år</div><div class="verdi">≈ ${kroner(a.aarBrutto)} kr</div><div class="liten">hvis du jobber slik hele året</div></div>
         </div>
         <p class="grunnlag">Regnet ut fra <b>${stat.antall} ${stat.antall === 1 ? 'lønnsslipp' : 'lønnsslipper'}</b> (${kroner(stat.timer)} timer): <b>${kroner(stat.perTimeBrutto)} kr/t</b> brutto, <b>${kroner(stat.perTimeNetto)} kr/t</b> utbetalt, ${Math.round(stat.trekkandel * 100)} % trekk.</p>
+        ${mangler ? `<p class="varsel kritisk">⚠️ Budsjettet mangler ${kroner(mangler)} kr i måneden. Med ${esc(genitiv)} timelønn tilsvarer det ca. <b>${kroner(timerNull)} timer ekstra jobb i måneden</b> (ca. ${kroner((timerNull * 12) / 52)} i uka), i tillegg til det som allerede står i budsjettet.</p>`
+          : `<p class="varsel">✓ Budsjettet går opp med det som står i det nå.</p>`}
         <div class="knapprad" style="margin-top:12px"><button class="knapp hoved" id="brukLonn" data-belop="${Math.round(a.netto)}">Bruk ${kroner(a.netto)} kr som lønn i budsjettet</button></div>`;
     }
 
@@ -759,6 +765,7 @@
       lagre();
       oppdaterGruppesummer();
       tegnOversikt();
+      tegnLonnsanslag();
     });
     $('planredigering').addEventListener('change', () => { tegnKategorivalg(); tegnKategorier(); });
 
