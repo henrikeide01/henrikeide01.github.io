@@ -1,0 +1,17 @@
+name: Sjekk Firebase (midlertidig)
+on:
+  push:
+    branches: [sjekk-firebase]
+jobs:
+  sjekk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Les og skriv
+        run: |
+          U=https://eidert-default-rtdb.europe-west1.firebasedatabase.app
+          for p in budsjett meal_users fest_accounts snekker_projects; do
+            echo "$p lese: $(curl -s -o /dev/null -w '%{http_code}' "$U/$p.json?shallow=true")"
+          done
+          K=_sjekk_$RANDOM
+          echo "budsjett skrive: $(curl -s -o /tmp/svar -w '%{http_code}' -X PUT -d '{"t":1}' "$U/budsjett/$K.json") $(cat /tmp/svar)"
+          echo "budsjett slette: $(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$U/budsjett/$K.json")"
