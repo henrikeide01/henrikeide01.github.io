@@ -91,11 +91,11 @@
     .tilbake { display: inline-flex; align-items: center; gap: 6px; color: var(--dempet); text-decoration: none; font-size: 14px; }
     .tilbake:hover { color: var(--tekst); }
     .toppknapper { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .sprakknapp { border: 1px solid var(--linje); background: var(--flate); color: var(--tekst); padding: 6px 10px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer; font-family: inherit; }
+    .sprakknapp { border: 1px solid var(--linje); background: var(--flate); color: var(--tekst); padding: 6px 10px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer; font-family: inherit; width: auto; }
     h1 { font-size: clamp(30px, 7vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin-top: 14px; }
     h1 .uke { display: inline-block; font-size: .42em; vertical-align: middle; background: var(--gul); color: #1d2433; padding: 4px 10px; border-radius: 999px; letter-spacing: 0; margin-left: 6px; transform: translateY(-4px); }
     .meta { color: var(--dempet); font-size: 15px; margin-top: 8px; }
-    .budsjettlinje { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 7px 12px; border-radius: 999px; background: var(--flate); border: 1px solid var(--linje); color: var(--tekst); text-decoration: none; font-size: 14.5px; font-weight: 500; }
+    .budsjettlinje { display: inline-block; margin-top: 10px; padding: 7px 14px; border-radius: 18px; line-height: 1.45; background: var(--flate); border: 1px solid var(--linje); color: var(--tekst); text-decoration: none; font-size: 14.5px; font-weight: 500; }
     .budsjettlinje b { font-weight: 700; }
     .budsjettlinje:empty { display: none; }
 
@@ -329,8 +329,9 @@
     import { erDelt, synk } from '../hjem/synk.js';
     import { t, oversett, LOK, leggTilOrdbok, startOversetting, sprakknapp } from '../hjem/sprak.js';
     import { MAT_EN } from '../hjem/mat-en.js';
-    leggTilOrdbok(MAT_EN);
-    document.getElementById('sprakplass').innerHTML = sprakknapp();
+    import { MAT_ES } from '../hjem/mat-es.js';
+    leggTilOrdbok({ en: MAT_EN, es: MAT_ES });
+    document.getElementById('sprakplass').innerHTML = sprakknapp({ kort: true });
     startOversetting();
 
     // ---------- Lagring (tåler privat modus) ----------

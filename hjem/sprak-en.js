@@ -1,7 +1,7 @@
 // English dictionary (norsk → English). # stands for a number, {x} for a value filled in by the code.
 export const EN = {
   // ---------- Felles ----------
-  'Hjemme': 'Home', 'Prosjekter': 'Projects', 'Ukens tilbud': "This week's offers", 'Bytt til norsk': 'Switch to Norwegian',
+  'Hjemme': 'Home', 'Prosjekter': 'Projects', 'Ukens tilbud': 'Offers', 'Bytt til norsk': 'Switch to Norwegian',
   'og': 'and', 'Lukk': 'Close', 'Lagre': 'Save', 'Avbryt': 'Cancel', 'Fortsett': 'Continue', 'Tilbake': 'Back', 'Neste': 'Next',
   'Hopp over': 'Skip', 'Ja': 'Yes', 'Nei': 'No', 'Endre': 'Edit', 'Fjern': 'Remove', 'Velg': 'Choose', 'Legg til': 'Add', 'Totalt': 'Total',
   'Kopier': 'Copy', 'Senere': 'Later', 'Angre': 'Undo', 'Angret': 'Undone', 'Spist': 'Eaten', 'Lagret ✓': 'Saved ✓', 'Navn': 'Name', 'Kode': 'Code',
@@ -195,7 +195,8 @@ export const EN = {
   'Appen finnes nå også på engelsk.': 'The app is now also available in English.',
   'Derfor har vi noen nye spørsmål til alle i husstanden. Det tar under ett minutt, og alt dere har lagt inn fra før blir liggende.': "So we have a few new questions for everyone in the household. It takes less than a minute, and everything you've already entered stays.",
   'Alt dere har lagt inn fra før blir liggende.': "Everything you've already entered stays.", '{navn} kan svare på sin egen telefon, eller du kan svare under Oss.': '{navn} can answer on their own phone, or you can answer under Us.',
-  'Så bra!': 'Great!',
+  'Så bra!': 'Great!', '{p} g protein': '{p} g protein', 'protein': 'protein',
+  'Español': 'Español', 'Appen finnes nå også på argentinsk spansk. Velg språk øverst på siden.': 'The app is now also available in Argentinian Spanish. Choose a language at the top of the page.',
 
   // ---------- Spørsmål ----------
   '{tittel} · {nr} av {antall}': '{tittel} · {nr} of {antall}',

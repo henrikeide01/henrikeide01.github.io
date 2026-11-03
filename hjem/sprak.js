@@ -1,23 +1,33 @@
-// Språk: norsk (standard) eller engelsk. Valget lagres per telefon.
-// Siden skrives på norsk; når engelsk er valgt, oversettes teksten på siden fortløpende
-// fra ordboka i sprak-en.js (og navn på retter, varer og måltider fra mat-en.js).
+// Språk: norsk (standard), engelsk eller argentinsk spansk. Valget lagres per telefon.
+// Siden skrives på norsk; når et annet språk er valgt, oversettes teksten på siden fortløpende
+// fra ordbøkene i sprak-en.js / sprak-es.js (og navn på retter og varer fra mat-en.js / mat-es.js).
 import { EN, MONSTRE } from './sprak-en.js';
+import { ES, MONSTRE_ES } from './sprak-es.js';
+export const SPRAK = [
+  { id: 'no', navn: 'Norsk', flagg: '🇳🇴', lok: 'nb-NO' },
+  { id: 'en', navn: 'English', flagg: '🇬🇧', lok: 'en-GB' },
+  { id: 'es', navn: 'Español', flagg: '🇦🇷', lok: 'es-AR' },
+];
 
 const NOKKEL = 'hjem.sprak';
 
 function lesSprak() {
   if (typeof window === 'undefined') return 'no';
-  try { const v = localStorage.getItem(NOKKEL); if (v === 'no' || v === 'en') return v; } catch {}
+  try { const v = localStorage.getItem(NOKKEL); if (SPRAK.some((x) => x.id === v)) return v; } catch {}
   // Alle som allerede bruker appen, beholder norsk til de selv bytter
   try { if (['budsjett.plan', 'budsjett.poster', 'hjem.mat', 'tilbudsavis.varer'].some((k) => localStorage.getItem(k) != null)) return 'no'; } catch {}
-  // Nye besøkende med en telefon på et annet språk enn norsk, svensk eller dansk får engelsk
-  try { const l = (navigator.language || '').toLowerCase(); if (l && !/^(nb|nn|no|sv|da)/.test(l)) return 'en'; } catch {}
+  // Nye besøkende: spansk telefon gir spansk, andre språk enn norsk, svensk og dansk gir engelsk
+  try { const l = (navigator.language || '').toLowerCase(); if (/^es/.test(l)) return 'es'; if (l && !/^(nb|nn|no|sv|da)/.test(l)) return 'en'; } catch {}
   return 'no';
 }
 
 export const sprak = lesSprak();
 export const erEngelsk = sprak === 'en';
-export const LOK = erEngelsk ? 'en-GB' : 'nb-NO';
+export const erSpansk = sprak === 'es';
+export const oversettes = sprak !== 'no';
+export const LOK = SPRAK.find((x) => x.id === sprak).lok;
+const ORDBOK = { en: EN, es: ES }[sprak] || {};
+const MONSTER = { en: MONSTRE, es: MONSTRE_ES }[sprak] || [];
 
 export function settSprak(s) {
   try { localStorage.setItem(NOKKEL, s); } catch {}
@@ -25,10 +35,11 @@ export function settSprak(s) {
 }
 
 const ekstra = {};
-export function leggTilOrdbok(ordbok) { Object.assign(ekstra, ordbok); }
+// Ekstra ordbøker per språk: leggTilOrdbok({ en: MAT_EN, es: MAT_ES })
+export function leggTilOrdbok(perSprak) { Object.assign(ekstra, perSprak[sprak] || {}); }
 
 const har = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
-const slaOpp = (tekst) => (har(ekstra, tekst) ? ekstra[tekst] : har(EN, tekst) ? EN[tekst] : null);
+const slaOpp = (tekst) => (har(ekstra, tekst) ? ekstra[tekst] : har(ORDBOK, tekst) ? ORDBOK[tekst] : null);
 
 // Tall i teksten byttes med # før oppslag, så «Ca. 1 234 kr» finner «Ca. # kr»
 const TALL = /[\d½¼¾](?:[\d½¼¾  ]|[ ,.:](?=\d))*/g;
@@ -47,7 +58,7 @@ function medTall(tekst) {
 const FORAN = /^[^\p{L}\p{N}«"(¿]+/u;
 const BAK = /[^\p{L}\p{N}.:!?)»"%]+$/u;
 function monster(tekst) {
-  for (const [re, f] of MONSTRE) {
+  for (const [re, f] of MONSTER) {
     const m = tekst.match(re);
     if (m) { const r = typeof f === 'function' ? f(m, oversett) : tekst.replace(re, f); if (r != null) return r; }
   }
@@ -69,7 +80,7 @@ function finn(tekst) {
 
 // Oversett en hel tekst (eller returner den som den er)
 export function oversett(tekst) {
-  if (!erEngelsk || tekst == null) return tekst;
+  if (!oversettes || tekst == null) return tekst;
   const s = String(tekst);
   const f = finn(s.trim());
   return f != null ? s.replace(s.trim(), f) : s;
@@ -84,7 +95,7 @@ export function t(tekst, verdier) {
 export function liste(deler) {
   const d = deler.filter(Boolean);
   if (d.length < 2) return d.join('');
-  return `${d.slice(0, -1).join(', ')} ${erEngelsk ? 'and' : 'og'} ${d[d.length - 1]}`;
+  return `${d.slice(0, -1).join(', ')} ${{ no: 'og', en: 'and', es: 'y' }[sprak]} ${d[d.length - 1]}`;
 }
 
 const ATTRIBUTTER = ['placeholder', 'aria-label', 'title'];
@@ -111,7 +122,7 @@ function oversettAttributter(el) {
 }
 
 export function oversettDom(rot) {
-  if (!erEngelsk || !rot) return;
+  if (!oversettes || !rot) return;
   if (rot.nodeType === 3) { oversettTekstnode(rot); return; }
   if (rot.nodeType !== 1 || HOPP.has(rot.tagName)) return;
   oversettAttributter(rot);
@@ -122,8 +133,8 @@ export function oversettDom(rot) {
 }
 
 export function startOversetting() {
-  if (!erEngelsk) return;
-  document.documentElement.lang = 'en';
+  if (!oversettes) return;
+  document.documentElement.lang = sprak;
   document.title = oversett(document.title);
   oversettDom(document.body);
   new MutationObserver((endringer) => {
@@ -136,11 +147,11 @@ export function startOversetting() {
 }
 
 // Knapp for å bytte språk
-export function sprakknapp() {
-  return erEngelsk
-    ? '<button type="button" class="sprakknapp" data-sprak="no" data-ikke-oversett aria-label="Bytt til norsk">🇳🇴 Norsk</button>'
-    : '<button type="button" class="sprakknapp" data-sprak="en" aria-label="Switch to English">🇬🇧 English</button>';
+// Språkvelger: 🇳🇴 / 🇬🇧 / 🇦🇷
+// kort: bare flagg og kode (til toppen av siden), ellers hele navnet
+export function sprakknapp({ kort = false } = {}) {
+  return `<select class="sprakknapp" data-sprakvalg data-ikke-oversett aria-label="Språk · Language · Idioma">${SPRAK.map((x) => `<option value="${x.id}" ${x.id === sprak ? 'selected' : ''}>${x.flagg} ${kort ? x.id.toUpperCase() : x.navn}</option>`).join('')}</select>`;
 }
 if (typeof document !== 'undefined') {
-  document.addEventListener('click', (e) => { const b = e.target.closest?.('[data-sprak]'); if (b) settSprak(b.dataset.sprak); });
+  document.addEventListener('change', (e) => { const v = e.target.closest?.('[data-sprakvalg]'); if (v && v.value !== sprak) settSprak(v.value); });
 }

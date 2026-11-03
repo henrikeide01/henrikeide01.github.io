@@ -287,7 +287,7 @@
 
     /* Språk */
     .toppknapper { display: flex; gap: 6px; align-items: center; }
-    .sprakknapp { border: 1px solid var(--linje); background: var(--flate); color: var(--tekst); padding: 6px 10px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap; }
+    .sprakknapp { border: 1px solid var(--linje); background: var(--flate); color: var(--tekst); padding: 6px 10px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap; width: auto; min-width: 0; cursor: pointer; font-size: 16px; }
     .nytt .sprakknapp { margin-top: 6px; }
 
     /* Dagsplan */
@@ -527,9 +527,10 @@
       ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
       nyeSporsmalFor, nyeHusstandssporsmalFor,
     } from './sporsmal.js';
-    import { t, oversett, liste, LOK, erEngelsk, leggTilOrdbok, startOversetting, sprakknapp } from './sprak.js';
+    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp } from './sprak.js';
     import { MAT_EN } from './mat-en.js';
-    leggTilOrdbok(MAT_EN);
+    import { MAT_ES } from './mat-es.js';
+    leggTilOrdbok({ en: MAT_EN, es: MAT_ES });
 
     // Telefoner som brukte budsjettet før oppstarten kom, beholder oppsettet sitt
     sikreTidligereOppsett();
@@ -913,7 +914,7 @@
     const husTrengerNye = () => husHarSvart() && nyeHusstandssporsmalFor(S.mat.husstand).length > 0;
     const bareNyttMal = (id) => (Number(profil(id).v) || 1) >= 2; // har svart på dagsplan-spørsmålene, mangler bare målet
     const navnPaa = (key) => oversett(INGREDIENSER[key]?.navn || key);
-    const mengdeT = (key, gram, o) => { const m = mengdeTekst(key, gram, o); return erEngelsk ? m.replace(/ stk$/, ' pcs').replace(/(\d),(\d)/, '$1.$2') : m; };
+    const mengdeT = (key, gram, o) => { const m = mengdeTekst(key, gram, o); return erEngelsk ? m.replace(/ stk$/, ' pcs').replace(/(\d),(\d)/, '$1.$2') : erSpansk ? m.replace(/ stk$/, ' u.') : m; };
 
     function tegnPaaminnelse() {
       const jegId = meg();
@@ -1012,6 +1013,7 @@
 
     // ---------- Dagsplan: frokost, lunsj, mellommåltid, middag og kveldsmat ----------
     const maltidLogg = (dato, pid, slot) => (S.mat.logg || []).find((l) => l.type === 'maltid' && l.dato === dato && l.person === pid && l.slot === slot);
+    const gProt = (g) => t('{p} g protein', { p: kroner(g) });
     const porsjTekst = (f) => t(f === 1 ? '{n} porsjon' : '{n} porsjoner', { n: porsj(f) });
     function mengdeMaltid(m, faktor) {
       if (m.fast) { const [key, g] = Object.entries(m.ingredienser)[0] || []; if (key) return mengdeT(key, g * faktor); }
@@ -1034,7 +1036,7 @@
         if (x.slot === 'middag') {
           kcal += x.kcal; protein += x.p;
           return `<div class="maltid ${middagSpist ? 'spist' : ''}">
-            <button class="rettknapp" type="button" data-rett="${esc(x.r.id)}" data-dato="${d}"><span class="ikon">${x.r.ikon}</span><span><small class="slot">${esc(MALTIDSNAVN.middag)}</small><b>${esc(x.r.navn)}</b><small>${esc(`${porsjTekst(x.faktor)} · ${kroner(x.kcal)} kcal · ${kroner(x.p)} g protein`)}</small></span></button>
+            <button class="rettknapp" type="button" data-rett="${esc(x.r.id)}" data-dato="${d}"><span class="ikon">${x.r.ikon}</span><span><small class="slot">${esc(MALTIDSNAVN.middag)}</small><b>${esc(x.r.navn)}</b><small>${esc(`${porsjTekst(x.faktor)} · ${kroner(x.kcal)} kcal · ${gProt(x.p)}`)}</small></span></button>
             <span></span>
             ${middagSpist ? `<span class="ikonknapp spistknapp" aria-pressed="true" title="${esc(t('Spist'))}">✓</span>` : `<button class="ikonknapp spistknapp" type="button" data-spist="${d}" aria-label="${esc(t('Vi har spist middag'))}">✓</button>`}
           </div>`;
@@ -1047,7 +1049,7 @@
         const mangler = !l && brukerKjokken && x.mangler?.length ? `<small class="mangel">🛒 ${esc(t('Mangler {hva}', { hva: liste(x.mangler.slice(0, 3).map((key) => navnPaa(key).toLowerCase())) }))}</small>` : '';
         const navn = oversett(MALTIDSNAVN[x.slot]);
         return `<div class="maltid ${l ? 'spist' : ''}">
-          <button class="rettknapp" type="button" data-maltid-vis="${x.slot}"><span class="ikon">${m.ikon}</span><span><small class="slot">${esc(navn)}</small><b>${esc(maltidNavn(m, l, x))}</b><small>${esc(`${mengdeMaltid(m, faktor)} · ${kroner(k)} kcal · ${kroner(p)} g protein${fra}`)}</small>${mangler}</span></button>
+          <button class="rettknapp" type="button" data-maltid-vis="${x.slot}"><span class="ikon">${m.ikon}</span><span><small class="slot">${esc(navn)}</small><b>${esc(maltidNavn(m, l, x))}</b><small>${esc(`${mengdeMaltid(m, faktor)} · ${kroner(k)} kcal · ${gProt(p)}${fra}`)}</small>${mangler}</span></button>
           ${l ? '<span></span>' : `<button class="ikonknapp" type="button" data-maltid-bytt="${x.slot}" aria-label="${esc(t('Bytt {hva}', { hva: navn.toLowerCase() }))}">🔄</button>`}
           <button class="ikonknapp spistknapp" type="button" data-maltid-spist="${x.slot}" aria-pressed="${!!l}" aria-label="${esc(l ? t('Angre {hva}', { hva: navn.toLowerCase() }) : t('Spist {hva}', { hva: navn.toLowerCase() }))}">✓</button>
         </div>`;
@@ -1058,7 +1060,7 @@
         const m = maltid(l.maltid);
         kcal += l.kcal || 0; protein += l.p || 0;
         return `<div class="maltid spist">
-          <span class="rettknapp"><span class="ikon">${m?.ikon || '🍽️'}</span><span><small class="slot">${esc(t('Ekstra'))}</small><b>${esc(maltidNavn(m, l))}</b><small>${esc(`${kroner(l.kcal)} kcal · ${kroner(l.p)} g protein`)}</small></span></span>
+          <span class="rettknapp"><span class="ikon">${m?.ikon || '🍽️'}</span><span><small class="slot">${esc(t('Ekstra'))}</small><b>${esc(maltidNavn(m, l))}</b><small>${esc(`${kroner(l.kcal)} kcal · ${gProt(l.p)}`)}</small></span></span>
           <span></span>
           <button class="ikonknapp spistknapp" type="button" data-angre-logg="${esc(l.id)}" aria-pressed="true" aria-label="${esc(t('Angre'))}">✓</button>
         </div>`;
@@ -1215,7 +1217,7 @@
           <button class="knapp hoved" type="button" data-spis-rest="${esc(x.id)}">Spis nå</button></div>`;
       }).join('');
       const middager = f.middager.slice(0, antall).map((x) => `<div class="dag" style="grid-template-columns:1fr auto">
-          <button class="rettknapp" type="button" data-rett="${esc(x.r.id)}" data-dato="${dagForLaging()}"><span class="ikon">${x.r.ikon}</span><span><b>${esc(x.r.navn)}</b><small>${esc(`${x.r.tid} min · ${kroner(perPorsjon(x.r).p)} g protein`)}</small>${kanLageStatus(x)}</span></button>
+          <button class="rettknapp" type="button" data-rett="${esc(x.r.id)}" data-dato="${dagForLaging()}"><span class="ikon">${x.r.ikon}</span><span><b>${esc(x.r.navn)}</b><small>${esc(`${x.r.tid} min · ${gProt(perPorsjon(x.r).p)}`)}</small>${kanLageStatus(x)}</span></button>
           <button class="knapp" type="button" data-lag-na="${esc(x.r.id)}">${lagTekst}</button></div>`).join('');
       const maltider = f.maltider.slice(0, antall).map((x) => `<div class="dag" style="grid-template-columns:1fr auto">
           <span class="rettknapp"><span class="ikon">${x.m.ikon}</span><span><b>${esc(x.m.navn)}</b><small>${esc(oversett(MALTIDSNAVN[x.m.maltid]))}</small>${kanLageStatus(x)}</span></span>
@@ -1299,7 +1301,7 @@
         const m = S.mat.meny?.[d];
         const r = m?.id ? oppskrift(m.id) : null;
         const ukedag = dagKort.format(somDato(d)).split(' ')[0].replace('.', '');
-        const navn = `<div class="dagnavn">${esc(i === 0 ? 'I dag' : ukedag.charAt(0).toUpperCase() + ukedag.slice(1))}<small>${esc(somDato(d).getUTCDate() + (erEngelsk ? '/' : '.') + (somDato(d).getUTCMonth() + 1))}</small></div>`;
+        const navn = `<div class="dagnavn">${esc(i === 0 ? 'I dag' : ukedag.charAt(0).toUpperCase() + ukedag.slice(1))}<small>${esc(somDato(d).getUTCDate() + (oversettes ? '/' : '.') + (somDato(d).getUTCMonth() + 1))}</small></div>`;
         if (!r) {
           rader.push(`<div class="dag fri ${i === 0 ? 'idag' : ''}">${navn}<button class="rettknapp" type="button" data-foresla="${d}"><span class="ikon">➕</span><span><b>Ingen middag</b><small>Trykk for et forslag</small></span></button><span></span></div>`);
           continue;
@@ -1674,7 +1676,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 3, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 4, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -1682,6 +1684,7 @@
       { v: 3, ikon: '🔥', tittel: 'Nytt mål', tekst: 'Gå ned i vekt og bygge muskler samtidig – litt færre kalorier og ekstra mye protein.' },
       { v: 3, ikon: '🥫', tittel: 'Kjøkkenet følger med', tekst: 'Det dere fører som spist, trekkes fra kjøkkenet, og rester fra middagen blir egne porsjoner. Angrer du, legges varene tilbake.' },
       { v: 3, ikon: '🧑‍🍳', tittel: 'Hva kan vi lage?', tekst: 'Forslag til middager og småmåltider ut fra det dere har i kjøleskapet – under Kjøkken.' },
+      { v: 4, ikon: '🇦🇷', tittel: 'Español', tekst: 'Appen finnes nå også på argentinsk spansk. Velg språk øverst på siden.', sprak: true },
     ];
     const settOppdatering = () => { try { localStorage.setItem(OPPD_NOKKEL, String(OPPDATERING)); } catch {} };
     const settVersjon = () => { try { return Number(localStorage.getItem(OPPD_NOKKEL)) || 0; } catch { return OPPDATERING; } };
@@ -2244,7 +2247,7 @@
 
     if (S.plan.migrert) { lagre(); }
     S.lonnPerson = meg();
-    $('sprakplass').innerHTML = sprakknapp();
+    $('sprakplass').innerHTML = sprakknapp({ kort: true });
     startOversetting();
     visFane();
     tegnAlt();
