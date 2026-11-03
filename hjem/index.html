@@ -310,6 +310,12 @@
     .butikkrad.beste b, .butikkrad.beste .tall { color: var(--god-tekst); font-weight: 700; }
     .butikker .tips { font-size: 14px; margin-top: 2px; }
 
+    .kjokkenrad .navn small { display: block; color: var(--dempet); font-weight: 400; font-size: 12.5px; }
+    .kanlage small { display: block; }
+    .kanlage small.har { color: var(--god-tekst); }
+    .kanlage .knapp { white-space: nowrap; padding: 9px 12px; font-size: 14px; }
+    .undertittel { font-size: 13px; font-weight: 700; color: var(--dempet); text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 2px; }
+
     /* Oppdatering */
     .nytt { list-style: none; display: grid; gap: 12px; }
     .nytt li { display: grid; grid-template-columns: 30px 1fr; gap: 8px; font-size: 15px; }
@@ -356,6 +362,7 @@
     <main data-fane="kjokken" hidden>
       <h1>Kjøkkenet</h1>
       <p class="forklaring" style="margin:-4px 0 12px">Oppdateres når dere handler og lager mat. Olje, salt, krydder og soyasaus regnes som noe dere alltid har.</p>
+      <div class="kort kanlage" id="kanLage"></div>
       <div id="kjokkenVarsel"></div>
       <div class="kort" id="kjokkenListe"></div>
       <div class="kort"><h2>Legg til det dere har</h2><div id="kjokkenLeggTil"></div></div>
@@ -514,9 +521,11 @@
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
       dagsplan, alternativer, maltid, MALTIDSNAVN, behovForUke, butikkanbefaling,
+      fraKjokkenet, resterFor, slotsFor, naeringMaltid, RESTER_DAGER,
     } from './mat.js';
     import {
-      ALLE_PERSONSPORSMAL, NYE_PERSONSPORSMAL, HUSSTANDSPORSMAL, NYE_HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
+      ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
+      nyeSporsmalFor, nyeHusstandssporsmalFor,
     } from './sporsmal.js';
     import { t, oversett, liste, LOK, erEngelsk, leggTilOrdbok, startOversetting, sprakknapp } from './sprak.js';
     import { MAT_EN } from './mat-en.js';
@@ -899,9 +908,10 @@
 
     // Nye spørsmål etter oppdateringen (versjon 2: dagsplan og ukeshandel)
     const harNyeSvar = (id) => { const pr = profil(id); return pr.maltider != null || pr.frokostvaner != null || pr.lunsjvaner != null; };
-    const trengerNye = (id) => Object.keys(profil(id)).length > 0 && (Number(profil(id).v) || 1) < SPORSMALSVERSJON;
+    const trengerNye = (id) => Object.keys(profil(id)).length > 0 && nyeSporsmalFor(profil(id)).length > 0;
     const husHarSvart = () => Object.keys(S.mat.husstand || {}).some((k) => k !== 'fokus');
-    const husTrengerNye = () => husHarSvart() && (Number(S.mat.husstand.v) || 1) < SPORSMALSVERSJON;
+    const husTrengerNye = () => husHarSvart() && nyeHusstandssporsmalFor(S.mat.husstand).length > 0;
+    const bareNyttMal = (id) => (Number(profil(id).v) || 1) >= 2; // har svart på dagsplan-spørsmålene, mangler bare målet
     const navnPaa = (key) => oversett(INGREDIENSER[key]?.navn || key);
     const mengdeT = (key, gram, o) => { const m = mengdeTekst(key, gram, o); return erEngelsk ? m.replace(/ stk$/, ' pcs').replace(/(\d),(\d)/, '$1.$2') : m; };
 
@@ -920,6 +930,7 @@
       const oppdatering = !megMangler && (megNye || husNye);
       const nyeTittel = !megMangler && (megNye || husNye || andreNye.length > 0);
       const tekst = megMangler ? t('Svar på noen raske spørsmål, så tilpasser appen middager, dagsplan, porsjoner og kalorier til deg.')
+        : oppdatering && megNye && bareNyttMal(jegId) && !husNye ? t('Nytt: Du kan nå velge å gå ned i vekt og bygge muskler samtidig. Sjekk om målet ditt fortsatt stemmer.')
         : oppdatering ? t('Appen kan nå lage dagsplaner og ukeshandel. Svar på noen få nye spørsmål om frokost, lunsj og handling, så passer forslagene bedre.')
         : !husOk ? t('Fortell litt om husstanden, så blir forslagene bedre.') : '';
       const omAndre = [
@@ -944,7 +955,7 @@
       const m = S.mat.meny?.[d];
       const r = m?.id ? oppskrift(m.id) : null;
       if (!r) {
-        $('middagIdag').innerHTML = `<div class="forklaring" style="font-weight:600">Middag i dag</div><h2 style="margin:4px 0 10px">Ingen middag planlagt</h2><button class="knapp hoved stor" type="button" data-foresla="${d}">Foreslå en middag</button>`;
+        $('middagIdag').innerHTML = `<div class="forklaring" style="font-weight:600">Middag i dag</div><h2 style="margin:4px 0 10px">Ingen middag planlagt</h2><div class="knapper3"><button class="knapp hoved stor" type="button" data-foresla="${d}">Foreslå en middag</button><button class="knapp stor" type="button" data-kan-lage style="grid-column:1/-1">🧑‍🍳 Ut fra det vi har</button></div>`;
         return;
       }
       const info = infoFor(r, d);
@@ -964,7 +975,8 @@
           <button class="knapp hoved stor" type="button" data-spist="${d}">✓ Vi har spist</button>
           <button class="knapp" type="button" data-rett="${esc(r.id)}" data-dato="${d}">👨‍🍳 Oppskrift</button>
           <button class="knapp" type="button" data-bytt="${d}">🔄 Noe annet</button>
-        </div>`;
+        </div>
+        <button class="lenke" type="button" data-kan-lage style="margin-top:8px">🧑‍🍳 Hva kan vi lage av det vi har?</button>`;
     }
 
     // Alt som er ført som spist en dag: middager (per porsjon) og måltider fra dagsplanen
@@ -978,7 +990,7 @@
         }
         const r = oppskrift(l.oppskrift);
         if (!r) continue;
-        const n = perPorsjon(r), f = (l.porsjoner?.[pid] || 0) * (1 - (l.rest || 0));
+        const n = perPorsjon(r), f = (l.porsjoner?.[pid] || 0) * (l.spistAndel ?? (1 - (l.rest || 0)));
         s.kcal += f * n.kcal; s.protein += f * n.p; s.karbo += f * n.k; s.fett += f * n.f;
       }
       return s;
@@ -1006,6 +1018,11 @@
       return porsjTekst(faktor);
     }
     const dagPerson = () => (personer().some((p) => p.id === S.dagPerson) ? S.dagPerson : meg());
+    // Rester vises med navnet på retten
+    function maltidNavn(m, l, x) {
+      const rett = l?.rett ? oppskrift(l.rett) : !l && x?.fra ? x.fra : null;
+      return rett ? t('Rester: {rett}', { rett: oversett(rett.navn) }) : m?.navn || '';
+    }
 
     function tegnDagsplan() {
       const d = idag(), ps = personer(), pid = dagPerson(), pr = profil(pid);
@@ -1026,13 +1043,24 @@
         const m = (l && maltid(l.maltid)) || x.m;
         const faktor = l ? l.faktor : x.faktor, k = l ? l.kcal : x.kcal, p = l ? l.p : x.p;
         kcal += k; protein += p;
-        const fra = !l && x.fra ? ` · ${t('rester av {rett}', { rett: oversett(x.fra.navn).toLowerCase() })}` : '';
+        const fra = '';
         const mangler = !l && brukerKjokken && x.mangler?.length ? `<small class="mangel">🛒 ${esc(t('Mangler {hva}', { hva: liste(x.mangler.slice(0, 3).map((key) => navnPaa(key).toLowerCase())) }))}</small>` : '';
         const navn = oversett(MALTIDSNAVN[x.slot]);
         return `<div class="maltid ${l ? 'spist' : ''}">
-          <button class="rettknapp" type="button" data-maltid-vis="${x.slot}"><span class="ikon">${m.ikon}</span><span><small class="slot">${esc(navn)}</small><b>${esc(m.navn)}</b><small>${esc(`${mengdeMaltid(m, faktor)} · ${kroner(k)} kcal · ${kroner(p)} g protein${fra}`)}</small>${mangler}</span></button>
+          <button class="rettknapp" type="button" data-maltid-vis="${x.slot}"><span class="ikon">${m.ikon}</span><span><small class="slot">${esc(navn)}</small><b>${esc(maltidNavn(m, l, x))}</b><small>${esc(`${mengdeMaltid(m, faktor)} · ${kroner(k)} kcal · ${kroner(p)} g protein${fra}`)}</small>${mangler}</span></button>
           ${l ? '<span></span>' : `<button class="ikonknapp" type="button" data-maltid-bytt="${x.slot}" aria-label="${esc(t('Bytt {hva}', { hva: navn.toLowerCase() }))}">🔄</button>`}
           <button class="ikonknapp spistknapp" type="button" data-maltid-spist="${x.slot}" aria-pressed="${!!l}" aria-label="${esc(l ? t('Angre {hva}', { hva: navn.toLowerCase() }) : t('Spist {hva}', { hva: navn.toLowerCase() }))}">✓</button>
+        </div>`;
+      }).join('');
+      // Det som er spist utenom planen (fra «Hva kan vi lage?»)
+      const ekstra = (S.mat.logg || []).filter((l) => l.type === 'maltid' && l.dato === d && l.person === pid && String(l.slot).startsWith('ekstra'));
+      const ekstraHtml = ekstra.map((l) => {
+        const m = maltid(l.maltid);
+        kcal += l.kcal || 0; protein += l.p || 0;
+        return `<div class="maltid spist">
+          <span class="rettknapp"><span class="ikon">${m?.ikon || '🍽️'}</span><span><small class="slot">${esc(t('Ekstra'))}</small><b>${esc(maltidNavn(m, l))}</b><small>${esc(`${kroner(l.kcal)} kcal · ${kroner(l.p)} g protein`)}</small></span></span>
+          <span></span>
+          <button class="ikonknapp spistknapp" type="button" data-angre-logg="${esc(l.id)}" aria-pressed="true" aria-label="${esc(t('Angre'))}">✓</button>
         </div>`;
       }).join('');
       const mal = plan.mal;
@@ -1043,7 +1071,7 @@
         <h2 style="margin-bottom:2px">🍳 Dagens måltider</h2>
         <p class="forklaring" style="margin-bottom:8px">Ut fra det du liker og det dere har hjemme. Trykk ✓ når du har spist, eller 🔄 for noe annet.</p>
         ${ps.length > 1 ? `<div class="velger" style="margin:0 0 6px" aria-label="${esc(t('Dagsplan for'))}">${ps.map((p) => `<button type="button" data-dagperson="${esc(p.id)}" aria-pressed="${p.id === pid}">${esc(p.navn)}</button>`).join('')}</div>` : ''}
-        ${rader || '<div class="tomt">Ingen måltider å vise.</div>'}
+        ${rader || '<div class="tomt">Ingen måltider å vise.</div>'}${ekstraHtml}
         <p class="forklaring dagtotal">${esc(total)}</p>
         ${!beregnMal(pr) ? `<button class="lenke" type="button" data-sporsmal="${esc(pid)}">Svar på spørsmålene for riktige mengder →</button>`
           : !harNyeSvar(pid) ? `<button class="lenke" type="button" data-sporsmal-nye="${esc(pid)}">Tilpass dagsplanen – 4 raske spørsmål →</button>` : ''}`;
@@ -1066,8 +1094,8 @@
       $('rettInnhold').innerHTML = `
         <div style="font-size:44px">${m.ikon}</div>
         <div class="forklaring" style="font-weight:600"><span>${esc(MALTIDSNAVN[slot])}</span> · <span>${esc(personNavn(pid))}</span></div>
-        <h2 id="rettTittel">${esc(m.navn)}</h2>
-        <p class="forklaring">${esc(mengdeMaltid(m, faktor) + (x.fra && !l ? ` · ${t('rester av {rett}', { rett: oversett(x.fra.navn).toLowerCase() })}` : ''))}</p>
+        <h2 id="rettTittel">${esc(maltidNavn(m, l, x))}</h2>
+        <p class="forklaring">${esc(mengdeMaltid(m, faktor))}</p>
         <div class="makrorad"><div><b>${kroner(n.kcal)}</b><span>kcal</span></div><div><b>${kroner(n.p)} g</b><span>protein</span></div><div><b>${kroner(n.k)} g</b><span>karbo</span></div><div><b>${kroner(n.f)} g</b><span>fett</span></div></div>
         ${rader ? `<div><h3 style="margin-bottom:4px">Du trenger</h3>${rader}</div>` : ''}
         <div class="knapprad">
@@ -1079,34 +1107,147 @@
       $('rettDialog').scrollTop = 0;
     }
 
+    // Fører et måltid som spist: varene trekkes fra kjøkkenet, og rester tas av porsjonene som ligger der
+    function forMaltid({ d, pid, slot, m, faktor, rest = null }) {
+      let n;
+      if (rest) { const r = oppskrift(rest.oppskrift), pp = perPorsjon(r); n = { kcal: pp.kcal * faktor, p: pp.p * faktor, f: pp.f * faktor, k: pp.k * faktor, fra: r, restId: rest.id }; }
+      else n = naeringMaltid(m, faktor, S.mat, d);
+      if (!n) return null;
+      const trukket = trekkFra(m.ingredienser, faktor);
+      let restTatt = null;
+      if (n.restId) {
+        const r = (S.mat.rester || []).find((x) => x.id === n.restId);
+        if (r) { const ta = Math.min(r.porsjoner, faktor); r.porsjoner = Math.round((r.porsjoner - ta) * 100) / 100; restTatt = { id: r.id, porsjoner: ta }; }
+      }
+      const rund = (v) => Math.round(v || 0);
+      const l = { id: nyId(), type: 'maltid', dato: d, person: pid, slot, maltid: m.id, faktor, kcal: rund(n.kcal), p: rund(n.p), f: rund(n.f), k: rund(n.k), trukket, ...(restTatt ? { restTatt } : {}), ...(n.fra ? { rett: n.fra.id } : {}) };
+      S.mat.logg = [...(S.mat.logg || []), l];
+      return l;
+    }
+    function angreMaltidslogg(l) {
+      leggTilbake(l.trukket);
+      if (l.restTatt) { const r = (S.mat.rester || []).find((x) => x.id === l.restTatt.id); if (r) r.porsjoner = Math.round((r.porsjoner + l.restTatt.porsjoner) * 100) / 100; }
+      S.mat.logg = (S.mat.logg || []).filter((x) => x !== l);
+    }
+    const ferdigFort = (l, hva) => {
+      lagreMatNa(); if ($('rettDialog').open) $('rettDialog').close(); tegnMat();
+      const varer = trukketTekst(l?.trukket);
+      vis(varer ? t('{hva} er ført ✓ Trukket fra kjøkkenet: {varer}.', { hva, varer }) : t('{hva} er ført ✓', { hva }));
+    };
+    function angreLogg(l) {
+      if (!l) return;
+      angreMaltidslogg(l);
+      lagreMatNa(); if ($('rettDialog').open) $('rettDialog').close(); tegnMat();
+      vis(Object.keys(l.trukket || {}).length || l.restTatt ? t('Angret – varene er lagt tilbake i kjøkkenet') : t('Angret'));
+    }
+
     function spistMaltid(slot) {
       const d = idag(), pid = dagPerson();
       const l = maltidLogg(d, pid, slot);
-      S.mat.kjokken ??= {};
-      if (l) {
-        // Angre det som nettopp ble ført, og legg varene tilbake i kjøkkenet
-        S.mat.logg = (S.mat.logg || []).filter((x) => x !== l);
-        for (const [k, g] of Object.entries(l.trukket || {})) S.mat.kjokken[k] = (S.mat.kjokken[k] || 0) + g;
-        lagreMatNa(); if ($('rettDialog').open) $('rettDialog').close(); tegnMat();
-        vis(t('Angret'));
-        return;
-      }
+      if (l) { angreLogg(l); return; }
       const x = dagsplan({ mat: S.mat, personer: personer(), personId: pid, dato: d }).maltider.find((y) => y.slot === slot);
       if (!x?.m) return;
-      const trukket = {};
-      for (const [k, g] of Object.entries(x.m.ingredienser)) {
-        if (INGREDIENSER[k]?.basis) continue;
-        const har = S.mat.kjokken[k] || 0;
-        if (!har) continue;
-        const ta = Math.min(har, Math.round(g * x.faktor));
-        S.mat.kjokken[k] = har - ta; trukket[k] = ta;
-        if (!S.mat.kjokken[k]) delete S.mat.kjokken[k];
-      }
-      const rund = (v) => Math.round(v || 0);
-      S.mat.logg = [...(S.mat.logg || []), { id: nyId(), type: 'maltid', dato: d, person: pid, slot, maltid: x.m.id, faktor: x.faktor, kcal: rund(x.kcal), p: rund(x.p), f: rund(x.f), k: rund(x.k), trukket }];
+      const ny = forMaltid({ d, pid, slot, m: x.m, faktor: x.faktor });
+      if (!ny) return;
       S.mat.dagsplaner ??= {}; ((S.mat.dagsplaner[d] ??= {})[pid] ??= {})[slot] = x.m.id;
-      lagreMatNa(); if ($('rettDialog').open) $('rettDialog').close(); tegnMat();
-      vis(t('{hva} er ført ✓', { hva: oversett(MALTIDSNAVN[slot]) }));
+      ferdigFort(ny, oversett(MALTIDSNAVN[slot]));
+    }
+
+    // Spis noe fra «Hva kan vi lage?» med en gang
+    function ledigPlass(pid, d, slot) {
+      const slots = slotsFor(profil(pid));
+      if (slot === 'mellom' && !slots.includes('mellom') && slots.includes('kveld')) slot = 'kveld';
+      return slots.includes(slot) && !maltidLogg(d, pid, slot) ? slot : null;
+    }
+    function spisNa(id) {
+      const d = idag(), pid = dagPerson(), m = maltid(id);
+      if (!m) return;
+      const plass = ledigPlass(pid, d, m.maltid);
+      const planlagt = dagsplan({ mat: S.mat, personer: personer(), personId: pid, dato: d }).maltider.find((y) => y.slot === (plass || m.maltid));
+      const n1 = naeringMaltid(m, 1, S.mat, d);
+      let faktor = 1;
+      if (!m.fast && n1?.kcal && planlagt?.kcal) faktor = Math.min(2, Math.max(0.5, Math.round((planlagt.kcal / n1.kcal) * 4) / 4));
+      const ny = forMaltid({ d, pid, slot: plass || `ekstra-${nyId()}`, m, faktor });
+      if (!ny) return;
+      if (plass) { S.mat.dagsplaner ??= {}; ((S.mat.dagsplaner[d] ??= {})[pid] ??= {})[plass] = m.id; }
+      ferdigFort(ny, oversett(m.navn));
+    }
+    function spisRest(restId) {
+      const d = idag(), pid = dagPerson();
+      const rest = (S.mat.rester || []).find((x) => x.id === restId);
+      const r = rest && oppskrift(rest.oppskrift);
+      if (!r) return;
+      const faktor = Math.max(0.25, Math.min(rest.porsjoner, porsjonFor(profil(pid), r)));
+      const plass = ledigPlass(pid, d, 'lunsj');
+      const ny = forMaltid({ d, pid, slot: plass || `ekstra-${nyId()}`, m: maltid('rester'), faktor, rest });
+      if (!ny) return;
+      if (plass) { S.mat.dagsplaner ??= {}; ((S.mat.dagsplaner[d] ??= {})[pid] ??= {})[plass] = 'rester'; }
+      ferdigFort(ny, t('Rester: {rett}', { rett: oversett(r.navn) }));
+    }
+
+    // Lag en middag fra kjøkkenet: i dag, eller i morgen hvis dagens middag allerede er spist
+    const dagForLaging = () => (S.mat.meny?.[idag()]?.spist ? leggTilDager(idag(), 1) : idag());
+    function lagNa(id) {
+      const r = oppskrift(id), d = dagForLaging();
+      if (!r) return;
+      S.mat.meny = { ...(S.mat.meny || {}), [d]: { id, laast: true } };
+      lagreMatNa(); tegnMat();
+      visRett(id, d);
+      vis(t(d === idag() ? '{rett} er dagens middag ✓' : '{rett} er middag i morgen ✓', { rett: oversett(r.navn) }));
+    }
+
+    // ---------- Hva kan vi lage? ----------
+    const dagFra = (d) => (d === idag() ? t('fra i dag') : d === leggTilDager(idag(), -1) ? t('fra i går') : t('fra {dag}', { dag: dagKort.format(somDato(d)) }));
+    function kanLageStatus(x) {
+      if (!x.mangler.length && !x.forLite.length) return `<small class="har">✓ ${esc(t('Har alt'))}</small>`;
+      const deler = [
+        x.mangler.length ? t('Mangler {hva}', { hva: liste(x.mangler.map((k) => navnPaa(k).toLowerCase())) }) : '',
+        x.forLite.length ? t('litt lite {hva}', { hva: liste(x.forLite.map((k) => navnPaa(k).toLowerCase())) }) : '',
+      ].filter(Boolean);
+      return `<small>🛒 ${esc(deler.join(' · '))}</small>`;
+    }
+    function kanLageHtml(f, antall) {
+      const lagTekst = dagForLaging() === idag() ? 'Lag i dag' : 'Lag i morgen';
+      const rester = f.rester.map((x) => {
+        const r = oppskrift(x.oppskrift);
+        return `<div class="dag" style="grid-template-columns:1fr auto">
+          <button class="rettknapp" type="button" data-rett="${esc(r.id)}"><span class="ikon">🍱</span><span><b>${esc(t('Rester: {rett}', { rett: oversett(r.navn) }))}</b><small>${esc(`${porsjTekst(x.porsjoner)} · ${dagFra(x.dato)}`)}</small></span></button>
+          <button class="knapp hoved" type="button" data-spis-rest="${esc(x.id)}">Spis nå</button></div>`;
+      }).join('');
+      const middager = f.middager.slice(0, antall).map((x) => `<div class="dag" style="grid-template-columns:1fr auto">
+          <button class="rettknapp" type="button" data-rett="${esc(x.r.id)}" data-dato="${dagForLaging()}"><span class="ikon">${x.r.ikon}</span><span><b>${esc(x.r.navn)}</b><small>${esc(`${x.r.tid} min · ${kroner(perPorsjon(x.r).p)} g protein`)}</small>${kanLageStatus(x)}</span></button>
+          <button class="knapp" type="button" data-lag-na="${esc(x.r.id)}">${lagTekst}</button></div>`).join('');
+      const maltider = f.maltider.slice(0, antall).map((x) => `<div class="dag" style="grid-template-columns:1fr auto">
+          <span class="rettknapp"><span class="ikon">${x.m.ikon}</span><span><b>${esc(x.m.navn)}</b><small>${esc(oversett(MALTIDSNAVN[x.m.maltid]))}</small>${kanLageStatus(x)}</span></span>
+          <button class="knapp" type="button" data-spis-na="${esc(x.m.id)}">Spis nå</button></div>`).join('');
+      return `${rester ? `<div class="undertittel">Rester i kjøleskapet</div>${rester}` : ''}
+        ${middager ? `<div class="undertittel">Middag</div>${middager}` : ''}
+        ${maltider ? `<div class="undertittel">${esc(t('Småmåltider for {navn}', { navn: personNavn(dagPerson()) }))}</div>${maltider}` : ''}
+        ${!rester && !middager && !maltider ? '<p class="tomt">Fant ingenting som passer med det dere har nå. Legg inn flere varer, eller se ukemenyen.</p>' : ''}`;
+    }
+    const harIKjokkenet = () => Object.entries(S.mat.kjokken || {}).some(([k, g]) => g > 0 && INGREDIENSER[k] && !INGREDIENSER[k].basis);
+    function tegnKanLage() {
+      const f = fraKjokkenet({ mat: S.mat, personer: personer(), personId: dagPerson(), dato: idag() });
+      if (!harIKjokkenet() && !f.rester.length) {
+        $('kanLage').innerHTML = '<h2 style="margin-bottom:2px">🧑‍🍳 Hva kan vi lage?</h2><p class="forklaring">Legg inn det dere har under, så foreslår appen middager og småmåltider dere kan lage med det.</p>';
+        return;
+      }
+      $('kanLage').innerHTML = `<h2 style="margin-bottom:2px">🧑‍🍳 Hva kan vi lage?</h2>
+        <p class="forklaring">Ut fra det dere har i kjøkkenet nå.</p>
+        ${kanLageHtml(f, 2)}
+        <button class="knapp stor" type="button" data-kan-lage style="margin-top:10px">Se alle forslag</button>`;
+    }
+    function visKanLage() {
+      const f = fraKjokkenet({ mat: S.mat, personer: personer(), personId: dagPerson(), dato: idag() });
+      S.kanLageApen = true;
+      $('rettInnhold').innerHTML = `
+        <h2 id="rettTittel">🧑‍🍳 Hva kan vi lage?</h2>
+        <p class="forklaring">Ut fra det dere har i kjøkkenet nå. Velger dere en middag, kommer det som mangler på handlelista.</p>
+        ${personer().length > 1 ? `<div class="velger" style="margin:0">${personer().map((p) => `<button type="button" data-dagperson="${esc(p.id)}" aria-pressed="${p.id === dagPerson()}">${esc(p.navn)}</button>`).join('')}</div>` : ''}
+        <div class="kanlage">${harIKjokkenet() || f.rester.length ? kanLageHtml(f, 8) : '<p class="tomt">Kjøkkenet er tomt her ennå. Legg inn det dere har under Kjøkken.</p>'}</div>
+        <div class="knapprad"><button class="knapp" type="button" data-lukk-rett>Lukk</button></div>`;
+      if (!$('rettDialog').open) $('rettDialog').showModal();
+      $('rettDialog').scrollTop = 0;
     }
 
     function byttMaltid(slot, iDialog) {
@@ -1263,8 +1404,19 @@
       const k = S.mat.kjokken || {};
       const har = Object.entries(k).filter(([key, g]) => g > 0 && INGREDIENSER[key] && !INGREDIENSER[key].basis);
       const lite = new Set(snartTomt(S.mat));
+      const rester = (S.mat.rester || []).filter((x) => x.porsjoner > 0.2 && oppskrift(x.oppskrift));
+      const resterHtml = rester.length ? `<div class="gruppetittel">🍱 Rester</div>` + rester.map((x) => {
+        const gammel = x.dato < leggTilDager(idag(), -RESTER_DAGER);
+        return `<div class="kjokkenrad ${gammel ? 'lite' : ''}">
+          <span class="navn">${esc(oppskrift(x.oppskrift).navn)}<small>${esc(dagFra(x.dato))}${gammel ? ` · ⚠️ ${esc(t('sjekk om den fortsatt er god'))}` : ''}</small></span>
+          <span class="mengde">${esc(porsjTekst(x.porsjoner))}</span>
+          <button class="ikonknapp" type="button" data-rest-minus="${esc(x.id)}" aria-label="${esc(t('Én porsjon mindre'))}">−</button>
+          <button class="ikonknapp" type="button" data-rest-pluss="${esc(x.id)}" aria-label="${esc(t('Én porsjon mer'))}">＋</button>
+          <button class="ikonknapp" type="button" data-rest-tom="${esc(x.id)}" aria-label="${esc(t('Restene er spist eller kastet'))}">✕</button>
+        </div>`;
+      }).join('') : '';
       $('kjokkenVarsel').innerHTML = lite.size ? `<div class="kort varsel" style="margin:0 0 12px">⏳ Snart tomt: <b>${esc([...lite].map(navnPaa).join(', '))}</b>. Det står på handlelista.</div>` : '';
-      $('kjokkenListe').innerHTML = har.length ? KJOKKENGRUPPER.map(([tittel, typer]) => {
+      $('kjokkenListe').innerHTML = har.length || rester.length ? resterHtml + KJOKKENGRUPPER.map(([tittel, typer]) => {
         const rader = har.filter(([key]) => typer.includes(INGREDIENSER[key].type)).sort((a, b) => INGREDIENSER[a[0]].navn.localeCompare(INGREDIENSER[b[0]].navn, LOK));
         return rader.length ? `<div class="gruppetittel">${tittel}</div>` + rader.map(([key, g]) => `
           <div class="kjokkenrad ${lite.has(key) ? 'lite' : ''}">
@@ -1326,7 +1478,7 @@
         </div>`;
     }
 
-    function tegnMat() { tegnIdag(); tegnUkemeny(); tegnHandleliste(); tegnKjokken(); tegnOss(); }
+    function tegnMat() { tegnIdag(); tegnUkemeny(); tegnHandleliste(); tegnKjokken(); tegnKanLage(); tegnOss(); }
 
     // ---------- Dialoger ----------
     function visRett(id, dato) {
@@ -1377,14 +1529,42 @@
     function visSpist(dato) {
       const m = S.mat.meny?.[dato], r = oppskrift(m?.id);
       if (!r) return;
+      // Lager dere ekstra til matpakke, er «Litt» igjen valgt på forhånd
+      const por = porsjonerFor(S.mat, personer(), r);
+      const forvalg = por.ekstra ? [0, 0.25, 0.5, 0.75].reduce((a, b) => (Math.abs(b - por.ekstra / por.total) < Math.abs(a - por.ekstra / por.total) ? b : a)) : 0;
       $('rettInnhold').innerHTML = `
         <h2 id="rettTittel">${r.ikon} Hvordan gikk det?</h2>
         <div class="felt"><label>Hvem spiste?</label><div class="chips" id="spistHvem">${personer().map((p) => `<button type="button" class="chip" data-spist-hvem="${esc(p.id)}" aria-pressed="true">${esc(p.navn)}</button>`).join('')}</div></div>
-        <div class="felt"><label>Hvor mye ble igjen i gryta?</label><div class="chips" id="spistRest">${[[0, 'Ingenting'], [0.25, 'Litt'], [0.5, 'Halvparten'], [0.75, 'Det meste']].map(([v, t], i) => `<button type="button" class="chip" data-rest="${v}" aria-pressed="${i === 0}">${t}</button>`).join('')}</div></div>
+        <div class="felt"><label>Hvor mye ble igjen i gryta?</label><div class="chips" id="spistRest">${[[0, 'Ingenting'], [0.25, 'Litt'], [0.5, 'Halvparten'], [0.75, 'Det meste']].map(([v, tx]) => `<button type="button" class="chip" data-rest="${v}" aria-pressed="${v === forvalg}">${tx}</button>`).join('')}</div></div>
         <div class="felt"><label>Likte dere den?</label><div class="chips" id="spistLikte"><button type="button" class="chip" data-likte="1" aria-pressed="false">👍 Ja</button><button type="button" class="chip" data-likte="-1" aria-pressed="false">👎 Nei</button></div></div>
-        <p class="forklaring">Kaloriene føres på hver person etter porsjonen deres, og ingrediensene trekkes fra kjøkkenet.</p>
+        <p class="forklaring">Kaloriene føres på hver person etter porsjonen deres, ingrediensene trekkes fra kjøkkenet, og det som er igjen blir lagt inn som rester.</p>
         <div class="knapprad"><button class="knapp hoved" type="button" data-lagre-spist="${dato}">Lagre</button><button class="knapp" type="button" data-lukk-rett>Avbryt</button></div>`;
       if (!$('rettDialog').open) $('rettDialog').showModal();
+    }
+
+    // ---------- Kjøkkenet følger med på det som spises ----------
+    function trekkFra(ingredienser, skala) {
+      S.mat.kjokken ??= {};
+      const trukket = {};
+      for (const [k, g] of Object.entries(ingredienser || {})) {
+        if (INGREDIENSER[k]?.basis) continue;
+        const har = S.mat.kjokken[k] || 0;
+        const ta = Math.min(har, Math.round(g * skala));
+        if (!(ta > 0)) continue;
+        S.mat.kjokken[k] = har - ta; trukket[k] = ta;
+        if (!S.mat.kjokken[k]) delete S.mat.kjokken[k];
+      }
+      return trukket;
+    }
+    function leggTilbake(trukket) {
+      S.mat.kjokken ??= {};
+      for (const [k, g] of Object.entries(trukket || {})) S.mat.kjokken[k] = (S.mat.kjokken[k] || 0) + g;
+    }
+    const trukketTekst = (trukket) => liste(Object.keys(trukket || {}).map((k) => navnPaa(k).toLowerCase()));
+    function angreMiddagslogg(l) {
+      leggTilbake(l.trukket);
+      S.mat.rester = (S.mat.rester || []).filter((x) => x.fra !== l.id); // restene fra denne middagen fantes ikke likevel
+      S.mat.logg = (S.mat.logg || []).filter((x) => x !== l);
     }
 
     function lagreSpist(dato) {
@@ -1394,20 +1574,22 @@
       const rest = Number(document.querySelector('#spistRest [aria-pressed="true"]')?.dataset.rest || 0);
       const likte = Number(document.querySelector('#spistLikte [aria-pressed="true"]')?.dataset.likte || 0);
       const porsjoner = Object.fromEntries(hvem.map((id) => [id, porsjonFor(profil(id), r)]));
-      S.mat.logg = [...(S.mat.logg || []).filter((l) => !(l.dato === dato && l.oppskrift === r.id)), { id: nyId(), dato, oppskrift: r.id, porsjoner, rest }]; // all historikk beholdes
-      const skala = porsjonerFor(S.mat, personer(), r).total / r.porsjoner;
-      S.mat.kjokken ??= {};
-      for (const [key, gram] of Object.entries(r.ingredienser)) {
-        if (INGREDIENSER[key]?.basis || !(S.mat.kjokken[key] > 0)) continue;
-        S.mat.kjokken[key] = Math.max(0, Math.round(S.mat.kjokken[key] - gram * skala));
-        if (!S.mat.kjokken[key]) delete S.mat.kjokken[key];
-      }
+      // Føres middagen på nytt, legges det som ble trukket forrige gang tilbake først
+      for (const gammel of (S.mat.logg || []).filter((l) => l.dato === dato && l.oppskrift === r.id)) angreMiddagslogg(gammel);
+      const total = porsjonerFor(S.mat, personer(), r).total;
+      const trukket = trekkFra(r.ingredienser, total / r.porsjoner);
+      const igjen = Math.round(total * rest * 2) / 2; // porsjoner igjen i gryta
+      const spiste = Object.values(porsjoner).reduce((a, b) => a + b, 0);
+      const spistAndel = spiste ? Math.min(1, Math.max(0, (total - igjen) / spiste)) : 0;
+      const id = nyId();
+      S.mat.logg = [...(S.mat.logg || []), { id, dato, oppskrift: r.id, porsjoner, rest, spistAndel, trukket }]; // all historikk beholdes
+      if (igjen >= 0.5) S.mat.rester = [...(S.mat.rester || []), { id: nyId(), dato, oppskrift: r.id, porsjoner: igjen, fra: id }];
       S.mat.meny[dato] = { ...m, spist: true };
       if (likte) { S.mat.vurderinger ??= {}; S.mat.vurderinger[r.id] = Math.max(-3, Math.min(3, (S.mat.vurderinger[r.id] || 0) + likte)); }
       lagreMatNa();
       $('rettDialog').close();
       tegnMat();
-      vis('Middagen er ført ✓');
+      vis(igjen >= 0.5 ? t('Middagen er ført ✓ {n} porsjoner er lagt i kjøkkenet som rester.', { n: porsj(igjen) }) : t('Middagen er ført ✓'));
     }
 
     function byttMiddag(dato) {
@@ -1440,7 +1622,7 @@
       const p = personer().find((x) => x.id === id);
       if (!p) return;
       const inntektslinje = S.plan.inntekter.find((l) => l.hvem === id);
-      const liste_ = bareNye ? NYE_PERSONSPORSMAL : ALLE_PERSONSPORSMAL;
+      const liste_ = bareNye ? nyeSporsmalFor(profil(id)) : ALLE_PERSONSPORSMAL;
       // Svarene legges oppå de gamle, så ingenting forsvinner
       const lagreSvar = (svar, ferdig) => {
         const { inntekt, ...rest } = svar;
@@ -1467,7 +1649,7 @@
 
     function husstandSporsmal(etter, { bareNye = false } = {}) {
       kjorSporsmal({
-        tittel: 'Husstanden', sporsmal: bareNye ? NYE_HUSSTANDSPORSMAL : HUSSTANDSPORSMAL, svar: S.mat.husstand || {},
+        tittel: 'Husstanden', sporsmal: bareNye ? nyeHusstandssporsmalFor(S.mat.husstand) : HUSSTANDSPORSMAL, svar: S.mat.husstand || {},
         vedFerdig: (svar) => {
           const forMange = Number(svar.middager) < Number(S.mat.husstand?.middager || 7);
           S.mat.husstand = { ...(S.mat.husstand || {}), ...svar, v: SPORSMALSVERSJON };
@@ -1492,12 +1674,22 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 2, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 3, OPPD_NOKKEL = 'hjem.oppdatering';
+    const NYHETER = [
+      { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
+      { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
+      { v: 2, ikon: '🌍', tittel: 'English', tekst: 'Appen finnes nå også på engelsk.', sprak: true },
+      { v: 3, ikon: '🔥', tittel: 'Nytt mål', tekst: 'Gå ned i vekt og bygge muskler samtidig – litt færre kalorier og ekstra mye protein.' },
+      { v: 3, ikon: '🥫', tittel: 'Kjøkkenet følger med', tekst: 'Det dere fører som spist, trekkes fra kjøkkenet, og rester fra middagen blir egne porsjoner. Angrer du, legges varene tilbake.' },
+      { v: 3, ikon: '🧑‍🍳', tittel: 'Hva kan vi lage?', tekst: 'Forslag til middager og småmåltider ut fra det dere har i kjøleskapet – under Kjøkken.' },
+    ];
     const settOppdatering = () => { try { localStorage.setItem(OPPD_NOKKEL, String(OPPDATERING)); } catch {} };
-    const harSettOppdatering = () => { try { return Number(localStorage.getItem(OPPD_NOKKEL)) >= OPPDATERING; } catch { return true; } };
+    const settVersjon = () => { try { return Number(localStorage.getItem(OPPD_NOKKEL)) || 0; } catch { return OPPDATERING; } };
     function visOppdatering() {
-      if (harSettOppdatering() || document.querySelector('dialog[open]')) return;
+      const sett = settVersjon();
+      if (sett >= OPPDATERING || document.querySelector('dialog[open]')) return;
       settOppdatering();
+      const nytt = NYHETER.filter((x) => x.v > sett);
       const jeg = personer().find((p) => p.id === meg());
       const megSpor = jeg && (!beregnMal(profil(jeg.id)) || trengerNye(jeg.id));
       const husSpor = !husHarSvart() || husTrengerNye();
@@ -1506,11 +1698,9 @@
         <div class="stor-ikon">🎉</div>
         <h2 id="oppdTittel" style="text-align:center">En oppdatering har kommet!</h2>
         <ul class="nytt">
-          <li><span>🍳</span><span><b>Hele dagen</b><br>Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.</span></li>
-          <li><span>🛒</span><span><b>Ukeshandel</b><br>Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.</span></li>
-          <li><span>🌍</span><span><b>English</b><br>Appen finnes nå også på engelsk.<br>${sprakknapp()}</span></li>
+          ${nytt.map((x) => `<li><span>${x.ikon}</span><span><b>${esc(x.tittel)}</b><br>${esc(x.tekst)}${x.sprak ? `<br>${sprakknapp()}` : ''}</span></li>`).join('')}
         </ul>
-        ${megSpor || husSpor ? '<p class="forklaring">Derfor har vi noen nye spørsmål til alle i husstanden. Det tar under ett minutt, og alt dere har lagt inn fra før blir liggende.</p>' : '<p class="forklaring">Alt dere har lagt inn fra før blir liggende.</p>'}
+        ${megSpor || husSpor ? '<p class="forklaring">Det er noen nye spørsmål til dere. Det tar under ett minutt, og alt dere har lagt inn fra før blir liggende.</p>' : '<p class="forklaring">Alt dere har lagt inn fra før blir liggende.</p>'}
         ${andre_.length ? `<p class="forklaring">${esc(t('{navn} kan svare på sin egen telefon, eller du kan svare under Oss.', { navn: liste(andre_) }))}</p>` : ''}
         ${megSpor || husSpor
           ? '<button class="knapp hoved stor" type="button" data-oppd="svar">Svar på de nye spørsmålene</button><button class="knapp stor" type="button" data-oppd="senere">Senere</button>'
@@ -1605,7 +1795,20 @@
       const ds = b.dataset;
       if (ds.pengerTil) { location.hash = ds.pengerTil === 'oversikt' ? '#penger' : `#penger-${ds.pengerTil}`; return; }
       if (ds.rett) { visRett(ds.rett, ds.dato); return; }
-      if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); return; }
+      if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); tegnKanLage(); if ($('rettDialog').open && S.kanLageApen) visKanLage(); return; }
+      if ('kanLage' in ds) { visKanLage(); return; }
+      if (ds.lagNa) { lagNa(ds.lagNa); return; }
+      if (ds.spisNa) { spisNa(ds.spisNa); return; }
+      if (ds.spisRest) { spisRest(ds.spisRest); return; }
+      if (ds.angreLogg) { angreLogg((S.mat.logg || []).find((l) => l.id === ds.angreLogg)); return; }
+      if (ds.restMinus || ds.restPluss || ds.restTom) {
+        const x = (S.mat.rester || []).find((y) => y.id === (ds.restMinus || ds.restPluss || ds.restTom));
+        if (x) {
+          x.porsjoner = ds.restTom ? 0 : Math.max(0, ds.restPluss ? x.porsjoner + 1 : x.porsjoner - (x.porsjoner > 1 ? 1 : 0.5));
+          lagreMatNa(); tegnKjokken(); tegnKanLage(); tegnDagsplan();
+        }
+        return;
+      }
       if (ds.maltidSpist) { spistMaltid(ds.maltidSpist); return; }
       if (ds.maltidBytt) { byttMaltid(ds.maltidBytt, 'iDialog' in ds); return; }
       if (ds.maltidVis) { visMaltid(ds.maltidVis); return; }
@@ -1628,7 +1831,12 @@
       if (ds.fri) { S.mat.meny[ds.fri] = { fri: true }; lagreMatNa(); $('rettDialog').close(); tegnMat(); return; }
       if (ds.angreSpist) {
         const d = ds.angreSpist, m = S.mat.meny?.[d];
-        if (m) { S.mat.meny[d] = { id: m.id }; S.mat.logg = (S.mat.logg || []).filter((l) => !(l.dato === d && l.oppskrift === m.id)); lagreMatNa(); tegnMat(); }
+        if (m) {
+          const { spist, ...resten } = m;
+          S.mat.meny[d] = resten;
+          for (const l of (S.mat.logg || []).filter((x) => x.dato === d && x.oppskrift === m.id)) angreMiddagslogg(l);
+          lagreMatNa(); tegnMat(); vis(t('Angret – varene er lagt tilbake i kjøkkenet'));
+        }
         return;
       }
       if ('lukkRett' in ds) { $('rettDialog').close(); return; }
@@ -1684,6 +1892,7 @@
       $('nyVareTekst').focus();
     });
     $('rettDialog').addEventListener('click', (e) => { if (e.target === $('rettDialog')) $('rettDialog').close(); });
+    $('rettDialog').addEventListener('close', () => { S.kanLageApen = false; });
 
     // ================= FELLES BUDSJETT =================
     const meg = () => { const j = deling()?.jeg; return S.plan.personer.some((p) => p.id === j) ? j : S.plan.personer[0]?.id; };

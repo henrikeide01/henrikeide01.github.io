@@ -201,8 +201,10 @@ export const perPorsjon = (r) => { const n = naering(r); return Object.fromEntri
 
 // ---------- Mål per person (Mifflin–St Jeor + aktivitet + mål) ----------
 const AKTIVITET = { lite: 1.2, litt: 1.375, middels: 1.55, mye: 1.725, svaert: 1.9 };
-const MAL = { ned: -0.15, holde: 0, muskler: 0.1, opp: 0.15 };
-const PROTEIN_PER_KG = { ned: 1.8, holde: 1.4, muskler: 2.0, opp: 1.6 };
+// «nedmuskler»: lite underskudd og ekstra mye protein, så du går ned i fett og bygger muskler samtidig
+const MAL = { ned: -0.15, nedmuskler: -0.1, holde: 0, muskler: 0.1, opp: 0.15 };
+const PROTEIN_PER_KG = { ned: 1.8, nedmuskler: 2.2, holde: 1.4, muskler: 2.0, opp: 1.6 };
+export const VIL_HA_PROTEIN = new Set(['muskler', 'nedmuskler']);
 
 export function beregnMal(pr) {
   const vekt = Number(pr?.vekt), hoyde = Number(pr?.hoyde), alder = Number(pr?.alder);
@@ -489,11 +491,25 @@ export const MALTIDER = [
 export const maltid = (id) => MALTIDER.find((x) => x.id === id);
 export const MALTIDSNAVN = { frokost: 'Frokost', lunsj: 'Lunsj', middag: 'Middag', mellom: 'Mellommåltid', kveld: 'Kveldsmat' };
 
+// Rester som ligger i kjøkkenet (fra middager som er ført som spist), nyeste først
+export const RESTER_DAGER = 4;
+export function resterFor(mat, dato) {
+  return (mat.rester || [])
+    .filter((x) => x.porsjoner > 0.2 && oppskrift(x.oppskrift) && x.dato <= dato && x.dato >= leggTilDager(dato, -RESTER_DAGER))
+    .sort((a, b) => b.dato.localeCompare(a.dato));
+}
+
 export function naeringMaltid(m, faktor = 1, mat = null, dato = null) {
   if (m.rester && mat && dato) {
-    const igaar = mat.meny?.[leggTilDager(dato, -1)];
-    const r = igaar?.id && oppskrift(igaar.id);
-    if (r) { const n = perPorsjon(r); return { kcal: n.kcal * faktor, p: n.p * faktor, f: n.f * faktor, k: n.k * faktor, fra: r }; }
+    // Først rester som faktisk ligger i kjøkkenet …
+    const rest = resterFor(mat, dato)[0];
+    let r = rest ? oppskrift(rest.oppskrift) : null;
+    // … ellers gårsdagens middag, hvis dere lager ekstra og den ikke er ført ennå
+    if (!r && mat.husstand?.rester === 'ja') {
+      const igaar = mat.meny?.[leggTilDager(dato, -1)];
+      if (igaar?.id && !igaar.spist) r = oppskrift(igaar.id);
+    }
+    if (r) { const n = perPorsjon(r); return { kcal: n.kcal * faktor, p: n.p * faktor, f: n.f * faktor, k: n.k * faktor, fra: r, restId: rest?.id, maks: rest?.porsjoner }; }
     return null;
   }
   if (m.kcal) return { kcal: m.kcal * faktor, p: m.p * faktor, f: m.f * faktor, k: m.k * faktor };
@@ -556,7 +572,7 @@ export function dagsplan({ mat, personer, personId, dato }) {
     const kandidater = MALTIDER.filter((x) => x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom'))
       .filter((x) => passerMaltid(x, pr) && !brukt.has(x.id))
       .filter((x) => !x.utstyr || !utstyr?.length || utstyr.includes(x.utstyr))
-      .filter((x) => !x.rester || (mat.husstand?.rester === 'ja' && naeringMaltid(x, 1, mat, dato)))
+      .filter((x) => !x.rester || naeringMaltid(x, 1, mat, dato))
       .filter((x) => !x.tags.includes('kantine') || onsker.has('kantine'));
     const poeng = (x) => {
       let p = 0;
@@ -568,8 +584,9 @@ export function dagsplan({ mat, personer, personId, dato }) {
       const n = naeringMaltid(x, 1, mat, dato);
       // Protein teller bare så lenge dagsmålet ikke er nådd
       const proteinBehov = Math.max(0, 1 - proteinSaaLangt / Math.max(1, mal.protein));
-      if (n) p += (n.p / Math.max(1, n.kcal)) * 100 * (fokus.has('protein') ? 0.6 : 0.2) * proteinBehov;
+      if (n) p += (n.p / Math.max(1, n.kcal)) * 100 * (fokus.has('protein') || VIL_HA_PROTEIN.has(pr.mal) ? 0.6 : 0.2) * proteinBehov;
       if (x.maltid === slot) p += 2;
+      if (x.rester && n?.restId) p += 3; // rester som ligger i kjøleskapet bør spises før de blir gamle
       // Pris teller når dere vil spare
       if (fokus.has('billig') || mat.husstand?.sparing === 'veldig') {
         const kr = Object.entries(x.ingredienser).reduce((sum, [k, g]) => sum + (INGREDIENSER[k] && !INGREDIENSER[k].basis ? (g / 1000) * INGREDIENSER[k].pris : 0), 0);
@@ -591,6 +608,7 @@ export function dagsplan({ mat, personer, personId, dato }) {
     let faktor = n1.kcal ? mal_kcal / n1.kcal : 1;
     const maks = slot === 'mellom' || slot === 'kveld' ? 1.5 : 2;
     faktor = valgtM.fast ? Math.min(valgtM.tags.includes('frukt') ? 2 : 1, Math.max(1, Math.round(faktor))) : Math.min(maks, Math.max(0.5, Math.round(faktor * 4) / 4));
+    if (n1.maks) faktor = Math.max(0.25, Math.min(faktor, Math.floor(n1.maks * 4) / 4));
     const n = naeringMaltid(valgtM, faktor, mat, dato);
     const mangler = Object.keys(valgtM.ingredienser).filter((k) => !INGREDIENSER[k]?.basis && !((kjokken[k] || 0) >= valgtM.ingredienser[k] * faktor * 0.9));
     proteinSaaLangt += n.p;
@@ -702,4 +720,49 @@ export function butikkanbefaling({ varer, tilbud, foretrukne = [] }) {
     if (hosB.length && spar > 40 && (!deling || spar > deling.spar)) deling = { a, b, hosB, sum, spar };
   }
   return { totaler, beste: totaler[0], deling };
+}
+
+
+// ================= Hva kan vi lage av det som er i kjøkkenet? =================
+// Dekning vektes etter mengde, så kylling og ris teller mer enn litt paprika.
+function dekning(ingredienser, skala, kjokken) {
+  let har = 0, totalt = 0;
+  const mangler = [], forLite = [], bruker = [];
+  for (const [k, g] of Object.entries(ingredienser)) {
+    const ing = INGREDIENSER[k];
+    if (!ing || ing.basis) continue;
+    const trenger = g * skala, finnes = kjokken[k] || 0, vekt = Math.min(600, trenger);
+    totalt += vekt;
+    if (finnes >= trenger * 0.9) { har += vekt; bruker.push(k); }
+    else if (finnes > 0) { har += vekt * Math.min(0.8, finnes / trenger); forLite.push(k); bruker.push(k); }
+    else mangler.push(k);
+  }
+  return totalt ? { andel: har / totalt, mangler, forLite, bruker } : null;
+}
+
+export function fraKjokkenet({ mat, personer, personId, dato }) {
+  const kjokken = mat.kjokken || {};
+  const snart = new Set(snartTomt(mat));
+  const profiler = personer.map((p) => mat.profiler?.[p.id] || {});
+  const utstyr = mat.husstand?.utstyr || [];
+  const harUtstyr = (krav) => !utstyr.length || !krav || [].concat(krav).every((k) => k.split('|').some((u) => utstyr.includes(u)));
+  const sorter = (a, b) => (a.mangler.length + a.forLite.length * 0.5) - (b.mangler.length + b.forLite.length * 0.5) || b.andel - a.andel || b.poeng - a.poeng;
+  const middager = OPPSKRIFTER
+    .filter((r) => passerFor(r, profiler) && !profiler.some((pr) => misliker(r, pr)) && harUtstyr(r.utstyr))
+    .map((r) => {
+      const por = porsjonerFor(mat, personer, r);
+      const d = dekning(r.ingredienser, por.total / r.porsjoner, kjokken);
+      if (!d) return null;
+      const poeng = d.bruker.filter((k) => snart.has(k)).length + (mat.vurderinger?.[r.id] || 0) * 0.3;
+      return { r, ...d, poeng };
+    })
+    .filter((x) => x && x.andel >= 0.5 && x.mangler.length <= 3)
+    .sort(sorter);
+  const pr = mat.profiler?.[personId] || {};
+  const maltider = MALTIDER
+    .filter((m) => !m.rester && !m.kcal && passerMaltid(m, pr) && harUtstyr(m.utstyr))
+    .map((m) => { const d = dekning(m.ingredienser, 1, kjokken); return d ? { m, ...d, poeng: d.bruker.filter((k) => snart.has(k)).length } : null; })
+    .filter((x) => x && x.andel >= 0.6 && x.mangler.length <= 1)
+    .sort(sorter);
+  return { middager, maltider, rester: resterFor(mat, dato) };
 }

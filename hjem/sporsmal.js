@@ -11,7 +11,8 @@ export const PERSONSPORSMAL = [
     V('lite', 'Sitter mest stille', '🛋️'), V('litt', 'Trener 1–2 ganger', '🚶'), V('middels', 'Trener 3–4 ganger', '🏃'),
     V('mye', 'Trener 5 ganger eller mer', '🏋️'), V('svaert', 'Fysisk jobb og trening', '💪')] },
   { id: 'mal', type: 'valg', tekst: 'Hva er målet ditt?', valg: [
-    V('ned', 'Gå ned i vekt', '📉'), V('holde', 'Holde vekten', '⚖️'), V('muskler', 'Bygge muskler', '💪'), V('opp', 'Gå opp i vekt', '📈')] },
+    V('ned', 'Gå ned i vekt', '📉'), V('nedmuskler', 'Gå ned i vekt og bygge muskler', '🔥', 'Litt færre kalorier og ekstra mye protein'),
+    V('holde', 'Holde vekten', '⚖️'), V('muskler', 'Bygge muskler', '💪'), V('opp', 'Gå opp i vekt', '📈')] },
   { id: 'middag', type: 'valg', tekst: 'Hvor stor er middagen for deg?', valg: [
     V('liten', 'Liten', '🥄', 'Jeg spiser mest ellers i løpet av dagen'), V('normal', 'Vanlig', '🍽️'), V('stor', 'Stor', '🍲', 'Middag er dagens hovedmåltid')] },
   { id: 'kosthold', type: 'valg', tekst: 'Hva spiser du?', valg: [
@@ -30,7 +31,8 @@ export const PERSONSPORSMAL = [
 ];
 
 // ---------- Nytt i versjon 2: dagsplaner (frokost, lunsj og mellommåltid) ----------
-export const SPORSMALSVERSJON = 2;
+// Versjon 3: eget mål for å gå ned i vekt og bygge muskler samtidig
+export const SPORSMALSVERSJON = 3;
 export const NYE_PERSONSPORSMAL = [
   { id: 'maltider', type: 'valg', tekst: 'Hvor mange måltider spiser du om dagen?', valg: [
     V('3', '3 – frokost, lunsj og middag', '🍽️'), V('4', '4 – pluss et mellommåltid', '🍎'), V('5', '5 – pluss mellommåltid og kveldsmat', '🌙')] },
@@ -154,3 +156,20 @@ export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig
 
 export const HUSSTANDSPORSMAL = [...HUSSTANDSPORSMAL_V1, ...NYE_HUSSTANDSPORSMAL];
 export const ALLE_PERSONSPORSMAL = [...PERSONSPORSMAL, ...NYE_PERSONSPORSMAL];
+
+// Versjon 3 spør om målet på nytt, men bare den som har valgt «ned i vekt» eller «bygge muskler»
+const MALSPORSMAL = PERSONSPORSMAL.find((q) => q.id === 'mal');
+export const NYE_PERSONSPORSMAL_V3 = [{ ...MALSPORSMAL, hjelp: 'Nytt: Du kan nå velge å gå ned i vekt og bygge muskler samtidig.' }];
+
+// De nye spørsmålene en person ikke har fått ennå
+export function nyeSporsmalFor(pr) {
+  const v = Number(pr?.v) || 1;
+  const ut = [];
+  if (v < 2) ut.push(...NYE_PERSONSPORSMAL);
+  if (v < 3 && ['ned', 'muskler'].includes(pr?.mal)) ut.push(...NYE_PERSONSPORSMAL_V3);
+  return ut;
+}
+export function nyeHusstandssporsmalFor(h) {
+  const v = Number(h?.v) || 1;
+  return v < 2 ? NYE_HUSSTANDSPORSMAL : [];
+}
