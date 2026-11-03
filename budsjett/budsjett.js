@@ -24,9 +24,9 @@ export const STANDARD_PLAN = {
   andelMeg: 50, // hvor mange prosent av felles utgifter person 1 betaler
   inntekter: [
     { id: 'lan', navn: 'Støtte fra Lånekassen', belop: 11616, hvem: 'meg' },
-    { id: 'jobb', navn: 'Deltidsjobb', belop: 0, hvem: 'meg' },
+    { id: 'jobb', navn: 'Jobb (annenhver lørdag)', belop: 8550, hvem: 'meg' }, // 30 t × 300 kr/t inkl. tips, ca. 5 % trekk
     { id: 'lan-p2', navn: 'Støtte fra Lånekassen', belop: 11616, hvem: 'p2' },
-    { id: 'jobb-p2', navn: 'Deltidsjobb', belop: 0, hvem: 'p2' },
+    { id: 'jobb-p2', navn: 'Jobb (mandager)', belop: 7150, hvem: 'p2' }, // 7,5 t/uke × 220 kr/t, under frikortgrensen
   ],
   utgifter: [
     { id: 'husleie', navn: 'Husleie', belop: 18000, gruppe: 'fast', hvem: 'felles' },
@@ -56,6 +56,7 @@ export const STANDARD_PLAN = {
 };
 
 // Tidligere standardplaner. Brukes for å oppdatere linjer du ikke har endret selv.
+const STANDARD_V3 = '{"personer":[{"id":"meg","navn":"Henrik"},{"id":"p2","navn":"Hanna"}],"andelMeg":50,"inntekter":[{"id":"lan","navn":"Støtte fra Lånekassen","belop":11616,"hvem":"meg"},{"id":"jobb","navn":"Deltidsjobb","belop":0,"hvem":"meg"},{"id":"lan-p2","navn":"Støtte fra Lånekassen","belop":11616,"hvem":"p2"},{"id":"jobb-p2","navn":"Deltidsjobb","belop":0,"hvem":"p2"}],"utgifter":[{"id":"husleie","navn":"Husleie","belop":18000,"gruppe":"fast","hvem":"felles"},{"id":"strom","navn":"Strøm","belop":700,"gruppe":"fast","hvem":"felles"},{"id":"forsikring","navn":"Innboforsikring","belop":150,"gruppe":"fast","hvem":"felles"},{"id":"abonnement","navn":"Abonnementer","belop":300,"gruppe":"fast","hvem":"felles"},{"id":"mobil","navn":"Mobil","belop":300,"gruppe":"fast","hvem":"meg"},{"id":"mobil-p2","navn":"Mobil","belop":300,"gruppe":"fast","hvem":"p2"},{"id":"buss","navn":"Buss (Svipper)","belop":450,"gruppe":"fast","hvem":"meg"},{"id":"buss-p2","navn":"Buss (Svipper)","belop":450,"gruppe":"fast","hvem":"p2"},{"id":"trening","navn":"Trening","belop":300,"gruppe":"fast","hvem":"meg"},{"id":"trening-p2","navn":"Trening","belop":300,"gruppe":"fast","hvem":"p2"},{"id":"semester","navn":"Semesteravgift","belop":120,"gruppe":"fast","hvem":"meg"},{"id":"semester-p2","navn":"Semesteravgift","belop":120,"gruppe":"fast","hvem":"p2"},{"id":"mat","navn":"Matbutikk","belop":7000,"gruppe":"mat","hvem":"felles"},{"id":"kantine","navn":"Kantine og take-away","belop":400,"gruppe":"mat","hvem":"meg"},{"id":"kantine-p2","navn":"Kantine og take-away","belop":400,"gruppe":"mat","hvem":"p2"},{"id":"hygiene","navn":"Hygiene og husholdning","belop":600,"gruppe":"forbruk","hvem":"felles"},{"id":"uforutsett","navn":"Uforutsett","belop":600,"gruppe":"forbruk","hvem":"felles"},{"id":"klaer","navn":"Klær og sko","belop":400,"gruppe":"forbruk","hvem":"meg"},{"id":"klaer-p2","navn":"Klær og sko","belop":400,"gruppe":"forbruk","hvem":"p2"},{"id":"fritid","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk","hvem":"meg"},{"id":"fritid-p2","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk","hvem":"p2"},{"id":"sparing","navn":"Sparing","belop":500,"gruppe":"sparing","hvem":"meg"},{"id":"sparing-p2","navn":"Sparing","belop":500,"gruppe":"sparing","hvem":"p2"}]}';
 const STANDARD_V2 = '{"personer":[{"id":"meg","navn":"Henrik"},{"id":"p2","navn":"Person 2"}],"andelMeg":50,"inntekter":[{"id":"lan","navn":"Lånekassen (basislån)","belop":15488,"hvem":"meg"},{"id":"jobb","navn":"Deltidsjobb","belop":0,"hvem":"meg"},{"id":"lan-p2","navn":"Lånekassen (basislån)","belop":15488,"hvem":"p2"},{"id":"jobb-p2","navn":"Deltidsjobb","belop":0,"hvem":"p2"}],"utgifter":[{"id":"husleie","navn":"Husleie","belop":10000,"gruppe":"fast","hvem":"felles"},{"id":"strom","navn":"Strøm og internett","belop":1000,"gruppe":"fast","hvem":"felles"},{"id":"forsikring","navn":"Innboforsikring","belop":150,"gruppe":"fast","hvem":"felles"},{"id":"abonnement","navn":"Abonnementer","belop":300,"gruppe":"fast","hvem":"felles"},{"id":"mobil","navn":"Mobil","belop":300,"gruppe":"fast","hvem":"meg"},{"id":"mobil-p2","navn":"Mobil","belop":300,"gruppe":"fast","hvem":"p2"},{"id":"buss","navn":"Buss (Svipper)","belop":450,"gruppe":"fast","hvem":"meg"},{"id":"buss-p2","navn":"Buss (Svipper)","belop":450,"gruppe":"fast","hvem":"p2"},{"id":"trening","navn":"Trening","belop":300,"gruppe":"fast","hvem":"meg"},{"id":"trening-p2","navn":"Trening","belop":300,"gruppe":"fast","hvem":"p2"},{"id":"semester","navn":"Semesteravgift","belop":120,"gruppe":"fast","hvem":"meg"},{"id":"semester-p2","navn":"Semesteravgift","belop":120,"gruppe":"fast","hvem":"p2"},{"id":"mat","navn":"Matbutikk","belop":7000,"gruppe":"mat","hvem":"felles"},{"id":"kantine","navn":"Kantine og take-away","belop":400,"gruppe":"mat","hvem":"meg"},{"id":"kantine-p2","navn":"Kantine og take-away","belop":400,"gruppe":"mat","hvem":"p2"},{"id":"hygiene","navn":"Hygiene og husholdning","belop":600,"gruppe":"forbruk","hvem":"felles"},{"id":"uforutsett","navn":"Uforutsett","belop":600,"gruppe":"forbruk","hvem":"felles"},{"id":"klaer","navn":"Klær og sko","belop":400,"gruppe":"forbruk","hvem":"meg"},{"id":"klaer-p2","navn":"Klær og sko","belop":400,"gruppe":"forbruk","hvem":"p2"},{"id":"fritid","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk","hvem":"meg"},{"id":"fritid-p2","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk","hvem":"p2"},{"id":"sparing","navn":"Sparing","belop":500,"gruppe":"sparing","hvem":"meg"},{"id":"sparing-p2","navn":"Sparing","belop":500,"gruppe":"sparing","hvem":"p2"}]}';
 const GAMMEL_STANDARD = '{"inntekter":[{"id":"lan","navn":"Lånekassen (basislån)","belop":15488},{"id":"jobb","navn":"Deltidsjobb","belop":0},{"id":"annet-inn","navn":"Annen inntekt","belop":0}],"utgifter":[{"id":"husleie","navn":"Husleie","belop":5500,"gruppe":"fast"},{"id":"strom","navn":"Strøm og internett","belop":300,"gruppe":"fast"},{"id":"mobil","navn":"Mobil","belop":300,"gruppe":"fast"},{"id":"forsikring","navn":"Innboforsikring","belop":120,"gruppe":"fast"},{"id":"buss","navn":"Buss (Svipper)","belop":450,"gruppe":"fast"},{"id":"trening","navn":"Trening","belop":300,"gruppe":"fast"},{"id":"abonnement","navn":"Abonnementer","belop":200,"gruppe":"fast"},{"id":"semester","navn":"Semesteravgift","belop":120,"gruppe":"fast"},{"id":"mat","navn":"Matbutikk","belop":4000,"gruppe":"mat"},{"id":"kantine","navn":"Kantine og take-away","belop":400,"gruppe":"mat"},{"id":"hygiene","navn":"Hygiene og husholdning","belop":400,"gruppe":"forbruk"},{"id":"klaer","navn":"Klær og sko","belop":400,"gruppe":"forbruk"},{"id":"fritid","navn":"Fritid og sosialt","belop":800,"gruppe":"forbruk"},{"id":"uforutsett","navn":"Uforutsett","belop":400,"gruppe":"forbruk"},{"id":"sparing","navn":"Sparing","belop":500,"gruppe":"sparing"}]}';
 const TYPISK_FELLES = new Set(['husleie', 'strom', 'forsikring', 'abonnement', 'mat', 'hygiene', 'uforutsett']);
@@ -105,7 +106,7 @@ function flett(mine, basis, std) {
 export function normaliserPlan(p, basis = null) {
   if (!p) return structuredClone(STANDARD_PLAN);
   const json = JSON.stringify(p);
-  if (json === GAMMEL_STANDARD || json === STANDARD_V2) return structuredClone(STANDARD_PLAN);
+  if (json === GAMMEL_STANDARD || json === STANDARD_V2 || json === STANDARD_V3) return structuredClone(STANDARD_PLAN);
   let plan = structuredClone(p);
   if (Array.isArray(plan.personer) && plan.personer.length) {
     plan = flett(plan, basis || JSON.parse(STANDARD_V2), STANDARD_PLAN);
@@ -129,10 +130,29 @@ export const lesPlan = () => normaliserPlan(les(NOKKEL_PLAN, null), les(NOKKEL_B
 export const lagrePlan = (plan) => skriv(NOKKEL_PLAN, plan) && skriv(NOKKEL_BASIS, STANDARD_PLAN);
 export const lesPoster = () => les(NOKKEL_POSTER, []);
 export const lagrePoster = (poster) => skriv(NOKKEL_POSTER, poster);
+// Lønnsprofil per person: timer (per uke eller måned), timelønn (inkl. tips) og skattetrekk i prosent.
+export const STANDARD_LONN = {
+  slipper: [],
+  valgt: 'meg',
+  personer: {
+    meg: { timer: 30, per: 'maaned', timelonn: 300, trekk: 5 },
+    p2: { timer: 7.5, per: 'uke', timelonn: 220, trekk: 0 },
+  },
+};
+
 export const lesLonn = () => {
   const l = les(NOKKEL_LONN, null) || {};
-  return { slipper: Array.isArray(l.slipper) ? l.slipper : [], plan: { hvem: 'meg', timer: 40, per: 'maaned', ...(l.plan || {}) } };
+  const ut = structuredClone(STANDARD_LONN);
+  if (Array.isArray(l.slipper)) ut.slipper = l.slipper;
+  if (l.valgt) ut.valgt = l.valgt;
+  else if (l.plan?.hvem) ut.valgt = l.plan.hvem; // eldre format
+  for (const [id, pr] of Object.entries(l.personer || {})) ut.personer[id] = { ...(ut.personer[id] || {}), ...pr };
+  return ut;
 };
+
+export function lonnsprofil(lonn, hvem) {
+  return (lonn.personer[hvem] ??= { timer: 0, per: 'maaned', timelonn: 0, trekk: 0 });
+}
 export const lagreLonn = (lonn) => skriv(NOKKEL_LONN, lonn);
 
 export const nyId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -215,11 +235,16 @@ export function lonnsstatistikk(slipper) {
   return { antall: med.length, timer, brutto, netto, perTimeBrutto: brutto / timer, perTimeNetto: netto / timer, trekkandel: 1 - netto / brutto };
 }
 
-export function anslagLonn(stat, timer, per = 'maaned') {
-  const timerPerMaaned = per === 'uke' ? (timer * 52) / 12 : timer;
-  const brutto = timerPerMaaned * stat.perTimeBrutto;
-  const netto = timerPerMaaned * stat.perTimeNetto;
-  return { timerPerMaaned, brutto, netto, feriepenger: brutto * FERIEPENGESATS, aarBrutto: brutto * 12 };
+export const FRIKORTGRENSE = 100000; // 2026, Skatteetaten (inkl. feriepenger)
+
+export function anslagLonn(profil) {
+  const timer = Number(profil.timer) || 0;
+  const timerPerMaaned = profil.per === 'uke' ? (timer * 52) / 12 : timer;
+  const brutto = timerPerMaaned * (Number(profil.timelonn) || 0);
+  const nettoPerTime = (Number(profil.timelonn) || 0) * (1 - (Number(profil.trekk) || 0) / 100);
+  const netto = timerPerMaaned * nettoPerTime;
+  const feriepenger = brutto * FERIEPENGESATS;
+  return { timerPerMaaned, brutto, netto, nettoPerTime, feriepenger, aarBrutto: brutto * 12, aarMedFerie: brutto * 12 + feriepenger * 12 };
 }
 
 export const kroner = (n) => Math.round(n).toLocaleString('nb-NO');

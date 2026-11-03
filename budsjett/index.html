@@ -257,7 +257,7 @@
         <div class="kort" id="lonnsanslag"></div>
         <div class="kort">
           <h3>Lønnsslipper</h3>
-          <p class="forklaring" style="margin-top:2px">Legg inn tidligere lønnsslipper. Siden regner ut timelønn og hvor mye som trekkes, og bruker det til å anslå hva du får utbetalt.</p>
+          <p class="forklaring" style="margin-top:2px">Valgfritt: legg inn tidligere lønnsslipper. Da regner siden ut den faktiske timelønna og hvor mye som trekkes, og du kan bruke de tallene i stedet for anslagene over.</p>
           <form class="skjema" id="nySlipp" autocomplete="off" style="margin-top:12px">
             <div class="skjemarad">
               <div class="felt" id="slippHvemFelt"><label for="sHvem">Hvem</label><select id="sHvem"></select></div>
@@ -309,7 +309,7 @@
       <section aria-labelledby="h-info">
         <h2 id="h-info">Greit å vite</h2>
         <div class="kort infoboks">
-          <p><b>Lånekassen 2026–2027:</b> I budsjettet står det 11 616 kr hver, som er det dere får fra staten. Fullt basislån for heltidsstudenter er <b>15 488 kr i måneden</b> (170 368 kr for hele studieåret). Det betales ut den 15. hver måned. Inntil <b>40 % (ca. 6 195 kr i måneden)</b> kan bli gjort om til stipend. Da må du bestå, bo borte fra foreldrene og ha inntekt og formue under grensene.</p>
+          <p><b>Lånekassen 2026–2027:</b> I budsjettet står det 11 616 kr hver, som er det dere har å rutte med fra staten. Resten går til bøker. Fullt basislån for heltidsstudenter er <b>15 488 kr i måneden</b> (170 368 kr for hele studieåret). Det betales ut den 15. hver måned. Inntil <b>40 % (ca. 6 195 kr i måneden)</b> kan bli gjort om til stipend. Da må du bestå, bo borte fra foreldrene og ha inntekt og formue under grensene.</p>
           <p><b>Jobb ved siden av:</b> Tjener du mye i løpet av året, kan du få mindre av lånet gjort om til stipend. Sjekk inntektsgrensen hos Lånekassen hvis du planlegger mange timer.</p>
           <p><b>Skatt på lønn:</b> Har du tabelltrekk, trekkes det vanligvis ingen skatt i juni og halv skatt i desember. Har du frikort, trekkes det ingen skatt før du når frikortgrensen. Derfor kan utbetalingen variere fra måned til måned.</p>
           <p><b>Feriepenger:</b> Arbeidsgiveren setter vanligvis av 10,2 % av bruttolønna som feriepenger. De betales ut i juni året etter.</p>
@@ -342,7 +342,7 @@
     import {
       GRUPPER, LOPENDE, STANDARD_PLAN, lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn, leggTilPost, nyId,
       idag, maanedAv, dagerIMaaned, sum, summerPlan, andelFor, ukesMatbudsjett, matBruktDenneUka,
-      nettoAv, lonnsstatistikk, anslagLonn, kroner, normaliserPlan,
+      nettoAv, lonnsstatistikk, anslagLonn, lonnsprofil, FRIKORTGRENSE, kroner, normaliserPlan,
     } from './budsjett.js';
 
     const $ = (id) => document.getElementById(id);
@@ -470,45 +470,49 @@
     }
 
     function tegnLonnsanslag() {
-      const lp = S.lonn.plan;
-      if (!S.plan.personer.some((p) => p.id === lp.hvem)) lp.hvem = S.plan.personer[0].id;
-      const slipper = S.lonn.slipper.filter((s) => s.hvem === lp.hvem);
-      const stat = lonnsstatistikk(slipper);
-      const navn = personNavn(lp.hvem);
-      const felt = `
-        <div class="anslagfelt">
-          ${flerePersoner() ? `<div class="felt"><label for="aHvem">Hvem</label><select id="aHvem">${personvalg(lp.hvem)}</select></div>` : ''}
-          <div class="felt"><label for="aTimer">Timer du skal jobbe</label><input id="aTimer" type="number" inputmode="decimal" min="0" step="any" value="${lp.timer ?? ''}"></div>
-          <div class="felt"><label for="aPer">per</label><select id="aPer"><option value="uke" ${lp.per === 'uke' ? 'selected' : ''}>uke</option><option value="maaned" ${lp.per !== 'uke' ? 'selected' : ''}>måned</option></select></div>
-        </div>`;
-      const mangler = Math.max(0, -summerPlan(S.plan, 'alle').tilOvers);
+      if (!S.plan.personer.some((p) => p.id === S.lonn.valgt)) S.lonn.valgt = S.plan.personer[0].id;
+      const hvem = S.lonn.valgt;
+      const navn = personNavn(hvem);
       const genitiv = navn.endsWith('s') ? `${navn}'` : `${navn}s`;
-      if (!stat) {
-        $('lonnsanslag').innerHTML = `<h3>Hvor mye får ${flerePersoner() ? esc(navn) : 'jeg'} utbetalt?</h3>${felt}
-          <p class="grunnlag">Legg inn minst én lønnsslipp${flerePersoner() ? ` for ${esc(navn)}` : ''} nedenfor, så regner siden ut hvor mye du får for timene du skal jobbe.</p>
-          ${mangler ? `<p class="varsel kritisk">⚠️ Budsjettet mangler ${kroner(mangler)} kr i måneden. Når du har lagt inn en lønnsslipp, regner siden ut hvor mange timer jobb som trengs for å dekke det.</p>` : ''}`;
-        return;
-      }
-      const timerNull = mangler / stat.perTimeNetto;
-      const a = anslagLonn(stat, Number(lp.timer) || 0, lp.per);
+      const pr = lonnsprofil(S.lonn, hvem);
+      const stat = lonnsstatistikk(S.lonn.slipper.filter((s) => s.hvem === hvem));
+      const a = anslagLonn(pr);
+      const mangler = Math.max(0, -summerPlan(S.plan, 'alle').tilOvers);
+      const tittel = flerePersoner() ? `Hva får ${esc(navn)} utbetalt?` : 'Hva får jeg utbetalt?';
+      const frikort = a.aarBrutto > 0 ? (a.aarMedFerie <= FRIKORTGRENSE
+        ? `Ca. ${kroner(a.aarMedFerie)} kr i året med feriepenger er under frikortgrensen (100 000 kr i 2026). Med frikort trekkes det da ingen skatt.`
+        : `Ca. ${kroner(a.aarMedFerie)} kr i året med feriepenger er over frikortgrensen (100 000 kr i 2026). Da trekkes det skatt av det som er over, så sett inn riktig trekk når du har en lønnsslipp.`) : '';
       $('lonnsanslag').innerHTML = `
-        <h3>Hvor mye får ${flerePersoner() ? esc(navn) : 'jeg'} utbetalt?</h3>
-        ${felt}
+        <h3>${tittel}</h3>
+        <div class="anslagfelt">
+          ${flerePersoner() ? `<div class="felt"><label for="aHvem">Hvem</label><select id="aHvem">${personvalg(hvem)}</select></div>` : ''}
+          <div class="felt"><label for="aTimer">Timer</label><input id="aTimer" type="number" inputmode="decimal" min="0" step="any" value="${pr.timer ?? ''}"></div>
+          <div class="felt"><label for="aPer">per</label><select id="aPer"><option value="uke" ${pr.per === 'uke' ? 'selected' : ''}>uke</option><option value="maaned" ${pr.per !== 'uke' ? 'selected' : ''}>måned</option></select></div>
+        </div>
+        <div class="skjemarad" style="margin-top:10px">
+          <div class="felt"><label for="aTimelonn">Timelønn inkl. tips (kr/t)</label><input id="aTimelonn" type="number" inputmode="decimal" min="0" step="any" value="${pr.timelonn ?? ''}"></div>
+          <div class="felt"><label for="aTrekk">Skattetrekk (%)</label><input id="aTrekk" type="number" inputmode="decimal" min="0" max="60" step="any" value="${pr.trekk ?? 0}"></div>
+        </div>
+        ${stat ? `<p class="grunnlag">Lønnsslippene ${flerePersoner() ? `til ${esc(navn)} ` : ''}gir <b>${kroner(stat.perTimeBrutto)} kr/t</b> og <b>${Math.round(stat.trekkandel * 100)} % trekk</b> (${stat.antall} ${stat.antall === 1 ? 'slipp' : 'slipper'}, ${kroner(stat.timer)} timer).
+          <button class="knapp" type="button" id="brukSlipper" style="margin-top:8px">Bruk tallene fra lønnsslippene</button>
+          <br><span style="font-size:13px">Får du tips som ikke står på slippen, legg det til i timelønna etterpå.</span></p>` : ''}
         <div class="nokkeltall fire" style="margin-top:12px">
-          <div class="kort"><div class="etikett">Utbetalt per måned</div><div class="verdi">≈ ${kroner(a.netto)} kr</div><div class="liten">${lp.per === 'uke' ? `ca. ${kroner(a.timerPerMaaned)} timer i måneden` : 'etter skatt og trekk'}</div></div>
+          <div class="kort"><div class="etikett">Utbetalt per måned</div><div class="verdi">≈ ${kroner(a.netto)} kr</div><div class="liten">${pr.per === 'uke' ? `ca. ${kroner(a.timerPerMaaned)} timer i måneden` : 'etter skatt'}</div></div>
           <div class="kort"><div class="etikett">Brutto per måned</div><div class="verdi">≈ ${kroner(a.brutto)} kr</div><div class="liten">før skatt</div></div>
           <div class="kort"><div class="etikett">Feriepenger opptjent</div><div class="verdi">≈ ${kroner(a.feriepenger)} kr</div><div class="liten">per måned, utbetales i juni</div></div>
           <div class="kort"><div class="etikett">Brutto per år</div><div class="verdi">≈ ${kroner(a.aarBrutto)} kr</div><div class="liten">hvis du jobber slik hele året</div></div>
         </div>
-        <p class="grunnlag">Regnet ut fra <b>${stat.antall} ${stat.antall === 1 ? 'lønnsslipp' : 'lønnsslipper'}</b> (${kroner(stat.timer)} timer): <b>${kroner(stat.perTimeBrutto)} kr/t</b> brutto, <b>${kroner(stat.perTimeNetto)} kr/t</b> utbetalt, ${Math.round(stat.trekkandel * 100)} % trekk.</p>
-        ${mangler ? `<p class="varsel kritisk">⚠️ Budsjettet mangler ${kroner(mangler)} kr i måneden. Med ${esc(genitiv)} timelønn tilsvarer det ca. <b>${kroner(timerNull)} timer ekstra jobb i måneden</b> (ca. ${kroner((timerNull * 12) / 52)} i uka), i tillegg til det som allerede står i budsjettet.</p>`
-          : `<p class="varsel">✓ Budsjettet går opp med det som står i det nå.</p>`}
-        <div class="knapprad" style="margin-top:12px"><button class="knapp hoved" id="brukLonn" data-belop="${Math.round(a.netto)}">Bruk ${kroner(a.netto)} kr som lønn i budsjettet</button></div>`;
+        ${frikort ? `<p class="grunnlag">${frikort}</p>` : ''}
+        <div class="knapprad" style="margin-top:12px"><button class="knapp hoved" id="brukLonn" data-belop="${Math.round(a.netto)}">Bruk ${kroner(a.netto)} kr som lønn i budsjettet</button></div>
+        ${mangler && a.nettoPerTime > 0
+          ? `<p class="varsel kritisk">⚠️ Budsjettet mangler ${kroner(mangler)} kr i måneden. Med ${esc(genitiv)} timelønn tilsvarer det ca. <b>${kroner(mangler / a.nettoPerTime)} timer ekstra jobb i måneden</b> (ca. ${kroner(((mangler / a.nettoPerTime) * 12) / 52)} i uka), i tillegg til det som allerede står i budsjettet.</p>`
+          : mangler ? `<p class="varsel kritisk">⚠️ Budsjettet mangler ${kroner(mangler)} kr i måneden.</p>`
+          : `<p class="varsel">✓ Budsjettet går opp med det som står i det nå.</p>`}`;
     }
 
     function tegnSlipper() {
       $('slippHvemFelt').hidden = !flerePersoner();
-      $('sHvem').innerHTML = personvalg(S.lonn.plan.hvem);
+      $('sHvem').innerHTML = personvalg(S.lonn.valgt);
       if (!$('sMaaned').value) {
         const d = fraMaaned(maanedAv(idag())); d.setUTCMonth(d.getUTCMonth() - 1);
         $('sMaaned').value = d.toISOString().slice(0, 7);
@@ -655,7 +659,7 @@
         skatt: skatt > 0 ? skatt : (netto > 0 ? Math.max(0, brutto - netto) : 0),
         ...(netto > 0 ? { netto } : {}), iSnitt: true,
       });
-      S.lonn.plan.hvem = hvem;
+      S.lonn.valgt = hvem;
       lagreLonn(S.lonn);
       ['sTimer', 'sBrutto', 'sSkatt', 'sNetto'].forEach((id) => { $(id).value = ''; });
       tegnLonnsanslag(); tegnSlipper();
@@ -664,15 +668,18 @@
 
     // Felt i lønnsanslaget
     $('lonnsanslag').addEventListener('input', (e) => {
-      const lp = S.lonn.plan;
-      if (e.target.id === 'aTimer') lp.timer = Math.max(0, tallFra(e.target.value) || 0);
-      else if (e.target.id === 'aPer') lp.per = e.target.value;
-      else if (e.target.id === 'aHvem') lp.hvem = e.target.value;
+      const pr = lonnsprofil(S.lonn, S.lonn.valgt);
+      const v = Math.max(0, tallFra(e.target.value) || 0);
+      if (e.target.id === 'aTimer') pr.timer = v;
+      else if (e.target.id === 'aTimelonn') pr.timelonn = v;
+      else if (e.target.id === 'aTrekk') pr.trekk = Math.min(60, v);
+      else if (e.target.id === 'aPer') pr.per = e.target.value;
+      else if (e.target.id === 'aHvem') { S.lonn.valgt = e.target.value; $('sHvem').value = S.lonn.valgt; }
       else return;
       lagreLonn(S.lonn);
       const fokus = e.target.id, pos = e.target.selectionStart;
       tegnLonnsanslag();
-      const el = $(fokus); el?.focus(); if (fokus === 'aTimer' && pos != null) { try { el.setSelectionRange(pos, pos); } catch {} }
+      const el = $(fokus); el?.focus(); if (pos != null) { try { el.setSelectionRange(pos, pos); } catch {} }
     });
 
     $('slipper').addEventListener('change', (e) => {
@@ -721,8 +728,18 @@
         return;
       }
       switch (el.id) {
+        case 'brukSlipper': {
+          const stat = lonnsstatistikk(S.lonn.slipper.filter((x) => x.hvem === S.lonn.valgt));
+          if (stat) {
+            const pr = lonnsprofil(S.lonn, S.lonn.valgt);
+            pr.timelonn = Math.round(stat.perTimeBrutto);
+            pr.trekk = Math.round(stat.trekkandel * 100);
+            lagreLonn(S.lonn); tegnLonnsanslag(); vis('Timelønn og trekk er hentet fra lønnsslippene ✓');
+          }
+          break;
+        }
         case 'brukLonn': {
-          const hvem = S.lonn.plan.hvem;
+          const hvem = S.lonn.valgt;
           const belop = Number(ds.belop) || 0;
           let linje = S.plan.inntekter.find((l) => l.hvem === hvem && /jobb|lønn/i.test(l.navn));
           if (!linje) { linje = { id: nyId(), navn: 'Deltidsjobb', belop: 0, hvem }; S.plan.inntekter.push(linje); }
@@ -792,7 +809,7 @@
         if (!data.plan?.inntekter || !data.plan?.utgifter || !Array.isArray(data.poster)) throw new Error('feil format');
         if (confirm(`Hente budsjettet fra filen (${data.poster.length} utgifter)? Det erstatter det som ligger her.`)) {
           S.plan = normaliserPlan(data.plan); S.poster = data.poster;
-          if (data.lonn) S.lonn = { slipper: data.lonn.slipper || [], plan: { ...S.lonn.plan, ...(data.lonn.plan || {}) } };
+          if (data.lonn) { lagreLonn(data.lonn); S.lonn = lesLonn(); }
           lagre(); lagrePoster(S.poster); lagreLonn(S.lonn); tegnAlt(); vis('Budsjettet er hentet ✓');
         }
       } catch { alert('Fant ikke et budsjett i den filen.'); }
