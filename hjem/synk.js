@@ -1,7 +1,14 @@
 // Felles budsjett på flere telefoner (Henrik og Hanna).
 // Alt krypteres på telefonen med husstandskoden (AES-GCM, nøkkel fra PBKDF2) før det sendes til
 // Firebase-databasen. Databasen lagrer bare uleselig tekst – uten koden kan ingen lese budsjettet.
-import { lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn } from './budsjett.js';
+import { lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn, lesMat, lagreMat } from './budsjett.js';
+
+// Det som synkes som én helhet (sist lagret vinner). Utgifter synkes hver for seg.
+const DELER = [
+  { navn: 'plan', les: lesPlan, lagre: lagrePlan },
+  { navn: 'lonn', les: lesLonn, lagre: lagreLonn },
+  { navn: 'mat', les: lesMat, lagre: lagreMat },
+];
 
 export const DB = 'https://eidert-default-rtdb.europe-west1.firebasedatabase.app';
 const NOKKEL = 'budsjett.deling';
@@ -88,8 +95,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('budsjett-lagret', (e) => {
     const d = les();
     if (!d?.kode) return;
-    if (e.detail === 'plan') d.planEndret = Date.now();
-    if (e.detail === 'lonn') d.lonnEndret = Date.now();
+    if (DELER.some((x) => x.navn === e.detail)) d[`${e.detail}Endret`] = Date.now();
     skriv(d);
     clearTimeout(ventetid);
     ventetid = setTimeout(() => synk().then((r) => r.endret && lytter?.(r)).catch(() => {}), 1200);
@@ -105,7 +111,8 @@ export function synk() {
     const d = les();
     if (!d?.kode) return { endret: false };
     const { husId, key } = await krypto(d.kode);
-    const foer = JSON.stringify([lesPlan(), lesPoster(), lesLonn()]);
+    const alt = () => JSON.stringify([lesPoster(), ...DELER.map((x) => x.les())]);
+    const foer = alt();
 
     // 1) Send det som er nytt her siden sist
     const lokale = lesPoster();
@@ -114,9 +121,8 @@ export function synk() {
     const endring = {};
     for (const p of lokale) if (!kjente.has(p.id)) endring[`poster/${p.id}`] = { d: await krypter(key, p) };
     for (const id of kjente) if (!ider.has(id)) { endring[`poster/${id}`] = null; endring[`slettet/${id}`] = { '.sv': 'timestamp' }; }
-    const planEndret = d.planEndret, lonnEndret = d.lonnEndret;
-    if (planEndret) endring.plan = { d: await krypter(key, lesPlan()), t: { '.sv': 'timestamp' } };
-    if (lonnEndret) endring.lonn = { d: await krypter(key, lesLonn()), t: { '.sv': 'timestamp' } };
+    const endretFoer = Object.fromEntries(DELER.map((x) => [x.navn, d[`${x.navn}Endret`] || 0]));
+    for (const x of DELER) if (endretFoer[x.navn]) endring[x.navn] = { d: await krypter(key, x.les()), t: { '.sv': 'timestamp' } };
     if (Object.keys(endring).length) await kall('PATCH', sti(husId), endring);
 
     // 2) Hent alt og bruk det felles
@@ -130,24 +136,19 @@ export function synk() {
     lagrePoster([...poster, ...nyeImens.filter((p) => !poster.some((x) => x.id === p.id))], { stille: true });
     naa.kjente = poster.map((p) => p.id);
 
-    if (fjern.plan?.d && (fjern.plan.t !== naa.planSett || planEndret)) {
-      if (naa.planEndret === planEndret) {
-        lagrePlan(await dekrypter(key, fjern.plan.d), { stille: true });
-        naa.planEndret = 0;
+    for (const x of DELER) {
+      const f = fjern[x.navn];
+      if (!f?.d || (f.t === naa[`${x.navn}Sett`] && !endretFoer[x.navn])) continue;
+      if ((naa[`${x.navn}Endret`] || 0) === endretFoer[x.navn]) {
+        x.lagre(await dekrypter(key, f.d), { stille: true });
+        naa[`${x.navn}Endret`] = 0;
       }
-      naa.planSett = fjern.plan.t;
-    }
-    if (fjern.lonn?.d && (fjern.lonn.t !== naa.lonnSett || lonnEndret)) {
-      if (naa.lonnEndret === lonnEndret) {
-        lagreLonn(await dekrypter(key, fjern.lonn.d), { stille: true });
-        naa.lonnEndret = 0;
-      }
-      naa.lonnSett = fjern.lonn.t;
+      naa[`${x.navn}Sett`] = f.t;
     }
     naa.sist = Date.now();
     naa.feil = null;
     skriv(naa);
-    return { endret: JSON.stringify([lesPlan(), lesPoster(), lesLonn()]) !== foer };
+    return { endret: alt() !== foer };
   })().catch((e) => {
     const d = les();
     if (d) { d.feil = e.type || 'ukjent'; skriv(d); }
@@ -159,7 +160,7 @@ export function synk() {
 // Start deling fra denne telefonen: lager kode og laster opp alt som ligger her
 export async function startDeling(jeg) {
   const kode = nyKode();
-  skriv({ kode, jeg, kjente: [], planEndret: Date.now(), lonnEndret: Date.now(), planSett: null, lonnSett: null });
+  skriv({ kode, jeg, kjente: [], planEndret: Date.now(), lonnEndret: Date.now(), matEndret: Date.now() });
   try {
     await synk();
   } catch (e) {
@@ -182,7 +183,7 @@ export async function finnDelt(kode) {
 }
 
 export async function bliMed(kode, jeg) {
-  skriv({ kode: normaliserKode(kode), jeg, kjente: [], planEndret: 0, lonnEndret: 0, planSett: null, lonnSett: null });
+  skriv({ kode: normaliserKode(kode), jeg, kjente: [], planEndret: 0, lonnEndret: 0, matEndret: 0 });
   lagrePoster([], { stille: true }); // budsjettet på denne telefonen byttes ut med det felles
   await synk();
 }

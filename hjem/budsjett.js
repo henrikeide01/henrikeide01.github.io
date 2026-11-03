@@ -1,5 +1,5 @@
-// Felles budsjettlogikk – brukes av /budsjett/ og av tilbudsavisen (/tilbud/).
-// Alt lagres i nettleseren (localStorage) på eidert.no, så begge sidene ser de samme tallene.
+// Felles data for Hjemme-appen (/hjem/) og tilbudsavisen (/tilbud/): budsjett, lønn og mat.
+// Alt lagres i nettleseren (localStorage) på eidert.no, og synkes kryptert av synk.js hvis husstanden deler.
 
 export const GRUPPER = [
   { id: 'fast', navn: 'Faste utgifter', farge: 1 },
@@ -16,8 +16,8 @@ export const STANDARD_PERSONER = [
   { id: 'p2', navn: 'Hanna' },
 ];
 
-// Budsjett for Henrik og Hanna i Tromsø, studieåret 2026–2027. Husleie, strøm og støtte er deres tall;
-// resten er anslag som kan endres på siden.
+// Oppsettet Henrik og Hanna fikk før appen fikk oppstart for nye husstander. Brukes bare for å
+// ta vare på planer som allerede ligger på telefonene deres (og kan hentes fram igjen ved behov).
 // «hvem» er 'felles' (deles mellom dere) eller en person-id. Felles beløp er totalen for husstanden.
 export const STANDARD_PLAN = {
   personer: STANDARD_PERSONER,
@@ -108,11 +108,11 @@ function flett(mine, basis, std) {
 
 // Sørger for at eldre lagrede planer fortsatt virker, og tar inn oppdateringer i standardplanen.
 export function normaliserPlan(p, basis = null) {
-  if (!p) return structuredClone(STANDARD_PLAN);
+  if (!p) return lagNyPlan({ personer: [{ id: 'meg', navn: 'Meg' }] });
   const json = JSON.stringify(p);
   if (json === GAMMEL_STANDARD || json === STANDARD_V2 || json === STANDARD_V3) return structuredClone(STANDARD_PLAN);
   let plan = structuredClone(p);
-  if (Array.isArray(plan.personer) && plan.personer.length) {
+  if (plan.type !== 'husstand' && Array.isArray(plan.personer) && plan.personer.length) {
     plan = flett(plan, basis || JSON.parse(STANDARD_V2), STANDARD_PLAN);
   }
   if (!Array.isArray(plan.personer) || !plan.personer.length) {
@@ -120,6 +120,11 @@ export function normaliserPlan(p, basis = null) {
     plan.migrert = true;
   }
   if (!(plan.andelMeg >= 0 && plan.andelMeg <= 100)) plan.andelMeg = 50;
+  // Andel av felles utgifter per person (eldre planer hadde bare andelMeg for to personer)
+  if (plan.personer.some((x) => !(x.andel >= 0))) {
+    if (plan.personer.length === 2) { plan.personer[0].andel ??= plan.andelMeg; plan.personer[1].andel ??= 100 - plan.andelMeg; }
+    for (const x of plan.personer) if (!(x.andel >= 0)) x.andel = Math.round(100 / plan.personer.length);
+  }
   plan.inntekter ??= [];
   plan.utgifter ??= [];
   const ider = new Set(plan.personer.map((x) => x.id));
@@ -130,8 +135,77 @@ export function normaliserPlan(p, basis = null) {
   return plan;
 }
 
+export const harPlan = () => les(NOKKEL_PLAN, null) != null;
 export const lesPlan = () => normaliserPlan(les(NOKKEL_PLAN, null), les(NOKKEL_BASIS, null));
-export const lagrePlan = (plan, { stille = false } = {}) => { const ok = skriv(NOKKEL_PLAN, plan) && skriv(NOKKEL_BASIS, STANDARD_PLAN); varsle('plan', stille); return ok; };
+export const lagrePlan = (plan, { stille = false } = {}) => {
+  const ok = skriv(NOKKEL_PLAN, plan) && (plan.type === 'husstand' || skriv(NOKKEL_BASIS, STANDARD_PLAN));
+  varsle('plan', stille);
+  return ok;
+};
+
+// Telefoner som brukte budsjettet før oppstarten kom, men aldri lagret en egen plan, beholder oppsettet sitt.
+export function sikreTidligereOppsett() {
+  if (harPlan()) return false;
+  const brukt = ['budsjett.poster', 'budsjett.lonn', 'budsjett.planBasis', 'budsjett.deling', 'tilbudsavis.varer', 'tilbudsavis.handleliste']
+    .some((k) => { try { return localStorage.getItem(k) != null; } catch { return false; } });
+  if (!brukt) return false;
+  skriv(NOKKEL_PLAN, structuredClone(STANDARD_PLAN));
+  skriv(NOKKEL_BASIS, STANDARD_PLAN);
+  return true;
+}
+export const hentTidligereOppsett = () => structuredClone(STANDARD_PLAN);
+
+// ---------- Ny husstand ----------
+const MAL_FELLES = [
+  ['husleie', 'Husleie', 'fast', 0], ['strom', 'Strøm', 'fast', 0], ['forsikring', 'Innboforsikring', 'fast', 150],
+  ['abonnement', 'Abonnementer', 'fast', 300], ['mat', 'Matbutikk', 'mat', 3500, true], ['hygiene', 'Hygiene og husholdning', 'forbruk', 300, true],
+  ['uforutsett', 'Uforutsett', 'forbruk', 300, true],
+];
+const MAL_PERSON = [
+  ['mobil', 'Mobil', 'fast', 300], ['kantine', 'Kantine og take-away', 'mat', 300], ['klaer', 'Klær og sko', 'forbruk', 400],
+  ['fritid', 'Fritid og sosialt', 'forbruk', 800], ['sparing', 'Sparing', 'sparing', 500],
+];
+
+function personlinjer(p) {
+  return MAL_PERSON.map(([id, navn, gruppe, belop]) => ({ id: `${id}-${p.id}`, navn, belop, gruppe, hvem: p.id }));
+}
+
+function fordelAndeler(personer) {
+  const n = personer.length || 1;
+  personer.forEach((p, i) => { p.andel = i === n - 1 ? 100 - Math.floor(100 / n) * (n - 1) : Math.floor(100 / n); });
+}
+
+// personer: [{ id, navn, inntekt }]
+export function lagNyPlan({ personer, husleie = 0, strom = 0 }) {
+  const n = Math.max(1, personer.length);
+  const plan = { type: 'husstand', personer: personer.map((p) => ({ id: p.id, navn: p.navn })), inntekter: [], utgifter: [] };
+  fordelAndeler(plan.personer);
+  for (const p of personer) plan.inntekter.push({ id: `inn-${p.id}`, navn: 'Inntekt', belop: Number(p.inntekt) || 0, hvem: p.id });
+  for (const [id, navn, gruppe, belop, perHode] of MAL_FELLES) {
+    const verdi = id === 'husleie' ? husleie : id === 'strom' ? strom : perHode ? belop * n : belop;
+    plan.utgifter.push({ id, navn, belop: Number(verdi) || 0, gruppe, hvem: 'felles' });
+  }
+  for (const p of plan.personer) plan.utgifter.push(...personlinjer(p));
+  return plan;
+}
+
+export function leggTilPerson(plan, navn) {
+  const p = { id: nyId(), navn: navn || 'Ny person' };
+  plan.personer.push(p);
+  fordelAndeler(plan.personer);
+  plan.inntekter.push({ id: `inn-${p.id}`, navn: 'Inntekt', belop: 0, hvem: p.id });
+  plan.utgifter.push(...personlinjer(p));
+  return p;
+}
+
+export function fjernPerson(plan, id) {
+  if (plan.personer.length <= 1) return false;
+  plan.personer = plan.personer.filter((p) => p.id !== id);
+  plan.inntekter = plan.inntekter.filter((l) => l.hvem !== id);
+  plan.utgifter = plan.utgifter.filter((l) => l.hvem !== id);
+  fordelAndeler(plan.personer);
+  return true;
+}
 export const lesPoster = () => les(NOKKEL_POSTER, []);
 export const lagrePoster = (poster, { stille = false } = {}) => { const ok = skriv(NOKKEL_POSTER, poster); varsle('poster', stille); return ok; };
 // Lønnsprofil per person: timer (per uke eller måned), timelønn (inkl. tips) og skattetrekk i prosent.
@@ -191,10 +265,10 @@ export const sum = (liste) => liste.reduce((s, x) => s + (Number(x.belop) || 0),
 
 // Andelen av felles utgifter en person betaler (person 1 = andelMeg, resten deler likt)
 export function andelFor(plan, hvem) {
-  const [forste, ...andre] = plan.personer;
-  if (!forste) return 1;
-  if (hvem === forste.id) return andre.length ? plan.andelMeg / 100 : 1;
-  return andre.length ? (1 - plan.andelMeg / 100) / andre.length : 0;
+  const total = plan.personer.reduce((s, p) => s + (Number(p.andel) || 0), 0);
+  const p = plan.personer.find((x) => x.id === hvem);
+  if (!p) return 0;
+  return total > 0 ? (Number(p.andel) || 0) / total : 1 / plan.personer.length;
 }
 
 // visning = 'alle' (hele husstanden) eller en person-id («min del»)
@@ -252,3 +326,21 @@ export function anslagLonn(profil) {
 }
 
 export const kroner = (n) => Math.round(n).toLocaleString('nb-NO');
+
+
+// ---------- Mat: profiler, husstand, meny, kjøkken, handleliste og logg ----------
+const NOKKEL_MAT = 'hjem.mat';
+export const STANDARD_MAT = {
+  profiler: {},      // personId → svar fra spørsmålene
+  husstand: {},      // svar som gjelder hele husstanden
+  meny: {},          // 'YYYY-MM-DD' → { id, laast, spist }
+  kjokken: {},       // varenøkkel → gram vi har
+  handleliste: [],   // { id, vare, gram, tekst, haket }
+  logg: [],          // { id, dato, oppskrift, porsjoner: { personId: porsjoner }, kcal: { personId: kcal } }
+  vurderinger: {},   // oppskriftId → poeng (lærer hva dere liker)
+};
+export function lesMat() {
+  const m = les(NOKKEL_MAT, null) || {};
+  return { ...structuredClone(STANDARD_MAT), ...m };
+}
+export const lagreMat = (mat, { stille = false } = {}) => { const ok = skriv(NOKKEL_MAT, mat); varsle('mat', stille); return ok; };

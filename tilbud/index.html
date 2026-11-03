@@ -263,7 +263,7 @@
       <a class="tilbake" href="../">← Prosjekter</a>
       <h1>Min tilbudsavis <span class="uke" id="uke"></span></h1>
       <p class="meta" id="meta">Henter ukens tilbud…</p>
-      <a class="budsjettlinje" id="budsjettlinje" href="../budsjett/"></a>
+      <a class="budsjettlinje" id="budsjettlinje" href="../hjem/"></a>
     </header>
 
     <div class="verktoy">
@@ -323,8 +323,8 @@
 
   <script type="module">
     import { lagTilbudsfilter, vurder, erMat, kr, lagHistorikk, NIVAA_REKKEFOLGE, normaliser } from './motor.js';
-    import { lesPlan, ukesMatbudsjett, matBruktDenneUka, leggTilPost, kroner } from '../budsjett/budsjett.js';
-    import { erDelt, synk } from '../budsjett/synk.js';
+    import { lesPlan, harPlan, ukesMatbudsjett, matBruktDenneUka, leggTilPost, kroner } from '../hjem/budsjett.js';
+    import { erDelt, synk } from '../hjem/synk.js';
 
     // ---------- Lagring (tåler privat modus) ----------
     const lager = {
@@ -523,6 +523,7 @@
 
     // ---------- Kobling til studentbudsjettet ----------
     function tegnBudsjettlinje() {
+      if (!harPlan()) { $('budsjettlinje').textContent = ''; return; }
       const plan = lesPlan();
       const budsjett = ukesMatbudsjett(plan);
       if (!budsjett) { $('budsjettlinje').textContent = ''; return; }

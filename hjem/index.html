@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Hjemme</title>
+  <meta name="description" content="Mat og budsjett for husstanden: middagsforslag ut fra tilbud og kjøkkenet, ukemeny, handleliste, kalorier per person, budsjett og lønn.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏡</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f4ef; --flate: #ffffff; --flate-2: #f1eee6; --tekst: #1d2433; --dempet: #5f6b7a; --linje: #e5e0d5;
+      --aksent: #0b8f63; --aksent-svak: #dcefe6; --aksent-tekst: #ffffff; --spor: #ecebe6;
+      --serie-1: #2a78d6; --serie-2: #eb6834; --serie-3: #1baf7a; --serie-4: #eda100; --rest: #d8d6cf;
+      --advarsel: #fab219; --kritisk: #d03b3b; --god-tekst: #006300; --kritisk-tekst: #b42727;
+      --skygge: 0 1px 2px rgba(20, 25, 35, .05), 0 6px 18px rgba(20, 25, 35, .06);
+      --radius: 18px; color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111419; --flate: #1a1f27; --flate-2: #232a34; --tekst: #e9edf3; --dempet: #9ca7b6; --linje: #2d3542;
+        --aksent: #3ad29f; --aksent-svak: #143429; --aksent-tekst: #04261a; --spor: #262d38;
+        --serie-1: #3987e5; --serie-2: #d95926; --serie-3: #199e70; --serie-4: #c98500; --rest: #3a4250;
+        --god-tekst: #3ad29f; --kritisk-tekst: #ff8a80;
+        --skygge: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25); color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #111419; --flate: #1a1f27; --flate-2: #232a34; --tekst: #e9edf3; --dempet: #9ca7b6; --linje: #2d3542;
+      --aksent: #3ad29f; --aksent-svak: #143429; --aksent-tekst: #04261a; --spor: #262d38;
+      --serie-1: #3987e5; --serie-2: #d95926; --serie-3: #199e70; --serie-4: #c98500; --rest: #3a4250;
+      --god-tekst: #3ad29f; --kritisk-tekst: #ff8a80;
+      --skygge: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25); color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--tekst); line-height: 1.4; min-height: 100vh; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--aksent); }
+    [hidden] { display: none !important; }
+    .tall { font-variant-numeric: tabular-nums; }
+    .side { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+    header.topp { padding: 18px 0 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    header.topp a { color: var(--dempet); text-decoration: none; font-size: 14px; }
+    header.topp a.lenkeknapp { color: var(--tekst); background: var(--flate); border: 1px solid var(--linje); padding: 6px 12px; border-radius: 999px; font-weight: 600; }
+    h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; margin: 10px 0 12px; }
+    h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .forklaring { color: var(--dempet); font-size: 14px; }
+    .kort { background: var(--flate); border: 1px solid var(--linje); border-radius: var(--radius); box-shadow: var(--skygge); padding: 16px; margin-bottom: 12px; }
+
+    /* Segmentvelger (måned, person, visning) */
+    .velger { display: inline-flex; align-items: center; gap: 4px; background: var(--flate); border: 1px solid var(--linje); border-radius: 999px; padding: 3px; max-width: 100%; overflow-x: auto; margin-bottom: 12px; }
+    .velger button { border: 0; background: transparent; height: 34px; padding: 0 14px; border-radius: 999px; font-weight: 600; color: var(--dempet); white-space: nowrap; }
+    .velger button.pil { width: 34px; padding: 0; font-size: 18px; }
+    .velger button[aria-pressed="true"] { background: var(--tekst); color: var(--bg); }
+    .velger span { font-weight: 700; min-width: 132px; text-align: center; }
+
+    /* Hero */
+    .hero .etikett { color: var(--dempet); font-size: 15px; font-weight: 600; }
+    .hero .verdi { font-size: clamp(48px, 14vw, 64px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; margin: 4px 0 2px; }
+    .hero .verdi small { font-size: .42em; font-weight: 600; color: var(--dempet); letter-spacing: 0; }
+    .hero .verdi.minus { color: var(--kritisk-tekst); }
+    .hero .under { color: var(--dempet); font-size: 15px; }
+    .hero .under b { color: var(--tekst); }
+
+    .meter { height: 10px; border-radius: 999px; background: var(--spor); overflow: hidden; margin-top: 12px; }
+    .meter > span { display: block; height: 100%; border-radius: 999px; background: var(--aksent); }
+    .meter.advarsel > span { background: var(--advarsel); }
+    .meter.kritisk > span { background: var(--kritisk); }
+
+    .fliser { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .flis { background: var(--flate); border: 1px solid var(--linje); border-radius: 16px; box-shadow: var(--skygge); padding: 14px; text-decoration: none; color: inherit; text-align: left; display: grid; gap: 2px; }
+    .flis .etikett { color: var(--dempet); font-size: 13.5px; font-weight: 600; }
+    .flis .verdi { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+    .flis .verdi.pluss { color: var(--god-tekst); }
+    .flis .verdi.minus { color: var(--kritisk-tekst); }
+    .flis .liten { color: var(--dempet); font-size: 13px; }
+    .flis .meter { height: 6px; margin-top: 6px; }
+
+    /* Rask føring */
+    .rask { display: grid; gap: 10px; }
+    .belopfelt { position: relative; }
+    .belopfelt input { font-size: 28px; font-weight: 700; padding: 12px 52px 12px 16px; }
+    .belopfelt span { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--dempet); font-weight: 600; }
+    .brikker { display: flex; flex-wrap: wrap; gap: 6px; }
+    .brikke { border: 1px solid var(--linje); background: var(--flate); padding: 7px 12px; border-radius: 999px; font-size: 14px; font-weight: 500; }
+    .brikke[aria-pressed="true"] { background: var(--tekst); color: var(--bg); border-color: var(--tekst); }
+
+    input, select { width: 100%; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--linje); background: var(--flate); font-size: 16px; min-width: 0; }
+    input:focus, select:focus { outline: 2px solid var(--aksent); outline-offset: -1px; border-color: transparent; }
+    input[type="checkbox"] { width: 18px; height: 18px; padding: 0; accent-color: var(--aksent); }
+    input.mangler { border-color: var(--advarsel); background: color-mix(in srgb, var(--advarsel) 10%, var(--flate)); }
+    .felt { display: grid; gap: 4px; min-width: 0; align-content: start; }
+    .felt label { font-size: 13.5px; font-weight: 600; color: var(--dempet); }
+    .rad2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .knapp { border: 1px solid var(--linje); background: var(--flate); padding: 11px 16px; border-radius: 12px; font-weight: 600; font-size: 15px; }
+    .knapp.hoved { background: var(--aksent); border-color: var(--aksent); color: var(--aksent-tekst); }
+    .knapp.stor { width: 100%; padding: 14px 16px; font-size: 16px; }
+    .knapp.fare { color: var(--kritisk-tekst); }
+    .knapprad { display: flex; flex-wrap: wrap; gap: 8px; }
+    .lenke { border: 0; background: none; color: var(--aksent); font-weight: 600; font-size: 14px; padding: 4px 0; }
+
+    details > summary { cursor: pointer; list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    details.fold > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: 700; padding: 2px 0; }
+    details.fold > summary::after { content: '›'; color: var(--dempet); font-size: 20px; transition: transform .2s; }
+    details.fold[open] > summary::after { transform: rotate(90deg); }
+    details.fold > summary .sum { margin-left: auto; color: var(--dempet); font-weight: 600; }
+    details.fold > .innhold { margin-top: 10px; }
+
+    /* Lister */
+    .post { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--linje); }
+    .post:first-child { border-top: 0; padding-top: 0; }
+    .post .hva { font-weight: 600; min-width: 0; }
+    .post small { display: block; color: var(--dempet); font-size: 13px; font-weight: 400; }
+    .post .belop { font-weight: 700; white-space: nowrap; text-align: right; }
+    .post .belop small { font-weight: 500; }
+    .ikonknapp { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--linje); background: var(--flate); color: var(--dempet); display: grid; place-items: center; }
+    .tomt { color: var(--dempet); text-align: center; padding: 8px 0; }
+    .avkryss { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dempet); margin-top: 4px; }
+    .meterrad { display: grid; gap: 3px; padding: 10px 0; border-top: 1px solid var(--linje); }
+    .meterrad:first-child { border-top: 0; }
+    .meterrad .linje1 { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+    .meterrad .navn { font-weight: 600; }
+    .meterrad .navn small { color: var(--dempet); font-weight: 500; }
+    .meterrad .tall { color: var(--dempet); white-space: nowrap; }
+    .meterrad .meter { margin-top: 2px; height: 7px; }
+
+    /* Lønn */
+    .lonnstopp .etikett { color: var(--dempet); font-weight: 600; font-size: 15px; }
+    .lonnstopp .verdi { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; }
+    .lonnstopp .under { color: var(--dempet); font-size: 14.5px; }
+    .lonnsfelt { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .liten-tekst { font-size: 13.5px; color: var(--dempet); margin-top: 10px; }
+    .varsel { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--flate-2); font-size: 14.5px; }
+    .varsel.kritisk { color: var(--kritisk-tekst); font-weight: 600; }
+    .opplasting { display: grid; gap: 10px; }
+    .fremdrift { height: 8px; border-radius: 999px; background: var(--spor); overflow: hidden; }
+    .fremdrift > span { display: block; height: 100%; background: var(--aksent); width: 0; transition: width .2s; }
+    .forslag { display: grid; gap: 10px; padding: 14px; border-radius: 14px; background: var(--flate-2); }
+    .forslag .topp { display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: center; }
+    .forslag img { width: 72px; height: 92px; object-fit: cover; border-radius: 8px; border: 1px solid var(--linje); background: #fff; }
+    .forslag .notat { font-size: 13.5px; color: var(--dempet); }
+    pre.ra { white-space: pre-wrap; font-size: 12px; background: var(--flate); border: 1px solid var(--linje); border-radius: 10px; padding: 10px; max-height: 240px; overflow: auto; margin-top: 8px; }
+
+    /* Budsjett */
+    .nokkel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .nokkel > div { background: var(--flate); border: 1px solid var(--linje); border-radius: 14px; padding: 12px; box-shadow: var(--skygge); }
+    .nokkel .etikett { color: var(--dempet); font-size: 13px; font-weight: 600; }
+    .nokkel .verdi { font-size: 19px; font-weight: 700; white-space: nowrap; }
+    .nokkel .verdi.pluss { color: var(--god-tekst); }
+    .nokkel .verdi.minus { color: var(--kritisk-tekst); }
+    .fordeling { display: flex; gap: 2px; height: 10px; margin: 2px 0 12px; }
+    .fordeling > span { border-radius: 999px; min-width: 2px; }
+    .forklaringsliste .rad { display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px; align-items: center; padding: 4px 0; font-size: 15px; }
+    .forklaringsliste .prikk { width: 12px; height: 12px; border-radius: 4px; }
+    .forklaringsliste .andel { color: var(--dempet); font-size: 13.5px; min-width: 38px; text-align: right; }
+    .forklaringsliste .kr { font-weight: 600; min-width: 72px; text-align: right; }
+    .planlinje { display: grid; grid-template-columns: 1fr 104px 104px 34px; grid-template-areas: "navn belop hvem slett"; gap: 6px; align-items: center; margin-top: 6px; }
+    .planlinje .navn { grid-area: navn; } .planlinje .belop { grid-area: belop; text-align: right; } .planlinje .hvem { grid-area: hvem; } .planlinje .ikonknapp { grid-area: slett; }
+    .planlinje input, .planlinje select { padding: 9px 10px; font-size: 15px; }
+    .leggtil { border: 1px dashed var(--linje); background: transparent; color: var(--aksent); font-weight: 600; padding: 8px 12px; border-radius: 10px; margin-top: 8px; font-size: 14px; }
+    .infoboks { display: grid; gap: 8px; font-size: 14.5px; color: var(--dempet); }
+    .infoboks b { color: var(--tekst); }
+
+    /* Faner nederst */
+    nav.faner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: color-mix(in srgb, var(--flate) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--linje); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 4px; }
+    nav.faner a { flex: 1; max-width: 140px; display: grid; justify-items: center; gap: 1px; padding: 6px 4px; border-radius: 12px; text-decoration: none; color: var(--dempet); font-size: 12.5px; font-weight: 600; }
+    nav.faner a span { font-size: 21px; line-height: 1.1; }
+    nav.faner a[aria-current="page"] { color: var(--tekst); background: var(--flate-2); }
+
+    .melding { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: var(--tekst); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+    .melding.vis { opacity: 1; }
+
+    /* Deling */
+    .delingslinje { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--flate); border: 1px solid var(--linje); border-radius: 999px; padding: 6px 6px 6px 14px; margin-bottom: 12px; font-size: 14px; color: var(--dempet); }
+    .delingslinje b { color: var(--tekst); }
+    .delingslinje.feil { color: var(--kritisk-tekst); }
+    .delingslinje button { border: 0; background: var(--flate-2); border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+    .invitasjon { display: grid; gap: 8px; background: linear-gradient(135deg, var(--aksent-svak), var(--flate)); }
+    dialog { border: 0; padding: 0; background: var(--flate); color: var(--tekst); border-radius: 22px; width: min(480px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    dialog::backdrop { background: rgba(10, 12, 16, .55); }
+    .dialoginnhold { padding: 20px; display: grid; gap: 12px; }
+    .dialoginnhold h2 { margin: 0; font-size: 21px; }
+    .lenkefelt { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+    .lenkefelt input { font-size: 13px; }
+    .qr { display: grid; place-items: center; padding: 12px; background: #fff; border-radius: 14px; border: 1px solid var(--linje); justify-self: center; }
+    .qr img, .qr canvas { display: block; }
+    .kode { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; font-weight: 700; letter-spacing: .06em; text-align: center; }
+    pre.regler { white-space: pre-wrap; font-size: 12.5px; background: var(--flate-2); border-radius: 10px; padding: 10px; }
+
+    /* ---------- Mat ---------- */
+    .hilsen { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .hilsen small { color: var(--dempet); font-size: 15px; font-weight: 600; }
+    .middag .rett { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; margin: 6px 0 10px; }
+    .middag .rettikon { font-size: 40px; width: 64px; height: 64px; display: grid; place-items: center; background: var(--flate-2); border-radius: 18px; }
+    .middag h2 { margin: 0; font-size: 22px; line-height: 1.2; }
+    .middag .info { color: var(--dempet); font-size: 14px; margin-top: 2px; }
+    .grunner { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+    .grunn { font-size: 13px; font-weight: 600; color: var(--aksent); background: var(--aksent-svak); padding: 3px 10px; border-radius: 999px; }
+    .porsjonsrad { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; color: var(--dempet); margin-bottom: 12px; }
+    .porsjonsrad b { color: var(--tekst); }
+    .knapper3 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .knapper3 .hoved { grid-column: 1 / -1; }
+    .person-makro { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid var(--linje); }
+    .person-makro:first-of-type { border-top: 0; padding-top: 4px; }
+    .person-makro .linje1 { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+    .person-makro .tall { color: var(--dempet); white-space: nowrap; }
+    .paaminnelse { display: grid; gap: 8px; background: linear-gradient(135deg, var(--aksent-svak), var(--flate)); }
+    .dag { display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--linje); }
+    .dag:first-child { border-top: 0; padding-top: 0; }
+    .dag .dagnavn { font-weight: 700; font-size: 14px; }
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .dag .dagnavn small { display: block; color: var(--dempet); font-weight: 500; }
+    .dag.idag .dagnavn { color: var(--aksent); }
+    .rettknapp { border: 0; background: none; text-align: left; display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: center; padding: 0; min-width: 0; }
+    .rettknapp .ikon { font-size: 24px; }
+    .rettknapp b { display: block; font-size: 15px; overflow-wrap: anywhere; }
+    .rettknapp small { color: var(--dempet); font-size: 13px; }
+    .dag.spist .rettknapp b::after { content: ' ✓'; color: var(--aksent); }
+    .dag.fri .rettknapp { color: var(--dempet); }
+    .vare { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--linje); }
+    .vare:first-of-type { border-top: 0; }
+    .vare .navn { font-weight: 600; }
+    .vare small { display: block; color: var(--dempet); font-size: 12.5px; font-weight: 400; }
+    .vare .tilbud { color: var(--aksent); font-weight: 600; }
+    .vare.haket .navn { text-decoration: line-through; color: var(--dempet); }
+    .vare .mengde { color: var(--dempet); font-size: 14px; white-space: nowrap; text-align: right; }
+    .kjokkenrad { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 6px; align-items: center; padding: 8px 0; border-top: 1px solid var(--linje); }
+    .kjokkenrad:first-of-type { border-top: 0; }
+    .kjokkenrad .navn { font-weight: 600; min-width: 0; }
+    .kjokkenrad .mengde { color: var(--dempet); font-size: 14px; white-space: nowrap; min-width: 58px; text-align: right; }
+    .kjokkenrad.lite .mengde { color: var(--kritisk-tekst); font-weight: 600; }
+    .gruppetittel { font-size: 13px; font-weight: 700; color: var(--dempet); text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 6px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { border: 1px solid var(--linje); background: var(--flate); padding: 7px 12px; border-radius: 999px; font-size: 14px; font-weight: 500; }
+    .chip.valgt, .chip[aria-pressed="true"] { background: var(--tekst); color: var(--bg); border-color: var(--tekst); }
+    .ingrediens { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 6px 0; border-top: 1px solid var(--linje); font-size: 15px; }
+    .ingrediens:first-child { border-top: 0; }
+    .ingrediens small { display: block; font-size: 12.5px; color: var(--dempet); }
+    .ingrediens .har { color: var(--aksent); }
+    .steg { padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+    .makrorad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+    .makrorad div { background: var(--flate-2); border-radius: 12px; padding: 8px 4px; }
+    .makrorad b { display: block; font-size: 17px; }
+    .makrorad span { font-size: 12px; color: var(--dempet); }
+    .personkort { display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: start; }
+    .personkort .avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 20px; background: var(--aksent-svak); color: var(--aksent); }
+    .personkort h2 { margin: 0; font-size: 18px; }
+    .personkort .merke { font-size: 12px; font-weight: 700; background: var(--tekst); color: var(--bg); padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+    .personkort .mal { color: var(--dempet); font-size: 14px; margin: 2px 0 8px; }
+    .andelrad { display: grid; grid-template-columns: 1fr 90px; gap: 8px; align-items: center; margin-top: 8px; }
+
+    /* Spørsmål (én om gangen) */
+    dialog.sporsmal { width: min(560px, 100%); height: min(760px, 100dvh); max-height: 100dvh; border-radius: 24px; }
+    @media (max-width: 600px) { dialog.sporsmal { width: 100%; height: 100dvh; border-radius: 0; margin: 0; max-width: none; } }
+    .sp-topp { display: grid; grid-template-columns: 40px 1fr 40px; gap: 10px; align-items: center; padding: 14px 16px; }
+    .sp-tilbake, .sp-lukk { width: 40px; height: 40px; border-radius: 12px; border: 0; background: var(--flate-2); font-size: 20px; }
+    .sp-fremdrift { height: 6px; border-radius: 999px; background: var(--spor); overflow: hidden; }
+    .sp-fremdrift span { display: block; height: 100%; background: var(--aksent); transition: width .2s; }
+    .sp-innhold { padding: 8px 20px 28px; display: grid; gap: 14px; }
+    .sp-tittel { color: var(--dempet); font-weight: 600; font-size: 14px; }
+    .sp-innhold h2 { font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; margin: 0; }
+    .sp-hjelp { color: var(--dempet); font-size: 15px; margin-top: -6px; }
+    .valg { display: grid; gap: 8px; }
+    .valgknapp { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center; text-align: left; border: 2px solid var(--linje); background: var(--flate); border-radius: 16px; padding: 14px; font-size: 16px; }
+    .valgknapp .ikon { font-size: 26px; text-align: center; }
+    .valgknapp small { display: block; color: var(--dempet); font-size: 13.5px; font-weight: 400; }
+    .valgknapp.valgt { border-color: var(--aksent); background: var(--aksent-svak); }
+    .flervalg { display: flex; flex-wrap: wrap; gap: 8px; }
+    .flervalg .chip { font-size: 15px; padding: 10px 14px; }
+    .tallsvar { display: grid; gap: 14px; }
+    .tallfelt { position: relative; }
+    .tallfelt input { font-size: 32px; font-weight: 700; padding: 14px 60px 14px 16px; }
+    .tallfelt input.feil { border-color: var(--kritisk); }
+    .tallfelt span { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--dempet); font-weight: 600; font-size: 18px; }
+    .sp-hopp { border: 0; background: none; color: var(--dempet); font-weight: 600; justify-self: center; padding: 6px; }
+    .velkomst h2 { font-size: 26px; }
+    .velkomst .stor-ikon { font-size: 54px; text-align: center; }
+    .navnrad { display: grid; grid-template-columns: 1fr 40px; gap: 6px; margin-top: 6px; }
+
+    @media (max-width: 520px) {
+      .planlinje { grid-template-columns: 1fr 1fr 34px; grid-template-areas: "navn navn slett" "hvem belop belop"; row-gap: 4px; margin-top: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--linje); }
+      .nokkel .verdi { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="side">
+    <header class="topp">
+      <a href="../">← Prosjekter</a>
+      <a class="lenkeknapp" href="../tilbud/">🏷️ Ukens tilbud</a>
+    </header>
+
+    <!-- ============ I DAG ============ -->
+    <main data-fane="idag">
+      <div id="delingMini"></div>
+      <div class="hilsen"><h1 id="hilsen">I dag</h1><small id="dagensDato"></small></div>
+      <div id="profilPaaminnelse"></div>
+      <div class="kort middag" id="middagIdag"></div>
+      <div class="kort" id="dagensMakro"></div>
+      <div class="fliser">
+        <a class="flis" href="#uke" id="flisHandle"></a>
+        <a class="flis" href="#penger" id="flisPenger"></a>
+      </div>
+    </main>
+
+    <!-- ============ UKE ============ -->
+    <main data-fane="uke" hidden>
+      <h1>Ukemeny</h1>
+      <div class="kort" id="ukemeny"></div>
+      <div class="knapprad" style="margin:-2px 0 12px"><button class="knapp" type="button" id="nyUke">🔄 Lag ny ukemeny</button></div>
+      <div class="kort" id="handleliste"></div>
+    </main>
+
+    <!-- ============ KJØKKEN ============ -->
+    <main data-fane="kjokken" hidden>
+      <h1>Kjøkkenet</h1>
+      <p class="forklaring" style="margin:-4px 0 12px">Oppdateres når dere handler og lager mat. Olje, salt, krydder og soyasaus regnes som noe dere alltid har.</p>
+      <div id="kjokkenVarsel"></div>
+      <div class="kort" id="kjokkenListe"></div>
+      <div class="kort"><h2>Legg til det dere har</h2><div id="kjokkenLeggTil"></div></div>
+    </main>
+
+    <!-- ============ PENGER ============ -->
+    <main data-fane="penger" hidden>
+      <div class="velger" id="pengerVelger" aria-label="Velg visning" style="margin-top:6px">
+        <button type="button" data-penger-til="oversikt">Oversikt</button>
+        <button type="button" data-penger-til="lonn">Lønn</button>
+        <button type="button" data-penger-til="plan">Budsjett</button>
+      </div>
+
+    <section data-penger="oversikt">
+      <h1>Penger</h1>
+      <div class="velger" aria-label="Velg måned">
+        <button class="pil" id="forrige" aria-label="Forrige måned">‹</button>
+        <span id="maaned"></span>
+        <button class="pil" id="neste" aria-label="Neste måned">›</button>
+      </div>
+      <div class="kort hero" id="hero"></div>
+      <div class="fliser">
+        <a class="flis" href="../tilbud/" id="flisMat"></a>
+        <a class="flis" href="#penger-plan" id="flisPlan"></a>
+      </div>
+
+      <form class="kort rask" id="nyPost" autocomplete="off">
+        <h2 style="margin:0">Før en utgift</h2>
+        <div class="belopfelt"><input id="pBelop" type="number" inputmode="decimal" min="0" step="any" placeholder="0" aria-label="Beløp i kroner" required><span>kr</span></div>
+        <div class="brikker" id="hurtig" aria-label="Kategori"></div>
+        <details>
+          <summary class="lenke">＋ Dato, notat eller annen kategori</summary>
+          <div class="rad2" style="margin-top:8px">
+            <div class="felt"><label for="pDato">Dato</label><input id="pDato" type="date"></div>
+            <div class="felt"><label for="pNotat">Notat</label><input id="pNotat" placeholder="f.eks. REMA"></div>
+          </div>
+          <div class="felt" style="margin-top:8px"><label for="pKategori">Alle kategorier</label><select id="pKategori"></select></div>
+        </details>
+        <button class="knapp hoved stor" type="submit">Legg til</button>
+      </form>
+
+      <div class="kort">
+        <h2 id="posterTittel">Utgifter</h2>
+        <div id="poster"></div>
+        <details class="fold" style="margin-top:12px">
+          <summary>Brukt per kategori</summary>
+          <div class="innhold" id="kategorier"></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ LØNN ============ -->
+    <section data-penger="lonn" hidden>
+      <h1>Lønn</h1>
+      <div class="velger" id="lonnPerson" aria-label="Hvem"></div>
+      <div class="kort" id="lonnskort"></div>
+
+      <div class="kort opplasting">
+        <h2 style="margin:0">Lønnsslipper</h2>
+        <p class="forklaring">Ta bilde av lønnsslippen eller velg et skjermbilde. Teksten leses på telefonen din, og bildet lastes ikke opp noe sted.</p>
+        <label class="knapp hoved stor" for="bildeFil" style="text-align:center" id="bildeKnapp">📷 Last opp bilde av lønnsslipp</label>
+        <input type="file" id="bildeFil" accept="image/*" hidden>
+        <div id="ocrStatus" hidden>
+          <div class="forklaring" id="ocrTekst">Leser …</div>
+          <div class="fremdrift" style="margin-top:6px"><span id="ocrFremdrift"></span></div>
+        </div>
+        <div id="slippForslag"></div>
+        <button class="lenke" type="button" id="manuell" style="justify-self:start">eller skriv inn tallene selv</button>
+        <div id="slipper"></div>
+      </div>
+    </section>
+
+    <!-- ============ BUDSJETT ============ -->
+    <section data-penger="plan" hidden>
+      <h1>Budsjett per måned</h1>
+      <div class="velger" id="visningsvelger" aria-label="Vis budsjettet for"></div>
+      <div class="nokkel" id="nokkeltall"></div>
+      <div class="kort">
+        <h2 id="fordelingTittel">Hvor pengene går</h2>
+        <div class="fordeling" id="fordeling" role="img"></div>
+        <div class="forklaringsliste" id="forklaringsliste"></div>
+        <div id="planvarsel"></div>
+      </div>
+
+      <div class="kort">
+        <h2>Endre tallene</h2>
+        <p class="forklaring" style="margin-bottom:6px">Trykk på en gruppe for å endre. Felles beløp er totalen for husstanden.</p>
+        <div id="planredigering"></div>
+      </div>
+
+
+      <div class="kort">
+        <details class="fold">
+          <summary>ℹ️ Greit å vite</summary>
+          <div class="innhold infoboks">
+            <p><b>Lånekassen 2026–2027:</b> Fullt basislån er 15 488 kr i måneden, og inntil 40 % kan bli stipend. Pengene kommer den 15. hver måned.</p>
+            <p><b>Frikort:</b> Tjener du under 100 000 kr i 2026, inkludert feriepenger, trekkes det ingen skatt med frikort. Over grensen trekkes det skatt av det som er over.</p>
+            <p><b>Skatt i juni og desember:</b> Med tabelltrekk trekkes det vanligvis ingen skatt i juni og halv skatt i desember.</p>
+            <p><b>Feriepenger:</b> Vanligvis 10,2 % av lønna, utbetalt i juni året etter.</p>
+            <p><b>Mat:</b> SIFO regner ca. 4 300–4 900 kr i måneden per voksen. Med middager fra tilbudene klarer mange seg med mindre.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="knapprad" style="margin-bottom:12px">
+        <button class="knapp" id="eksporter" type="button">⬇️ Lagre kopi</button>
+        <button class="knapp" id="importerKnapp" type="button">⬆️ Hent kopi</button>
+        <button class="knapp fare" id="nullstill" type="button">Tilbakestill</button>
+        <input type="file" id="importerFil" accept="application/json,.json" hidden>
+      </div>
+      <p class="forklaring" style="font-size:12.5px">Deler dere ikke budsjettet, lagres alt bare i denne nettleseren. Bruk «Lagre kopi» for å flytte det.</p>
+    </section>
+    </main>
+
+    <!-- ============ OSS ============ -->
+    <main data-fane="oss" hidden>
+      <h1>Husstanden</h1>
+      <div id="personkort"></div>
+      <button class="knapp stor" type="button" id="nyPerson" style="margin-bottom:12px">＋ Legg til person</button>
+      <div class="kort" id="husstandMat"></div>
+      <h2 style="margin-top:6px">Del med husstanden</h2>
+      <div id="deling"></div>
+      <div class="kort" id="delingskort" hidden><div id="delingsinnstillinger"></div></div>
+      <div class="kort">
+        <details class="fold">
+          <summary>💸 Hvem betaler hva av felles utgifter</summary>
+          <div class="innhold" id="husstand"></div>
+        </details>
+      </div>
+    </main>
+  </div>
+
+  <nav class="faner" aria-label="Faner">
+    <a href="#idag" data-til="idag"><span>🍽️</span>I dag</a>
+    <a href="#uke" data-til="uke"><span>📅</span>Uke</a>
+    <a href="#kjokken" data-til="kjokken"><span>🥫</span>Kjøkken</a>
+    <a href="#penger" data-til="penger"><span>💸</span>Penger</a>
+    <a href="#oss" data-til="oss"><span>👥</span>Oss</a>
+  </nav>
+
+  <dialog id="delDialog" aria-labelledby="delTittel"><div class="dialoginnhold" id="delInnhold"></div></dialog>
+  <dialog id="rettDialog" aria-labelledby="rettTittel"><div class="dialoginnhold" id="rettInnhold"></div></dialog>
+  <dialog id="velkommen" class="velkomst" aria-labelledby="velkommenTittel"><div class="dialoginnhold" id="velkommenInnhold"></div></dialog>
+
+  <div class="melding" id="melding" role="status" aria-live="polite"></div>
+
+  <script type="module">
+    import {
+      GRUPPER, LOPENDE, STANDARD_PLAN, lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn, leggTilPost, nyId,
+      idag, maanedAv, dagerIMaaned, sum, summerPlan, andelFor, ukesMatbudsjett, matBruktDenneUka,
+      nettoAv, lonnsstatistikk, anslagLonn, lonnsprofil, FRIKORTGRENSE, kroner, normaliserPlan,
+      lesMat, lagreMat, harPlan, sikreTidligereOppsett, hentTidligereOppsett, lagNyPlan, leggTilPerson, fjernPerson,
+    } from './budsjett.js';
+    import {
+      INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
+      behovForMeny, snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
+    } from './mat.js';
+    import { PERSONSPORSMAL, HUSSTANDSPORSMAL, INNTEKTSSPORSMAL, kjorSporsmal } from './sporsmal.js';
+
+    // Telefoner som brukte budsjettet før oppstarten kom, beholder oppsettet sitt
+    sikreTidligereOppsett();
+    import { tolkLonnsslipp } from './lonnsslipp.js';
+    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode } from './synk.js';
+
+    // Tekstgjenkjenning (lastes først når du laster opp et bilde)
+    const OCR = {
+      skript: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js',
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0',
+      langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/nor@1.0.0/4.0.0_best_int',
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const mndFmt = new Intl.DateTimeFormat('nb-NO', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const mndKort = new Intl.DateTimeFormat('nb-NO', { month: 'long', timeZone: 'UTC' });
+    const dagFmt = new Intl.DateTimeFormat('nb-NO', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+    const fraMaaned = (m) => new Date(m + '-01T12:00:00Z');
+    const tallFra = (v) => parseFloat(String(v ?? '').replace(/\s/g, '').replace(',', '.'));
+    const kr2 = (n) => (n == null ? '' : String(Math.round(n * 100) / 100));
+
+    const S = { plan: lesPlan(), poster: lesPoster(), lonn: lesLonn(), mat: lesMat(), tilbud: null, maaned: maanedAv(idag()), valgtKategori: 'mat', visning: 'alle', visAllePoster: false, forslag: null, lonnPerson: null, penger: 'oversikt' };
+
+    const flere = () => S.plan.personer.length > 1;
+    const personNavn = (id) => S.plan.personer.find((p) => p.id === id)?.navn || '?';
+    const hvemNavn = (l) => (l.hvem === 'felles' ? 'Felles' : personNavn(l.hvem));
+    const linjeNavn = (u) => (flere() && u.hvem && u.hvem !== 'felles' ? `${u.navn} – ${personNavn(u.hvem)}` : u.navn);
+    const kategoriNavn = (id) => { const u = S.plan.utgifter.find((x) => x.id === id); return u ? linjeNavn(u) : 'Slettet kategori'; };
+    const gruppeAv = (id) => S.plan.utgifter.find((u) => u.id === id)?.gruppe || 'forbruk';
+    const rekkefolge = (h) => (h === 'felles' ? -1 : S.plan.personer.findIndex((p) => p.id === h));
+    const lopende = () => S.plan.utgifter.filter((u) => LOPENDE.has(u.gruppe))
+      .sort((a, b) => rekkefolge(a.hvem) - rekkefolge(b.hvem) || GRUPPER.findIndex((g) => g.id === a.gruppe) - GRUPPER.findIndex((g) => g.id === b.gruppe));
+    const posterIMaaned = () => S.poster.filter((p) => maanedAv(p.dato) === S.maaned);
+    const genitiv = (n) => (n.endsWith('s') ? `${n}'` : `${n}s`);
+
+    function lagre() { delete S.plan.migrert; lagrePlan(S.plan); }
+
+    function meterHtml(brukt, budsjett) {
+      const andel = budsjett > 0 ? brukt / budsjett : (brukt > 0 ? 2 : 0);
+      const klasse = andel > 1 ? 'kritisk' : andel >= 0.85 ? 'advarsel' : '';
+      return `<div class="meter ${klasse}" role="meter" aria-valuemin="0" aria-valuemax="${Math.round(budsjett)}" aria-valuenow="${Math.round(brukt)}" aria-label="Brukt ${kroner(brukt)} av ${kroner(budsjett)} kr"><span style="width:${Math.min(100, andel * 100).toFixed(1)}%"></span></div>`;
+    }
+
+    // ================= FANER =================
+    const GAMLE_FANER = { oversikt: 'penger', lonn: 'penger-lonn', budsjett: 'penger-plan' };
+    function visFane() {
+      let fane = location.hash.replace('#', '').split('=')[0] || 'idag';
+      fane = GAMLE_FANER[fane] || fane;
+      const [hoved, under] = fane.split('-');
+      const gyldig = ['idag', 'uke', 'kjokken', 'penger', 'oss'].includes(hoved) ? hoved : 'idag';
+      if (gyldig === 'penger' && ['oversikt', 'lonn', 'plan'].includes(under)) S.penger = under;
+      document.querySelectorAll('[data-fane]').forEach((el) => { el.hidden = el.dataset.fane !== gyldig; });
+      document.querySelectorAll('[data-penger]').forEach((el) => { el.hidden = el.dataset.penger !== S.penger; });
+      document.querySelectorAll('[data-penger-til]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pengerTil === S.penger)));
+      document.querySelectorAll('nav.faner a').forEach((a) => { if (a.dataset.til === gyldig) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+      window.scrollTo(0, 0);
+    }
+    window.addEventListener('hashchange', visFane);
+
+    // ================= OVERSIKT =================
+    function tegnHero() {
+      const budsjett = sum(lopende());
+      const brukt = sum(posterIMaaned().filter((p) => LOPENDE.has(gruppeAv(p.kategori))));
+      const igjen = budsjett - brukt;
+      const denne = maanedAv(idag());
+      const navn = mndKort.format(fraMaaned(S.maaned));
+      let under;
+      if (S.maaned === denne) {
+        const dager = dagerIMaaned(S.maaned) - Number(idag().slice(8, 10)) + 1;
+        under = igjen >= 0 ? `Ca. <b>${kroner(igjen / dager)} kr per dag</b> resten av måneden.` : 'Prøv å holde igjen resten av måneden.';
+      } else if (S.maaned < denne) {
+        under = igjen >= 0 ? '✓ Budsjettet holdt.' : 'Måneden gikk over budsjettet.';
+      } else under = 'Planlagt for måneden.';
+      $('hero').innerHTML = `
+        <div class="etikett">${igjen >= 0 ? `Igjen til mat og forbruk i ${navn}` : `Over budsjettet i ${navn}`}</div>
+        <div class="verdi ${igjen < 0 ? 'minus' : ''}">${igjen < 0 ? '−' : ''}${kroner(Math.abs(igjen))} <small>kr</small></div>
+        <div class="under">${under} Brukt ${kroner(brukt)} av ${kroner(budsjett)} kr.</div>
+        ${meterHtml(brukt, budsjett)}`;
+    }
+
+    function tegnFliser() {
+      const uke = ukesMatbudsjett(S.plan), brukt = matBruktDenneUka(S.poster, S.plan), igjen = uke - brukt;
+      $('flisMat').innerHTML = `<span class="etikett">🛒 Mat denne uka</span><span class="verdi ${igjen < 0 ? 'minus' : ''}">${igjen < 0 ? '−' : ''}${kroner(Math.abs(igjen))} kr</span><span class="liten">${igjen >= 0 ? 'igjen' : 'over'} av ${kroner(uke)} kr · se tilbud →</span>${meterHtml(brukt, uke)}`;
+      const { tilOvers } = summerPlan(S.plan, 'alle');
+      $('flisPlan').innerHTML = `<span class="etikett">📋 Budsjettet</span><span class="verdi ${tilOvers >= 0 ? 'pluss' : 'minus'}">${tilOvers >= 0 ? '+' : '−'}${kroner(Math.abs(tilOvers))} kr</span><span class="liten">${tilOvers >= 0 ? 'til overs' : 'mangler'} per måned →</span>`;
+    }
+
+    function tegnKategorivalg() {
+      $('pKategori').innerHTML = GRUPPER.map((g) => {
+        const linjer = S.plan.utgifter.filter((u) => u.gruppe === g.id);
+        return linjer.length ? `<optgroup label="${esc(g.navn)}">${linjer.map((u) => `<option value="${esc(u.id)}">${esc(linjeNavn(u))}</option>`).join('')}</optgroup>` : '';
+      }).join('');
+      if (!S.plan.utgifter.some((u) => u.id === S.valgtKategori)) S.valgtKategori = lopende()[0]?.id || S.plan.utgifter[0]?.id;
+      $('pKategori').value = S.valgtKategori;
+      const kort = (u) => (flere() && u.hvem !== 'felles' ? `${u.navn} (${personNavn(u.hvem)})` : u.navn);
+      // Bare de vanligste kategoriene som knapper; resten ligger i lista under «Dato, notat eller annen kategori»
+      const FORETRUKKET = ['mat', 'kantine', 'fritid', 'hygiene', 'klaer'];
+      const forste = meg();
+      const vis = lopende().filter((u) => u.hvem === 'felles' || u.hvem === forste)
+        .sort((a, b) => ((FORETRUKKET.indexOf(a.id.replace(/-p2$/, '')) + 1) || 99) - ((FORETRUKKET.indexOf(b.id.replace(/-p2$/, '')) + 1) || 99))
+        .slice(0, 5);
+      if (!vis.some((u) => u.id === S.valgtKategori)) { const valgt = S.plan.utgifter.find((u) => u.id === S.valgtKategori); if (valgt) vis.unshift(valgt); }
+      $('hurtig').innerHTML = vis.map((u) => `<button type="button" class="brikke" data-hurtig="${esc(u.id)}" aria-pressed="${u.id === S.valgtKategori}">${esc(kort(u))}</button>`).join('');
+    }
+
+    function tegnPoster() {
+      $('posterTittel').textContent = `Utgifter i ${mndKort.format(fraMaaned(S.maaned))}`;
+      const liste = posterIMaaned().sort((a, b) => b.dato.localeCompare(a.dato) || b.id.localeCompare(a.id));
+      const synlige = S.visAllePoster ? liste : liste.slice(0, 6);
+      $('poster').innerHTML = liste.length ? synlige.map((p) => `
+        <div class="post">
+          <div class="hva">${esc(kategoriNavn(p.kategori))}<small>${esc(dagFmt.format(new Date(p.dato + 'T12:00:00Z')))}${p.notat ? ' · ' + esc(p.notat) : ''}</small></div>
+          <div class="belop tall">${kroner(p.belop)} kr</div>
+          <button class="ikonknapp" data-slett-post="${esc(p.id)}" aria-label="Slett utgiften">✕</button>
+        </div>`).join('') + `
+        ${liste.length > 6 ? `<button class="lenke" type="button" id="allePoster">${S.visAllePoster ? 'Vis færre' : `Vis alle ${liste.length}`}</button>` : ''}
+        <div class="post"><div class="hva">Totalt</div><div class="belop tall">${kroner(sum(liste))} kr</div><span></span></div>`
+        : '<div class="tomt">Ingen utgifter ført ennå.</div>';
+
+      const brukt = (id) => sum(posterIMaaned().filter((p) => p.kategori === id));
+      const linjer = [...lopende(), ...S.plan.utgifter.filter((u) => !LOPENDE.has(u.gruppe) && brukt(u.id) > 0)];
+      $('kategorier').innerHTML = linjer.map((u) => {
+        const b = brukt(u.id), bud = Number(u.belop) || 0;
+        const status = b > bud ? `⛔ ${kroner(b - bud)} kr over` : '';
+        return `<div class="meterrad"><div class="linje1"><span class="navn">${esc(u.navn)}${flere() ? ` <small>· ${esc(hvemNavn(u))}</small>` : ''}</span><span class="tall">${kroner(b)} / ${kroner(bud)} kr ${status}</span></div>${meterHtml(b, bud)}</div>`;
+      }).join('');
+    }
+
+    function tegnOversikt() {
+      $('maaned').textContent = mndFmt.format(fraMaaned(S.maaned));
+      tegnHero(); tegnFliser(); tegnPoster();
+    }
+
+    // ================= LØNN =================
+    function personknapper(el, valgt, attr) {
+      el.hidden = !flere();
+      el.innerHTML = S.plan.personer.map((p) => `<button type="button" ${attr}="${esc(p.id)}" aria-pressed="${p.id === valgt}">${esc(p.navn)}</button>`).join('');
+    }
+
+    function tegnLonn() {
+      if (!S.plan.personer.some((p) => p.id === S.lonnPerson)) S.lonnPerson = meg();
+      const hvem = S.lonnPerson, navn = personNavn(hvem), pr = lonnsprofil(S.lonn, hvem);
+      personknapper($('lonnPerson'), hvem, 'data-lonnperson');
+      const a = anslagLonn(pr);
+      const stat = lonnsstatistikk(S.lonn.slipper.filter((s) => s.hvem === hvem));
+      const linje = S.plan.inntekter.find((l) => l.hvem === hvem && /jobb|lønn/i.test(l.navn));
+      const iBudsjett = linje ? Math.round(Number(linje.belop) || 0) : 0;
+      const mangler = Math.max(0, -summerPlan(S.plan, 'alle').tilOvers);
+      const frikort = a.aarMedFerie > 0 ? (a.aarMedFerie <= FRIKORTGRENSE ? 'under frikortgrensen (ingen skatt med frikort)' : 'over frikortgrensen (100 000 kr)') : '';
+      $('lonnskort').innerHTML = `
+        <div class="lonnstopp">
+          <div class="etikett">${flere() ? `${esc(navn)} får utbetalt` : 'Du får utbetalt'} ca.</div>
+          <div class="verdi">${kroner(a.netto)} kr <span class="forklaring" style="font-size:16px;font-weight:600">/ mnd</span></div>
+          <div class="under">${kroner(a.brutto)} kr før skatt · ${kroner(a.timerPerMaaned)} timer i måneden</div>
+        </div>
+        <div class="lonnsfelt">
+          <div class="felt"><label for="aTimer">Timer</label><input id="aTimer" type="number" inputmode="decimal" min="0" step="any" value="${pr.timer ?? ''}"></div>
+          <div class="felt"><label for="aPer">per</label><select id="aPer"><option value="uke" ${pr.per === 'uke' ? 'selected' : ''}>uke</option><option value="maaned" ${pr.per !== 'uke' ? 'selected' : ''}>måned</option></select></div>
+          <div class="felt"><label for="aTimelonn">Kr per time (med tips)</label><input id="aTimelonn" type="number" inputmode="decimal" min="0" step="any" value="${pr.timelonn ?? ''}"></div>
+          <div class="felt"><label for="aTrekk">Skatt og trekk (%)</label><input id="aTrekk" type="number" inputmode="decimal" min="0" max="60" step="any" value="${pr.trekk ?? 0}"></div>
+        </div>
+        ${pr.timelonn > 0 && pr.timer > 0 ? `<p class="liten-tekst">≈ ${kroner(a.aarMedFerie)} kr i året med feriepenger${frikort ? `, ${frikort}` : ''}.</p>` : '<p class="liten-tekst">Skriv inn hvor mange timer du jobber og hva du tjener per time, eller last opp en lønnsslipp under.</p>'}
+        ${stat ? `<p class="liten-tekst">Lønnsslippene viser <b>${kroner(stat.perTimeBrutto)} kr/t</b> og <b>${Math.round(stat.trekkandel * 100)} % trekk</b>. <button class="lenke" type="button" id="brukSlipper">Bruk disse tallene</button></p>` : ''}
+        ${Math.abs(iBudsjett - Math.round(a.netto)) > 1
+          ? `<div class="knapprad" style="margin-top:12px"><button class="knapp hoved stor" id="brukLonn" data-belop="${Math.round(a.netto)}">Sett lønna i budsjettet til ${kroner(a.netto)} kr</button></div>`
+          : `<p class="varsel">✓ Budsjettet bruker denne lønna (${kroner(iBudsjett)} kr).</p>`}
+        ${mangler && a.nettoPerTime > 0 ? `<p class="varsel kritisk">⚠️ Budsjettet mangler ${kroner(mangler)} kr i måneden – ca. ${kroner(mangler / a.nettoPerTime)} timer ekstra for ${esc(navn)}.</p>` : ''}`;
+    }
+
+    function tegnSlipper() {
+      const liste = [...S.lonn.slipper].sort((a, b) => b.maaned.localeCompare(a.maaned));
+      $('slipper').innerHTML = liste.length ? liste.map((s) => {
+        const netto = nettoAv(s);
+        return `
+          <div class="post">
+            <div class="hva">${esc(mndFmt.format(fraMaaned(s.maaned)))}${flere() ? ` · ${esc(personNavn(s.hvem))}` : ''}
+              <small>${kroner(s.timer)} t · brutto ${kroner(s.brutto)} kr · trekk ${kroner((Number(s.brutto) || 0) - netto)} kr</small>
+              <label class="avkryss"><input type="checkbox" data-snitt="${esc(s.id)}" ${s.iSnitt !== false ? 'checked' : ''}> Med i utregningen</label>
+            </div>
+            <div class="belop tall">${kroner(netto)} kr<small>${s.timer > 0 ? `${kroner(s.brutto / s.timer)} kr/t` : ''}</small></div>
+            <button class="ikonknapp" data-slett-slipp="${esc(s.id)}" aria-label="Slett lønnsslippen">✕</button>
+          </div>`;
+      }).join('') : '';
+    }
+
+    function tegnForslag() {
+      const f = S.forslag;
+      if (!f) { $('slippForslag').innerHTML = ''; return; }
+      const felt = (id, label, verdi, type = 'number') => `
+        <div class="felt"><label for="${id}">${label}</label><input id="${id}" type="${type}" ${type === 'number' ? 'inputmode="decimal" min="0" step="any"' : ''} value="${esc(verdi ?? '')}" class="${verdi == null || verdi === '' ? 'mangler' : ''}"></div>`;
+      const notater = [];
+      if (f.tips) notater.push(`Tips på slippen: ${kroner(f.tips)} kr (er med i brutto).`);
+      if (f.feriepenger) notater.push(`Slippen har feriepenger (${kroner(f.feriepenger)} kr), så den holdes utenfor timelønn-utregningen.`);
+      if (f.lest && f.funnet.length < 4) notater.push('Fant ikke alle tallene. Fyll inn de gule feltene.');
+      $('slippForslag').innerHTML = `
+        <form class="forslag" id="forslagSkjema" autocomplete="off">
+          <div class="topp">
+            ${f.bilde ? `<img src="${f.bilde}" alt="Lønnsslippen du lastet opp">` : '<span style="font-size:40px">🧾</span>'}
+            <div><b>${f.lest ? 'Sjekk tallene' : 'Ny lønnsslipp'}</b><div class="forklaring">${f.lest ? 'Rett opp hvis noe er lest feil, og trykk Lagre.' : 'Fyll inn tallene fra slippen.'}</div></div>
+          </div>
+          ${flere() ? `<div class="velger" style="margin:0" id="forslagHvem">${S.plan.personer.map((p) => `<button type="button" data-forslaghvem="${esc(p.id)}" aria-pressed="${p.id === f.hvem}">${esc(p.navn)}</button>`).join('')}</div>` : ''}
+          <div class="rad2">${felt('fMaaned', 'Måned', f.maaned, 'month')}${felt('fTimer', 'Timer', kr2(f.timer))}</div>
+          <div class="rad2">${felt('fBrutto', 'Brutto (kr)', kr2(f.brutto))}${felt('fSkatt', 'Skatt (kr)', kr2(f.skatt))}</div>
+          ${felt('fNetto', 'Utbetalt (kr)', kr2(f.netto))}
+          ${notater.length ? `<div class="notat">${notater.map(esc).join('<br>')}</div>` : ''}
+          <div class="knapprad"><button class="knapp hoved" type="submit">Lagre lønnsslipp</button><button class="knapp" type="button" id="avbrytForslag">Avbryt</button></div>
+          ${f.tekst ? `<details><summary class="lenke">Vis teksten som ble lest</summary><pre class="ra">${esc(f.tekst)}</pre></details>` : ''}
+        </form>`;
+    }
+
+    // ---- Bilde → tekst → tall ----
+    function lastSkript(src) {
+      return new Promise((ok, feil) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => feil(new Error('Kunne ikke laste ' + src)); document.head.append(s); });
+    }
+
+    let ocrArbeider = null;
+    const OCR_TEKST = { 'loading tesseract core': 'Laster tekstgjenkjenning …', 'initializing tesseract': 'Starter …', 'loading language traineddata': 'Laster norsk språkfil (bare første gang) …', 'initializing api': 'Starter …', 'recognizing text': 'Leser lønnsslippen …' };
+    function ocrStatus(tekst, andel) {
+      $('ocrStatus').hidden = false;
+      $('ocrTekst').textContent = tekst;
+      if (andel != null) $('ocrFremdrift').style.width = `${Math.round(andel * 100)}%`;
+    }
+
+    async function forbered(fil) {
+      // Skaler ned store mobilbilder (raskere og like nøyaktig)
+      const bilde = await createImageBitmap(fil).catch(() => null);
+      if (!bilde) return fil;
+      const maks = 2200, skala = Math.min(1, maks / Math.max(bilde.width, bilde.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bilde.width * skala); c.height = Math.round(bilde.height * skala);
+      c.getContext('2d').drawImage(bilde, 0, 0, c.width, c.height);
+      return c;
+    }
+
+    async function lesBilde(fil) {
+      const url = URL.createObjectURL(fil);
+      $('bildeKnapp').setAttribute('aria-disabled', 'true');
+      try {
+        ocrStatus('Laster tekstgjenkjenning …', 0.02);
+        if (!window.Tesseract) await lastSkript(OCR.skript);
+        if (!ocrArbeider) {
+          ocrArbeider = await Tesseract.createWorker('nor', 1, {
+            workerPath: OCR.workerPath, corePath: OCR.corePath, langPath: OCR.langPath,
+            logger: (m) => ocrStatus(OCR_TEKST[m.status] || 'Leser …', m.status === 'recognizing text' ? 0.3 + m.progress * 0.7 : Math.min(0.3, (m.progress || 0) * 0.3)),
+          });
+        }
+        const kilde = await forbered(fil);
+        ocrStatus('Leser lønnsslippen …', 0.3);
+        const { data } = await ocrArbeider.recognize(kilde);
+        const r = tolkLonnsslipp(data.text);
+        const lavt = data.text.toLowerCase();
+        const hvem = S.plan.personer.find((p) => p.navn && lavt.includes(p.navn.toLowerCase()))?.id || S.lonnPerson;
+        S.forslag = { ...r, hvem, bilde: url, tekst: data.text, lest: true };
+        $('ocrStatus').hidden = true;
+        tegnForslag();
+        $('slippForslag').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        console.error(e);
+        ocrStatus('Klarte ikke å lese bildet. Sjekk at du er på nett, eller skriv inn tallene selv.', 0);
+        S.forslag = { hvem: S.lonnPerson, maaned: null, timer: null, brutto: null, skatt: null, netto: null, bilde: url, lest: false, funnet: [] };
+        tegnForslag();
+      } finally {
+        $('bildeKnapp').removeAttribute('aria-disabled');
+      }
+    }
+
+    // ================= BUDSJETT =================
+    function tegnVisningsvelger() {
+      const valg = flere() ? [{ id: 'alle', navn: 'Husstanden' }, ...S.plan.personer] : [];
+      if (!valg.some((v) => v.id === S.visning)) S.visning = 'alle';
+      $('visningsvelger').hidden = !valg.length;
+      $('visningsvelger').innerHTML = valg.map((v) => `<button type="button" data-visning="${esc(v.id)}" aria-pressed="${v.id === S.visning}">${esc(v.navn)}</button>`).join('');
+    }
+
+    function tegnPlanOversikt() {
+      const v = S.visning;
+      const { inn, ut, perGruppe, tilOvers } = summerPlan(S.plan, v);
+      $('fordelingTittel').textContent = `Hvor pengene går${v === 'alle' ? '' : ` – ${personNavn(v)}`}`;
+      $('nokkeltall').innerHTML = `
+        <div><div class="etikett">Inn</div><div class="verdi tall">${kroner(inn)} kr</div></div>
+        <div><div class="etikett">Ut</div><div class="verdi tall">${kroner(ut)} kr</div></div>
+        <div><div class="etikett">${tilOvers >= 0 ? 'Til overs' : 'Mangler'}</div><div class="verdi tall ${tilOvers >= 0 ? 'pluss' : 'minus'}">${tilOvers >= 0 ? '+' : '−'}${kroner(Math.abs(tilOvers))}</div></div>`;
+      const deler = GRUPPER.map((g) => ({ navn: g.navn, belop: perGruppe[g.id], farge: `var(--serie-${g.farge})` }));
+      if (tilOvers > 0) deler.push({ navn: 'Til overs', belop: tilOvers, farge: 'var(--rest)' });
+      const hel = Math.max(inn, ut) || 1;
+      $('fordeling').innerHTML = deler.filter((d) => d.belop > 0).map((d) => `<span style="flex:${d.belop} 1 0;background:${d.farge}" title="${esc(d.navn)}: ${kroner(d.belop)} kr"></span>`).join('');
+      $('fordeling').setAttribute('aria-label', 'Fordeling: ' + deler.map((d) => `${d.navn} ${kroner(d.belop)} kr`).join(', '));
+      $('forklaringsliste').innerHTML = deler.map((d) => `<div class="rad"><span class="prikk" style="background:${d.farge}"></span><span>${esc(d.navn)}</span><span class="andel tall">${Math.round((d.belop / hel) * 100)} %</span><span class="kr tall">${kroner(d.belop)} kr</span></div>`).join('');
+      $('planvarsel').innerHTML = tilOvers < 0
+        ? `<div class="varsel kritisk">⚠️ Utgiftene er ${kroner(-tilOvers)} kr høyere enn inntekten. Se fanen Lønn for hvor mange timer som trengs.</div>`
+        : v !== 'alle' ? `<div class="varsel">${esc(personNavn(v))} betaler ${Math.round(andelFor(S.plan, v) * 100)} % av felles utgifter.</div>` : '';
+    }
+
+    function linjeHtml(type, l) {
+      const valg = type === 'inn'
+        ? S.plan.personer.map((p) => `<option value="${esc(p.id)}" ${p.id === l.hvem ? 'selected' : ''}>${esc(p.navn)}</option>`).join('')
+        : `<option value="felles" ${l.hvem === 'felles' ? 'selected' : ''}>👥 Felles</option>${S.plan.personer.map((p) => `<option value="${esc(p.id)}" ${p.id === l.hvem ? 'selected' : ''}>${esc(p.navn)}</option>`).join('')}`;
+      return `
+        <div class="planlinje" data-type="${type}" data-id="${esc(l.id)}">
+          <input class="navn" value="${esc(l.navn)}" aria-label="Navn" data-felt="navn">
+          <input class="belop tall" type="number" inputmode="decimal" min="0" step="any" value="${Number(l.belop) || 0}" aria-label="Beløp per måned for ${esc(l.navn)}" data-felt="belop">
+          ${flere() || type !== 'inn' ? `<select class="hvem" data-felt="hvem" aria-label="Hvem">${valg}</select>` : '<span class="hvem"></span>'}
+          <button class="ikonknapp" type="button" data-slett-linje aria-label="Fjern ${esc(l.navn)}">✕</button>
+        </div>`;
+    }
+
+    const apne = new Set();
+    function tegnPlanRedigering() {
+      const grupper = [
+        { id: 'inn', navn: '💰 Inntekter', linjer: S.plan.inntekter },
+        ...GRUPPER.map((g) => ({ id: g.id, navn: g.navn, linjer: S.plan.utgifter.filter((u) => u.gruppe === g.id), farge: `var(--serie-${g.farge})` })),
+      ];
+      $('planredigering').innerHTML = grupper.map((g) => `
+        <details class="fold" data-gruppe="${g.id}" ${apne.has(g.id) ? 'open' : ''} style="padding:10px 0;border-top:1px solid var(--linje)">
+          <summary>${g.farge ? `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${g.farge}"></span>` : ''}${esc(g.navn)}<span class="sum tall" data-gruppesum="${g.id}">${kroner(sum(g.linjer))} kr</span></summary>
+          <div class="innhold">
+            ${g.linjer.map((l) => linjeHtml(g.id === 'inn' ? 'inn' : 'ut', l)).join('')}
+            <button class="leggtil" type="button" data-ny-linje="${g.id}">＋ Legg til linje</button>
+          </div>
+        </details>`).join('');
+    }
+
+    function tegnHusstand() {
+      const total = S.plan.personer.reduce((s, p) => s + (Number(p.andel) || 0), 0);
+      $('husstand').innerHTML = `
+        <p class="forklaring">Hvor mange prosent av felles utgifter (husleie, mat …) hver betaler.</p>
+        ${S.plan.personer.map((p) => `<div class="andelrad"><label for="andel-${esc(p.id)}">${esc(p.navn)}</label><input id="andel-${esc(p.id)}" data-andel="${esc(p.id)}" type="number" inputmode="numeric" min="0" max="100" step="1" value="${Number(p.andel) || 0}"></div>`).join('')}
+        <p class="forklaring" id="andelSum" style="margin-top:8px">${total === 100 ? 'Til sammen 100 % ✓' : `Til sammen ${total} %. Det fordeles likevel riktig etter forholdet mellom tallene.`}</p>`;
+    }
+
+    function oppdaterGruppesummer() {
+      document.querySelectorAll('[data-gruppesum]').forEach((el) => {
+        const g = el.dataset.gruppesum;
+        el.textContent = `${kroner(sum(g === 'inn' ? S.plan.inntekter : S.plan.utgifter.filter((u) => u.gruppe === g)))} kr`;
+      });
+    }
+
+    function tegnBudsjett() { tegnVisningsvelger(); tegnPlanOversikt(); }
+
+    // ================= MAT =================
+    const personer = () => S.plan.personer;
+    const profil = (id) => S.mat.profiler?.[id] || {};
+    const dagKort = new Intl.DateTimeFormat('nb-NO', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' });
+    const dagLang = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    const somDato = (d) => new Date(d + 'T12:00:00Z');
+    const datoTekst = (d) => (d === idag() ? 'I dag' : d === leggTilDager(idag(), 1) ? 'I morgen' : dagKort.format(somDato(d)));
+    const BROK = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
+    const porsj = (f) => { const hel = Math.floor(f), rest = Math.round((f - hel) * 100) / 100; return BROK[rest] ? `${hel || ''}${BROK[rest]}` : String(Math.round(f * 100) / 100).replace('.', ','); };
+    const lagreMatNa = () => lagreMat(S.mat);
+    const matKategori = () => (S.plan.utgifter.find((u) => u.id === 'mat') || S.plan.utgifter.find((u) => u.gruppe === 'mat'))?.id || 'mat';
+
+    async function hentTilbud() {
+      try { const r = await fetch('../tilbud/data/tilbud.json', { cache: 'no-cache' }); if (r.ok) S.tilbud = (await r.json()).tilbud; } catch {}
+    }
+
+    function sikreMeny() {
+      const ny = fyllMeny({ mat: S.mat, personer: personer(), tilbud: S.tilbud, fra: idag() });
+      if (JSON.stringify(ny) !== JSON.stringify(S.mat.meny)) { S.mat.meny = ny; lagreMatNa(); }
+    }
+
+    function infoFor(r, dato) {
+      const f = foreslaa({ mat: S.mat, personer: personer(), tilbud: S.tilbud, dato, unnta: new Set(OPPSKRIFTER.filter((x) => x.id !== r.id).map((x) => x.id)) })[0];
+      if (f) return f;
+      const por = porsjonerFor(S.mat, personer(), r);
+      const pris = prisFor(r, por.total / r.porsjoner, tilbudPaIngredienser(S.tilbud));
+      return { r, grunner: [], paTilbud: [], pris, prisPerPorsjon: pris / por.total, porsjoner: por.total, skala: por.total / r.porsjoner };
+    }
+
+    function porsjonerTekst(r) {
+      const n = perPorsjon(r);
+      return personer().map((p) => { const f = porsjonFor(profil(p.id), r); return `<span><b>${esc(p.navn)}</b> ${porsj(f)} porsj · ${kroner(f * n.kcal)} kcal</span>`; }).join('');
+    }
+
+    function tegnPaaminnelse() {
+      const uten = personer().filter((p) => !beregnMal(profil(p.id)));
+      const jeg = personer().find((p) => p.id === meg());
+      const husOk = Object.keys(S.mat.husstand || {}).length > 0;
+      if (!uten.length && husOk) { $('profilPaaminnelse').innerHTML = ''; return; }
+      const megMangler = uten.some((p) => p.id === meg());
+      const andre = uten.filter((p) => p.id !== meg()).map((p) => p.navn);
+      $('profilPaaminnelse').innerHTML = `
+        <div class="kort paaminnelse">
+          <h2 style="margin:0">🎯 Få middagene tilpasset dere</h2>
+          <p class="forklaring">${megMangler ? 'Svar på noen raske spørsmål, så tilpasser appen middagsforslag, porsjoner og kalorier til deg.' : !husOk ? 'Fortell litt om husstanden, så blir forslagene bedre.' : ''}
+          ${andre.length ? `${esc(andre.join(' og '))} har ikke svart ennå. De kan svare på sin egen telefon, eller du kan svare for dem under Oss.` : ''}</p>
+          <div class="knapprad">
+            ${megMangler && jeg ? `<button class="knapp hoved" type="button" data-sporsmal="${esc(jeg.id)}">Svar på spørsmål (2 min)</button>` : ''}
+            ${!husOk ? `<button class="knapp ${megMangler ? '' : 'hoved'}" type="button" data-husstand-sp>Om husstanden</button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function tegnMiddagIdag() {
+      const d = idag();
+      const m = S.mat.meny?.[d];
+      const r = m?.id ? oppskrift(m.id) : null;
+      if (!r) {
+        $('middagIdag').innerHTML = `<div class="forklaring" style="font-weight:600">Middag i dag</div><h2 style="margin:4px 0 10px">Ingen middag planlagt</h2><button class="knapp hoved stor" type="button" data-foresla="${d}">Foreslå en middag</button>`;
+        return;
+      }
+      const info = infoFor(r, d);
+      if (m.spist) {
+        $('middagIdag').innerHTML = `
+          <div class="forklaring" style="font-weight:600">Middag i dag</div>
+          <div class="rett"><div class="rettikon">${r.ikon}</div><div><h2>${esc(r.navn)}</h2><div class="info">✓ Spist – godt jobba!</div></div></div>
+          <div class="knapprad"><button class="knapp" type="button" data-rett="${esc(r.id)}" data-dato="${d}">Se oppskriften</button><button class="lenke" type="button" data-angre-spist="${d}">Angre</button></div>`;
+        return;
+      }
+      $('middagIdag').innerHTML = `
+        <div class="forklaring" style="font-weight:600">Middag i dag</div>
+        <div class="rett"><div class="rettikon">${r.ikon}</div><div><h2>${esc(r.navn)}</h2><div class="info">${r.tid} min · ca. ${kroner(info.prisPerPorsjon)} kr per porsjon</div></div></div>
+        ${info.grunner.length ? `<div class="grunner">${info.grunner.slice(0, 3).map((g) => `<span class="grunn">${esc(g)}</span>`).join('')}</div>` : ''}
+        <div class="porsjonsrad">${porsjonerTekst(r)}</div>
+        <div class="knapper3">
+          <button class="knapp hoved stor" type="button" data-spist="${d}">✓ Vi har spist</button>
+          <button class="knapp" type="button" data-rett="${esc(r.id)}" data-dato="${d}">👨‍🍳 Oppskrift</button>
+          <button class="knapp" type="button" data-bytt="${d}">🔄 Noe annet</button>
+        </div>`;
+    }
+
+    function spistI(dato, pid) {
+      let kcal = 0, protein = 0;
+      for (const l of S.mat.logg || []) {
+        if (l.dato !== dato) continue;
+        const r = oppskrift(l.oppskrift);
+        if (!r) continue;
+        const n = perPorsjon(r), f = (l.porsjoner?.[pid] || 0) * (1 - (l.rest || 0));
+        kcal += f * n.kcal; protein += f * n.p;
+      }
+      return { kcal, protein };
+    }
+
+    function tegnMakro() {
+      const d = idag();
+      $('dagensMakro').innerHTML = `<h2 style="margin-bottom:4px">Kalorier i dag</h2>` + personer().map((p) => {
+        const mal = beregnMal(profil(p.id));
+        const s = spistI(d, p.id);
+        if (!mal) return `<div class="person-makro"><div class="linje1"><b>${esc(p.navn)}</b><button class="lenke" type="button" data-sporsmal="${esc(p.id)}">Sett mål →</button></div></div>`;
+        return `<div class="person-makro">
+          <div class="linje1"><b>${esc(p.navn)}</b><span class="tall">${s.kcal ? `Middag ${kroner(s.kcal)} kcal · ${kroner(s.protein)} g protein` : `Mål for middag ca. ${kroner(mal.middagKcal)} kcal`}</span></div>
+          ${meterHtml(s.kcal, mal.middagKcal)}
+          <span class="forklaring" style="font-size:13px">Dagsmål ${kroner(mal.kcal)} kcal · ${kroner(mal.protein)} g protein · ${kroner(mal.karbo)} g karbo · ${kroner(mal.fett)} g fett</span>
+        </div>`;
+      }).join('') + `<p class="forklaring" style="font-size:12.5px;margin-top:6px">Middagene føres automatisk når dere trykker «Vi har spist». Tallene er anslag.</p>`;
+    }
+
+    function tegnIdagFliser() {
+      const behov = behovForMeny({ mat: S.mat, personer: personer(), fra: idag() });
+      const antall = behov.length + (S.mat.handleliste || []).length;
+      $('flisHandle').innerHTML = `<span class="etikett">🛒 Handleliste</span><span class="verdi">${antall} ${antall === 1 ? 'vare' : 'varer'}</span><span class="liten">for ukemenyen →</span>`;
+      const budsjett = sum(lopende());
+      const brukt = sum(S.poster.filter((p) => maanedAv(p.dato) === maanedAv(idag()) && LOPENDE.has(gruppeAv(p.kategori))));
+      const igjen = budsjett - brukt;
+      $('flisPenger').innerHTML = `<span class="etikett">💸 Igjen i ${mndKort.format(fraMaaned(maanedAv(idag())))}</span><span class="verdi ${igjen < 0 ? 'minus' : ''}">${igjen < 0 ? '−' : ''}${kroner(Math.abs(igjen))} kr</span><span class="liten">til mat og forbruk →</span>`;
+    }
+
+    function tegnIdag() {
+      const jeg = personer().find((p) => p.id === meg());
+      $('hilsen').textContent = jeg && jeg.navn !== 'Meg' ? `Hei, ${jeg.navn}!` : 'I dag';
+      $('dagensDato').textContent = dagLang.format(somDato(idag()));
+      tegnPaaminnelse(); tegnMiddagIdag(); tegnMakro(); tegnIdagFliser();
+    }
+
+    // ---------- Uke ----------
+    function tegnUkemeny() {
+      const rader = [];
+      for (let i = 0; i < 7; i++) {
+        const d = leggTilDager(idag(), i);
+        const m = S.mat.meny?.[d];
+        const r = m?.id ? oppskrift(m.id) : null;
+        const ukedag = dagKort.format(somDato(d)).split(' ')[0].replace('.', '');
+        const navn = `<div class="dagnavn">${esc(i === 0 ? 'I dag' : ukedag.charAt(0).toUpperCase() + ukedag.slice(1))}<small>${esc(somDato(d).getUTCDate() + '.' + (somDato(d).getUTCMonth() + 1))}</small></div>`;
+        if (!r) {
+          rader.push(`<div class="dag fri ${i === 0 ? 'idag' : ''}">${navn}<button class="rettknapp" type="button" data-foresla="${d}"><span class="ikon">➕</span><span><b>Ingen middag</b><small>Trykk for et forslag</small></span></button><span></span></div>`);
+          continue;
+        }
+        const info = infoFor(r, d);
+        rader.push(`<div class="dag ${m.spist ? 'spist' : ''} ${i === 0 ? 'idag' : ''}">${navn}
+          <button class="rettknapp" type="button" data-rett="${esc(r.id)}" data-dato="${d}"><span class="ikon">${r.ikon}</span><span><b>${esc(r.navn)}</b><small>${r.tid} min · ${kroner(info.prisPerPorsjon)} kr/porsj${info.paTilbud.some((t) => t.hoved) ? ' · 🏷️ tilbud' : ''}</small></span></button>
+          ${m.spist ? '<span></span>' : `<button class="ikonknapp" type="button" data-bytt="${d}" aria-label="Bytt middag ${esc(datoTekst(d))}">🔄</button>`}</div>`);
+      }
+      const pris = Object.entries(S.mat.meny || {}).filter(([d, m]) => d >= idag() && d <= leggTilDager(idag(), 6) && m.id && !m.spist)
+        .reduce((s, [d, m]) => s + infoFor(oppskrift(m.id), d).pris, 0);
+      $('ukemeny').innerHTML = rader.join('') + `<p class="forklaring" style="margin-top:10px">Middagene resten av uka koster ca. <b>${kroner(pris)} kr</b> til sammen.</p>`;
+    }
+
+    function handlelisteVarer() {
+      const tb = tilbudPaIngredienser(S.tilbud);
+      const behov = behovForMeny({ mat: S.mat, personer: personer(), fra: idag() });
+      const snart = snartTomt(S.mat).filter((k) => !behov.some((b) => b.key === k));
+      const haket = S.mat.haket || {};
+      const varer = behov.map((b) => {
+        const ing = INGREDIENSER[b.key];
+        return { key: b.key, navn: ing.navn, mengde: mengdeTekst(b.key, b.gram, { opp: true }), pakker: b.pakker, hvorfor: b.retter.join(', '), tilbud: tb[b.key], kr: (b.pakker * ing.pakke / 1000) * (tb[b.key]?.kg ?? ing.pris), haket: !!haket[b.key] };
+      });
+      for (const k of snart) {
+        const ing = INGREDIENSER[k];
+        varer.push({ key: k, navn: ing.navn, mengde: 'snart tomt', pakker: 1, hvorfor: 'Snart tomt i kjøkkenet', tilbud: tb[k], kr: (ing.pakke / 1000) * (tb[k]?.kg ?? ing.pris), haket: !!haket[k] });
+      }
+      return varer;
+    }
+
+    function tegnHandleliste() {
+      const varer = handlelisteVarer();
+      const manuelle = S.mat.handleliste || [];
+      const total = varer.reduce((s, v) => s + v.kr, 0);
+      $('handleliste').innerHTML = `
+        <h2 style="margin-bottom:2px">🛒 Handleliste</h2>
+        <p class="forklaring" style="margin-bottom:8px">${varer.length ? `Det som mangler til ukemenyen, ca. ${kroner(total)} kr. Huk av når det er i kurven.` : 'Dere har alt til ukemenyen 🎉'}</p>
+        ${varer.map((v) => `
+          <label class="vare ${v.haket ? 'haket' : ''}">
+            <input type="checkbox" data-hak="${esc(v.key)}" ${v.haket ? 'checked' : ''}>
+            <span><span class="navn">${esc(v.navn)}</span><small>${v.tilbud ? `<span class="tilbud">🏷️ ${kroner(v.tilbud.kg)} kr/kg hos ${esc(v.tilbud.t.butikk)}</span> · ` : ''}${esc(v.hvorfor)}</small></span>
+            <span class="mengde">${esc(v.mengde)}${v.pakker > 1 ? `<br><small>${v.pakker} pk</small>` : ''}</span>
+          </label>`).join('')}
+        ${manuelle.map((v) => `
+          <label class="vare ${v.haket ? 'haket' : ''}">
+            <input type="checkbox" data-hakm="${esc(v.id)}" ${v.haket ? 'checked' : ''}>
+            <span><span class="navn">${esc(v.tekst)}</span></span>
+            <button class="ikonknapp" type="button" data-fjern-vare="${esc(v.id)}" aria-label="Fjern ${esc(v.tekst)}">✕</button>
+          </label>`).join('')}
+        <form class="lenkefelt" id="nyVareForm" style="margin-top:10px" autocomplete="off"><input id="nyVareTekst" placeholder="Legg til noe annet …" aria-label="Legg til vare"><button class="knapp" type="submit">Legg til</button></form>
+        <button class="knapp hoved stor" type="button" id="ferdigHandlet" style="margin-top:12px">✓ Ferdig handlet</button>`;
+    }
+
+    // ---------- Kjøkken ----------
+    const KJOKKENGRUPPER = [
+      ['Kjøtt, fisk og egg', ['kjott', 'fisk', 'skalldyr', 'egg']], ['Meieri', ['meieri']], ['Ris, pasta og poteter', ['karbo']],
+      ['Grønnsaker og bønner', ['gronn']], ['Sauser og krydder', ['saus']],
+    ];
+    const steg = (key) => { const ing = INGREDIENSER[key]; return ing.stk || Math.max(50, Math.round(ing.pakke / 4 / 50) * 50); };
+
+    function tegnKjokken() {
+      const k = S.mat.kjokken || {};
+      const har = Object.entries(k).filter(([key, g]) => g > 0 && INGREDIENSER[key] && !INGREDIENSER[key].basis);
+      const lite = new Set(snartTomt(S.mat));
+      $('kjokkenVarsel').innerHTML = lite.size ? `<div class="kort varsel" style="margin:0 0 12px">⏳ Snart tomt: <b>${esc([...lite].map((x) => INGREDIENSER[x].navn).join(', '))}</b>. Det står på handlelista.</div>` : '';
+      $('kjokkenListe').innerHTML = har.length ? KJOKKENGRUPPER.map(([tittel, typer]) => {
+        const rader = har.filter(([key]) => typer.includes(INGREDIENSER[key].type)).sort((a, b) => INGREDIENSER[a[0]].navn.localeCompare(INGREDIENSER[b[0]].navn, 'nb'));
+        return rader.length ? `<div class="gruppetittel">${tittel}</div>` + rader.map(([key, g]) => `
+          <div class="kjokkenrad ${lite.has(key) ? 'lite' : ''}">
+            <span class="navn">${esc(INGREDIENSER[key].navn)}</span>
+            <span class="mengde">${esc(mengdeTekst(key, g))}</span>
+            <button class="ikonknapp" type="button" data-kj-minus="${esc(key)}" aria-label="Mindre ${esc(INGREDIENSER[key].navn)}">−</button>
+            <button class="ikonknapp" type="button" data-kj-pluss="${esc(key)}" aria-label="Mer ${esc(INGREDIENSER[key].navn)}">＋</button>
+            <button class="ikonknapp" type="button" data-kj-tom="${esc(key)}" aria-label="${esc(INGREDIENSER[key].navn)} er tom">✕</button>
+          </div>`).join('') : '';
+      }).join('') : '<div class="tomt">Kjøkkenet er tomt her ennå. Trykk på det dere har under, eller huk av på handlelista når dere handler.</div>';
+      $('kjokkenLeggTil').innerHTML = KJOKKENGRUPPER.map(([tittel, typer]) => {
+        const mangler = Object.entries(INGREDIENSER).filter(([key, ing]) => typer.includes(ing.type) && !ing.basis && !(k[key] > 0));
+        return mangler.length ? `<div class="gruppetittel">${tittel}</div><div class="chips">${mangler.map(([key, ing]) => `<button class="chip" type="button" data-kj-ny="${esc(key)}">＋ ${esc(ing.navn)}</button>`).join('')}</div>` : '';
+      }).join('');
+    }
+
+    // ---------- Oss ----------
+    const KOSTHOLD = { alt: '', pescetar: 'Spiser fisk, ikke kjøtt', vegetar: 'Vegetar', vegan: 'Vegansk' };
+    function tegnOss() {
+      $('personkort').innerHTML = personer().map((p) => {
+        const pr = profil(p.id), mal = beregnMal(pr);
+        const detaljer = [KOSTHOLD[pr.kosthold], (pr.allergier || []).length ? `Tåler ikke: ${pr.allergier.join(', ')}` : ''].filter(Boolean).join(' · ');
+        return `<div class="kort personkort">
+          <div class="avatar">${esc((p.navn || '?').charAt(0).toUpperCase())}</div>
+          <div>
+            <h2><input class="navn" data-personnavn="${esc(p.id)}" value="${esc(p.navn)}" aria-label="Navn" style="font-weight:700;font-size:17px;padding:6px 8px;width:auto;max-width:100%">${p.id === meg() ? '<span class="merke">Deg</span>' : ''}</h2>
+            <div class="mal">${mal ? `🎯 ${kroner(mal.kcal)} kcal · ${kroner(mal.protein)} g protein per dag` : 'Har ikke svart på spørsmålene ennå'}${detaljer ? `<br>${esc(detaljer)}` : ''}</div>
+            <div class="knapprad">
+              <button class="knapp ${mal ? '' : 'hoved'}" type="button" data-sporsmal="${esc(p.id)}">${mal ? 'Endre svar' : 'Svar på spørsmål'}</button>
+              ${personer().length > 1 ? `<button class="lenke" type="button" data-fjern-person="${esc(p.id)}" style="color:var(--kritisk-tekst)">Fjern</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+      const h = S.mat.husstand || {};
+      const del = [h.middager && `${h.middager} middager i uka`, h.tid && `maks ca. ${h.tid} min på hverdager`, (h.utstyr || []).length && `har ${h.utstyr.join(', ')}`, h.rester === 'ja' && 'lager ekstra til matpakke'].filter(Boolean);
+      $('husstandMat').innerHTML = `<h2 style="margin-bottom:4px">🍽️ Middager</h2>
+        <p class="forklaring">${del.length ? esc(del.join(' · ')) : 'Fortell hvor mange middager dere lager, hvor mye tid dere har og hva dere har på kjøkkenet.'}</p>
+        <div class="knapprad" style="margin-top:8px"><button class="knapp" type="button" data-husstand-sp>${del.length ? 'Endre' : 'Svar på spørsmål'}</button></div>`;
+    }
+
+    function tegnMat() { tegnIdag(); tegnUkemeny(); tegnHandleliste(); tegnKjokken(); tegnOss(); }
+
+    // ---------- Dialoger ----------
+    function visRett(id, dato) {
+      const r = oppskrift(id);
+      if (!r) return;
+      const info = infoFor(r, dato || idag());
+      const tb = tilbudPaIngredienser(S.tilbud);
+      const n = perPorsjon(r);
+      const m = dato ? S.mat.meny?.[dato] : null;
+      const rader = Object.entries(r.ingredienser).map(([key, gram]) => {
+        const ing = INGREDIENSER[key];
+        const trenger = gram * info.skala;
+        const har = (S.mat.kjokken?.[key] || 0) >= trenger * 0.9;
+        const status = ing.basis ? 'basisvare' : har ? '<span class="har">✓ har hjemme</span>' : tb[key] ? `🏷️ ${kroner(tb[key].kg)} kr/kg hos ${esc(tb[key].t.butikk)}` : '';
+        return `<div class="ingrediens"><span>${esc(ing.navn)}${status ? `<small>${status}</small>` : ''}</span><span class="tall">${esc(mengdeTekst(key, trenger))}</span></div>`;
+      }).join('');
+      $('rettInnhold').innerHTML = `
+        <div style="font-size:44px">${r.ikon}</div>
+        <h2 id="rettTittel">${esc(r.navn)}</h2>
+        <p class="forklaring">${r.tid} min · ${porsj(info.porsjoner)} porsjoner${S.mat.husstand?.rester === 'ja' ? ' (med matpakke)' : ''} · ca. ${kroner(info.pris)} kr</p>
+        <div class="makrorad"><div><b>${kroner(n.kcal)}</b><span>kcal</span></div><div><b>${kroner(n.p)} g</b><span>protein</span></div><div><b>${kroner(n.k)} g</b><span>karbo</span></div><div><b>${kroner(n.f)} g</b><span>fett</span></div></div>
+        <p class="forklaring" style="margin-top:-6px;text-align:center;font-size:12.5px">per vanlig porsjon</p>
+        <div class="porsjonsrad" style="margin:0">${porsjonerTekst(r)}</div>
+        <div><h3 style="margin-bottom:4px">Du trenger</h3>${rader}</div>
+        <div><h3 style="margin-bottom:6px">Slik gjør du</h3><ol class="steg">${r.steg.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>
+        <div class="knapprad">
+          ${dato && m?.id === r.id && !m.spist ? `<button class="knapp hoved" type="button" data-spist="${dato}">✓ Vi har spist</button>` : ''}
+          ${dato && m?.id !== r.id ? `<button class="knapp hoved" type="button" data-velg="${esc(r.id)}" data-dato="${dato}">Velg for ${esc(datoTekst(dato).toLowerCase())}</button>` : ''}
+          <button class="knapp" type="button" data-lukk-rett>Lukk</button>
+        </div>`;
+      if (!$('rettDialog').open) $('rettDialog').showModal();
+      $('rettDialog').scrollTop = 0;
+    }
+
+    function visForslag(dato) {
+      const brukt = new Set(Object.entries(S.mat.meny || {}).filter(([d]) => d !== dato && d >= idag() && d <= leggTilDager(idag(), 6)).map(([, m]) => m.id).filter(Boolean));
+      const liste = foreslaa({ mat: S.mat, personer: personer(), tilbud: S.tilbud, dato, unnta: brukt }).slice(0, 6);
+      $('rettInnhold').innerHTML = `
+        <h2 id="rettTittel">Forslag for ${esc(datoTekst(dato).toLowerCase())}</h2>
+        <p class="forklaring">Ut fra tilbudene, det dere har hjemme og det dere liker.</p>
+        ${liste.map((f) => `<div class="dag" style="grid-template-columns:1fr auto">
+          <button class="rettknapp" type="button" data-rett="${esc(f.r.id)}" data-dato="${dato}"><span class="ikon">${f.r.ikon}</span><span><b>${esc(f.r.navn)}</b><small>${f.r.tid} min · ${kroner(f.prisPerPorsjon)} kr/porsj${f.grunner[0] ? ` · ${esc(f.grunner[0])}` : ''}</small></span></button>
+          <button class="knapp" type="button" data-velg="${esc(f.r.id)}" data-dato="${dato}">Velg</button></div>`).join('')}
+        <div class="knapprad">${S.mat.meny?.[dato]?.id ? `<button class="lenke" type="button" data-fri="${dato}">Ingen middag denne dagen</button>` : ''}<button class="knapp" type="button" data-lukk-rett>Lukk</button></div>`;
+      if (!$('rettDialog').open) $('rettDialog').showModal();
+    }
+
+    function visSpist(dato) {
+      const m = S.mat.meny?.[dato], r = oppskrift(m?.id);
+      if (!r) return;
+      $('rettInnhold').innerHTML = `
+        <h2 id="rettTittel">${r.ikon} Hvordan gikk det?</h2>
+        <div class="felt"><label>Hvem spiste?</label><div class="chips" id="spistHvem">${personer().map((p) => `<button type="button" class="chip" data-spist-hvem="${esc(p.id)}" aria-pressed="true">${esc(p.navn)}</button>`).join('')}</div></div>
+        <div class="felt"><label>Hvor mye ble igjen i gryta?</label><div class="chips" id="spistRest">${[[0, 'Ingenting'], [0.25, 'Litt'], [0.5, 'Halvparten'], [0.75, 'Det meste']].map(([v, t], i) => `<button type="button" class="chip" data-rest="${v}" aria-pressed="${i === 0}">${t}</button>`).join('')}</div></div>
+        <div class="felt"><label>Likte dere den?</label><div class="chips" id="spistLikte"><button type="button" class="chip" data-likte="1" aria-pressed="false">👍 Ja</button><button type="button" class="chip" data-likte="-1" aria-pressed="false">👎 Nei</button></div></div>
+        <p class="forklaring">Kaloriene føres på hver person etter porsjonen deres, og ingrediensene trekkes fra kjøkkenet.</p>
+        <div class="knapprad"><button class="knapp hoved" type="button" data-lagre-spist="${dato}">Lagre</button><button class="knapp" type="button" data-lukk-rett>Avbryt</button></div>`;
+      if (!$('rettDialog').open) $('rettDialog').showModal();
+    }
+
+    function lagreSpist(dato) {
+      const m = S.mat.meny?.[dato], r = oppskrift(m?.id);
+      if (!r) return;
+      const hvem = [...document.querySelectorAll('#spistHvem [aria-pressed="true"]')].map((b) => b.dataset.spistHvem);
+      const rest = Number(document.querySelector('#spistRest [aria-pressed="true"]')?.dataset.rest || 0);
+      const likte = Number(document.querySelector('#spistLikte [aria-pressed="true"]')?.dataset.likte || 0);
+      const porsjoner = Object.fromEntries(hvem.map((id) => [id, porsjonFor(profil(id), r)]));
+      S.mat.logg = [...(S.mat.logg || []).filter((l) => !(l.dato === dato && l.oppskrift === r.id)), { id: nyId(), dato, oppskrift: r.id, porsjoner, rest }].slice(-400);
+      const skala = porsjonerFor(S.mat, personer(), r).total / r.porsjoner;
+      S.mat.kjokken ??= {};
+      for (const [key, gram] of Object.entries(r.ingredienser)) {
+        if (INGREDIENSER[key]?.basis || !(S.mat.kjokken[key] > 0)) continue;
+        S.mat.kjokken[key] = Math.max(0, Math.round(S.mat.kjokken[key] - gram * skala));
+        if (!S.mat.kjokken[key]) delete S.mat.kjokken[key];
+      }
+      S.mat.meny[dato] = { ...m, spist: true };
+      if (likte) { S.mat.vurderinger ??= {}; S.mat.vurderinger[r.id] = Math.max(-3, Math.min(3, (S.mat.vurderinger[r.id] || 0) + likte)); }
+      lagreMatNa();
+      $('rettDialog').close();
+      tegnMat();
+      vis('Middagen er ført ✓');
+    }
+
+    function byttMiddag(dato) {
+      const brukt = new Set(Object.entries(S.mat.meny || {}).filter(([d]) => d >= idag() && d <= leggTilDager(idag(), 6)).map(([, m]) => m.id).filter(Boolean));
+      const [neste] = foreslaa({ mat: S.mat, personer: personer(), tilbud: S.tilbud, dato, unnta: brukt });
+      if (!neste) { vis('Fant ikke flere forslag'); return; }
+      S.mat.meny[dato] = { id: neste.r.id };
+      lagreMatNa(); tegnMat();
+      vis(`${neste.r.ikon} ${neste.r.navn}`);
+    }
+
+    function ferdigHandlet() {
+      const varer = handlelisteVarer().filter((v) => v.haket);
+      const manuelle = (S.mat.handleliste || []).filter((v) => v.haket);
+      if (!varer.length && !manuelle.length) { vis('Huk av det dere har kjøpt først'); return; }
+      const anslag = Math.round(varer.reduce((s, v) => s + v.kr, 0));
+      const svar = prompt('Hva kostet handleturen til sammen? (kr)', anslag ? String(anslag) : '');
+      if (svar == null) return;
+      const belop = tallFra(svar);
+      if (belop > 0) { leggTilPost({ belop, kategori: matKategori(), notat: 'Handletur' }); S.poster = lesPoster(); }
+      S.mat.kjokken ??= {};
+      for (const v of varer) S.mat.kjokken[v.key] = (S.mat.kjokken[v.key] || 0) + v.pakker * INGREDIENSER[v.key].pakke;
+      S.mat.haket = {};
+      S.mat.handleliste = (S.mat.handleliste || []).filter((v) => !v.haket);
+      lagreMatNa(); tegnAlt();
+      vis(belop > 0 ? `${kroner(belop)} kr ført i budsjettet, og varene er lagt i kjøkkenet ✓` : 'Varene er lagt i kjøkkenet ✓');
+    }
+
+    function sporsmalFor(id, { medInntekt = false, etter } = {}) {
+      const p = personer().find((x) => x.id === id);
+      if (!p) return;
+      const inntektslinje = S.plan.inntekter.find((l) => l.hvem === id);
+      kjorSporsmal({
+        tittel: p.navn,
+        sporsmal: medInntekt ? [INNTEKTSSPORSMAL, ...PERSONSPORSMAL] : PERSONSPORSMAL,
+        svar: { ...profil(id), ...(medInntekt && inntektslinje ? { inntekt: inntektslinje.belop || '' } : {}) },
+        navn: p.navn,
+        vedFerdig: (svar) => {
+          const { inntekt, ...rest } = svar;
+          S.mat.profiler = { ...(S.mat.profiler || {}), [id]: rest };
+          if (medInntekt && inntekt >= 0) {
+            if (inntektslinje) inntektslinje.belop = inntekt; else S.plan.inntekter.push({ id: `inn-${id}`, navn: 'Inntekt', belop: inntekt, hvem: id });
+            lagre();
+          }
+          lagreMatNa(); sikreMeny(); tegnAlt();
+          if (etter) etter(); else vis(`Takk, ${p.navn}! Forslagene er tilpasset ✓`);
+        },
+      });
+    }
+
+    function husstandSporsmal(etter) {
+      kjorSporsmal({
+        tittel: 'Husstanden', sporsmal: HUSSTANDSPORSMAL, svar: S.mat.husstand || {},
+        vedFerdig: (svar) => {
+          const forMange = Number(svar.middager) < Number(S.mat.husstand?.middager || 7);
+          S.mat.husstand = svar;
+          if (forMange) for (const [d, m] of Object.entries(S.mat.meny || {})) if (d >= idag() && !m.spist) delete S.mat.meny[d];
+          lagreMatNa(); sikreMeny(); tegnAlt();
+          if (etter) etter(); else vis('Lagret ✓');
+        },
+      });
+    }
+
+    // ---------- Velkommen (ny telefon uten data) ----------
+    function velkommen(steg = 'start') {
+      const d = $('velkommen');
+      if (steg === 'start') {
+        $('velkommenInnhold').innerHTML = `
+          <div class="stor-ikon">🏡</div>
+          <h2 id="velkommenTittel" style="text-align:center">Velkommen til Hjemme</h2>
+          <p class="forklaring" style="text-align:center">Middagsforslag ut fra tilbudene, handleliste, kalorier og budsjett for hele husstanden – på ett sted.</p>
+          <button class="knapp hoved stor" type="button" data-velk="ny">🏠 Lag en ny husstand</button>
+          <button class="knapp stor" type="button" data-velk="inv">✉️ Jeg har fått en invitasjon</button>
+          <button class="lenke" type="button" data-velk="gammel" style="justify-self:center">Har du brukt budsjettet her før? Hent oppsettet</button>`;
+      } else if (steg === 'ny') {
+        $('velkommenInnhold').innerHTML = `
+          <h2 id="velkommenTittel">Hvem bor i husstanden?</h2>
+          <div id="navneliste">
+            <div class="navnrad"><input data-navn placeholder="Ditt navn" aria-label="Ditt navn"><span></span></div>
+          </div>
+          <button class="lenke" type="button" data-velk="flere" style="justify-self:start">＋ Legg til en person til</button>
+          <div class="rad2">
+            <div class="felt"><label for="vHusleie">Husleie per måned</label><input id="vHusleie" type="number" inputmode="decimal" min="0" placeholder="kr"></div>
+            <div class="felt"><label for="vStrom">Strøm per måned</label><input id="vStrom" type="number" inputmode="decimal" min="0" placeholder="kr"></div>
+          </div>
+          <p class="forklaring">Husleie og strøm er til sammen for husstanden. Du kan endre alt senere.</p>
+          <button class="knapp hoved stor" type="button" data-velk="lag">Fortsett</button>
+          <button class="lenke" type="button" data-velk="start" style="justify-self:center">Tilbake</button>`;
+      } else if (steg === 'inv') {
+        $('velkommenInnhold').innerHTML = `
+          <h2 id="velkommenTittel">Bli med i en husstand</h2>
+          <p class="forklaring">Åpne lenken du har fått på denne telefonen, eller skriv inn koden.</p>
+          <input id="vKode" placeholder="XXXX-XXXX-XXXX-XXXX" autocapitalize="characters" aria-label="Kode" style="font-family:ui-monospace,monospace;font-size:18px;letter-spacing:.05em">
+          <button class="knapp hoved stor" type="button" data-velk="koden">Fortsett</button>
+          <button class="lenke" type="button" data-velk="start" style="justify-self:center">Tilbake</button>`;
+      }
+      if (!d.open) d.showModal();
+    }
+    $('velkommen').addEventListener('cancel', (e) => e.preventDefault());
+    $('velkommen').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-velk]');
+      if (!b) return;
+      const hva = b.dataset.velk;
+      if (['start', 'ny', 'inv'].includes(hva)) { velkommen(hva); return; }
+      if (hva === 'flere') {
+        $('navneliste').insertAdjacentHTML('beforeend', '<div class="navnrad"><input data-navn placeholder="Navn" aria-label="Navn"><button type="button" class="ikonknapp" data-fjern-navn aria-label="Fjern">✕</button></div>');
+        $('navneliste').lastElementChild.querySelector('input').focus();
+        return;
+      }
+      if (hva === 'gammel') {
+        if (confirm('Hente budsjettoppsettet som ble brukt her før?')) { S.plan = hentTidligereOppsett(); lagre(); $('velkommen').close(); S.lonnPerson = meg(); sikreMeny(); tegnAlt(); vis('Oppsettet er hentet ✓'); }
+        return;
+      }
+      if (hva === 'koden') {
+        const kode = $('vKode').value.trim();
+        if (!kode) { $('vKode').focus(); return; }
+        $('velkommen').close(); bliMedDialog(kode);
+        return;
+      }
+      if (hva === 'lag') {
+        const navn = [...document.querySelectorAll('#navneliste [data-navn]')].map((i) => i.value.trim()).filter(Boolean);
+        if (!navn.length) { document.querySelector('#navneliste [data-navn]').focus(); vis('Skriv inn navnet ditt'); return; }
+        S.plan = lagNyPlan({ personer: navn.map((n) => ({ id: nyId(), navn: n })), husleie: tallFra($('vHusleie').value) || 0, strom: tallFra($('vStrom').value) || 0 });
+        lagre();
+        S.lonnPerson = meg();
+        $('velkommen').close();
+        tegnAlt();
+        const forste = S.plan.personer[0];
+        husstandSporsmal(() => sporsmalFor(forste.id, { medInntekt: true, etter: () => {
+          sikreMeny(); tegnAlt();
+          vis(S.plan.personer.length > 1 ? 'Ferdig! De andre kan svare under Oss, eller på sin egen telefon når dere deler.' : 'Ferdig! Her er dagens middag.');
+          location.hash = '#idag';
+        } }));
+      }
+    });
+    $('velkommen').addEventListener('click', (e) => { const b = e.target.closest('[data-fjern-navn]'); if (b) b.closest('.navnrad').remove(); });
+
+    // ---------- Hendelser for mat ----------
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const ds = b.dataset;
+      if (ds.pengerTil) { location.hash = ds.pengerTil === 'oversikt' ? '#penger' : `#penger-${ds.pengerTil}`; return; }
+      if (ds.rett) { visRett(ds.rett, ds.dato); return; }
+      if (ds.foresla) { visForslag(ds.foresla); return; }
+      if (ds.bytt) { byttMiddag(ds.bytt); return; }
+      if (ds.spist) { visSpist(ds.spist); return; }
+      if (ds.lagreSpist) { lagreSpist(ds.lagreSpist); return; }
+      if (ds.velg) { S.mat.meny[ds.dato] = { id: ds.velg }; lagreMatNa(); $('rettDialog').close(); tegnMat(); vis('Lagt i ukemenyen ✓'); return; }
+      if (ds.fri) { S.mat.meny[ds.fri] = { fri: true }; lagreMatNa(); $('rettDialog').close(); tegnMat(); return; }
+      if (ds.angreSpist) {
+        const d = ds.angreSpist, m = S.mat.meny?.[d];
+        if (m) { S.mat.meny[d] = { id: m.id }; S.mat.logg = (S.mat.logg || []).filter((l) => !(l.dato === d && l.oppskrift === m.id)); lagreMatNa(); tegnMat(); }
+        return;
+      }
+      if ('lukkRett' in ds) { $('rettDialog').close(); return; }
+      if (ds.spistHvem) { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); return; }
+      if (ds.rest != null) { document.querySelectorAll('#spistRest [data-rest]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); return; }
+      if (ds.likte) { document.querySelectorAll('#spistLikte [data-likte]').forEach((x) => x.setAttribute('aria-pressed', String(x === b && x.getAttribute('aria-pressed') !== 'true'))); return; }
+      if (ds.sporsmal) { sporsmalFor(ds.sporsmal); return; }
+      if ('husstandSp' in ds) { husstandSporsmal(); return; }
+      if (ds.fjernPerson) {
+        const p = personer().find((x) => x.id === ds.fjernPerson);
+        if (p && confirm(`Fjerne ${p.navn} fra husstanden? Linjene i budsjettet som bare gjelder ${p.navn}, blir også fjernet.`)) {
+          fjernPerson(S.plan, p.id); delete S.mat.profiler?.[p.id]; lagre(); lagreMatNa(); tegnAlt();
+        }
+        return;
+      }
+      if (ds.kjNy || ds.kjPluss || ds.kjMinus || ds.kjTom) {
+        const key = ds.kjNy || ds.kjPluss || ds.kjMinus || ds.kjTom;
+        S.mat.kjokken ??= {};
+        const na = S.mat.kjokken[key] || 0;
+        S.mat.kjokken[key] = ds.kjNy ? INGREDIENSER[key].pakke : ds.kjPluss ? na + steg(key) : ds.kjMinus ? Math.max(0, na - steg(key)) : 0;
+        if (!S.mat.kjokken[key]) delete S.mat.kjokken[key];
+        lagreMatNa(); tegnKjokken(); tegnHandleliste(); tegnIdagFliser();
+        return;
+      }
+      if (ds.fjernVare) { S.mat.handleliste = (S.mat.handleliste || []).filter((v) => v.id !== ds.fjernVare); lagreMatNa(); tegnHandleliste(); tegnIdagFliser(); return; }
+      switch (b.id) {
+        case 'nyUke':
+          if (confirm('Lage en ny ukemeny? Middager dere allerede har spist blir stående.')) {
+            for (const [d, m] of Object.entries(S.mat.meny || {})) if (d >= idag() && !m.spist) delete S.mat.meny[d];
+            sikreMeny(); tegnMat(); vis('Ny ukemeny ✓');
+          }
+          break;
+        case 'ferdigHandlet': ferdigHandlet(); break;
+        case 'nyPerson': {
+          const navn = prompt('Hva heter personen?');
+          if (navn?.trim()) { const p = leggTilPerson(S.plan, navn.trim()); lagre(); tegnAlt(); if (confirm(`Vil du svare på spørsmålene for ${p.navn} nå? Hen kan også svare selv senere.`)) sporsmalFor(p.id, { medInntekt: true }); }
+          break;
+        }
+      }
+    });
+    document.addEventListener('change', (e) => {
+      const t = e.target;
+      if (t.dataset.hak) { S.mat.haket = { ...(S.mat.haket || {}), [t.dataset.hak]: t.checked }; lagreMatNa(); tegnHandleliste(); }
+      if (t.dataset.hakm) { const v = (S.mat.handleliste || []).find((x) => x.id === t.dataset.hakm); if (v) { v.haket = t.checked; lagreMatNa(); tegnHandleliste(); } }
+    });
+    document.addEventListener('submit', (e) => {
+      if (e.target.id !== 'nyVareForm') return;
+      e.preventDefault();
+      const tekst = $('nyVareTekst').value.trim();
+      if (!tekst) return;
+      S.mat.handleliste = [...(S.mat.handleliste || []), { id: nyId(), tekst, haket: false }];
+      lagreMatNa(); tegnHandleliste(); tegnIdagFliser();
+      $('nyVareTekst').focus();
+    });
+    $('rettDialog').addEventListener('click', (e) => { if (e.target === $('rettDialog')) $('rettDialog').close(); });
+
+    // ================= FELLES BUDSJETT =================
+    const meg = () => { const j = deling()?.jeg; return S.plan.personer.some((p) => p.id === j) ? j : S.plan.personer[0]?.id; };
+    const andre = () => S.plan.personer.filter((p) => p.id !== meg()).map((p) => p.navn).join(' og ') || 'resten av husstanden';
+    const klokke = new Intl.DateTimeFormat('nb-NO', { hour: '2-digit', minute: '2-digit' });
+
+    const REGLER = `"budsjett": {
+  "$hus": { ".read": true, ".write": true }
+}`;
+
+    function tegnDeling() {
+      const d = deling();
+      if (!d?.kode) {
+        $('deling').innerHTML = flere() ? `
+          <div class="kort invitasjon">
+            <h2 style="margin:0">👥 Del budsjettet med ${esc(andre())}</h2>
+            <p class="forklaring">Da ser dere det samme budsjettet på hver deres telefon, og alt dere fører kommer med hos begge.</p>
+            <button class="knapp hoved" type="button" id="startDeling">Del budsjettet</button>
+          </div>` : '';
+        $('delingskort').hidden = true;
+        $('delingMini').innerHTML = '';
+        return;
+      }
+      const sist = d.sist ? klokke.format(new Date(d.sist)) : null;
+      $('delingMini').innerHTML = d.feil ? `<div class="delingslinje feil"><span>⚠️ Ikke oppdatert</span><button type="button" id="synkNa">Prøv igjen</button></div>` : '';
+      $('deling').innerHTML = d.feil
+        ? `<div class="delingslinje feil"><span>⚠️ ${d.feil === 'nektet' ? 'Databasen tillater ikke lagring ennå' : 'Ikke oppdatert – er du på nett?'}</span><button type="button" id="synkNa">Prøv igjen</button></div>`
+        : `<div class="delingslinje"><span>👥 <b>Felles med ${esc(andre())}</b>${sist ? ` · oppdatert ${sist}` : ''}</span><button type="button" id="synkNa">⟳ Oppdater</button></div>`;
+      $('delingskort').hidden = false;
+      $('delingsinnstillinger').innerHTML = `
+        <p class="forklaring">Budsjettet er felles, og endringer kommer fram hos alle i løpet av noen sekunder.</p>
+        <div class="felt" style="margin-top:10px"><label>Du er på denne telefonen</label>
+          <div class="velger" style="margin:0">${S.plan.personer.map((p) => `<button type="button" data-jeg="${esc(p.id)}" aria-pressed="${p.id === meg()}">${esc(p.navn)}</button>`).join('')}</div></div>
+        <div class="knapprad" style="margin-top:10px">
+          <button class="knapp" type="button" id="visLenke">🔗 Vis lenken igjen</button>
+          <button class="knapp fare" type="button" id="kobleFra">Slutt å dele her</button>
+        </div>`;
+    }
+
+    function dialog(html) { $('delInnhold').innerHTML = html; if (!$('delDialog').open) $('delDialog').showModal(); }
+    const lukkKnapp = '<button class="knapp" type="button" data-lukk>Lukk</button>';
+    function feilHtml(e) {
+      return `<h2 id="delTittel">Det gikk ikke</h2><p>${esc(e.message || 'Noe gikk galt.')}</p>
+        ${e.type === 'nektet' ? `<p class="forklaring">Firebase-databasen (prosjektet «eidert») må få lov til å lagre budsjettet. Åpne Firebase-konsollen, gå til <b>Realtime Database → Regler</b>, og legg til dette inne i <code>"rules"</code> ved siden av det som står der fra før:</p>
+        <pre class="regler">${esc(REGLER)}</pre><p class="forklaring">Alt som lagres er kryptert med koden deres, så ingen andre kan lese det.</p>` : ''}
+        <div class="knapprad">${lukkKnapp}</div>`;
+    }
+
+    let qrLastet = null;
+    async function visQr(el, tekst) {
+      try {
+        qrLastet ??= new Promise((ok, feil) => { const sk = document.createElement('script'); sk.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sk.onload = ok; sk.onerror = feil; document.head.append(sk); });
+        await qrLastet;
+        el.innerHTML = '';
+        new window.QRCode(el, { text: tekst, width: 190, height: 190, correctLevel: window.QRCode.CorrectLevel.M });
+      } catch { el.remove(); }
+    }
+
+    function visLenke(kode) {
+      const lenke = delingslenke(kode);
+      dialog(`
+        <h2 id="delTittel">Send lenken til ${esc(andre())}</h2>
+        <p class="forklaring">Åpne lenken på den andre telefonen, eller skann koden med kameraet. Bare de som har lenken kan se budsjettet, så ikke del den med andre.</p>
+        <div class="qr" id="qr"></div>
+        <div class="lenkefelt"><input id="lenke" readonly value="${esc(lenke)}" aria-label="Delingslenke"><button class="knapp" type="button" id="kopierLenke">Kopier</button></div>
+        ${navigator.share ? '<button class="knapp hoved" type="button" id="delLenke">Del lenken …</button>' : ''}
+        <p class="forklaring" style="text-align:center">Eller skriv inn koden:</p>
+        <div class="kode">${esc(kode)}</div>
+        <div class="knapprad">${lukkKnapp}</div>`);
+      visQr($('qr'), lenke);
+    }
+
+    function startDelingDialog() {
+      dialog(`
+        <h2 id="delTittel">Del budsjettet</h2>
+        <p class="forklaring">Alt dere har lagt inn her blir felles: budsjettet, utgiftene og lønna. Det krypteres på telefonen før det lagres.</p>
+        <div class="felt"><label>Hvem er du?</label>
+          <div class="velger" style="margin:0" id="velgJeg">${S.plan.personer.map((p, i) => `<button type="button" data-velgjeg="${esc(p.id)}" aria-pressed="${i === 0}">${esc(p.navn)}</button>`).join('')}</div></div>
+        <div class="knapprad"><button class="knapp hoved" type="button" id="lagDeling">Lag felles budsjett</button>${lukkKnapp}</div>`);
+    }
+
+    async function bliMedDialog(kode) {
+      dialog(`<h2 id="delTittel">Felles budsjett</h2><p class="forklaring">Henter budsjettet …</p>`);
+      try {
+        const funnet = await finnDelt(kode);
+        dialog(`
+          <h2 id="delTittel">Bli med i felles budsjett</h2>
+          <p class="forklaring">Budsjettet på denne telefonen byttes ut med det felles budsjettet til ${esc(funnet.personer.map((p) => p.navn).join(' og '))}.</p>
+          <div class="felt"><label>Hvem er du?</label>
+            <div class="velger" style="margin:0" id="velgJeg">${funnet.personer.map((p, i) => `<button type="button" data-velgjeg="${esc(p.id)}" aria-pressed="${i === funnet.personer.length - 1}">${esc(p.navn)}</button>`).join('')}</div></div>
+          <div class="knapprad"><button class="knapp hoved" type="button" id="bliMed" data-kode="${esc(funnet.kode)}">Bli med</button>${lukkKnapp}</div>`);
+      } catch (e) { dialog(feilHtml(e)); }
+    }
+
+    const valgtJeg = () => document.querySelector('#velgJeg [aria-pressed="true"]')?.dataset.velgjeg;
+
+    function etterSynk(r) {
+      if (r?.endret) { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); tegnAlt(); }
+      else tegnDeling();
+    }
+
+    async function synkNa(vis = false) {
+      try { const r = await synk(); etterSynk(r); if (vis) vis_(r.endret ? 'Oppdatert ✓' : 'Alt er oppdatert ✓'); }
+      catch (e) { tegnDeling(); if (vis) dialog(feilHtml(e)); }
+    }
+    const vis_ = (t) => vis(t);
+
+    document.addEventListener('click', async (e) => {
+      const el = e.target.closest('button');
+      if (!el) return;
+      if ('lukk' in el.dataset) { $('delDialog').close(); return; }
+      if (el.dataset.velgjeg) { document.querySelectorAll('#velgJeg button').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); return; }
+      if (el.dataset.jeg) { settJeg(el.dataset.jeg); S.lonnPerson = el.dataset.jeg; tegnAlt(); return; }
+      switch (el.id) {
+        case 'startDeling': startDelingDialog(); break;
+        case 'lagDeling': {
+          el.disabled = true; el.textContent = 'Lager …';
+          try { const kode = await startDeling(valgtJeg()); S.lonnPerson = meg(); tegnAlt(); visLenke(kode); }
+          catch (err) { dialog(feilHtml(err)); }
+          break;
+        }
+        case 'bliMed': {
+          el.disabled = true; el.textContent = 'Henter …';
+          try {
+            await bliMed(el.dataset.kode, valgtJeg());
+            S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.lonnPerson = meg();
+            history.replaceState(null, '', location.pathname + '#idag');
+            $('delDialog').close(); tegnAlt(); vis('Dere har nå felles budsjett ✓');
+          } catch (err) { dialog(feilHtml(err)); }
+          break;
+        }
+        case 'synkNa': synkNa(true); break;
+        case 'visLenke': visLenke(deling().kode); break;
+        case 'kopierLenke': try { await navigator.clipboard.writeText($('lenke').value); vis('Lenken er kopiert ✓'); } catch { $('lenke').select(); } break;
+        case 'delLenke': navigator.share({ title: 'Felles budsjett', text: 'Bli med i budsjettet vårt:', url: $('lenke').value }).catch(() => {}); break;
+        case 'kobleFra':
+          if (confirm('Slutte å dele budsjettet på denne telefonen? Det som ligger her nå blir liggende, men oppdateres ikke lenger.')) { kobleFra(); tegnDeling(); vis('Delingen er slått av her'); }
+          break;
+      }
+    });
+    $('delDialog').addEventListener('click', (e) => { if (e.target === $('delDialog')) $('delDialog').close(); });
+
+    function tegnAlt() {
+      tegnDeling();
+      tegnKategorivalg(); tegnOversikt(); tegnLonn(); tegnSlipper(); tegnForslag(); tegnBudsjett(); tegnPlanRedigering(); tegnHusstand();
+      tegnMat();
+    }
+
+    // ================= HENDELSER =================
+    function flyttMaaned(steg) {
+      const d = fraMaaned(S.maaned); d.setUTCMonth(d.getUTCMonth() + steg);
+      S.maaned = d.toISOString().slice(0, 7); tegnOversikt();
+    }
+    $('forrige').addEventListener('click', () => flyttMaaned(-1));
+    $('neste').addEventListener('click', () => flyttMaaned(1));
+
+    $('pDato').value = idag();
+    $('pKategori').addEventListener('change', (e) => { S.valgtKategori = e.target.value; tegnKategorivalg(); });
+    $('nyPost').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const belop = tallFra($('pBelop').value);
+      if (!(belop > 0)) { $('pBelop').focus(); return; }
+      const post = leggTilPost({ belop, kategori: S.valgtKategori, dato: $('pDato').value || idag(), notat: $('pNotat').value.trim() });
+      S.poster = lesPoster(); S.maaned = maanedAv(post.dato);
+      $('pBelop').value = ''; $('pNotat').value = ''; $('pDato').value = idag();
+      tegnOversikt(); tegnBudsjett();
+      vis(`${kroner(belop)} kr på ${kategoriNavn(post.kategori)} ✓`);
+    });
+
+    $('bildeFil').addEventListener('change', (e) => { const fil = e.target.files?.[0]; if (fil) lesBilde(fil); e.target.value = ''; });
+
+    $('lonnskort').addEventListener('input', (e) => {
+      const pr = lonnsprofil(S.lonn, S.lonnPerson);
+      const v = Math.max(0, tallFra(e.target.value) || 0);
+      if (e.target.id === 'aTimer') pr.timer = v;
+      else if (e.target.id === 'aTimelonn') pr.timelonn = v;
+      else if (e.target.id === 'aTrekk') pr.trekk = Math.min(60, v);
+      else if (e.target.id === 'aPer') pr.per = e.target.value;
+      else return;
+      lagreLonn(S.lonn);
+      const fokus = e.target.id, pos = e.target.selectionStart;
+      tegnLonn();
+      const el = $(fokus); el?.focus(); if (pos != null) { try { el.setSelectionRange(pos, pos); } catch {} }
+    });
+
+    $('slipper').addEventListener('change', (e) => {
+      const s = S.lonn.slipper.find((x) => x.id === e.target.dataset.snitt);
+      if (s) { s.iSnitt = e.target.checked; lagreLonn(S.lonn); tegnLonn(); }
+    });
+
+    document.addEventListener('submit', (e) => {
+      if (e.target.id !== 'forslagSkjema') return;
+      e.preventDefault();
+      const timer = tallFra($('fTimer').value), brutto = tallFra($('fBrutto').value);
+      const skatt = tallFra($('fSkatt').value), netto = tallFra($('fNetto').value);
+      if (!(timer > 0)) { $('fTimer').focus(); vis('Skriv inn antall timer'); return; }
+      if (!(brutto > 0)) { $('fBrutto').focus(); vis('Skriv inn bruttolønn'); return; }
+      const f = S.forslag;
+      S.lonn.slipper.push({
+        id: nyId(), hvem: f.hvem, maaned: $('fMaaned').value || maanedAv(idag()), timer, brutto,
+        skatt: skatt >= 0 ? skatt : (netto > 0 ? Math.max(0, brutto - netto) : 0), ...(netto > 0 ? { netto } : {}),
+        iSnitt: !(f.feriepenger > 0),
+      });
+      S.lonnPerson = f.hvem;
+      lagreLonn(S.lonn);
+      S.forslag = null;
+      tegnForslag(); tegnSlipper(); tegnLonn();
+      vis('Lønnsslippen er lagret ✓');
+    });
+
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('button');
+      if (!el) return;
+      const ds = el.dataset;
+      if (ds.hurtig) { S.valgtKategori = ds.hurtig; tegnKategorivalg(); $('pBelop').focus(); return; }
+      if (ds.visning) { S.visning = ds.visning; tegnBudsjett(); return; }
+      if (ds.lonnperson) { S.lonnPerson = ds.lonnperson; tegnLonn(); return; }
+      if (ds.forslaghvem && S.forslag) {
+        S.forslag.hvem = ds.forslaghvem;
+        document.querySelectorAll('[data-forslaghvem]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.forslaghvem === ds.forslaghvem)));
+        return;
+      }
+      if (ds.slettPost) {
+        const p = S.poster.find((x) => x.id === ds.slettPost);
+        if (p && confirm(`Slette ${kroner(p.belop)} kr (${kategoriNavn(p.kategori)})?`)) { S.poster = S.poster.filter((x) => x.id !== p.id); lagrePoster(S.poster); tegnOversikt(); }
+        return;
+      }
+      if (ds.slettSlipp) {
+        const s = S.lonn.slipper.find((x) => x.id === ds.slettSlipp);
+        if (s && confirm(`Slette lønnsslippen for ${mndFmt.format(fraMaaned(s.maaned))}?`)) { S.lonn.slipper = S.lonn.slipper.filter((x) => x.id !== s.id); lagreLonn(S.lonn); tegnSlipper(); tegnLonn(); }
+        return;
+      }
+      if ('slettLinje' in ds) {
+        const rad = el.closest('.planlinje');
+        const liste = rad.dataset.type === 'inn' ? S.plan.inntekter : S.plan.utgifter;
+        const i = liste.findIndex((l) => l.id === rad.dataset.id);
+        if (i >= 0 && confirm(`Fjerne «${liste[i].navn}»?`)) { liste.splice(i, 1); lagre(); tegnAlt(); }
+        return;
+      }
+      if (ds.nyLinje) {
+        const g = ds.nyLinje;
+        const linje = g === 'inn' ? { id: nyId(), navn: 'Ny inntekt', belop: 0, hvem: S.plan.personer[0].id } : { id: nyId(), navn: 'Ny utgift', belop: 0, gruppe: g, hvem: 'felles' };
+        (g === 'inn' ? S.plan.inntekter : S.plan.utgifter).push(linje);
+        apne.add(g); lagre(); tegnAlt();
+        const inp = document.querySelector(`.planlinje[data-id="${CSS.escape(linje.id)}"] input.navn`); inp?.focus(); inp?.select();
+        return;
+      }
+      switch (el.id) {
+        case 'allePoster': S.visAllePoster = !S.visAllePoster; tegnPoster(); break;
+        case 'manuell': S.forslag = { hvem: S.lonnPerson, maaned: maanedAv(idag()), timer: null, brutto: null, skatt: null, netto: null, lest: false, funnet: [] }; tegnForslag(); break;
+        case 'avbrytForslag': S.forslag = null; tegnForslag(); $('ocrStatus').hidden = true; break;
+        case 'brukSlipper': {
+          const stat = lonnsstatistikk(S.lonn.slipper.filter((x) => x.hvem === S.lonnPerson));
+          if (stat) { const pr = lonnsprofil(S.lonn, S.lonnPerson); pr.timelonn = Math.round(stat.perTimeBrutto); pr.trekk = Math.round(stat.trekkandel * 100); lagreLonn(S.lonn); tegnLonn(); vis('Hentet fra lønnsslippene ✓'); }
+          break;
+        }
+        case 'brukLonn': {
+          const hvem = S.lonnPerson, belop = Number(ds.belop) || 0;
+          let linje = S.plan.inntekter.find((l) => l.hvem === hvem && /jobb|lønn/i.test(l.navn));
+          if (!linje) { linje = { id: nyId(), navn: 'Jobb', belop: 0, hvem }; S.plan.inntekter.push(linje); }
+          linje.belop = belop; lagre(); tegnAlt();
+          vis(`Lønna${flere() ? ` til ${personNavn(hvem)}` : ''} er satt til ${kroner(belop)} kr ✓`);
+          break;
+        }
+        case 'nullstill':
+          if (confirm('Starte budsjettplanen på nytt med vanlige standardtall? Personene, utgiftene og lønnsslippene beholdes.')) {
+            const husleie = S.plan.utgifter.find((u) => u.id === 'husleie')?.belop || 0, strom = S.plan.utgifter.find((u) => u.id === 'strom')?.belop || 0;
+            const inntekt = Object.fromEntries(S.plan.personer.map((p) => [p.id, sum(S.plan.inntekter.filter((l) => l.hvem === p.id))]));
+            S.plan = lagNyPlan({ personer: S.plan.personer.map((p) => ({ id: p.id, navn: p.navn, inntekt: inntekt[p.id] })), husleie, strom });
+            lagre(); tegnAlt(); vis('Budsjettplanen er startet på nytt');
+          }
+          break;
+        case 'eksporter': {
+          const blob = new Blob([JSON.stringify({ plan: S.plan, poster: S.poster, lonn: S.lonn, lagret: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `budsjett-${idag()}.json`; a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+          break;
+        }
+        case 'importerKnapp': $('importerFil').click(); break;
+      }
+    });
+
+    // Husk hvilke grupper som er åpne i redigeringen
+    $('planredigering').addEventListener('toggle', (e) => {
+      const g = e.target.dataset?.gruppe; if (!g) return;
+      if (e.target.open) apne.add(g); else apne.delete(g);
+    }, true);
+
+    $('planredigering').addEventListener('input', (e) => {
+      const inp = e.target, rad = inp.closest('.planlinje'); if (!rad) return;
+      const liste = rad.dataset.type === 'inn' ? S.plan.inntekter : S.plan.utgifter;
+      const linje = liste.find((l) => l.id === rad.dataset.id); if (!linje) return;
+      if (inp.dataset.felt === 'belop') linje.belop = Math.max(0, tallFra(inp.value) || 0);
+      else if (inp.dataset.felt === 'hvem') linje.hvem = inp.value;
+      else linje.navn = inp.value;
+      lagre(); oppdaterGruppesummer(); tegnBudsjett(); tegnOversikt(); tegnLonn();
+    });
+    $('planredigering').addEventListener('change', () => tegnKategorivalg());
+
+    $('husstand').addEventListener('input', (e) => {
+      const id = e.target.dataset.andel;
+      if (!id) return;
+      const p = S.plan.personer.find((x) => x.id === id);
+      if (p) p.andel = Math.min(100, Math.max(0, Math.round(tallFra(e.target.value) || 0)));
+      const total = S.plan.personer.reduce((s, x) => s + (Number(x.andel) || 0), 0);
+      $('andelSum').textContent = total === 100 ? 'Til sammen 100 % ✓' : `Til sammen ${total} %. Det fordeles likevel riktig etter forholdet mellom tallene.`;
+      lagre(); tegnBudsjett();
+    });
+    $('personkort').addEventListener('change', (e) => {
+      const id = e.target.dataset.personnavn;
+      if (!id) return;
+      const p = S.plan.personer.find((x) => x.id === id);
+      if (p && e.target.value.trim()) { p.navn = e.target.value.trim(); lagre(); tegnAlt(); }
+    });
+    $('husstand').addEventListener('change', () => tegnAlt());
+
+    $('importerFil').addEventListener('change', async (e) => {
+      const fil = e.target.files?.[0]; if (!fil) return;
+      try {
+        const data = JSON.parse(await fil.text());
+        if (!data.plan?.inntekter || !data.plan?.utgifter || !Array.isArray(data.poster)) throw new Error('feil format');
+        if (confirm(`Hente budsjettet fra filen (${data.poster.length} utgifter)? Det erstatter det som ligger her.`)) {
+          S.plan = normaliserPlan(data.plan); S.poster = data.poster;
+          if (data.lonn) { lagreLonn(data.lonn); S.lonn = lesLonn(); }
+          lagre(); lagrePoster(S.poster); lagreLonn(S.lonn); tegnAlt(); vis('Budsjettet er hentet ✓');
+        }
+      } catch { alert('Fant ikke et budsjett i den filen.'); }
+      e.target.value = '';
+    });
+
+    let meldingTimer;
+    function vis(tekst) {
+      const m = $('melding'); m.textContent = tekst; m.classList.add('vis');
+      clearTimeout(meldingTimer); meldingTimer = setTimeout(() => m.classList.remove('vis'), 2400);
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key?.startsWith('budsjett.') || e.key === 'hjem.mat') { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); tegnAlt(); }
+    });
+
+    if (S.plan.migrert) { lagre(); }
+    S.lonnPerson = meg();
+    visFane();
+    tegnAlt();
+    const nyTelefon = !harPlan() && !erDelt() && !/bli-med=/.test(location.hash);
+    (async () => {
+      await hentTilbud();
+      if (erDelt()) { try { etterSynk(await synk()); } catch {} } // hent den felles menyen før vi lager en ny
+      if (!nyTelefon) sikreMeny();
+      tegnAlt();
+      startAutoSynk(etterSynk);
+    })();
+    if (nyTelefon) velkommen();
+    function sjekkInvitasjon() {
+      const invitasjon = location.hash.match(/bli-med=([A-Za-z0-9-]+)/);
+      if (!invitasjon) return;
+      if (erDelt() && normaliserKode(invitasjon[1]) === deling().kode) history.replaceState(null, '', location.pathname + '#idag');
+      else bliMedDialog(invitasjon[1]);
+    }
+    window.addEventListener('hashchange', sjekkInvitasjon);
+    sjekkInvitasjon();
+  </script>
+</body>
+</html>
