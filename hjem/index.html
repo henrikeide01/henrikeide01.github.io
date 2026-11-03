@@ -1944,19 +1944,27 @@
 
     function dialog(html) { $('delInnhold').innerHTML = html; if (!$('delDialog').open) $('delDialog').showModal(); }
     const lukkKnapp = '<button class="knapp" type="button" data-lukk>Lukk</button>';
+    // Tekst med **fet** og `kode` fra ordboka
+    const md = (tekst) => esc(tekst).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
+    let provIgjen = null; // det som skal prøves på nytt fra feilmeldingen
     function feilHtml(e) {
+      const eksempel = `{\n  "rules": {\n${REGLER.split('\n').map((l) => '    ' + l).join('\n')}\n    ${t('… det som sto der fra før …')}\n  }\n}`;
       return `<h2 id="delTittel">Det gikk ikke</h2><p>${esc(e.message || 'Noe gikk galt.')}</p>
-        ${e.type === 'nektet' ? `<p class="forklaring">Ingenting er borte, alt ligger fortsatt på telefonen. Databasen (Firebase-prosjektet «eidert») må bare få lov til å lagre det felles budsjettet. Det gjør du én gang, helst på PC:</p>
+        ${e.type === 'nektet' ? `<p class="forklaring">${esc(t('Ingenting er borte – alt ligger fortsatt på telefonen. Databasen har bare ikke fått lov til å lagre felles budsjett ennå. Det fikser du én gang, helst på PC:'))}</p>
         <ol class="steg" style="font-size:14.5px">
-          <li>Trykk <b>Åpne Firebase-reglene</b> og logg inn med kontoen du lagde Firebase med.</li>
-          <li>Trykk <b>Kopier regelen</b>, og lim den inn på linja rett under <code>"rules": {</code>. La resten stå.</li>
-          <li>Trykk <b>Publiser</b> (Publish), og prøv å dele på nytt her.</li>
+          <li>${md(t('Trykk **Åpne Firebase-reglene** og logg inn med Google-kontoen du lagde Firebase med. Sjekk at det står **Realtime Database** øverst (ikke Firestore), og at fanen **Regler** (Rules) er valgt.'))}</li>
+          <li>${md(t('Sett markøren rett etter `"rules": {` på linje 2, trykk Enter og lim inn regelen. Alt annet skal stå som før.'))}</li>
+          <li>${md(t('Trykk **Publiser** (Publish). Kommer det en rød feil, mangler det som regel et komma – regelen skal slutte med `},`.'))}</li>
+          <li>${md(t('Kom tilbake hit og trykk **Prøv igjen**.'))}</li>
         </ol>
         <pre class="regler">${esc(REGLER)}</pre>
-        <div class="knapprad"><a class="knapp hoved" href="${REGELSIDE}" target="_blank" rel="noopener">Åpne Firebase-reglene</a><button class="knapp" type="button" id="kopierRegel">Kopier regelen</button></div>
+        <div class="knapprad"><a class="knapp" href="${REGELSIDE}" target="_blank" rel="noopener">Åpne Firebase-reglene</a><button class="knapp" type="button" id="kopierRegel">Kopier regelen</button></div>
+        <details><summary class="lenke">Slik skal starten se ut etterpå</summary><pre class="regler">${esc(eksempel)}</pre></details>
+        <p class="forklaring">${esc(t('Virker det fortsatt ikke? Ta et skjermbilde av regelsiden, så er det lett å se hva som er galt.'))}</p>
         <p class="forklaring">Alt som lagres der er kryptert med koden deres, så ingen andre kan lese det.</p>` : ''}
-        <div class="knapprad">${lukkKnapp}</div>`;
+        <div class="knapprad">${provIgjen ? '<button class="knapp hoved" type="button" id="provIgjen">Prøv igjen</button>' : ''}${lukkKnapp}</div>`;
     }
+    function visFeil(e, igjen) { provIgjen = igjen || null; dialog(feilHtml(e)); }
 
     let qrLastet = null;
     async function visQr(el, tekst) {
@@ -2001,7 +2009,12 @@
           <div class="felt"><label>Hvem er du?</label>
             <div class="velger" style="margin:0" id="velgJeg">${funnet.personer.map((p, i) => `<button type="button" data-velgjeg="${esc(p.id)}" aria-pressed="${i === funnet.personer.length - 1}">${esc(p.navn)}</button>`).join('')}</div></div>
           <div class="knapprad"><button class="knapp hoved" type="button" id="bliMed" data-kode="${esc(funnet.kode)}">Bli med</button>${lukkKnapp}</div>`);
-      } catch (e) { dialog(feilHtml(e)); }
+      } catch (e) { visFeil(e, () => bliMedDialog(kode)); }
+    }
+
+    async function lagDelingSom(jeg) {
+      try { const kode = await startDeling(jeg); S.lonnPerson = meg(); tegnAlt(); visLenke(kode); }
+      catch (err) { visFeil(err, () => lagDelingSom(jeg)); }
     }
 
     const valgtJeg = () => document.querySelector('#velgJeg [aria-pressed="true"]')?.dataset.velgjeg;
@@ -2013,7 +2026,7 @@
 
     async function synkNa(vis = false) {
       try { const r = await synk(); etterSynk(r); if (vis) vis_(r.endret ? 'Oppdatert ✓' : 'Alt er oppdatert ✓'); }
-      catch (e) { tegnDeling(); if (vis) dialog(feilHtml(e)); }
+      catch (e) { tegnDeling(); if (vis) visFeil(e, () => synkNa(true)); }
     }
     const vis_ = (t) => vis(t);
 
@@ -2026,9 +2039,14 @@
       switch (el.id) {
         case 'startDeling': startDelingDialog(); break;
         case 'lagDeling': {
-          el.disabled = true; el.textContent = 'Lager …';
-          try { const kode = await startDeling(valgtJeg()); S.lonnPerson = meg(); tegnAlt(); visLenke(kode); }
-          catch (err) { dialog(feilHtml(err)); }
+          el.disabled = true; el.textContent = t('Lager …');
+          lagDelingSom(valgtJeg());
+          break;
+        }
+        case 'provIgjen': {
+          const igjen = provIgjen; provIgjen = null;
+          el.disabled = true; el.textContent = t('Prøver …');
+          if (igjen) await igjen();
           break;
         }
         case 'bliMed': {
@@ -2038,7 +2056,7 @@
             S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.lonnPerson = meg();
             history.replaceState(null, '', location.pathname + '#idag');
             $('delDialog').close(); tegnAlt(); vis('Dere har nå felles budsjett ✓');
-          } catch (err) { dialog(feilHtml(err)); }
+          } catch (err) { const kode = el.dataset.kode; visFeil(err, () => bliMedDialog(kode)); }
           break;
         }
         case 'synkNa': synkNa(true); break;
