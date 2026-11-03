@@ -23,7 +23,7 @@
     {"navn": "Hakkede tomater og pastasaus", "ikon": "🥫", "sok": ["hakkede tomater", "knuste tomater", "polpa", "passata", "pastasaus", "dolmio", "tomatsaus"], "ikke": []},
     {"navn": "Brunost", "ikon": "🟫", "sok": ["brunost", "gudbrandsdalsost", "fløtemysost", "geitost", "\"mysost\""], "ikke": [], "normalpris": 120, "enhet": "kg"},
     {"navn": "Pålegg (skinke, kalkun, salami)", "ikon": "🥪", "sok": ["kokt skinke", "røkt skinke", "skinke i skiver", "kalkunpålegg", "kalkunbryst", "salami", "servelat", "pålegg"], "ikke": ["pizza", "skinkestek", "julesk"]},
-    {"navn": "Brød", "ikon": "🍞", "sok": ["brød", "loff", "rundstykker", "baguette", "morgenstykker", "kneipp"], "ikke": ["knekkebrød", "smørbrød", "pølsebrød", "skolebrød", "pita", "tortilla", "kake"], "normalpris": 50, "enhet": "kg"},
+    {"navn": "Brødmiks og mel", "ikon": "🌾", "sok": ["brødmiks", "brødmix", "brød mix", "mestermiks", "grovbrødmiks", "bakemiks", "bakemix", "hvetemel", "sammalt", "grovmel", "rugmel", "speltmel", "havremel", "\"gjær\"", "tørrgjær"], "ikke": ["kake", "pannekake", "vaffel", "pizza", "boller", "muffins", "brownies", "kjeks", "sjokolade", "melis"]},
     {"navn": "Peanøttsmør", "ikon": "🥜", "sok": ["peanøttsmør", "peanut butter"], "ikke": []},
     {"navn": "Wokgrønnsaker og frosne grønnsaker", "ikon": "🥦", "sok": ["wokmiks", "wokgrønnsaker", "grønnsaksblanding", "brokkoli", "frosne grønnsaker", "\"erter\"", "grønne erter"], "ikke": ["salat", "suppe", "stuing"]},
     {"navn": "Frossenpizza", "ikon": "🍕", "sok": ["pizza", "grandiosa", "la mia grande", "ristorante", "big one"], "ikke": ["pizzabunn", "pizzasaus", "pizzaost", "pizzakrydder", "pizzadeig", "pizzamel", "pizzaskinke", "pizzafyll", "tipo"], "normalpris": 120, "enhet": "kg"},

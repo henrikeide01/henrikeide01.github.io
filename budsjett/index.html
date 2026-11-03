@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studentbudsjett</title>
+  <meta name="description" content="Månedsbudsjett for student – plan, hva jeg har brukt og hvor mye som er igjen til mat og forbruk.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💸</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --flate: #ffffff;
+      --flate-2: #f1eee6;
+      --tekst: #1d2433;
+      --dempet: #5f6b7a;
+      --svak: #898781;
+      --linje: #e5e0d5;
+      --aksent: #0b8f63;
+      --aksent-svak: #dcefe6;
+      --aksent-tekst: #ffffff;
+      --spor: #ecebe6;
+      --serie-1: #2a78d6;
+      --serie-2: #eb6834;
+      --serie-3: #1baf7a;
+      --serie-4: #eda100;
+      --rest: #d8d6cf;
+      --advarsel: #fab219;
+      --kritisk: #d03b3b;
+      --god-tekst: #006300;
+      --kritisk-tekst: #b42727;
+      --skygge: 0 1px 2px rgba(20, 25, 35, .05), 0 6px 18px rgba(20, 25, 35, .06);
+      --radius: 18px;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111419; --flate: #1a1f27; --flate-2: #232a34; --tekst: #e9edf3; --dempet: #9ca7b6; --svak: #8a93a0;
+        --linje: #2d3542; --aksent: #3ad29f; --aksent-svak: #143429; --aksent-tekst: #04261a; --spor: #262d38;
+        --serie-1: #3987e5; --serie-2: #d95926; --serie-3: #199e70; --serie-4: #c98500; --rest: #3a4250;
+        --god-tekst: #3ad29f; --kritisk-tekst: #ff8a80;
+        --skygge: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #111419; --flate: #1a1f27; --flate-2: #232a34; --tekst: #e9edf3; --dempet: #9ca7b6; --svak: #8a93a0;
+      --linje: #2d3542; --aksent: #3ad29f; --aksent-svak: #143429; --aksent-tekst: #04261a; --spor: #262d38;
+      --serie-1: #3987e5; --serie-2: #d95926; --serie-3: #199e70; --serie-4: #c98500; --rest: #3a4250;
+      --god-tekst: #3ad29f; --kritisk-tekst: #ff8a80;
+      --skygge: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--tekst); line-height: 1.4; min-height: 100vh; padding-bottom: 48px; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--aksent); }
+    .tall { font-variant-numeric: tabular-nums; }
+    .side { max-width: 780px; margin: 0 auto; padding: 0 16px; }
+
+    header.topp { padding: 20px 0 6px; display: grid; gap: 12px; }
+    .toppnav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .toppnav a { color: var(--dempet); text-decoration: none; font-size: 14px; }
+    .toppnav a:hover { color: var(--tekst); }
+    .toppnav a.lenkeknapp { color: var(--tekst); background: var(--flate); border: 1px solid var(--linje); padding: 6px 12px; border-radius: 999px; font-weight: 600; }
+    h1 { font-size: clamp(30px, 7vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+    .maanedsvelger { display: inline-flex; align-items: center; gap: 4px; background: var(--flate); border: 1px solid var(--linje); border-radius: 999px; padding: 3px; width: fit-content; }
+    .maanedsvelger button { border: 0; background: transparent; width: 34px; height: 34px; border-radius: 999px; font-size: 18px; color: var(--dempet); }
+    .maanedsvelger button:hover { background: var(--flate-2); color: var(--tekst); }
+    .maanedsvelger span { font-weight: 700; min-width: 140px; text-align: center; }
+
+    section { margin-top: 22px; }
+    h2 { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+    h3 { font-size: 16px; font-weight: 700; }
+    .forklaring { color: var(--dempet); font-size: 14px; }
+    .kort { background: var(--flate); border: 1px solid var(--linje); border-radius: var(--radius); box-shadow: var(--skygge); padding: 18px; }
+    .kort + .kort { margin-top: 10px; }
+
+    /* Hero */
+    .hero .etikett { color: var(--dempet); font-size: 15px; font-weight: 600; }
+    .hero .verdi { font-size: clamp(48px, 13vw, 64px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; margin: 4px 0 2px; }
+    .hero .verdi small { font-size: .42em; font-weight: 600; color: var(--dempet); letter-spacing: 0; }
+    .hero .verdi.minus { color: var(--kritisk-tekst); }
+    .hero .under { color: var(--dempet); font-size: 15px; }
+    .hero .under b { color: var(--tekst); }
+
+    /* Meter */
+    .meter { height: 10px; border-radius: 999px; background: var(--spor); overflow: hidden; margin-top: 12px; }
+    .meter > span { display: block; height: 100%; border-radius: 999px; background: var(--aksent); min-width: 0; }
+    .meter.advarsel > span { background: var(--advarsel); }
+    .meter.kritisk > span { background: var(--kritisk); }
+    .meterrad { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--linje); }
+    .meterrad:first-child { border-top: 0; padding-top: 2px; }
+    .meterrad .linje1 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .meterrad .navn { font-weight: 600; }
+    .meterrad .tall { color: var(--dempet); font-size: 14px; white-space: nowrap; }
+    .meterrad .tall b { color: var(--tekst); }
+    .meterrad .meter { margin-top: 2px; height: 8px; }
+    .status { font-size: 13px; font-weight: 600; color: var(--dempet); }
+    .status.advarsel { color: var(--tekst); }
+    .status.kritisk { color: var(--kritisk-tekst); }
+
+    .uke { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
+    .uke .tall-stort { font-size: 24px; font-weight: 700; }
+    .uke a { font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .uke .meter { grid-column: 1 / -1; }
+
+    /* Skjema */
+    .skjema { display: grid; gap: 10px; }
+    .skjemarad { display: grid; grid-template-columns: 130px 1fr; gap: 10px; }
+    .skjemarad2 { display: grid; grid-template-columns: 150px 1fr; gap: 10px; }
+    .felt { display: grid; gap: 4px; min-width: 0; }
+    .felt label { font-size: 13.5px; font-weight: 600; color: var(--dempet); }
+    input, select { width: 100%; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--linje); background: var(--flate); font-size: 16px; min-width: 0; }
+    input:focus, select:focus { outline: 2px solid var(--aksent); outline-offset: -1px; border-color: transparent; }
+    .hurtig { display: flex; flex-wrap: wrap; gap: 6px; }
+    .brikke { border: 1px solid var(--linje); background: var(--flate); padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 500; }
+    .brikke[aria-pressed="true"] { background: var(--tekst); color: var(--bg); border-color: var(--tekst); }
+    .knapp { border: 1px solid var(--linje); background: var(--flate); padding: 11px 16px; border-radius: 12px; font-weight: 600; font-size: 15px; }
+    .knapp.hoved { background: var(--aksent); border-color: var(--aksent); color: var(--aksent-tekst); }
+    .knapp.fare { color: var(--kritisk-tekst); }
+    .knapprad { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    /* Liste over utgifter */
+    .poster { display: grid; }
+    .post { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--linje); }
+    .post:first-child { border-top: 0; }
+    .post .hva { font-weight: 600; }
+    .post small { display: block; color: var(--dempet); font-size: 13px; font-weight: 400; }
+    .post .belop { font-weight: 700; white-space: nowrap; }
+    .ikonknapp { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--linje); background: var(--flate); color: var(--dempet); display: grid; place-items: center; }
+    .ikonknapp:hover { color: var(--kritisk-tekst); border-color: var(--kritisk-tekst); }
+    .tomt { color: var(--dempet); text-align: center; padding: 14px 0; }
+
+    /* Nøkkeltall */
+    .nokkeltall { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .nokkeltall .kort { padding: 14px; margin-top: 0; }
+    .nokkeltall .etikett { color: var(--dempet); font-size: 13.5px; font-weight: 600; }
+    .nokkeltall .verdi { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
+    .nokkeltall .verdi.pluss { color: var(--god-tekst); }
+    .nokkeltall .verdi.minus { color: var(--kritisk-tekst); }
+
+    /* Segmentert stolpe: hvor pengene går */
+    .fordeling { display: flex; gap: 2px; height: 10px; margin: 6px 0 14px; }
+    .fordeling > span { border-radius: 999px; min-width: 2px; }
+    .forklaringsliste { display: grid; gap: 2px; }
+    .forklaringsliste .rad { display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px; align-items: center; padding: 5px 0; font-size: 15px; }
+    .forklaringsliste .rad .prikk { width: 12px; height: 12px; border-radius: 4px; }
+    .forklaringsliste .rad .andel { color: var(--dempet); font-size: 13.5px; min-width: 40px; text-align: right; }
+    .forklaringsliste .rad .kr { font-weight: 600; min-width: 74px; text-align: right; }
+    .varsel { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--flate-2); font-size: 14.5px; }
+    .varsel.kritisk { color: var(--kritisk-tekst); font-weight: 600; }
+
+    /* Redigering av planen */
+    .plangruppe { margin-top: 16px; }
+    .plangruppe:first-of-type { margin-top: 4px; }
+    .plangruppe .hode { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+    .plangruppe .hode .prikk { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; }
+    .plangruppe .hode .sum { color: var(--dempet); font-weight: 600; }
+    .planlinje { display: grid; grid-template-columns: 1fr 112px 34px; gap: 6px; align-items: center; margin-top: 6px; }
+    .planlinje input { padding: 9px 10px; font-size: 15px; }
+    .planlinje input.belop { text-align: right; }
+    .leggtil { border: 1px dashed var(--linje); background: transparent; color: var(--aksent); font-weight: 600; padding: 8px 12px; border-radius: 10px; margin-top: 8px; font-size: 14px; }
+
+    .infoboks { display: grid; gap: 8px; font-size: 14.5px; color: var(--dempet); }
+    .infoboks b { color: var(--tekst); }
+    .tips { display: grid; gap: 10px; padding-left: 0; list-style: none; }
+    .tips li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; font-size: 15px; }
+    .tips li span:first-child { font-size: 20px; line-height: 1.2; }
+
+    .melding { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: var(--tekst); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+    .melding.vis { opacity: 1; }
+    .kilder { font-size: 12.5px; color: var(--dempet); margin-top: 28px; display: grid; gap: 4px; }
+
+    @media (max-width: 520px) {
+      .nokkeltall { grid-template-columns: 1fr 1fr; }
+      .nokkeltall .kort:last-child { grid-column: 1 / -1; }
+      .skjemarad, .skjemarad2 { grid-template-columns: 1fr 1fr; }
+      .planlinje { grid-template-columns: 1fr 96px 34px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="side">
+    <header class="topp">
+      <div class="toppnav">
+        <a href="../">← Prosjekter</a>
+        <a class="lenkeknapp" href="../tilbud/">🏷️ Ukens tilbud</a>
+      </div>
+      <h1>Studentbudsjett</h1>
+      <div class="maanedsvelger">
+        <button id="forrige" aria-label="Forrige måned">‹</button>
+        <span id="maaned"></span>
+        <button id="neste" aria-label="Neste måned">›</button>
+      </div>
+    </header>
+
+    <main>
+      <section aria-label="Status denne måneden">
+        <div class="kort hero" id="hero"></div>
+        <div class="kort uke" id="uke"></div>
+      </section>
+
+      <section aria-labelledby="h-ny">
+        <h2 id="h-ny">Før en utgift</h2>
+        <form class="kort skjema" id="nyPost" autocomplete="off">
+          <div class="hurtig" id="hurtig" aria-label="Velg kategori raskt"></div>
+          <div class="skjemarad">
+            <div class="felt"><label for="pBelop">Beløp (kr)</label><input id="pBelop" type="number" inputmode="decimal" min="0" step="any" required placeholder="0"></div>
+            <div class="felt"><label for="pKategori">Kategori</label><select id="pKategori"></select></div>
+          </div>
+          <div class="skjemarad2">
+            <div class="felt"><label for="pDato">Dato</label><input id="pDato" type="date" required></div>
+            <div class="felt"><label for="pNotat">Notat (valgfritt)</label><input id="pNotat" placeholder="f.eks. REMA, kino"></div>
+          </div>
+          <div class="knapprad"><button class="knapp hoved" type="submit">Legg til utgift</button></div>
+        </form>
+      </section>
+
+      <section aria-labelledby="h-kat">
+        <h2 id="h-kat">Brukt per kategori</h2>
+        <div class="kort" id="kategorier"></div>
+      </section>
+
+      <section aria-labelledby="h-poster">
+        <h2 id="h-poster">Utgifter i <span id="posterMaaned"></span></h2>
+        <div class="kort"><div class="poster" id="poster"></div></div>
+      </section>
+
+      <section aria-labelledby="h-plan">
+        <h2 id="h-plan">Budsjettet ditt per måned</h2>
+        <div class="nokkeltall" id="nokkeltall"></div>
+        <div class="kort" style="margin-top:10px">
+          <h3>Hvor pengene går</h3>
+          <div class="fordeling" id="fordeling" role="img"></div>
+          <div class="forklaringsliste" id="forklaringsliste"></div>
+          <div id="planvarsel"></div>
+        </div>
+        <div class="kort" style="margin-top:10px">
+          <h3>Endre budsjettet</h3>
+          <p class="forklaring" style="margin-top:2px">Skriv inn dine egne tall. Faste utgifter og sparing regnes som betalt hver måned. Mat og forbruk fører du selv underveis.</p>
+          <div id="planredigering"></div>
+          <div class="knapprad" style="margin-top:16px">
+            <button class="knapp" id="eksporter" type="button">⬇️ Lagre kopi (fil)</button>
+            <button class="knapp" id="importerKnapp" type="button">⬆️ Hent fra fil</button>
+            <button class="knapp fare" id="nullstill" type="button">Tilbakestill til forslag</button>
+            <input type="file" id="importerFil" accept="application/json,.json" hidden>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-info">
+        <h2 id="h-info">Greit å vite</h2>
+        <div class="kort infoboks">
+          <p><b>Lånekassen 2026–2027:</b> Basislånet er <b>15 488 kr i måneden</b> for heltidsstudenter (170 368 kr for hele studieåret). Det betales ut den 15. hver måned.</p>
+          <p>Inntil <b>40 % (ca. 6 195 kr i måneden)</b> kan bli gjort om til stipend. Da må du bestå eksamenene, bo borte fra foreldrene og ha inntekt og formue under grensene. Resten, ca. 9 293 kr i måneden, er lån du betaler tilbake.</p>
+          <p><b>Mat:</b> SIFOs referansebudsjett for 2026 regner omtrent <b>4 760 kr i måneden</b> til mat og drikke for en enslig mann. Forslaget her (4 000 + 400 kr) er litt lavere, fordi du handler på tilbud.</p>
+          <p>Tallene for husleie, buss og de andre utgiftene er anslag. Bytt dem ut med dine egne.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-tips">
+        <h2 id="h-tips">Spartips for studenter</h2>
+        <div class="kort">
+          <ul class="tips">
+            <li><span>🏷️</span><span><b>Planlegg middagene etter tilbudsavisen.</b> Kjøp kjøtt, kylling og ost når det er kjempetilbud, og frys ned.</span></li>
+            <li><span>🍚</span><span><b>Kjøp basisvarer i store pakker</b>, som ris, pasta og mel. Kiloprisen blir mye lavere.</span></li>
+            <li><span>🥪</span><span><b>Ta med matpakke og drikke hjemmefra.</b> Kantine og energidrikk på farten blir fort flere hundre kroner i måneden.</span></li>
+            <li><span>🔁</span><span><b>Gå gjennom abonnementene hvert semester.</b> Si opp det du ikke bruker.</span></li>
+            <li><span>💰</span><span><b>Sett av sparingen den 15.</b>, rett når pengene fra Lånekassen kommer. Da blir den faktisk spart.</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <p class="kilder">Alt du skriver inn lagres bare i denne nettleseren. Bruk «Lagre kopi» for å flytte det til en annen enhet.<br>
+        Kilder: <a href="https://lanekassen.no/nb-NO/laresteder/nyheter/forskriftene-for-2026-2027-er-klare/">Lånekassen – satser 2026–2027</a> · <a href="https://www.oslomet.no/om/sifo/referansebudsjettet">SIFOs referansebudsjett</a></p>
+    </main>
+  </div>
+
+  <div class="melding" id="melding" role="status" aria-live="polite"></div>
+
+  <script type="module">
+    import {
+      GRUPPER, LOPENDE, STANDARD_PLAN, lesPlan, lagrePlan, lesPoster, lagrePoster, leggTilPost, nyId,
+      idag, maanedAv, ukestart, dagerIMaaned, sum, summerPlan, ukesMatbudsjett, matBruktDenneUka, kroner,
+    } from './budsjett.js';
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const mndFmt = new Intl.DateTimeFormat('nb-NO', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const mndKort = new Intl.DateTimeFormat('nb-NO', { month: 'long', timeZone: 'UTC' });
+    const dagFmt = new Intl.DateTimeFormat('nb-NO', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+    const fraMaaned = (m) => new Date(m + '-01T12:00:00Z');
+
+    const S = { plan: lesPlan(), poster: lesPoster(), maaned: maanedAv(idag()), valgtKategori: 'mat' };
+
+    const kategoriNavn = (id) => S.plan.utgifter.find((u) => u.id === id)?.navn || 'Slettet kategori';
+    const gruppeAv = (id) => S.plan.utgifter.find((u) => u.id === id)?.gruppe || 'forbruk';
+    const lopendeLinjer = () => S.plan.utgifter.filter((u) => LOPENDE.has(u.gruppe));
+    const posterIMaaned = () => S.poster.filter((p) => maanedAv(p.dato) === S.maaned);
+
+    function lagre() { lagrePlan(S.plan); }
+
+    function meterKlasse(andel) { return andel > 1 ? 'kritisk' : andel >= 0.85 ? 'advarsel' : ''; }
+    function meterHtml(brukt, budsjett) {
+      const andel = budsjett > 0 ? brukt / budsjett : (brukt > 0 ? 2 : 0);
+      return `<div class="meter ${meterKlasse(andel)}" role="meter" aria-valuemin="0" aria-valuemax="${Math.round(budsjett)}" aria-valuenow="${Math.round(brukt)}" aria-label="Brukt ${kroner(brukt)} av ${kroner(budsjett)} kr"><span style="width:${Math.min(100, andel * 100).toFixed(1)}%"></span></div>`;
+    }
+    function statusHtml(brukt, budsjett) {
+      if (budsjett <= 0 && brukt <= 0) return '';
+      const andel = budsjett > 0 ? brukt / budsjett : 2;
+      if (andel > 1) return `<span class="status kritisk">⛔ ${kroner(brukt - budsjett)} kr over budsjett</span>`;
+      if (andel >= 0.85) return `<span class="status advarsel">⚠️ Nesten brukt opp – ${kroner(budsjett - brukt)} kr igjen</span>`;
+      return `<span class="status">${kroner(budsjett - brukt)} kr igjen</span>`;
+    }
+
+    // ---------- Øverst: hvor mye er igjen ----------
+    function tegnHero() {
+      const budsjett = sum(lopendeLinjer());
+      const brukt = sum(posterIMaaned().filter((p) => LOPENDE.has(gruppeAv(p.kategori))));
+      const igjen = budsjett - brukt;
+      const denne = maanedAv(idag());
+      const navn = mndKort.format(fraMaaned(S.maaned));
+      let under;
+      if (S.maaned === denne) {
+        const dagIgjen = dagerIMaaned(S.maaned) - Number(idag().slice(8, 10)) + 1;
+        under = igjen >= 0
+          ? `Det blir <b>ca. ${kroner(igjen / dagIgjen)} kr per dag</b> de neste ${dagIgjen} dagene. Du har brukt ${kroner(brukt)} av ${kroner(budsjett)} kr.`
+          : `Du har brukt ${kroner(brukt)} av ${kroner(budsjett)} kr. Prøv å holde igjen resten av måneden.`;
+      } else if (S.maaned < denne) {
+        under = igjen >= 0 ? `✓ Du holdt budsjettet. Brukt ${kroner(brukt)} av ${kroner(budsjett)} kr.` : `Brukt ${kroner(brukt)} av ${kroner(budsjett)} kr.`;
+      } else {
+        under = `Planlagt til mat og forbruk: ${kroner(budsjett)} kr.`;
+      }
+      $('hero').innerHTML = `
+        <div class="etikett">${igjen >= 0 ? `Igjen til mat og forbruk i ${navn}` : `Over budsjettet i ${navn}`}</div>
+        <div class="verdi ${igjen < 0 ? 'minus' : ''}">${igjen < 0 ? '−' : ''}${kroner(Math.abs(igjen))} <small>kr</small></div>
+        <div class="under">${under}</div>
+        ${meterHtml(brukt, budsjett)}`;
+    }
+
+    function tegnUke() {
+      const ukebudsjett = ukesMatbudsjett(S.plan);
+      const brukt = matBruktDenneUka(S.poster, S.plan);
+      const igjen = ukebudsjett - brukt;
+      $('uke').innerHTML = `
+        <div>
+          <h3>🛒 Matbutikk denne uka</h3>
+          <div><span class="tall-stort">${igjen >= 0 ? kroner(igjen) : '−' + kroner(-igjen)} kr</span> <span class="forklaring">${igjen >= 0 ? 'igjen' : 'over'} av ${kroner(ukebudsjett)} kr</span></div>
+        </div>
+        <a href="../tilbud/">Ukens tilbud →</a>
+        ${meterHtml(brukt, ukebudsjett)}`;
+    }
+
+    // ---------- Skjema ----------
+    function tegnKategorivalg() {
+      const valg = GRUPPER.map((g) => {
+        const linjer = S.plan.utgifter.filter((u) => u.gruppe === g.id);
+        return linjer.length ? `<optgroup label="${esc(g.navn)}">${linjer.map((u) => `<option value="${esc(u.id)}">${esc(u.navn)}</option>`).join('')}</optgroup>` : '';
+      }).join('');
+      $('pKategori').innerHTML = valg;
+      if (!S.plan.utgifter.some((u) => u.id === S.valgtKategori)) S.valgtKategori = lopendeLinjer()[0]?.id || S.plan.utgifter[0]?.id;
+      $('pKategori').value = S.valgtKategori;
+      const hurtig = lopendeLinjer().slice(0, 6);
+      $('hurtig').innerHTML = hurtig.map((u) => `<button type="button" class="brikke" data-hurtig="${esc(u.id)}" aria-pressed="${u.id === S.valgtKategori}">${esc(u.navn)}</button>`).join('');
+    }
+
+    // ---------- Per kategori ----------
+    function tegnKategorier() {
+      const poster = posterIMaaned();
+      const brukt = (id) => sum(poster.filter((p) => p.kategori === id));
+      const linjer = [
+        ...lopendeLinjer(),
+        ...S.plan.utgifter.filter((u) => !LOPENDE.has(u.gruppe) && brukt(u.id) > 0),
+      ];
+      const ukjente = [...new Set(poster.map((p) => p.kategori))].filter((id) => !S.plan.utgifter.some((u) => u.id === id));
+      $('kategorier').innerHTML = linjer.map((u) => {
+        const b = brukt(u.id);
+        return `
+          <div class="meterrad">
+            <div class="linje1"><span class="navn">${esc(u.navn)}</span><span class="tall"><b>${kroner(b)}</b> / ${kroner(u.belop)} kr</span></div>
+            ${meterHtml(b, Number(u.belop) || 0)}
+            ${statusHtml(b, Number(u.belop) || 0)}
+          </div>`;
+      }).join('') + ukjente.map((id) => `
+          <div class="meterrad"><div class="linje1"><span class="navn">Slettet kategori</span><span class="tall"><b>${kroner(brukt(id))}</b> kr</span></div></div>`).join('');
+    }
+
+    // ---------- Liste over utgifter ----------
+    function tegnPoster() {
+      $('posterMaaned').textContent = mndKort.format(fraMaaned(S.maaned));
+      const liste = posterIMaaned().sort((a, b) => b.dato.localeCompare(a.dato) || b.id.localeCompare(a.id));
+      $('poster').innerHTML = liste.length ? liste.map((p) => `
+        <div class="post">
+          <div class="hva">${esc(kategoriNavn(p.kategori))}<small>${esc(dagFmt.format(new Date(p.dato + 'T12:00:00Z')))}${p.notat ? ' · ' + esc(p.notat) : ''}</small></div>
+          <div class="belop tall">${kroner(p.belop)} kr</div>
+          <button class="ikonknapp" data-slett-post="${esc(p.id)}" aria-label="Slett utgiften">✕</button>
+        </div>`).join('') + `
+        <div class="post"><div class="hva">Totalt</div><div class="belop tall">${kroner(sum(liste))} kr</div><span></span></div>`
+        : `<div class="tomt">Ingen utgifter ført i ${esc(mndKort.format(fraMaaned(S.maaned)))} ennå.</div>`;
+    }
+
+    // ---------- Planen: nøkkeltall + fordeling ----------
+    function tegnPlanOversikt() {
+      const { inn, ut, perGruppe, tilOvers } = summerPlan(S.plan);
+      $('nokkeltall').innerHTML = `
+        <div class="kort"><div class="etikett">Inn per måned</div><div class="verdi">${kroner(inn)} kr</div></div>
+        <div class="kort"><div class="etikett">Ut per måned</div><div class="verdi">${kroner(ut)} kr</div></div>
+        <div class="kort"><div class="etikett">${tilOvers >= 0 ? 'Til overs' : 'Mangler'}</div><div class="verdi ${tilOvers >= 0 ? 'pluss' : 'minus'}">${tilOvers >= 0 ? '+' : '−'}${kroner(Math.abs(tilOvers))} kr</div></div>`;
+
+      const deler = GRUPPER.map((g) => ({ navn: g.navn, belop: perGruppe[g.id], farge: `var(--serie-${g.farge})` }));
+      if (tilOvers > 0) deler.push({ navn: 'Til overs', belop: tilOvers, farge: 'var(--rest)' });
+      const helhet = Math.max(inn, ut) || 1;
+      $('fordeling').innerHTML = deler.filter((d) => d.belop > 0).map((d) =>
+        `<span style="flex:${d.belop} 1 0;background:${d.farge}" title="${esc(d.navn)}: ${kroner(d.belop)} kr (${Math.round((d.belop / helhet) * 100)} %)"></span>`).join('');
+      $('fordeling').setAttribute('aria-label', 'Fordeling av budsjettet: ' + deler.map((d) => `${d.navn} ${kroner(d.belop)} kr`).join(', '));
+      $('forklaringsliste').innerHTML = deler.map((d) => `
+        <div class="rad"><span class="prikk" style="background:${d.farge}"></span><span>${esc(d.navn)}</span><span class="andel tall">${Math.round((d.belop / helhet) * 100)} %</span><span class="kr tall">${kroner(d.belop)} kr</span></div>`).join('');
+      $('planvarsel').innerHTML = tilOvers < 0
+        ? `<div class="varsel kritisk">⚠️ Budsjettet går ikke opp. Du planlegger å bruke ${kroner(-tilOvers)} kr mer enn du får inn hver måned.</div>`
+        : tilOvers > 0 ? `<div class="varsel">💡 Du har ${kroner(tilOvers)} kr til overs hver måned. Vurder å legge noe av det til sparing eller uforutsett.</div>` : '';
+    }
+
+    // ---------- Planen: redigering ----------
+    function linjeHtml(type, l) {
+      return `
+        <div class="planlinje" data-type="${type}" data-id="${esc(l.id)}">
+          <input class="navn" value="${esc(l.navn)}" aria-label="Navn" data-felt="navn">
+          <input class="belop tall" type="number" inputmode="decimal" min="0" step="any" value="${Number(l.belop) || 0}" aria-label="Beløp per måned for ${esc(l.navn)}" data-felt="belop">
+          <button class="ikonknapp" type="button" data-slett-linje aria-label="Fjern ${esc(l.navn)}">✕</button>
+        </div>`;
+    }
+
+    function tegnPlanRedigering() {
+      const grupper = [
+        { id: 'inn', navn: 'Inntekter', linjer: S.plan.inntekter, farge: null },
+        ...GRUPPER.map((g) => ({ id: g.id, navn: g.navn, linjer: S.plan.utgifter.filter((u) => u.gruppe === g.id), farge: `var(--serie-${g.farge})` })),
+      ];
+      $('planredigering').innerHTML = grupper.map((g) => `
+        <div class="plangruppe" data-gruppe="${g.id}">
+          <div class="hode"><h3>${g.farge ? `<span class="prikk" style="background:${g.farge}"></span>` : '💰 '}${esc(g.navn)}</h3><span class="sum tall" data-gruppesum="${g.id}">${kroner(sum(g.linjer))} kr</span></div>
+          ${g.linjer.map((l) => linjeHtml(g.id === 'inn' ? 'inn' : 'ut', l)).join('')}
+          <button class="leggtil" type="button" data-ny-linje="${g.id}">＋ Legg til linje</button>
+        </div>`).join('');
+    }
+
+    function oppdaterGruppesummer() {
+      document.querySelectorAll('[data-gruppesum]').forEach((el) => {
+        const g = el.dataset.gruppesum;
+        el.textContent = `${kroner(sum(g === 'inn' ? S.plan.inntekter : S.plan.utgifter.filter((u) => u.gruppe === g)))} kr`;
+      });
+    }
+
+    function tegnOversikt() {
+      $('maaned').textContent = mndFmt.format(fraMaaned(S.maaned));
+      tegnHero(); tegnUke(); tegnKategorier(); tegnPoster(); tegnPlanOversikt();
+    }
+
+    function tegnAlt() { tegnKategorivalg(); tegnPlanRedigering(); tegnOversikt(); }
+
+    // ---------- Hendelser ----------
+    function flyttMaaned(steg) {
+      const d = fraMaaned(S.maaned);
+      d.setUTCMonth(d.getUTCMonth() + steg);
+      S.maaned = d.toISOString().slice(0, 7);
+      tegnOversikt();
+    }
+    $('forrige').addEventListener('click', () => flyttMaaned(-1));
+    $('neste').addEventListener('click', () => flyttMaaned(1));
+
+    $('pDato').value = idag();
+    $('pKategori').addEventListener('change', (e) => { S.valgtKategori = e.target.value; tegnKategorivalg(); });
+    $('nyPost').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const belop = parseFloat(String($('pBelop').value).replace(',', '.'));
+      if (!(belop > 0)) { $('pBelop').focus(); return; }
+      const post = leggTilPost({ belop, kategori: $('pKategori').value, dato: $('pDato').value || idag(), notat: $('pNotat').value.trim() });
+      S.poster = lesPoster();
+      S.maaned = maanedAv(post.dato);
+      $('pBelop').value = ''; $('pNotat').value = '';
+      tegnOversikt();
+      vis(`${kroner(belop)} kr ført på ${kategoriNavn(post.kategori)} ✓`);
+    });
+
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('button');
+      if (!el) return;
+      const ds = el.dataset;
+      if (ds.hurtig) { S.valgtKategori = ds.hurtig; tegnKategorivalg(); $('pBelop').focus(); return; }
+      if (ds.slettPost) {
+        const p = S.poster.find((x) => x.id === ds.slettPost);
+        if (p && confirm(`Slette ${kroner(p.belop)} kr (${kategoriNavn(p.kategori)})?`)) {
+          S.poster = S.poster.filter((x) => x.id !== p.id); lagrePoster(S.poster); tegnOversikt();
+        }
+        return;
+      }
+      if ('slettLinje' in ds) {
+        const rad = el.closest('.planlinje');
+        const liste = rad.dataset.type === 'inn' ? S.plan.inntekter : S.plan.utgifter;
+        const i = liste.findIndex((l) => l.id === rad.dataset.id);
+        if (i >= 0 && confirm(`Fjerne «${liste[i].navn}» fra budsjettet?`)) {
+          liste.splice(i, 1); lagre(); tegnAlt();
+        }
+        return;
+      }
+      if (ds.nyLinje) {
+        const g = ds.nyLinje;
+        const linje = { id: nyId(), navn: g === 'inn' ? 'Ny inntekt' : 'Ny utgift', belop: 0, ...(g === 'inn' ? {} : { gruppe: g }) };
+        (g === 'inn' ? S.plan.inntekter : S.plan.utgifter).push(linje);
+        lagre(); tegnAlt();
+        const inp = document.querySelector(`.planlinje[data-id="${CSS.escape(linje.id)}"] input.navn`);
+        inp?.focus(); inp?.select();
+        return;
+      }
+      switch (el.id) {
+        case 'nullstill':
+          if (confirm('Bytte ut budsjettplanen med forslaget? Utgiftene du har ført blir ikke slettet.')) {
+            S.plan = structuredClone(STANDARD_PLAN); lagre(); tegnAlt(); vis('Forslaget er tilbake');
+          }
+          break;
+        case 'eksporter': {
+          const blob = new Blob([JSON.stringify({ plan: S.plan, poster: S.poster, lagret: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `studentbudsjett-${idag()}.json`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+          break;
+        }
+        case 'importerKnapp': $('importerFil').click(); break;
+      }
+    });
+
+    // Endringer i planen lagres med en gang (uten å tegne skjemaet på nytt, så du ikke mister markøren)
+    $('planredigering').addEventListener('input', (e) => {
+      const inp = e.target;
+      const rad = inp.closest('.planlinje');
+      if (!rad) return;
+      const liste = rad.dataset.type === 'inn' ? S.plan.inntekter : S.plan.utgifter;
+      const linje = liste.find((l) => l.id === rad.dataset.id);
+      if (!linje) return;
+      if (inp.dataset.felt === 'belop') linje.belop = Math.max(0, parseFloat(String(inp.value).replace(',', '.')) || 0);
+      else linje.navn = inp.value;
+      lagre();
+      oppdaterGruppesummer();
+      tegnOversikt();
+    });
+    $('planredigering').addEventListener('change', () => tegnKategorivalg());
+
+    $('importerFil').addEventListener('change', async (e) => {
+      const fil = e.target.files?.[0];
+      if (!fil) return;
+      try {
+        const data = JSON.parse(await fil.text());
+        if (!data.plan?.inntekter || !data.plan?.utgifter || !Array.isArray(data.poster)) throw new Error('feil format');
+        if (confirm(`Hente budsjettet fra filen (${data.poster.length} utgifter)? Det erstatter det som ligger her.`)) {
+          S.plan = data.plan; S.poster = data.poster; lagre(); lagrePoster(S.poster); tegnAlt(); vis('Budsjettet er hentet ✓');
+        }
+      } catch { alert('Fant ikke et budsjett i den filen.'); }
+      e.target.value = '';
+    });
+
+    let meldingTimer;
+    function vis(tekst) {
+      const m = $('melding'); m.textContent = tekst; m.classList.add('vis');
+      clearTimeout(meldingTimer); meldingTimer = setTimeout(() => m.classList.remove('vis'), 2200);
+    }
+
+    // Oppdater hvis tilbudsavisen (i en annen fane) har ført en handletur
+    window.addEventListener('storage', (e) => {
+      if (e.key?.startsWith('budsjett.')) { S.plan = lesPlan(); S.poster = lesPoster(); tegnAlt(); }
+    });
+
+    tegnAlt();
+  </script>
+</body>
+</html>

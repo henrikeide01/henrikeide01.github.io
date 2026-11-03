@@ -93,6 +93,9 @@
     h1 { font-size: clamp(30px, 7vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin-top: 14px; }
     h1 .uke { display: inline-block; font-size: .42em; vertical-align: middle; background: var(--gul); color: #1d2433; padding: 4px 10px; border-radius: 999px; letter-spacing: 0; margin-left: 6px; transform: translateY(-4px); }
     .meta { color: var(--dempet); font-size: 15px; margin-top: 8px; }
+    .budsjettlinje { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 7px 12px; border-radius: 999px; background: var(--flate); border: 1px solid var(--linje); color: var(--tekst); text-decoration: none; font-size: 14.5px; font-weight: 500; }
+    .budsjettlinje b { font-weight: 700; }
+    .budsjettlinje:empty { display: none; }
 
     .verktoy { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 12px 0 10px; display: grid; gap: 10px; }
     .sokefelt { position: relative; }
@@ -260,6 +263,7 @@
       <a class="tilbake" href="../">← Prosjekter</a>
       <h1>Min tilbudsavis <span class="uke" id="uke"></span></h1>
       <p class="meta" id="meta">Henter ukens tilbud…</p>
+      <a class="budsjettlinje" id="budsjettlinje" href="../budsjett/"></a>
     </header>
 
     <div class="verktoy">
@@ -319,6 +323,7 @@
 
   <script type="module">
     import { lagTilbudsfilter, vurder, erMat, kr, lagHistorikk, NIVAA_REKKEFOLGE, normaliser } from './motor.js';
+    import { lesPlan, ukesMatbudsjett, matBruktDenneUka, leggTilPost, kroner } from '../budsjett/budsjett.js';
 
     // ---------- Lagring (tåler privat modus) ----------
     const lager = {
@@ -514,6 +519,35 @@
       return { aktive, grupper, kjempe, andre };
     }
 
+    // ---------- Kobling til studentbudsjettet ----------
+    function tegnBudsjettlinje() {
+      const plan = lesPlan();
+      const budsjett = ukesMatbudsjett(plan);
+      if (!budsjett) { $('budsjettlinje').textContent = ''; return; }
+      const igjen = budsjett - matBruktDenneUka(undefined, plan);
+      $('budsjettlinje').innerHTML = igjen >= 0
+        ? `💸 Matbudsjett denne uka: <b>${kroner(igjen)} kr igjen</b> av ${kroner(budsjett)} →`
+        : `💸 Matbudsjett denne uka: <b>${kroner(-igjen)} kr over</b> (${kroner(budsjett)} kr) →`;
+    }
+
+    function forTilBudsjett() {
+      const sumListe = sumHandleliste();
+      const svar = prompt('Hvor mye betalte du til sammen? (kr)', String(Math.round(sumListe * 100) / 100).replace('.', ','));
+      if (svar == null) return;
+      const belop = parseFloat(svar.replace(/\s/g, '').replace(',', '.'));
+      if (!(belop > 0)) { vis('Skriv inn et beløp over 0'); return; }
+      const plan = lesPlan();
+      const kategori = (plan.utgifter.find((u) => u.id === 'mat') || plan.utgifter.find((u) => u.gruppe === 'mat') || plan.utgifter[0])?.id || 'mat';
+      const butikker = [...new Set(S.handleliste.map((h) => h.butikk))].join(', ');
+      leggTilPost({ belop, kategori, notat: butikker ? `Handletur: ${butikker}` : 'Handletur' });
+      tegnBudsjettlinje();
+      if (confirm(`${kroner(belop)} kr er ført i budsjettet ✓\n\nVil du tømme handlelista?`)) {
+        S.handleliste = []; lager.skriv('handleliste', []); tegnHandlelinje(); tegnInnhold(); $('handleDialog').close();
+      } else {
+        tegnHandleDialog();
+      }
+    }
+
     // ---------- Tegning ----------
     function tegnAlt() {
       const d = S.data;
@@ -524,6 +558,7 @@
       tegnButikker();
       tegnInnhold();
       tegnHandlelinje();
+      tegnBudsjettlinje();
       $('fot').innerHTML = `
         <p>Tilbudene hentes automatisk fra kundeavisene på eTilbudsavis hver morgen. Sjekk alltid prisen i butikken.</p>
         <p>«Vanlig pris» er et anslag du kan endre under <a href="#" data-apne-varer>Mine varer</a>. Etter noen uker lærer siden også hva som er laveste tilbudspris.</p>`;
@@ -688,7 +723,8 @@
         ${html}
         <div class="totalt"><span>Totalt</span><span class="tall">${kr(sumHandleliste())} kr</span></div>
         <div class="knapprad">
-          <button class="knapp hoved" id="kopierHandle">📋 Kopier lista</button>
+          <button class="knapp hoved" id="handlet">✓ Jeg har handlet – før i budsjettet</button>
+          <button class="knapp" id="kopierHandle">📋 Kopier lista</button>
           <button class="knapp fare" id="tomHandle">Tøm lista</button>
         </div>` : `<div class="tomt"><b>Handlelista er tom</b>Trykk ＋ på et tilbud for å legge det til.</div>`;
     }
@@ -905,6 +941,7 @@
       }
       switch (el.id) {
         case 'handlelinje': tegnHandleDialog(); $('handleDialog').showModal(); break;
+        case 'handlet': forTilBudsjett(); break;
         case 'nyVare': visSkjema(-1); break;
         case 'tomHandle':
           if (confirm('Tømme handlelista?')) { S.handleliste = []; lager.skriv('handleliste', []); tegnHandlelinje(); tegnHandleDialog(); tegnInnhold(); }
