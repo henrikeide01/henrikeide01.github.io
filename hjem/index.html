@@ -1360,7 +1360,8 @@
 
     const REGLER = `"budsjett": {
   "$hus": { ".read": true, ".write": true }
-}`;
+},`;
+    const REGELSIDE = 'https://console.firebase.google.com/project/eidert/database/eidert-default-rtdb/rules';
 
     function tegnDeling() {
       const d = deling();
@@ -1395,8 +1396,15 @@
     const lukkKnapp = '<button class="knapp" type="button" data-lukk>Lukk</button>';
     function feilHtml(e) {
       return `<h2 id="delTittel">Det gikk ikke</h2><p>${esc(e.message || 'Noe gikk galt.')}</p>
-        ${e.type === 'nektet' ? `<p class="forklaring">Firebase-databasen (prosjektet «eidert») må få lov til å lagre budsjettet. Åpne Firebase-konsollen, gå til <b>Realtime Database → Regler</b>, og legg til dette inne i <code>"rules"</code> ved siden av det som står der fra før:</p>
-        <pre class="regler">${esc(REGLER)}</pre><p class="forklaring">Alt som lagres er kryptert med koden deres, så ingen andre kan lese det.</p>` : ''}
+        ${e.type === 'nektet' ? `<p class="forklaring">Ingenting er borte, alt ligger fortsatt på telefonen. Databasen (Firebase-prosjektet «eidert») må bare få lov til å lagre det felles budsjettet. Det gjør du én gang, helst på PC:</p>
+        <ol class="steg" style="font-size:14.5px">
+          <li>Trykk <b>Åpne Firebase-reglene</b> og logg inn med kontoen du lagde Firebase med.</li>
+          <li>Trykk <b>Kopier regelen</b>, og lim den inn på linja rett under <code>"rules": {</code>. La resten stå.</li>
+          <li>Trykk <b>Publiser</b> (Publish), og prøv å dele på nytt her.</li>
+        </ol>
+        <pre class="regler">${esc(REGLER)}</pre>
+        <div class="knapprad"><a class="knapp hoved" href="${REGELSIDE}" target="_blank" rel="noopener">Åpne Firebase-reglene</a><button class="knapp" type="button" id="kopierRegel">Kopier regelen</button></div>
+        <p class="forklaring">Alt som lagres der er kryptert med koden deres, så ingen andre kan lese det.</p>` : ''}
         <div class="knapprad">${lukkKnapp}</div>`;
     }
 
@@ -1485,6 +1493,7 @@
         }
         case 'synkNa': synkNa(true); break;
         case 'visLenke': visLenke(deling().kode); break;
+        case 'kopierRegel': try { await navigator.clipboard.writeText(REGLER); vis('Regelen er kopiert ✓'); } catch { prompt('Kopier regelen:', REGLER); } break;
         case 'kopierLenke': try { await navigator.clipboard.writeText($('lenke').value); vis('Lenken er kopiert ✓'); } catch { $('lenke').select(); } break;
         case 'delLenke': navigator.share({ title: 'Felles budsjett', text: 'Bli med i budsjettet vårt:', url: $('lenke').value }).catch(() => {}); break;
         case 'kobleFra':
