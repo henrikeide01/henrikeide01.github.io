@@ -1,4 +1,5 @@
 // Spørsmålene som tilpasser middager, porsjoner og makroer – ett spørsmål om gangen, store knapper.
+import { oversett as o, t } from './sprak.js';
 const V = (v, tekst, ikon = '', hjelp = '') => ({ v, tekst, ikon, hjelp });
 
 export const PERSONSPORSMAL = [
@@ -28,12 +29,35 @@ export const PERSONSPORSMAL = [
     V('curry', 'Curry', '🍛'), V('suppe', 'Suppe', '🍲'), V('burger', 'Burger', '🍔'), V('husmannskost', 'Husmannskost', '🥔'), V('vegetar', 'Vegetar', '🥗')] },
 ];
 
+// ---------- Nytt i versjon 2: dagsplaner (frokost, lunsj og mellommåltid) ----------
+export const SPORSMALSVERSJON = 2;
+export const NYE_PERSONSPORSMAL = [
+  { id: 'maltider', type: 'valg', tekst: 'Hvor mange måltider spiser du om dagen?', valg: [
+    V('3', '3 – frokost, lunsj og middag', '🍽️'), V('4', '4 – pluss et mellommåltid', '🍎'), V('5', '5 – pluss mellommåltid og kveldsmat', '🌙')] },
+  { id: 'frokostvaner', type: 'flere', tekst: 'Hva liker du til frokost?', hjelp: 'Velg så mange du vil.', valg: [
+    V('grot', 'Havregrøt', '🥣'), V('yoghurt', 'Yoghurt eller skyr', '🥛'), V('brod', 'Brødskiver', '🍞'), V('egg', 'Egg', '🍳'),
+    V('smoothie', 'Smoothie', '🥤'), V('hopper', 'Jeg hopper over frokost', '⏭️')] },
+  { id: 'lunsjvaner', type: 'flere', tekst: 'Hva spiser du til lunsj?', valg: [
+    V('matpakke', 'Matpakke', '🥪'), V('rester', 'Rester fra middagen', '🍱'), V('salat', 'Salat', '🥗'), V('wrap', 'Wrap', '🌯'), V('kantine', 'Kjøper lunsj', '🏪')] },
+  { id: 'mellomvaner', type: 'flere', tekst: 'Hva liker du som mellommåltid?', valg: [
+    V('frukt', 'Frukt', '🍎'), V('yoghurt', 'Yoghurt, skyr eller cottage cheese', '🥛'), V('notter', 'Nøtter', '🥜'), V('proteinbar', 'Proteinbar', '💪'), V('brod', 'Knekkebrød', '🍘')] },
+];
+
+export const NYE_HUSSTANDSPORSMAL = [
+  { id: 'handlevaner', type: 'valg', tekst: 'Hvordan liker dere å handle?', valg: [
+    V('uke', 'Én stor ukeshandel', '🛒'), V('flere', 'Litt flere ganger i uka', '🔁'), V('daglig', 'Nesten hver dag', '📅')] },
+  { id: 'brod', type: 'valg', tekst: 'Baker dere brød selv?', hjelp: 'Da står det brødmiks på handlelista i stedet for brød.', valg: [
+    V('selv', 'Ja, vi baker selv', '🍞'), V('kjop', 'Nei, vi kjøper brød', '🛒')] },
+  { id: 'butikker', type: 'flere', tekst: 'Hvilke butikker handler dere i?', hjelp: 'Da anbefaler appen bare blant disse. Velg ingen for alle.', ingen: 'Alle', valg: [
+    V('REMA 1000', 'REMA 1000', '🔵'), V('Coop Extra', 'Coop Extra', '🔴'), V('Coop Obs', 'Coop Obs', '🔷'), V('Eurospar', 'Eurospar', '🟥')] },
+];
+
 // Kun når en ny husstand settes opp: inntekt per person til budsjettet
 export const INNTEKTSSPORSMAL = { id: 'inntekt', type: 'tall', tekst: 'Hvor mye har du å bruke i måneden?', enhet: 'kr', min: 0, max: 200000, hjelp: 'Studielån, lønn og annet etter skatt. Du kan endre det senere.' };
 
 export const FOKUSVALG = [V('protein', 'Mye protein', '💪'), V('billig', 'Billig', '💸'), V('raskt', 'Raskt å lage', '⚡'), V('lett', 'Lett og få kalorier', '🥗')];
 
-export const HUSSTANDSPORSMAL = [
+export const HUSSTANDSPORSMAL_V1 = [
   { id: 'fokus', type: 'flere', tekst: 'Hva er viktigst når dere velger middag?', hjelp: 'Velg så mange dere vil.', valg: FOKUSVALG },
   { id: 'middager', type: 'valg', tekst: 'Hvor mange middager lager dere hjemme i uka?', valg: [3, 4, 5, 6, 7].map((n) => V(String(n), `${n} middager`, '🍽️')) },
   { id: 'tid', type: 'valg', tekst: 'Hvor lang tid har dere til middag på hverdager?', valg: [V('15', 'Maks 15 minutter', '⚡'), V('25', 'Ca. 25 minutter', '⏱️'), V('35', 'Ca. 35 minutter', '🕒'), V('60', 'Gjerne en time', '👨‍🍳')] },
@@ -46,12 +70,14 @@ export const HUSSTANDSPORSMAL = [
   { id: 'rester', type: 'valg', tekst: 'Vil dere lage litt ekstra til matpakke dagen etter?', valg: [V('ja', 'Ja, gjerne', '🥡'), V('nei', 'Nei', '🙅')] },
 ];
 
+const o_ = o;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Viser spørsmålene ett og ett i en egen dialog. Kaller vedFerdig(svar) til slutt.
 export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig, vedAvbryt }) {
   const dlg = document.createElement('dialog');
   dlg.className = 'sporsmal';
+  dlg.setAttribute('data-ikke-oversett', '');
   document.body.append(dlg);
   const svarNa = { ...svar };
   let i = 0;
@@ -65,31 +91,31 @@ export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig
 
   function tegn() {
     const q = sporsmal[i];
-    const tekst = q.tekst.replace('{navn}', navn || '');
+    const tekst = o(q.tekst).replace('{navn}', navn || '');
     const verdi = svarNa[q.id];
     let kropp = '';
     if (q.type === 'valg') {
-      kropp = `<div class="valg">${q.valg.map((o) => `<button type="button" class="valgknapp ${String(verdi) === o.v ? 'valgt' : ''}" data-v="${esc(o.v)}"><span class="ikon">${o.ikon}</span><span><b>${esc(o.tekst)}</b>${o.hjelp ? `<small>${esc(o.hjelp)}</small>` : ''}</span></button>`).join('')}</div>`;
+      kropp = `<div class="valg">${q.valg.map((x) => `<button type="button" class="valgknapp ${String(verdi) === x.v ? 'valgt' : ''}" data-v="${esc(x.v)}"><span class="ikon">${x.ikon}</span><span><b>${esc(o_(x.tekst))}</b>${x.hjelp ? `<small>${esc(o_(x.hjelp))}</small>` : ''}</span></button>`).join('')}</div>`;
     } else if (q.type === 'flere') {
       const valgt = new Set(Array.isArray(verdi) ? verdi : []);
-      kropp = `<div class="flervalg">${q.valg.map((o) => `<button type="button" class="chip ${valgt.has(o.v) ? 'valgt' : ''}" data-flere="${esc(o.v)}" aria-pressed="${valgt.has(o.v)}">${o.ikon} ${esc(o.tekst)}</button>`).join('')}</div>
-        <button type="button" class="knapp hoved stor" data-videre>${valgt.size ? 'Neste' : esc(q.ingen || 'Neste')}</button>`;
+      kropp = `<div class="flervalg">${q.valg.map((x) => `<button type="button" class="chip ${valgt.has(x.v) ? 'valgt' : ''}" data-flere="${esc(x.v)}" aria-pressed="${valgt.has(x.v)}">${x.ikon} ${esc(o_(x.tekst))}</button>`).join('')}</div>
+        <button type="button" class="knapp hoved stor" data-videre>${esc(o_(valgt.size ? 'Neste' : q.ingen || 'Neste'))}</button>`;
     } else {
-      kropp = `<form class="tallsvar" data-tallform><div class="tallfelt"><input type="${q.type === 'tekst' ? 'text' : 'number'}" inputmode="${q.type === 'tekst' ? 'text' : 'decimal'}" ${q.min != null ? `min="${q.min}"` : ''} ${q.max != null ? `max="${q.max}"` : ''} step="any" value="${esc(verdi ?? '')}" aria-label="${esc(tekst)}" autofocus>${q.enhet ? `<span>${esc(q.enhet)}</span>` : ''}</div>
-        <button type="submit" class="knapp hoved stor">Neste</button></form>`;
+      kropp = `<form class="tallsvar" data-tallform><div class="tallfelt"><input type="${q.type === 'tekst' ? 'text' : 'number'}" inputmode="${q.type === 'tekst' ? 'text' : 'decimal'}" ${q.min != null ? `min="${q.min}"` : ''} ${q.max != null ? `max="${q.max}"` : ''} step="any" value="${esc(verdi ?? '')}" aria-label="${esc(tekst)}" autofocus>${q.enhet ? `<span>${esc(o_(q.enhet))}</span>` : ''}</div>
+        <button type="submit" class="knapp hoved stor">${esc(o_('Neste'))}</button></form>`;
     }
     dlg.innerHTML = `
       <div class="sp-topp">
-        <button type="button" class="sp-tilbake" data-tilbake aria-label="Tilbake" ${i === 0 ? 'style="visibility:hidden"' : ''}>‹</button>
+        <button type="button" class="sp-tilbake" data-tilbake aria-label="${esc(o_('Tilbake'))}" ${i === 0 ? 'style="visibility:hidden"' : ''}>‹</button>
         <div class="sp-fremdrift"><span style="width:${Math.round((i / sporsmal.length) * 100)}%"></span></div>
-        <button type="button" class="sp-lukk" data-lukk-sp aria-label="Lukk">✕</button>
+        <button type="button" class="sp-lukk" data-lukk-sp aria-label="${esc(o_('Lukk'))}">✕</button>
       </div>
       <div class="sp-innhold">
-        ${tittel ? `<div class="sp-tittel">${esc(tittel)} · ${i + 1} av ${sporsmal.length}</div>` : ''}
+        ${tittel ? `<div class="sp-tittel">${esc(t('{tittel} · {nr} av {antall}', { tittel: o_(tittel), nr: i + 1, antall: sporsmal.length }))}</div>` : ''}
         <h2>${esc(tekst)}</h2>
-        ${q.hjelp ? `<p class="sp-hjelp">${esc(q.hjelp)}</p>` : ''}
+        ${q.hjelp ? `<p class="sp-hjelp">${esc(o_(q.hjelp))}</p>` : ''}
         ${kropp}
-        <button type="button" class="sp-hopp" data-hopp>Hopp over</button>
+        <button type="button" class="sp-hopp" data-hopp>${esc(o_('Hopp over'))}</button>
       </div>`;
     dlg.querySelector('input')?.focus();
   }
@@ -107,7 +133,7 @@ export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig
       liste.has(b.dataset.flere) ? liste.delete(b.dataset.flere) : liste.add(b.dataset.flere);
       svarNa[q.id] = [...liste];
       b.classList.toggle('valgt'); b.setAttribute('aria-pressed', String(liste.has(b.dataset.flere)));
-      dlg.querySelector('[data-videre]').textContent = liste.size ? 'Neste' : (q.ingen || 'Neste');
+      dlg.querySelector('[data-videre]').textContent = o_(liste.size ? 'Neste' : (q.ingen || 'Neste'));
       return;
     }
     if ('videre' in b.dataset) { svarNa[q.id] = Array.isArray(svarNa[q.id]) ? svarNa[q.id] : []; neste(); }
@@ -125,3 +151,6 @@ export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig
   tegn();
   dlg.showModal();
 }
+
+export const HUSSTANDSPORSMAL = [...HUSSTANDSPORSMAL_V1, ...NYE_HUSSTANDSPORSMAL];
+export const ALLE_PERSONSPORSMAL = [...PERSONSPORSMAL, ...NYE_PERSONSPORSMAL];

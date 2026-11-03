@@ -90,6 +90,8 @@
     header.topp { padding: 20px 0 8px; }
     .tilbake { display: inline-flex; align-items: center; gap: 6px; color: var(--dempet); text-decoration: none; font-size: 14px; }
     .tilbake:hover { color: var(--tekst); }
+    .toppknapper { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .sprakknapp { border: 1px solid var(--linje); background: var(--flate); color: var(--tekst); padding: 6px 10px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer; font-family: inherit; }
     h1 { font-size: clamp(30px, 7vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin-top: 14px; }
     h1 .uke { display: inline-block; font-size: .42em; vertical-align: middle; background: var(--gul); color: #1d2433; padding: 4px 10px; border-radius: 999px; letter-spacing: 0; margin-left: 6px; transform: translateY(-4px); }
     .meta { color: var(--dempet); font-size: 15px; margin-top: 8px; }
@@ -260,7 +262,7 @@
 <body>
   <div class="side">
     <header class="topp">
-      <a class="tilbake" href="../">← Prosjekter</a>
+      <div class="toppknapper"><a class="tilbake" href="../">← Prosjekter</a><span id="sprakplass"></span></div>
       <h1>Min tilbudsavis <span class="uke" id="uke"></span></h1>
       <p class="meta" id="meta">Henter ukens tilbud…</p>
       <a class="budsjettlinje" id="budsjettlinje" href="../hjem/"></a>
@@ -325,6 +327,11 @@
     import { lagTilbudsfilter, vurder, erMat, kr, lagHistorikk, NIVAA_REKKEFOLGE, normaliser } from './motor.js';
     import { lesPlan, harPlan, ukesMatbudsjett, matBruktDenneUka, leggTilPost, kroner } from '../hjem/budsjett.js';
     import { erDelt, synk } from '../hjem/synk.js';
+    import { t, oversett, LOK, leggTilOrdbok, startOversetting, sprakknapp } from '../hjem/sprak.js';
+    import { MAT_EN } from '../hjem/mat-en.js';
+    leggTilOrdbok(MAT_EN);
+    document.getElementById('sprakplass').innerHTML = sprakknapp();
+    startOversetting();
 
     // ---------- Lagring (tåler privat modus) ----------
     const lager = {
@@ -374,17 +381,17 @@
       return Math.ceil(((t - aar) / 864e5 + 1) / 7);
     }
 
-    const dagFmt = new Intl.DateTimeFormat('nb-NO', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: OSLO });
-    const tidFmt = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: OSLO });
+    const dagFmt = new Intl.DateTimeFormat(LOK, { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: OSLO });
+    const tidFmt = new Intl.DateTimeFormat(LOK, { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: OSLO });
     const datoUtenPunktum = (d) => dagFmt.format(d).replace(/\.$/, '');
 
-    function gyldighet(t) {
+    function gyldighet(tb) {
       const naa = Date.now();
-      const fra = new Date(t.fra), til = new Date(t.til);
-      if (fra.getTime() > naa) return { tekst: `Fra ${datoUtenPunktum(fra)}`, snart: false };
+      const fra = new Date(tb.fra), til = new Date(tb.til);
+      if (fra.getTime() > naa) return { tekst: t('Fra {dato}', { dato: datoUtenPunktum(fra) }), snart: false };
       const timerIgjen = (til.getTime() - naa) / 36e5;
-      if (timerIgjen < 30) return { tekst: timerIgjen < 14 ? 'Siste dag i dag' : `Slutter ${datoUtenPunktum(til)}`, snart: true };
-      return { tekst: `t.o.m. ${datoUtenPunktum(til)}`, snart: false };
+      if (timerIgjen < 30) return { tekst: timerIgjen < 14 ? t('Siste dag i dag') : t('Slutter {dato}', { dato: datoUtenPunktum(til) }), snart: true };
+      return { tekst: t('t.o.m. {dato}', { dato: datoUtenPunktum(til) }), snart: false };
     }
 
     function butikkFarge(navn) {
@@ -451,7 +458,7 @@
         const json = decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))));
         const varer = JSON.parse(json);
         if (Array.isArray(varer) && varer.every((v) => v && v.navn)) {
-          if (confirm(`Vil du bruke vare-lista fra lenken (${varer.length} varer)? Den erstatter lista i denne nettleseren.`)) {
+          if (confirm(t('Vil du bruke vare-lista fra lenken ({n} varer)? Den erstatter lista i denne nettleseren.', { n: varer.length }))) {
             S.varer = varer;
             lagreVarer();
             vis('Vare-lista er importert ✓');
@@ -535,7 +542,7 @@
 
     function forTilBudsjett() {
       const sumListe = sumHandleliste();
-      const svar = prompt('Hvor mye betalte du til sammen? (kr)', String(Math.round(sumListe * 100) / 100).replace('.', ','));
+      const svar = prompt(t('Hvor mye betalte du til sammen? (kr)'), String(Math.round(sumListe * 100) / 100).replace('.', ','));
       if (svar == null) return;
       const belop = parseFloat(svar.replace(/\s/g, '').replace(',', '.'));
       if (!(belop > 0)) { vis('Skriv inn et beløp over 0'); return; }
@@ -545,7 +552,7 @@
       leggTilPost({ belop, kategori, notat: butikker ? `Handletur: ${butikker}` : 'Handletur' });
       tegnBudsjettlinje();
       if (erDelt()) synk().then(tegnBudsjettlinje).catch(() => {});
-      if (confirm(`${kroner(belop)} kr er ført i budsjettet ✓\n\nVil du tømme handlelista?`)) {
+      if (confirm(t('{kr} kr er ført i budsjettet ✓\n\nVil du tømme handlelista?', { kr: kroner(belop) }))) {
         S.handleliste = []; lager.skriv('handleliste', []); tegnHandlelinje(); tegnInnhold(); $('handleDialog').close();
       } else {
         tegnHandleDialog();
@@ -556,9 +563,9 @@
     function tegnAlt() {
       const d = S.data;
       const naa = new Date();
-      $('uke').textContent = `Uke ${ukenummer(naa)}`;
+      $('uke').textContent = t('Uke {n}', { n: ukenummer(naa) });
       const antallButikker = Object.keys(d.butikker).length;
-      $('meta').textContent = `${d.antall} tilbud fra ${antallButikker} butikker rundt ${d.sted} · oppdatert ${tidFmt.format(new Date(d.hentet))}`;
+      $('meta').textContent = t('{antall} tilbud fra {butikker} butikker rundt {sted} · oppdatert {tid}', { antall: d.antall, butikker: antallButikker, sted: d.sted, tid: tidFmt.format(new Date(d.hentet)) });
       tegnButikker();
       tegnInnhold();
       tegnHandlelinje();
@@ -591,8 +598,8 @@
             ${t.bilde ? `<img src="${esc(t.bilde)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="ingen">${vare?.ikon || '🏷️'}</span>`}
           </button>
           <div class="tekst">
-            <div class="tittel">${visVare && vare ? `${vare.ikon || ''} ` : ''}${esc(pentNavn(t.tittel))}</div>
-            ${detaljer ? `<div class="detaljer">${esc(detaljer)}</div>` : ''}
+            <div class="tittel" data-ikke-oversett>${visVare && vare ? `${vare.ikon || ''} ` : ''}${esc(pentNavn(t.tittel))}</div>
+            ${detaljer ? `<div class="detaljer" data-ikke-oversett>${esc(detaljer)}</div>` : ''}
             <div class="etiketter">
               <span class="butikk" style="--farge:${butikkFarge(t.butikk)}"><span class="prikk"></span>${esc(t.butikk)}</span>
               <span class="gyldig ${g.snart ? 'snart' : ''}">${esc(g.tekst)}</span>
@@ -627,7 +634,7 @@
         <details class="kort gruppe" data-gruppe="${esc(vare.navn)}" ${apen ? 'open' : ''}>
           <summary>
             <span class="ikon" aria-hidden="true">${esc(vare.ikon || '🛒')}</span>
-            <span class="gruppetekst"><span class="navn">${esc(vare.navn)}</span><span class="best tall">${besteTekst}</span></span>
+            <span class="gruppetekst"><span class="navn">${esc(vare.navn)}</span><span class="best tall" data-ikke-oversett>${besteTekst}</span></span>
             <span class="antall">${antallKjempe ? `<span class="flamme">🔥 ${antallKjempe}</span>` : ''}${treff.length} <span class="pil" aria-hidden="true">›</span></span>
           </summary>
           <div class="innhold">
@@ -652,7 +659,7 @@
       $('innhold').innerHTML = `
         ${kjempe.length ? `
         <section aria-labelledby="h-kjempe">
-          <div class="seksjonstopp"><h2 id="h-kjempe">🔥 Kjempetilbud på dine varer</h2><p>${kjempe.length} stk</p></div>
+          <div class="seksjonstopp"><h2 id="h-kjempe">🔥 Kjempetilbud på dine varer</h2><p>${esc(t('{n} tilbud', { n: kjempe.length }))}</p></div>
           <p class="forklaring">Rundt 40 % billigere enn vanlig (etter førpris eller vanlig kilopris), eller laveste pris på lenge.</p>
           <div class="kort">
             ${(visFlereKjempe ? kjempe : kjempe.slice(0, 6)).map((x) => tilbudHtml(x, { visVare: true, visKjempe: false })).join('')}
@@ -674,7 +681,7 @@
 
         ${andre.length ? `
         <section aria-labelledby="h-andre">
-          <div class="seksjonstopp"><h2 id="h-andre">💥 Andre kupp denne uka</h2><p>${andre.length} stk</p></div>
+          <div class="seksjonstopp"><h2 id="h-andre">💥 Andre kupp denne uka</h2><p>${esc(t('{n} tilbud', { n: andre.length }))}</p></div>
           <p class="forklaring">Mat som ikke står på lista di, men som er minst 35 % billigere enn førprisen.</p>
           <div class="kort">
             ${andreSynlige.map((x) => tilbudHtml(x, { visKjempe: false })).join('')}
@@ -693,8 +700,8 @@
       const finnes = S.varer.some((v) => normaliser(v.navn).trim() === ord.join(' '));
       $('innhold').innerHTML = `
         <section>
-          <div class="seksjonstopp"><h2>Treff på «${esc(S.sok.trim())}»</h2><p>${treff.length} tilbud</p></div>
-          ${!finnes ? `<div class="knapprad" style="margin-bottom:12px"><button class="knapp" data-ny-fra-sok>⭐ Legg «${esc(S.sok.trim())}» til i mine varer</button></div>` : ''}
+          <div class="seksjonstopp"><h2>${esc(t('Treff på «{sok}»', { sok: S.sok.trim() }))}</h2><p>${esc(t('{n} tilbud', { n: treff.length }))}</p></div>
+          ${!finnes ? `<div class="knapprad" style="margin-bottom:12px"><button class="knapp" data-ny-fra-sok>⭐ ${esc(t('Legg «{sok}» til i mine varer', { sok: S.sok.trim() }))}</button></div>` : ''}
           ${treff.length ? `<div class="kort">${treff.slice(0, 80).map((x) => tilbudHtml(x)).join('')}</div>`
             : `<div class="kort tomt"><b>Ingen tilbud på dette nå</b>Prøv et annet ord, eller slå på flere butikker.</div>`}
         </section>`;
@@ -718,7 +725,7 @@
           <h4><span><span class="butikk" style="--farge:${butikkFarge(b)}"><span class="prikk"></span>${esc(b)}</span></span><span class="tall">${kr(liste.reduce((s, h) => s + h.pris, 0))} kr</span></h4>
           ${liste.map((h) => `
             <div class="handlevare">
-              <span>${esc(pentNavn(h.tittel))}<small>${esc([h.mengde, `t.o.m. ${datoUtenPunktum(new Date(h.til))}`].filter(Boolean).join(' · '))}</small></span>
+              <span><span data-ikke-oversett>${esc(pentNavn(h.tittel))}</span><small>${esc([h.mengde, t('t.o.m. {dato}', { dato: datoUtenPunktum(new Date(h.til)) })].filter(Boolean).join(' · '))}</small></span>
               <span class="tall">${kr(h.pris)} kr</span>
               <button class="ikonknapp" data-fjern-handle="${esc(h.id)}" aria-label="Fjern">✕</button>
             </div>`).join('')}
@@ -755,7 +762,7 @@
           <span class="ikon">${esc(v.ikon || '🛒')}</span>
           <div>
             <div class="navn">${esc(v.navn)}${v.normalpris ? ` <span class="ord">· vanlig ~${kr(v.normalpris)} kr/${esc(v.enhet || 'kg')}</span>` : ''}${v.minPakning ? ` <span class="ord">· minst ${kr(v.minPakning)} ${esc(v.enhet || 'kg')}</span>` : ''}</div>
-            <div class="ord">${esc(tilTekst(v.sok?.length ? v.sok : [v.navn]))}${v.ikke?.length ? ` · ikke: ${esc(tilTekst(v.ikke))}` : ''}</div>
+            <div class="ord"><span data-ikke-oversett>${esc(tilTekst(v.sok?.length ? v.sok : [v.navn]))}</span>${v.ikke?.length ? ` · ${esc(t('ikke:'))} <span data-ikke-oversett>${esc(tilTekst(v.ikke))}</span>` : ''}</div>
           </div>
           <div class="knapper">
             <button class="ikonknapp" data-rediger="${i}" aria-label="Endre ${esc(v.navn)}">✎</button>
@@ -816,7 +823,7 @@
         if (!v2.sok.length) { $('forhand').textContent = ''; return; }
         const treff = S.data.tilbud.filter(lagTilbudsfilter(v2));
         $('forhand').innerHTML = treff.length
-          ? `Treffer <b>${treff.length}</b> tilbud nå: ${treff.slice(0, 6).map((t) => esc(pentNavn(t.tittel))).join(', ')}${treff.length > 6 ? ' …' : ''}`
+          ? `${esc(t('Treffer {n} tilbud nå:', { n: treff.length }))} <span data-ikke-oversett>${treff.slice(0, 6).map((x) => esc(pentNavn(x.tittel))).join(', ')}${treff.length > 6 ? ' …' : ''}</span>`
           : 'Ingen tilbud akkurat nå – varen dukker opp på siden så snart det kommer et.';
       };
       skjema.addEventListener('input', oppdaterForhand);
@@ -829,7 +836,7 @@
         lagreVarer();
         $('skjemaplass').innerHTML = '';
         tegnVareliste(); tegnForslag(); tegnButikker(); tegnInnhold();
-        vis(indeks >= 0 ? 'Lagret ✓' : `${ny.navn} er lagt til ✓`);
+        vis(indeks >= 0 ? t('Lagret ✓') : t('{navn} er lagt til ✓', { navn: oversett(ny.navn) }));
       });
       $('avbrytSkjema').addEventListener('click', () => { $('skjemaplass').innerHTML = ''; });
       $('fNavn').focus();
@@ -855,7 +862,7 @@
 
     async function kopier(tekst, ok) {
       try { await navigator.clipboard.writeText(tekst); vis(ok); }
-      catch { prompt('Kopier teksten:', tekst); }
+      catch { prompt(t('Kopier teksten:'), tekst); }
     }
 
     // ---------- Hendelser ----------
@@ -897,7 +904,7 @@
         const paa = S.handleliste.some((h) => h.id === ds.handle);
         document.querySelectorAll(`[data-handle="${CSS.escape(ds.handle)}"]`).forEach((b) => {
           b.classList.toggle('paa', paa); b.textContent = paa ? '✓' : '＋';
-          b.setAttribute('aria-label', paa ? 'Fjern fra handlelista' : 'Legg i handlelista');
+          b.setAttribute('aria-label', t(paa ? 'Fjern fra handlelista' : 'Legg i handlelista'));
         });
         return;
       }
@@ -928,7 +935,7 @@
           lagreVarer();
           tegnButikker(); tegnInnhold();
           if ($('varerDialog').open) { tegnVareliste(); tegnForslag(); }
-          vis(`${f.navn} er lagt til ✓`);
+          vis(t('{navn} er lagt til ✓', { navn: oversett(f.navn) }));
         }
         return;
       }
@@ -937,7 +944,7 @@
       if (ds.rediger !== undefined) { visSkjema(Number(ds.rediger)); return; }
       if (ds.slett !== undefined) {
         const v = S.varer[Number(ds.slett)];
-        if (v && confirm(`Fjerne «${v.navn}» fra mine varer?`)) {
+        if (v && confirm(t('Fjerne «{navn}» fra mine varer?', { navn: oversett(v.navn) }))) {
           S.varer.splice(Number(ds.slett), 1);
           lagreVarer(); tegnVareliste(); tegnForslag(); tegnButikker(); tegnInnhold();
         }
@@ -948,23 +955,23 @@
         case 'handlet': forTilBudsjett(); break;
         case 'nyVare': visSkjema(-1); break;
         case 'tomHandle':
-          if (confirm('Tømme handlelista?')) { S.handleliste = []; lager.skriv('handleliste', []); tegnHandlelinje(); tegnHandleDialog(); tegnInnhold(); }
+          if (confirm(t('Tømme handlelista?'))) { S.handleliste = []; lager.skriv('handleliste', []); tegnHandlelinje(); tegnHandleDialog(); tegnInnhold(); }
           break;
         case 'kopierHandle': {
           const perButikk = {};
           for (const h of S.handleliste) (perButikk[h.butikk] ??= []).push(h);
           const tekst = Object.entries(perButikk).map(([b, l]) => `${b}:\n` + l.map((h) => `- ${pentNavn(h.tittel)}${h.mengde ? ` (${h.mengde})` : ''} – ${kr(h.pris)} kr`).join('\n')).join('\n\n')
-            + `\n\nTotalt: ${kr(sumHandleliste())} kr`;
-          kopier(tekst, 'Handlelista er kopiert ✓');
+            + `\n\n${t('Totalt')}: ${kr(sumHandleliste())} kr`;
+          kopier(tekst, t('Handlelista er kopiert ✓'));
           break;
         }
         case 'delVarer': {
           const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(S.varer)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-          kopier(`${location.origin}${location.pathname}#varer=${b64}`, 'Lenken er kopiert – åpne den på den andre enheten ✓');
+          kopier(`${location.origin}${location.pathname}#varer=${b64}`, t('Lenken er kopiert – åpne den på den andre enheten ✓'));
           break;
         }
         case 'nullstillVarer':
-          if (confirm('Bytte ut lista di med standardlista?')) {
+          if (confirm(t('Bytte ut lista di med standardlista?'))) {
             S.varer = structuredClone(S.standardVarer); lager.slett('varer'); lager.slett('varerBasis');
             tegnVareliste(); tegnForslag(); tegnButikker(); tegnInnhold(); vis('Standardlista er tilbake');
           }

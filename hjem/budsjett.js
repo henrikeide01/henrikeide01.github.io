@@ -1,5 +1,6 @@
 // Felles data for Hjemme-appen (/hjem/) og tilbudsavisen (/tilbud/): budsjett, lønn og mat.
 // Alt lagres i nettleseren (localStorage) på eidert.no, og synkes kryptert av synk.js hvis husstanden deler.
+import { LOK } from './sprak.js';
 
 export const GRUPPER = [
   { id: 'fast', navn: 'Faste utgifter', farge: 1 },
@@ -325,7 +326,7 @@ export function anslagLonn(profil) {
   return { timerPerMaaned, brutto, netto, nettoPerTime, feriepenger, aarBrutto: brutto * 12, aarMedFerie: brutto * 12 + feriepenger * 12 };
 }
 
-export const kroner = (n) => Math.round(n).toLocaleString('nb-NO');
+export const kroner = (n) => Math.round(n).toLocaleString(LOK);
 
 
 // ---------- Mat: profiler, husstand, meny, kjøkken, handleliste og logg ----------

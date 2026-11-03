@@ -56,6 +56,22 @@ export const INGREDIENSER = {
   pesto: I('Pesto', 450, 5, 45, 5, 185, 250, 'saus', ['notter', 'melk'], ['pesto'], [], { meieri: true }),
   tacokrydder: I('Tacokrydder', 330, 8, 6, 55, 28, 450, 'saus', [], ['tacokrydder', 'taco krydder', 'taco seasoning']),
   tacosaus: I('Tacosaus', 30, 1, 0.2, 6, 230, 90, 'saus', [], ['tacosaus', 'salsa'], ['chips']),
+  // Frokost, lunsj og mellommåltid
+  havregryn: I('Havregryn', 370, 13, 7, 60, 1000, 30, 'frokost', ['gluten'], ['havregryn', 'lettkokt havre']),
+  granola: I('Granola', 450, 10, 18, 60, 500, 140, 'frokost', ['gluten'], ['granola', 'müsli', 'musli'], ['bar']),
+  brod: I('Brød', 230, 9, 3, 40, 750, 50, 'frokost', ['gluten'], ['grovbrød', 'kneipp', '"brød"'], ['knekkebrød', 'smørbrød', 'pølsebrød', 'skolebrød']),
+  brodmiks: I('Brødmiks', 350, 11, 3, 65, 1000, 35, 'frokost', ['gluten'], ['brødmiks', 'brødmix', 'brød mix', 'mestermiks', 'grovbrødmiks', 'bakemiks', 'bakemix'], ['kake', 'pannekake', 'vaffel', 'pizza', 'boller', 'muffins', 'brownies']),
+  knekkebrod: I('Knekkebrød', 360, 10, 6, 60, 500, 70, 'frokost', ['gluten'], ['knekkebrød', 'wasa', 'husman']),
+  yoghurt: I('Yoghurt', 70, 4.5, 3, 6, 1000, 40, 'meieri', ['melk'], ['yoghurt', 'yogurt', 'biola'], ['granola', 'rosiner', 'is', 'dressing']),
+  skyr: I('Skyr', 60, 11, 0.2, 4, 500, 70, 'meieri', ['melk'], ['skyr']),
+  kesam: I('Cottage cheese', 90, 12, 4, 2, 400, 70, 'meieri', ['melk'], ['cottage', 'kesam']),
+  banan: I('Banan', 90, 1.1, 0.3, 20, 1000, 30, 'frukt', [], ['banan'], ['chips', 'sjokolade', 'smoothie', 'skum'], { stk: 120 }),
+  eple: I('Eple', 52, 0.3, 0.2, 12, 1000, 35, 'frukt', [], ['epler', '"eple"'], ['juice', 'kake', 'most', 'chips'], { stk: 150 }),
+  baer: I('Bær', 45, 1, 0.3, 9, 500, 80, 'frukt', [], ['blåbær', 'bringebær', 'skogsbær', 'bærmiks', 'frosne bær'], ['syltetøy', 'sjokolade', 'yoghurt', 'juice', 'saft', 'kake', 'drikke']),
+  notter: I('Nøtter', 600, 20, 50, 15, 200, 200, 'snacks', ['notter'], ['peanøtter', 'cashew', 'mandler', 'nøttemiks'], ['sjokolade', 'smør']),
+  peanottsmor: I('Peanøttsmør', 600, 25, 50, 15, 350, 114, 'snacks', ['notter'], ['peanøttsmør']),
+  proteinbar: I('Proteinbar', 360, 30, 12, 35, 150, 500, 'snacks', ['melk'], ['proteinbar', 'barebells', 'protein bar'], [], { stk: 55 }),
+
   // Basisvarer: regnes som noe dere alltid har, og settes ikke på handlelista
   soyasaus: I('Soyasaus', 60, 8, 0, 6, 150, 150, 'basis', ['soya', 'gluten'], [], [], { basis: true }),
   olje: I('Olje', 900, 0, 100, 0, 1000, 40, 'basis', [], [], [], { basis: true }),
@@ -224,7 +240,7 @@ const FORBUDT = {
   vegan: (ing) => ['kjott', 'fisk', 'skalldyr', 'egg', 'meieri'].includes(ing.type) || ing.meieri,
 };
 const MISLIKER = {
-  fisk: ['laks', 'torsk'], skalldyr: ['scampi'], sopp: ['champignon'], lok: ['lok'], paprika: ['paprika'],
+  fisk: ['laks', 'torsk', 'tunfisk'], skalldyr: ['scampi'], sopp: ['champignon'], lok: ['lok'], paprika: ['paprika'],
   tomat: ['tomat', 'hakketomat'], bonner: ['kidney', 'linser'], kokos: ['kokosmelk'], svin: ['bacon', 'svinekjott', 'polser', 'skinke'],
   kylling: ['kyllingfilet', 'kyllinglar'], ost: ['ost', 'feta'], egg: ['egg'], avokado: ['avokado'],
 };
@@ -386,8 +402,7 @@ export function fyllMeny({ mat, personer, tilbud, fra, dager = 7 }) {
     brukt.add(beste.r.id);
     planlagt++;
   }
-  // rydd bort gamle dager (eldre enn en uke)
-  for (const d of Object.keys(meny)) if (d < leggTilDager(fra, -7)) delete meny[d];
+  // Gamle dager beholdes som historikk – ingenting slettes
   return meny;
 }
 
@@ -434,4 +449,257 @@ export function mengdeTekst(key, gram, { opp = false } = {}) {
   }
   if (gram >= 1000) return `${(Math.round(gram / 100) / 10).toString().replace('.', ',')} kg`;
   return `${Math.round(gram / 10) * 10 || Math.round(gram)} g`;
+}
+
+
+// ================= Dagsplan: frokost, lunsj, mellommåltid og kveldsmat =================
+const M = (id, navn, ikon, maltid, tags, ingredienser, ekstra = {}) => ({ id, navn, ikon, maltid, tags, ingredienser, ...ekstra });
+
+// Mengder er for én vanlig porsjon (g)
+export const MALTIDER = [
+  M('grot', 'Havregrøt med banan', '🥣', 'frokost', ['grot'], { havregryn: 60, melk: 250, banan: 120 }),
+  M('yoghurtgranola', 'Yoghurt med granola og bær', '🥣', 'frokost', ['yoghurt'], { yoghurt: 200, granola: 50, baer: 75 }),
+  M('skyrbowl', 'Skyr med granola og banan', '💪', 'frokost', ['yoghurt'], { skyr: 250, granola: 40, banan: 120 }),
+  M('brodegg', 'Brødskiver med egg', '🍞', 'frokost', ['brod', 'egg'], { brod: 100, egg: 120, smor: 10 }),
+  M('eggerore', 'Eggerøre på brød', '🍳', 'frokost', ['egg', 'brod'], { egg: 180, melk: 30, smor: 10, brod: 70 }),
+  M('knekkebrodost', 'Knekkebrød med ost og skinke', '🧀', 'frokost', ['brod'], { knekkebrod: 50, ost: 40, skinke: 40, smor: 10 }),
+  M('yoghurtnotter', 'Yoghurt med bær og nøtter', '🥣', 'frokost', ['yoghurt'], { yoghurt: 200, baer: 75, notter: 20 }),
+  M('eggbacon', 'Eggerøre med bacon', '🥓', 'frokost', ['egg'], { egg: 180, bacon: 40, melk: 30, smor: 5 }),
+  M('smoothie', 'Smoothie med banan og bær', '🥤', 'frokost', ['smoothie'], { banan: 120, baer: 100, yoghurt: 200, havregryn: 30 }, { utstyr: 'blender' }),
+  M('matpakke', 'Matpakke med ost og skinke', '🥪', 'lunsj', ['matpakke', 'brod'], { brod: 150, ost: 40, skinke: 50, smor: 15 }),
+  M('matpakkeegg', 'Matpakke med egg', '🥪', 'lunsj', ['matpakke', 'brod', 'egg'], { brod: 150, egg: 120, smor: 15 }),
+  M('rester', 'Rester fra middagen i går', '🍱', 'lunsj', ['rester'], {}, { rester: true }),
+  M('tunfisksalat', 'Salat med tunfisk og egg', '🥗', 'lunsj', ['salat'], { salat: 100, tunfisk: 120, egg: 60, mais: 80, tomat: 100, olje: 10 }),
+  M('kyllingsalatlunsj', 'Salat med kylling og mais', '🥗', 'lunsj', ['salat'], { salat: 100, kyllingfilet: 150, mais: 80, tomat: 100, olje: 10 }),
+  M('kyllingwrap', 'Wrap med kylling', '🌯', 'lunsj', ['wrap'], { tortilla: 120, kyllingfilet: 150, salat: 50, romme: 50, ost: 30 }),
+  M('knekkebrodcottage', 'Knekkebrød med cottage cheese', '🥗', 'lunsj', ['brod'], { knekkebrod: 50, kesam: 150, tomat: 80 }),
+  M('kantine', 'Kantine eller kjøpt lunsj', '🏪', 'lunsj', ['kantine'], {}, { kcal: 650, p: 30, f: 25, k: 70 }),
+  M('banan', 'Banan', '🍌', 'mellom', ['frukt'], { banan: 120 }, { fast: true }),
+  M('eple', 'Eple', '🍎', 'mellom', ['frukt'], { eple: 150 }, { fast: true }),
+  M('yoghurtsnack', 'Yoghurt med bær', '🍓', 'mellom', ['yoghurt'], { yoghurt: 150, baer: 50 }),
+  M('skyrsnack', 'Skyr', '💪', 'mellom', ['yoghurt'], { skyr: 170 }),
+  M('cottagesnack', 'Cottage cheese', '🥄', 'mellom', ['yoghurt'], { kesam: 150 }),
+  M('notter', 'En neve nøtter', '🥜', 'mellom', ['notter'], { notter: 30 }, { fast: true }),
+  M('proteinbar', 'Proteinbar', '💪', 'mellom', ['proteinbar'], { proteinbar: 55 }, { fast: true }),
+  M('knekkebrodpeanott', 'Knekkebrød med peanøttsmør', '🥜', 'mellom', ['brod'], { knekkebrod: 25, peanottsmor: 15 }),
+  M('kveldsbrod', 'Brødskiver med ost', '🍞', 'kveld', ['brod'], { brod: 100, ost: 30, smor: 10 }),
+  M('kveldyoghurt', 'Yoghurt med granola', '🥣', 'kveld', ['yoghurt'], { yoghurt: 200, granola: 40 }),
+  M('kveldcottage', 'Knekkebrød med cottage cheese', '🥗', 'kveld', ['brod'], { knekkebrod: 40, kesam: 120 }),
+];
+export const maltid = (id) => MALTIDER.find((x) => x.id === id);
+export const MALTIDSNAVN = { frokost: 'Frokost', lunsj: 'Lunsj', middag: 'Middag', mellom: 'Mellommåltid', kveld: 'Kveldsmat' };
+
+export function naeringMaltid(m, faktor = 1, mat = null, dato = null) {
+  if (m.rester && mat && dato) {
+    const igaar = mat.meny?.[leggTilDager(dato, -1)];
+    const r = igaar?.id && oppskrift(igaar.id);
+    if (r) { const n = perPorsjon(r); return { kcal: n.kcal * faktor, p: n.p * faktor, f: n.f * faktor, k: n.k * faktor, fra: r }; }
+    return null;
+  }
+  if (m.kcal) return { kcal: m.kcal * faktor, p: m.p * faktor, f: m.f * faktor, k: m.k * faktor };
+  const sum = { kcal: 0, p: 0, f: 0, k: 0 };
+  for (const [key, gram] of Object.entries(m.ingredienser)) {
+    const ing = INGREDIENSER[key];
+    if (!ing) continue;
+    for (const n of Object.keys(sum)) sum[n] += (ing[n] * gram * faktor) / 100;
+  }
+  return sum;
+}
+
+function passerMaltid(m, pr) {
+  const ingr = Object.keys(m.ingredienser).map((k) => INGREDIENSER[k]).filter(Boolean);
+  if ((pr.allergier || []).some((a) => ingr.some((i) => i.allergener.includes(a)))) return false;
+  const forbud = FORBUDT[pr.kosthold];
+  if (forbud && ingr.some(forbud)) return false;
+  if ((pr.misliker || []).some((x) => (MISLIKER[x] || []).some((k) => k in m.ingredienser))) return false;
+  return true;
+}
+
+const ONSKER = { frokost: 'frokostvaner', lunsj: 'lunsjvaner', mellom: 'mellomvaner', kveld: 'mellomvaner' };
+const SLOTANDEL = { frokost: 0.27, lunsj: 0.33, mellom: 0.17, kveld: 0.15 };
+const hashTall = (tekst) => { let h = 0; for (const c of tekst) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+
+export function slotsFor(pr) {
+  const antall = Number(pr?.maltider) || 4;
+  const slots = ['frokost', 'lunsj'];
+  if (antall >= 4) slots.push('mellom');
+  if (antall >= 5) slots.push('kveld');
+  if ((pr?.frokostvaner || []).includes('hopper')) slots.shift();
+  return slots;
+}
+
+// Lager dagsplanen for én person. Brukerens egne valg ligger i mat.dagsplaner[dato][personId][slot].
+export function dagsplan({ mat, personer, personId, dato }) {
+  const pr = mat.profiler?.[personId] || {};
+  const mal = beregnMal(pr) || { kcal: 2200, protein: 90, fett: 73, karbo: 280, middagKcal: 770, utenMal: true };
+  const fokus = new Set(mat.husstand?.fokus || []);
+  const utstyr = mat.husstand?.utstyr;
+  const valgt = mat.dagsplaner?.[dato]?.[personId] || {};
+  const kjokken = mat.kjokken || {};
+
+  // Middagen fra ukemenyen
+  const m = mat.meny?.[dato];
+  const r = m?.id ? oppskrift(m.id) : null;
+  let middag = null;
+  if (r) { const f = porsjonFor(pr, r); const n = perPorsjon(r); middag = { slot: 'middag', r, faktor: f, kcal: n.kcal * f, p: n.p * f, f: n.f * f, k: n.k * f }; }
+
+  const slots = slotsFor(pr);
+  const restKcal = Math.max(600, mal.kcal - (middag?.kcal ?? mal.middagKcal));
+  const andelSum = slots.reduce((s, x) => s + SLOTANDEL[x], 0);
+  const brukt = new Set();
+  const bruktVarer = new Set();
+  let proteinSaaLangt = middag?.p || 0;
+  const ut = [];
+  for (const slot of slots) {
+    const mal_kcal = restKcal * (SLOTANDEL[slot] / andelSum);
+    const onsker = new Set(pr[ONSKER[slot]] || []);
+    const kandidater = MALTIDER.filter((x) => x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom'))
+      .filter((x) => passerMaltid(x, pr) && !brukt.has(x.id))
+      .filter((x) => !x.utstyr || !utstyr?.length || utstyr.includes(x.utstyr))
+      .filter((x) => !x.rester || (mat.husstand?.rester === 'ja' && naeringMaltid(x, 1, mat, dato)))
+      .filter((x) => !x.tags.includes('kantine') || onsker.has('kantine'));
+    const poeng = (x) => {
+      let p = 0;
+      if (x.tags.some((t) => onsker.has(t))) p += 6;
+      const keys = Object.keys(x.ingredienser).filter((k) => !INGREDIENSER[k]?.basis);
+      const har = keys.filter((k) => (kjokken[k] || 0) > 0).length;
+      if (keys.length && har === keys.length) p += 3; else p += har * 0.8;
+      if (x.rester) p += onsker.has('rester') ? 4 : 1;
+      const n = naeringMaltid(x, 1, mat, dato);
+      // Protein teller bare så lenge dagsmålet ikke er nådd
+      const proteinBehov = Math.max(0, 1 - proteinSaaLangt / Math.max(1, mal.protein));
+      if (n) p += (n.p / Math.max(1, n.kcal)) * 100 * (fokus.has('protein') ? 0.6 : 0.2) * proteinBehov;
+      if (x.maltid === slot) p += 2;
+      // Pris teller når dere vil spare
+      if (fokus.has('billig') || mat.husstand?.sparing === 'veldig') {
+        const kr = Object.entries(x.ingredienser).reduce((sum, [k, g]) => sum + (INGREDIENSER[k] && !INGREDIENSER[k].basis ? (g / 1000) * INGREDIENSER[k].pris : 0), 0);
+        p -= kr / 10;
+      }
+      // Variasjon: ikke samme hovedvare flere ganger samme dag
+      p -= 3 * Object.entries(x.ingredienser).filter(([k, g]) => g >= 100 && bruktVarer.has(k)).length;
+      if (fokus.has('lett') && n) p += n.kcal < 350 ? 1 : 0;
+      p += (hashTall(`${dato}|${personId}|${slot}|${x.id}`) % 100) / 100 * 2.2; // litt variasjon fra dag til dag
+      return p;
+    };
+    let valgtM = valgt[slot] ? maltid(valgt[slot]) : null;
+    if (!valgtM) valgtM = [...kandidater].sort((a, b) => poeng(b) - poeng(a))[0];
+    if (!valgtM) continue;
+    brukt.add(valgtM.id);
+    for (const [k, g] of Object.entries(valgtM.ingredienser)) if (g >= 100) bruktVarer.add(k);
+    const n1 = naeringMaltid(valgtM, 1, mat, dato);
+    if (!n1) continue;
+    let faktor = n1.kcal ? mal_kcal / n1.kcal : 1;
+    const maks = slot === 'mellom' || slot === 'kveld' ? 1.5 : 2;
+    faktor = valgtM.fast ? Math.min(valgtM.tags.includes('frukt') ? 2 : 1, Math.max(1, Math.round(faktor))) : Math.min(maks, Math.max(0.5, Math.round(faktor * 4) / 4));
+    const n = naeringMaltid(valgtM, faktor, mat, dato);
+    const mangler = Object.keys(valgtM.ingredienser).filter((k) => !INGREDIENSER[k]?.basis && !((kjokken[k] || 0) >= valgtM.ingredienser[k] * faktor * 0.9));
+    proteinSaaLangt += n.p;
+    ut.push({ slot, m: valgtM, faktor, ...n, mangler });
+  }
+  if (middag) ut.push(middag);
+  const REKKE = ['frokost', 'lunsj', 'mellom', 'middag', 'kveld'];
+  ut.sort((x, y) => REKKE.indexOf(x.slot) - REKKE.indexOf(y.slot));
+  const total = ut.reduce((s, x) => ({ kcal: s.kcal + x.kcal, p: s.p + x.p, f: s.f + x.f, k: s.k + x.k }), { kcal: 0, p: 0, f: 0, k: 0 });
+  return { maltider: ut, total, mal };
+}
+
+// Alternativer når man vil bytte et måltid
+export function alternativer({ mat, personId, slot, dato }) {
+  const pr = mat.profiler?.[personId] || {};
+  return MALTIDER.filter((x) => (x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom')) && passerMaltid(x, pr))
+    .filter((x) => !x.rester || naeringMaltid(x, 1, mat, dato));
+}
+
+// ================= Ukeshandel: alt dere trenger den neste uka =================
+export function behovForUke({ mat, personer, fra, dager = 7, medDagsplan = true }) {
+  const behov = {};
+  const legg = (key, gram, hva) => {
+    if (!INGREDIENSER[key] || INGREDIENSER[key].basis || !(gram > 0)) return;
+    (behov[key] ??= { gram: 0, retter: [] }).gram += gram;
+    if (!behov[key].retter.includes(hva)) behov[key].retter.push(hva);
+  };
+  for (let i = 0; i < dager; i++) {
+    const d = leggTilDager(fra, i);
+    const m = mat.meny?.[d];
+    const r = m?.id && !m.spist ? oppskrift(m.id) : null;
+    if (r) {
+      const porsjoner = porsjonerFor(mat, personer, r).total;
+      for (const [key, gram] of Object.entries(r.ingredienser)) legg(key, (gram * porsjoner) / r.porsjoner, r.navn);
+    }
+    if (!medDagsplan) continue;
+    for (const p of personer) {
+      if (!mat.profiler?.[p.id]?.frokostvaner && !mat.profiler?.[p.id]?.lunsjvaner) continue; // bare for de som har svart
+      const plan = dagsplan({ mat, personer, personId: p.id, dato: d });
+      for (const x of plan.maltider) {
+        if (x.slot === 'middag' || !x.m?.ingredienser) continue;
+        const spist = (mat.logg || []).some((l) => l.type === 'maltid' && l.dato === d && l.person === p.id && l.slot === x.slot);
+        if (spist) continue;
+        for (const [key, gram] of Object.entries(x.m.ingredienser)) legg(key, gram * x.faktor, MALTIDSNAVN[x.slot]);
+      }
+    }
+  }
+  // Baker dere selv, står det brødmiks på lista i stedet for brød (1 kg miks blir ca. 1,6 kg brød)
+  if (mat.husstand?.brod === 'selv' && behov.brod) {
+    const b = behov.brod;
+    delete behov.brod;
+    const igjen = b.gram - (mat.kjokken?.brod || 0);
+    if (igjen > 0) { const m = (behov.brodmiks ??= { gram: 0, retter: [] }); m.gram += igjen / 1.6; for (const r of b.retter) if (!m.retter.includes(r)) m.retter.push(r); }
+  }
+  const mangler = [];
+  for (const [key, b] of Object.entries(behov)) {
+    const trenger = b.gram - (mat.kjokken?.[key] || 0);
+    if (trenger > 5) mangler.push({ key, gram: Math.round(trenger), retter: b.retter, pakker: Math.max(1, Math.ceil(trenger / INGREDIENSER[key].pakke)) });
+  }
+  return mangler.sort((a, b) => INGREDIENSER[a.key].navn.localeCompare(INGREDIENSER[b.key].navn, 'nb'));
+}
+
+// ================= Hvilken butikk er billigst? =================
+// Grovt prisnivå på varer som ikke er på tilbud (1,00 = lavpris). Et anslag, ikke målte priser.
+export const PRISNIVA = { 'REMA 1000': 1.0, 'KIWI': 1.0, 'Coop Extra': 1.0, 'Coop Obs': 0.99, 'Coop Prix': 1.06, 'Eurospar': 1.08, 'SPAR': 1.08, 'Joker': 1.15, 'MENY': 1.15, 'Bunnpris': 1.1, 'Coop Mega': 1.1 };
+
+const butikkCache = new WeakMap();
+export function tilbudPerButikk(tilbud) {
+  if (!tilbud) return {};
+  if (butikkCache.has(tilbud)) return butikkCache.get(tilbud);
+  const ut = {};
+  for (const [key, ing] of Object.entries(INGREDIENSER)) {
+    if (!ing.sok.length) continue;
+    const passer = lagMatcher({ sok: ing.sok, ikke: ing.ikke });
+    for (const t of tilbud) {
+      if (!passer(t.tittel)) continue;
+      const kg = t.enhet === 'kg' || t.enhet === 'l' ? t.enhetspris : t.enhet === 'stk' && ing.stk ? (t.enhetspris * 1000) / ing.stk : null;
+      if (!(kg > 0)) continue;
+      const b = (ut[t.butikk] ??= {});
+      if (!b[key] || kg < b[key].kg) b[key] = { kg, t };
+    }
+  }
+  butikkCache.set(tilbud, ut);
+  return ut;
+}
+
+export function butikkanbefaling({ varer, tilbud, foretrukne = [] }) {
+  const perButikk = tilbudPerButikk(tilbud);
+  const butikker = [...new Set([...(tilbud || []).map((t) => t.butikk)])].filter((b) => !foretrukne.length || foretrukne.includes(b));
+  if (!butikker.length || !varer.length) return null;
+  const prisHos = (b, v) => {
+    const ing = INGREDIENSER[v.key];
+    const tb = perButikk[b]?.[v.key];
+    const kg = tb && tb.kg < ing.pris * (PRISNIVA[b] ?? 1.05) ? tb.kg : ing.pris * (PRISNIVA[b] ?? 1.05);
+    return { kr: v.pakker * (ing.pakke / 1000) * kg, tilbud: !!tb && tb.kg < ing.pris * (PRISNIVA[b] ?? 1.05) };
+  };
+  const totaler = butikker.map((b) => {
+    let sum = 0, antallTilbud = 0;
+    for (const v of varer) { const p = prisHos(b, v); sum += p.kr; if (p.tilbud) antallTilbud++; }
+    return { butikk: b, sum, antallTilbud };
+  }).sort((a, b) => a.sum - b.sum);
+  // Lønner det seg å dele handelen på to butikker?
+  let deling = null;
+  for (let i = 0; i < totaler.length; i++) for (let j = i + 1; j < totaler.length; j++) {
+    const a = totaler[i].butikk, b = totaler[j].butikk;
+    let sum = 0; const hosB = [];
+    for (const v of varer) { const pa = prisHos(a, v).kr, pb = prisHos(b, v).kr; if (pb < pa) { sum += pb; hosB.push(v.key); } else sum += pa; }
+    const spar = totaler[0].sum - sum;
+    if (hosB.length && spar > 40 && (!deling || spar > deling.spar)) deling = { a, b, hosB, sum, spar };
+  }
+  return { totaler, beste: totaler[0], deling };
 }
