@@ -283,6 +283,7 @@
     .sp-hopp { border: 0; background: none; color: var(--dempet); font-weight: 600; justify-self: center; padding: 6px; }
     .velkomst h2 { font-size: 26px; }
     .velkomst .stor-ikon { font-size: 54px; text-align: center; }
+    .sprakvalg { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
     .navnrad { display: grid; grid-template-columns: 1fr 40px; gap: 6px; margin-top: 6px; }
 
     /* Språk */
@@ -527,7 +528,7 @@
       ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
       nyeSporsmalFor, nyeHusstandssporsmalFor,
     } from './sporsmal.js';
-    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp } from './sprak.js';
+    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js';
     import { MAT_EN } from './mat-en.js';
     import { MAT_ES } from './mat-es.js';
     leggTilOrdbok({ en: MAT_EN, es: MAT_ES });
@@ -1722,10 +1723,13 @@
       const d = $('velkommen');
       if (steg === 'start') {
         $('velkommenInnhold').innerHTML = `
+          <div class="sprakvalg" role="group" aria-label="Språk · Language · Idioma" data-ikke-oversett>
+            ${SPRAK.map((x) => `<button type="button" class="chip" data-velk-sprak="${x.id}" aria-pressed="${x.id === sprak}">${x.flagg} ${x.navn}</button>`).join('')}
+          </div>
           <div class="stor-ikon">🏡</div>
           <h2 id="velkommenTittel" style="text-align:center">Velkommen til Hjemme</h2>
           <p class="forklaring" style="text-align:center">Middagsforslag ut fra tilbudene, handleliste, kalorier og budsjett for hele husstanden – på ett sted.</p>
-          <button class="knapp hoved stor" type="button" data-velk="ny">🏠 Lag en ny husstand</button>
+          <button class="knapp hoved stor" type="button" data-velk="ny" autofocus>🏠 Lag en ny husstand</button>
           <button class="knapp stor" type="button" data-velk="inv">✉️ Jeg har fått en invitasjon</button>
           <button class="lenke" type="button" data-velk="gammel" style="justify-self:center">Har du brukt budsjettet her før? Hent oppsettet</button>`;
       } else if (steg === 'ny') {
@@ -1754,6 +1758,8 @@
     }
     $('velkommen').addEventListener('cancel', (e) => e.preventDefault());
     $('velkommen').addEventListener('click', (e) => {
+      const valgt = e.target.closest('[data-velk-sprak]');
+      if (valgt) { if (valgt.dataset.velkSprak !== sprak) settSprak(valgt.dataset.velkSprak); return; }
       const b = e.target.closest('[data-velk]');
       if (!b) return;
       const hva = b.dataset.velk;
