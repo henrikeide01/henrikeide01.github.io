@@ -314,6 +314,7 @@
     <!-- ============ UKE ============ -->
     <main data-fane="uke" hidden>
       <h1>Ukemeny</h1>
+      <div class="chips" id="fokusvalg" aria-label="Hva er viktigst" style="margin:-4px 0 12px"></div>
       <div class="kort" id="ukemeny"></div>
       <div class="knapprad" style="margin:-2px 0 12px"><button class="knapp" type="button" id="nyUke">🔄 Lag ny ukemeny</button></div>
       <div class="kort" id="handleliste"></div>
@@ -480,7 +481,7 @@
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       behovForMeny, snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
     } from './mat.js';
-    import { PERSONSPORSMAL, HUSSTANDSPORSMAL, INNTEKTSSPORSMAL, kjorSporsmal } from './sporsmal.js';
+    import { PERSONSPORSMAL, HUSSTANDSPORSMAL, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal } from './sporsmal.js';
 
     // Telefoner som brukte budsjettet før oppstarten kom, beholder oppsettet sitt
     sikreTidligereOppsett();
@@ -947,7 +948,19 @@
     }
 
     // ---------- Uke ----------
+    function tegnFokus() {
+      const valgt = new Set(S.mat.husstand?.fokus || []);
+      $('fokusvalg').innerHTML = FOKUSVALG.map((o) => `<button type="button" class="chip" data-fokus="${o.v}" aria-pressed="${valgt.has(o.v)}">${o.ikon} ${esc(o.tekst)}</button>`).join('');
+    }
+
+    // Lag menyen på nytt for dagene som ikke er spist eller valgt for hånd
+    function lagMenyPaNytt() {
+      for (const [d, m] of Object.entries(S.mat.meny || {})) if (d >= idag() && !m.spist && !m.laast) delete S.mat.meny[d];
+      sikreMeny();
+    }
+
     function tegnUkemeny() {
+      tegnFokus();
       const rader = [];
       for (let i = 0; i < 7; i++) {
         const d = leggTilDager(idag(), i);
@@ -1056,7 +1069,8 @@
         </div>`;
       }).join('');
       const h = S.mat.husstand || {};
-      const del = [h.middager && `${h.middager} middager i uka`, h.tid && `maks ca. ${h.tid} min på hverdager`, (h.utstyr || []).length && `har ${h.utstyr.join(', ')}`, h.rester === 'ja' && 'lager ekstra til matpakke'].filter(Boolean);
+      const fokusTekst = { protein: 'mye protein', billig: 'billig', raskt: 'raskt', lett: 'lett' };
+      const del = [(h.fokus || []).length && `prioriterer ${h.fokus.map((f) => fokusTekst[f]).join(' og ')}`, h.middager && `${h.middager} middager i uka`, h.tid && `maks ca. ${h.tid} min på hverdager`, (h.utstyr || []).length && `har ${h.utstyr.join(', ')}`, h.rester === 'ja' && 'lager ekstra til matpakke'].filter(Boolean);
       $('husstandMat').innerHTML = `<h2 style="margin-bottom:4px">🍽️ Middager</h2>
         <p class="forklaring">${del.length ? esc(del.join(' · ')) : 'Fortell hvor mange middager dere lager, hvor mye tid dere har og hva dere har på kjøkkenet.'}</p>
         <div class="knapprad" style="margin-top:8px"><button class="knapp" type="button" data-husstand-sp>${del.length ? 'Endre' : 'Svar på spørsmål'}</button></div>`;
@@ -1292,7 +1306,15 @@
       if (ds.bytt) { byttMiddag(ds.bytt); return; }
       if (ds.spist) { visSpist(ds.spist); return; }
       if (ds.lagreSpist) { lagreSpist(ds.lagreSpist); return; }
-      if (ds.velg) { S.mat.meny[ds.dato] = { id: ds.velg }; lagreMatNa(); $('rettDialog').close(); tegnMat(); vis('Lagt i ukemenyen ✓'); return; }
+      if (ds.fokus) {
+        const valgt = new Set(S.mat.husstand?.fokus || []);
+        valgt.has(ds.fokus) ? valgt.delete(ds.fokus) : valgt.add(ds.fokus);
+        S.mat.husstand = { ...(S.mat.husstand || {}), fokus: [...valgt] };
+        lagMenyPaNytt(); lagreMatNa(); tegnMat();
+        vis(valgt.size ? 'Ukemenyen er tilpasset ✓' : 'Ukemenyen er oppdatert');
+        return;
+      }
+      if (ds.velg) { S.mat.meny[ds.dato] = { id: ds.velg, laast: true }; lagreMatNa(); $('rettDialog').close(); tegnMat(); vis('Lagt i ukemenyen ✓'); return; }
       if (ds.fri) { S.mat.meny[ds.fri] = { fri: true }; lagreMatNa(); $('rettDialog').close(); tegnMat(); return; }
       if (ds.angreSpist) {
         const d = ds.angreSpist, m = S.mat.meny?.[d];

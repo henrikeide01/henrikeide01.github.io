@@ -31,7 +31,10 @@ export const PERSONSPORSMAL = [
 // Kun når en ny husstand settes opp: inntekt per person til budsjettet
 export const INNTEKTSSPORSMAL = { id: 'inntekt', type: 'tall', tekst: 'Hvor mye har du å bruke i måneden?', enhet: 'kr', min: 0, max: 200000, hjelp: 'Studielån, lønn og annet etter skatt. Du kan endre det senere.' };
 
+export const FOKUSVALG = [V('protein', 'Mye protein', '💪'), V('billig', 'Billig', '💸'), V('raskt', 'Raskt å lage', '⚡'), V('lett', 'Lett og få kalorier', '🥗')];
+
 export const HUSSTANDSPORSMAL = [
+  { id: 'fokus', type: 'flere', tekst: 'Hva er viktigst når dere velger middag?', hjelp: 'Velg så mange dere vil.', valg: FOKUSVALG },
   { id: 'middager', type: 'valg', tekst: 'Hvor mange middager lager dere hjemme i uka?', valg: [3, 4, 5, 6, 7].map((n) => V(String(n), `${n} middager`, '🍽️')) },
   { id: 'tid', type: 'valg', tekst: 'Hvor lang tid har dere til middag på hverdager?', valg: [V('15', 'Maks 15 minutter', '⚡'), V('25', 'Ca. 25 minutter', '⏱️'), V('35', 'Ca. 35 minutter', '🕒'), V('60', 'Gjerne en time', '👨‍🍳')] },
   { id: 'utstyr', type: 'flere', tekst: 'Hva har dere på kjøkkenet?', valg: [

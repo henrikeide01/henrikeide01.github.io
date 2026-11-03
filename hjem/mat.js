@@ -18,10 +18,11 @@ export const INGREDIENSER = {
   bacon: I('Bacon', 330, 15, 30, 0.5, 200, 200, 'kjott', [], ['bacon'], ['postei', 'chips', 'dressing', 'ost'], { svin: true }),
   polser: I('Pølser', 230, 12, 19, 3, 600, 120, 'kjott', [], ['pølse', 'wiener'], ['brød', 'lompe', 'pålegg', 'salami', 'skivet'], { svin: true }),
   skinke: I('Skinke', 110, 19, 3, 1, 150, 230, 'kjott', [], ['kokt skinke', 'skinke i skiver', 'skinke i biter', 'renskåret kokt skinke'], ['stek', 'spekeskinke'], { svin: true }),
+  tunfisk: I('Tunfisk', 110, 25, 1, 0, 185, 110, 'fisk', ['fisk'], ['tunfisk'], ['salat', 'pizza', 'postei', 'i olje']),
   egg: I('Egg', 140, 12.5, 10, 0.7, 720, 75, 'egg', ['egg'], ['"egg"', 'frokostegg', 'gårdsegg'], ['sjokolade', 'påske', 'kinder'], { stk: 60 }),
   kidney: I('Kidneybønner', 100, 7, 0.5, 13, 400, 40, 'gronn', [], ['kidneybønner', 'chilibønner', 'bønner'], ['grønne bønner', 'bønnespirer']),
   linser: I('Røde linser', 340, 25, 1.5, 50, 500, 50, 'gronn', [], ['linser']),
-  ost: I('Revet ost', 350, 27, 27, 0, 500, 160, 'meieri', ['melk'], ['gulost', 'norvegia', 'jarlsberg', 'revet ost', 'ekte revet', 'revet lettost', 'pizzaost', 'cheese mix', 'hvitost'], ['chips', 'kjeks', 'brunost', 'smøreost', 'kremost', 'snacks']),
+  ost: I('Ost', 350, 27, 27, 0, 500, 160, 'meieri', ['melk'], ['gulost', 'norvegia', 'jarlsberg', 'revet ost', 'ekte revet', 'revet lettost', 'pizzaost', 'cheese mix', 'hvitost'], ['chips', 'kjeks', 'brunost', 'smøreost', 'kremost', 'snacks']),
   feta: I('Fetaost', 260, 14, 21, 2, 200, 180, 'meieri', ['melk'], ['feta', 'salatost', 'apetina']),
   romme: I('Rømme', 190, 2.7, 18, 4, 300, 90, 'meieri', ['melk'], ['rømme', 'seterrømme', 'lettrømme', 'crème fraîche'], ['dressing', 'dip', 'potet']),
   matflote: I('Matfløte', 180, 2.5, 18, 3.6, 300, 80, 'meieri', ['melk'], ['matfløte']),
@@ -78,7 +79,7 @@ export const OPPSKRIFTER = [
     ['Stek kjøttdeigen, og rør inn tacokrydder og litt vann.', 'Kutt salat, tomat og agurk.', 'Varm lefsene og sett alt på bordet.']),
   R('bolognese', 'Spaghetti bolognese', '🍝', 30, 'italiensk', ['pasta', 'kjottdeig'],
     { kjottdeig: 400, hakketomat: 800, lok: 150, gulrot: 150, hvitlok: 10, pasta: 400, ost: 60, olje: 15 },
-    ['Hakk løk, hvitløk og gulrot, og fres dem i olje.', 'Ta med kjøttdeigen og stek til den er brun.', 'Hell i hakkede tomater og la sausen småkoke i 15 minutter.', 'Kok pastaen, og server med sausen og revet ost.']),
+    ['Hakk løk, hvitløk og gulrot, og fres dem i olje.', 'Ta med kjøttdeigen og stek til den er brun.', 'Hell i hakkede tomater og la sausen småkoke i 15 minutter.', 'Kok pastaen, og server med sausen og litt ost på toppen.']),
   R('kjottkaker', 'Kjøttkaker i brun saus', '🥔', 50, 'norsk', ['kjottdeig', 'husmannskost'],
     { kjottdeig: 600, egg: 60, lok: 100, poteter: 1000, erter: 300, mel: 30, smor: 30, melk: 100 },
     ['Kok potetene.', 'Bland kjøttdeig, egg, revet løk, melk, salt og pepper, og form kjøttkaker.', 'Brun kjøttkakene i smør, og legg dem til side.', 'Lag brun saus: brun smør og mel, spe med vann og buljong, og legg kjøttkakene i sausen i 10 minutter.', 'Server med poteter og erter.']),
@@ -93,7 +94,7 @@ export const OPPSKRIFTER = [
     ['Kok risen.', 'Stek kylling i biter i olje.', 'Ta med løk, sopp og paprika, og stek litt til.', 'Hell i matfløte og la det koke i 10 minutter. Smak til med salt og pepper.']),
   R('pestopasta', 'Pasta med kylling og pesto', '🌿', 20, 'italiensk', ['pasta', 'kylling'],
     { pasta: 400, kyllingfilet: 500, pesto: 120, tomat: 250, ost: 40, olje: 10 },
-    ['Kok pastaen.', 'Stek kyllingen i strimler.', 'Vend pasta, kylling, pesto og delte tomater sammen.', 'Dryss over revet ost.']),
+    ['Kok pastaen.', 'Stek kyllingen i strimler.', 'Vend pasta, kylling, pesto og delte tomater sammen.', 'Strø over litt ost.']),
   R('quesadilla', 'Quesadilla med kylling', '🫓', 20, 'meksikansk', ['kylling', 'taco'],
     { tortilla: 370, kyllingfilet: 400, ost: 200, paprika: 150, mais: 150, romme: 150, tacokrydder: 28, olje: 10 },
     ['Stek kyllingen i biter med tacokrydder.', 'Fordel kylling, paprika, mais og ost på halvparten av hver lefse, og brett dem sammen.', 'Stek lefsene i tørr panne til de er gylne på begge sider.', 'Server med rømme.']),
@@ -138,7 +139,7 @@ export const OPPSKRIFTER = [
     ['Kok risen.', 'Fres løk og paprika, og krydre med chili og spisskummen.', 'Ta med bønner, mais og tomater, og la det koke i 15 minutter.', 'Server med ris og rømme.']),
   R('carbonara', 'Pasta carbonara', '🥓', 20, 'italiensk', ['pasta'],
     { pasta: 400, bacon: 250, egg: 240, ost: 100 },
-    ['Kok pastaen.', 'Stek baconet sprøtt.', 'Visp egg og revet ost sammen.', 'Vend den varme pastaen med bacon og eggeblandingen utenfor platen, så eggene ikke blir eggerøre.']),
+    ['Kok pastaen.', 'Stek baconet sprøtt.', 'Visp sammen egg og litt ost.', 'Vend den varme pastaen med bacon og eggeblandingen utenfor platen, så eggene ikke blir eggerøre.']),
   R('kyllingbowl', 'Kyllingbowl med ris og avokado', '🥗', 25, 'asiatisk', ['kylling', 'ris'],
     { kyllingfilet: 500, ris: 320, avokado: 300, mais: 200, agurk: 200, romme: 150, soyasaus: 20, olje: 10 },
     ['Kok risen.', 'Stek kyllingen, og smak til med soyasaus.', 'Fordel ris, kylling, avokado, mais og agurk i boller.', 'Topp med en dressing av rømme.']),
@@ -154,6 +155,15 @@ export const OPPSKRIFTER = [
   R('svinewok', 'Svinewok med ris', '🥢', 20, 'asiatisk', ['wok', 'ris'],
     { svinekjott: 500, wokgronnsaker: 750, ris: 320, soyasaus: 40, olje: 20 },
     ['Kok risen.', 'Stek svinekjøttet på høy varme.', 'Ta med wokgrønnsakene og soyasausen, og stek i 4 minutter.']),
+  R('kyllingris', 'Kylling, ris og brokkoli', '💪', 25, 'asiatisk', ['kylling', 'ris'],
+    { kyllingfilet: 700, ris: 300, brokkoli: 500, soyasaus: 30, olje: 15, hvitlok: 10 },
+    ['Kok risen.', 'Skjær kyllingen i biter, og stek den i olje med hvitløk.', 'Damp eller kok brokkolien i 4 minutter.', 'Smak til med soyasaus. Fint å lage dobbelt til matpakker.']),
+  R('tacobowl', 'Tacobowl med kjøttdeig og bønner', '🌯', 25, 'meksikansk', ['taco', 'kjottdeig', 'ris'],
+    { kjottdeig: 400, kidney: 400, ris: 300, mais: 200, tacokrydder: 28, romme: 150, ost: 80, salat: 100 },
+    ['Kok risen.', 'Stek kjøttdeigen, og rør inn tacokrydder, bønner og litt vann.', 'Fordel ris, kjøttdeig, mais og salat i boller.', 'Topp med rømme og ost.']),
+  R('tunfiskpasta', 'Tunfiskpasta med tomat', '🐟', 20, 'italiensk', ['pasta', 'fisk'],
+    { pasta: 400, tunfisk: 370, hakketomat: 400, lok: 100, ost: 60, olje: 10 },
+    ['Kok pastaen.', 'Fres løken i olje, og ta med hakkede tomater.', 'Rør inn tunfisken, og la sausen koke i 5 minutter.', 'Vend sammen med pastaen, og strø over litt ost.']),
   R('kyllingsalat', 'Kyllingsalat med feta', '🥗', 20, 'middelhav', ['kylling'],
     { kyllingfilet: 500, salat: 200, tomat: 250, agurk: 200, feta: 150, mais: 150, olje: 20 },
     ['Stek kyllingen, og skjær den i biter.', 'Kutt salat, tomat og agurk.', 'Bland alt, og topp med feta og en dressing av olje og sitron.']),
@@ -274,7 +284,8 @@ export function foreslaa({ mat, personer, tilbud, dato, unnta = new Set(), forri
   const profiler = personer.map((p) => ({ id: p.id, ...(mat.profiler?.[p.id] || {}) }));
   const hus = mat.husstand || {};
   const tilbudInfo = tilbudPaIngredienser(tilbud);
-  const sparevekt = hus.sparing === 'veldig' ? 1.5 : hus.sparing === 'lite' ? 0.5 : 1;
+  const fokus = new Set(hus.fokus || []);
+  const sparevekt = Math.max(hus.sparing === 'veldig' ? 1.5 : hus.sparing === 'lite' ? 0.5 : 1, fokus.has('billig') ? 1.5 : 0);
   const ukedag = new Date(dato + 'T12:00:00Z').getUTCDay();
   const hverdag = ukedag >= 1 && ukedag <= 4;
   const sistSpist = {};
@@ -338,6 +349,18 @@ export function foreslaa({ mat, personer, tilbud, dato, unnta = new Set(), forri
     const pris = prisFor(r, skala, tilbudInfo);
     const prisPerPorsjon = pris / porsjoner;
     poeng -= (prisPerPorsjon / 15) * sparevekt;
+    const n = perPorsjon(r);
+    if (fokus.has('protein')) {
+      poeng += (n.p - 35) * 0.3;
+      if (n.p >= 40) grunner.unshift(`💪 ${Math.round(n.p)} g protein per porsjon`);
+      if (fokus.has('billig') || sparevekt > 1) {
+        const perKrone = n.p / Math.max(8, prisPerPorsjon);
+        poeng += (perKrone - 1.2) * 3;
+        if (perKrone >= 1.5 && n.p >= 35) grunner.push('Mye protein for pengene');
+      }
+    }
+    if (fokus.has('raskt')) poeng += r.tid <= 25 ? 2 : r.tid > 40 ? -3 : 0;
+    if (fokus.has('lett')) poeng += n.kcal < 600 ? 2 : n.kcal > 800 ? -2 : 0;
     if (prisPerPorsjon < 30) grunner.push(`Bare ca. ${Math.round(prisPerPorsjon)} kr per porsjon`);
     return { r, poeng, grunner, paTilbud, pris, prisPerPorsjon, porsjoner, skala };
   }).sort((a, b) => b.poeng - a.poeng);
