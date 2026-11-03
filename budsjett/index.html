@@ -177,6 +177,23 @@
     .melding { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: var(--tekst); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
     .melding.vis { opacity: 1; }
 
+    /* Deling */
+    .delingslinje { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--flate); border: 1px solid var(--linje); border-radius: 999px; padding: 6px 6px 6px 14px; margin-bottom: 12px; font-size: 14px; color: var(--dempet); }
+    .delingslinje b { color: var(--tekst); }
+    .delingslinje.feil { color: var(--kritisk-tekst); }
+    .delingslinje button { border: 0; background: var(--flate-2); border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+    .invitasjon { display: grid; gap: 8px; background: linear-gradient(135deg, var(--aksent-svak), var(--flate)); }
+    dialog { border: 0; padding: 0; background: var(--flate); color: var(--tekst); border-radius: 22px; width: min(480px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    dialog::backdrop { background: rgba(10, 12, 16, .55); }
+    .dialoginnhold { padding: 20px; display: grid; gap: 12px; }
+    .dialoginnhold h2 { margin: 0; font-size: 21px; }
+    .lenkefelt { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+    .lenkefelt input { font-size: 13px; }
+    .qr { display: grid; place-items: center; padding: 12px; background: #fff; border-radius: 14px; border: 1px solid var(--linje); justify-self: center; }
+    .qr img, .qr canvas { display: block; }
+    .kode { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; font-weight: 700; letter-spacing: .06em; text-align: center; }
+    pre.regler { white-space: pre-wrap; font-size: 12.5px; background: var(--flate-2); border-radius: 10px; padding: 10px; }
+
     @media (max-width: 520px) {
       .planlinje { grid-template-columns: 1fr 1fr 34px; grid-template-areas: "navn navn slett" "hvem belop belop"; row-gap: 4px; margin-top: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--linje); }
       .nokkel .verdi { font-size: 17px; }
@@ -193,6 +210,7 @@
     <!-- ============ OVERSIKT ============ -->
     <main id="fane-oversikt" data-fane="oversikt">
       <h1>Oversikt</h1>
+      <div id="deling"></div>
       <div class="velger" aria-label="Velg måned">
         <button class="pil" id="forrige" aria-label="Forrige måned">‹</button>
         <span id="maaned"></span>
@@ -268,6 +286,13 @@
         <div id="planredigering"></div>
       </div>
 
+      <div class="kort" id="delingskort" hidden>
+        <details class="fold">
+          <summary>👥 Felles budsjett</summary>
+          <div class="innhold" id="delingsinnstillinger"></div>
+        </details>
+      </div>
+
       <div class="kort">
         <details class="fold">
           <summary>🏠 Husstanden</summary>
@@ -304,6 +329,8 @@
     <a href="#budsjett" data-til="budsjett"><span>📋</span>Budsjett</a>
   </nav>
 
+  <dialog id="delDialog" aria-labelledby="delTittel"><div class="dialoginnhold" id="delInnhold"></div></dialog>
+
   <div class="melding" id="melding" role="status" aria-live="polite"></div>
 
   <script type="module">
@@ -313,6 +340,7 @@
       nettoAv, lonnsstatistikk, anslagLonn, lonnsprofil, FRIKORTGRENSE, kroner, normaliserPlan,
     } from './budsjett.js';
     import { tolkLonnsslipp } from './lonnsslipp.js';
+    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode } from './synk.js';
 
     // Tekstgjenkjenning (lastes først når du laster opp et bilde)
     const OCR = {
@@ -331,7 +359,7 @@
     const tallFra = (v) => parseFloat(String(v ?? '').replace(/\s/g, '').replace(',', '.'));
     const kr2 = (n) => (n == null ? '' : String(Math.round(n * 100) / 100));
 
-    const S = { plan: lesPlan(), poster: lesPoster(), lonn: lesLonn(), maaned: maanedAv(idag()), valgtKategori: 'mat', visning: 'alle', visAllePoster: false, forslag: null };
+    const S = { plan: lesPlan(), poster: lesPoster(), lonn: lesLonn(), maaned: maanedAv(idag()), valgtKategori: 'mat', visning: 'alle', visAllePoster: false, forslag: null, lonnPerson: null };
 
     const flere = () => S.plan.personer.length > 1;
     const personNavn = (id) => S.plan.personer.find((p) => p.id === id)?.navn || '?';
@@ -401,9 +429,9 @@
       const kort = (u) => (flere() && u.hvem !== 'felles' ? `${u.navn} (${personNavn(u.hvem)})` : u.navn);
       // Bare de vanligste kategoriene som knapper; resten ligger i lista under «Dato, notat eller annen kategori»
       const FORETRUKKET = ['mat', 'kantine', 'fritid', 'hygiene', 'klaer'];
-      const forste = S.plan.personer[0]?.id;
+      const forste = meg();
       const vis = lopende().filter((u) => u.hvem === 'felles' || u.hvem === forste)
-        .sort((a, b) => ((FORETRUKKET.indexOf(a.id) + 1) || 99) - ((FORETRUKKET.indexOf(b.id) + 1) || 99))
+        .sort((a, b) => ((FORETRUKKET.indexOf(a.id.replace(/-p2$/, '')) + 1) || 99) - ((FORETRUKKET.indexOf(b.id.replace(/-p2$/, '')) + 1) || 99))
         .slice(0, 5);
       if (!vis.some((u) => u.id === S.valgtKategori)) { const valgt = S.plan.utgifter.find((u) => u.id === S.valgtKategori); if (valgt) vis.unshift(valgt); }
       $('hurtig').innerHTML = vis.map((u) => `<button type="button" class="brikke" data-hurtig="${esc(u.id)}" aria-pressed="${u.id === S.valgtKategori}">${esc(kort(u))}</button>`).join('');
@@ -444,8 +472,8 @@
     }
 
     function tegnLonn() {
-      if (!S.plan.personer.some((p) => p.id === S.lonn.valgt)) S.lonn.valgt = S.plan.personer[0].id;
-      const hvem = S.lonn.valgt, navn = personNavn(hvem), pr = lonnsprofil(S.lonn, hvem);
+      if (!S.plan.personer.some((p) => p.id === S.lonnPerson)) S.lonnPerson = meg();
+      const hvem = S.lonnPerson, navn = personNavn(hvem), pr = lonnsprofil(S.lonn, hvem);
       personknapper($('lonnPerson'), hvem, 'data-lonnperson');
       const a = anslagLonn(pr);
       const stat = lonnsstatistikk(S.lonn.slipper.filter((s) => s.hvem === hvem));
@@ -555,7 +583,7 @@
         const { data } = await ocrArbeider.recognize(kilde);
         const r = tolkLonnsslipp(data.text);
         const lavt = data.text.toLowerCase();
-        const hvem = S.plan.personer.find((p) => p.navn && lavt.includes(p.navn.toLowerCase()))?.id || S.lonn.valgt;
+        const hvem = S.plan.personer.find((p) => p.navn && lavt.includes(p.navn.toLowerCase()))?.id || S.lonnPerson;
         S.forslag = { ...r, hvem, bilde: url, tekst: data.text, lest: true };
         $('ocrStatus').hidden = true;
         tegnForslag();
@@ -563,7 +591,7 @@
       } catch (e) {
         console.error(e);
         ocrStatus('Klarte ikke å lese bildet. Sjekk at du er på nett, eller skriv inn tallene selv.', 0);
-        S.forslag = { hvem: S.lonn.valgt, maaned: null, timer: null, brutto: null, skatt: null, netto: null, bilde: url, lest: false, funnet: [] };
+        S.forslag = { hvem: S.lonnPerson, maaned: null, timer: null, brutto: null, skatt: null, netto: null, bilde: url, lest: false, funnet: [] };
         tegnForslag();
       } finally {
         $('bildeKnapp').removeAttribute('aria-disabled');
@@ -642,7 +670,147 @@
     }
 
     function tegnBudsjett() { tegnVisningsvelger(); tegnPlanOversikt(); }
+    // ================= FELLES BUDSJETT =================
+    const meg = () => { const j = deling()?.jeg; return S.plan.personer.some((p) => p.id === j) ? j : S.plan.personer[0]?.id; };
+    const andre = () => S.plan.personer.filter((p) => p.id !== meg()).map((p) => p.navn).join(' og ') || 'resten av husstanden';
+    const klokke = new Intl.DateTimeFormat('nb-NO', { hour: '2-digit', minute: '2-digit' });
+
+    const REGLER = `"budsjett": {
+  "$hus": { ".read": true, ".write": true }
+}`;
+
+    function tegnDeling() {
+      const d = deling();
+      if (!d?.kode) {
+        $('deling').innerHTML = flere() ? `
+          <div class="kort invitasjon">
+            <h2 style="margin:0">👥 Del budsjettet med ${esc(andre())}</h2>
+            <p class="forklaring">Da ser dere det samme budsjettet på hver deres telefon, og alt dere fører kommer med hos begge.</p>
+            <button class="knapp hoved" type="button" id="startDeling">Del budsjettet</button>
+          </div>` : '';
+        $('delingskort').hidden = true;
+        return;
+      }
+      const sist = d.sist ? klokke.format(new Date(d.sist)) : null;
+      $('deling').innerHTML = d.feil
+        ? `<div class="delingslinje feil"><span>⚠️ ${d.feil === 'nektet' ? 'Databasen tillater ikke lagring ennå' : 'Ikke oppdatert – er du på nett?'}</span><button type="button" id="synkNa">Prøv igjen</button></div>`
+        : `<div class="delingslinje"><span>👥 <b>Felles med ${esc(andre())}</b>${sist ? ` · oppdatert ${sist}` : ''}</span><button type="button" id="synkNa">⟳ Oppdater</button></div>`;
+      $('delingskort').hidden = false;
+      $('delingsinnstillinger').innerHTML = `
+        <p class="forklaring">Budsjettet er felles, og endringer kommer fram hos alle i løpet av noen sekunder.</p>
+        <div class="felt" style="margin-top:10px"><label>Du er på denne telefonen</label>
+          <div class="velger" style="margin:0">${S.plan.personer.map((p) => `<button type="button" data-jeg="${esc(p.id)}" aria-pressed="${p.id === meg()}">${esc(p.navn)}</button>`).join('')}</div></div>
+        <div class="knapprad" style="margin-top:10px">
+          <button class="knapp" type="button" id="visLenke">🔗 Vis lenken igjen</button>
+          <button class="knapp fare" type="button" id="kobleFra">Slutt å dele her</button>
+        </div>`;
+    }
+
+    function dialog(html) { $('delInnhold').innerHTML = html; if (!$('delDialog').open) $('delDialog').showModal(); }
+    const lukkKnapp = '<button class="knapp" type="button" data-lukk>Lukk</button>';
+    function feilHtml(e) {
+      return `<h2 id="delTittel">Det gikk ikke</h2><p>${esc(e.message || 'Noe gikk galt.')}</p>
+        ${e.type === 'nektet' ? `<p class="forklaring">Firebase-databasen (prosjektet «eidert») må få lov til å lagre budsjettet. Åpne Firebase-konsollen, gå til <b>Realtime Database → Regler</b>, og legg til dette inne i <code>"rules"</code> ved siden av det som står der fra før:</p>
+        <pre class="regler">${esc(REGLER)}</pre><p class="forklaring">Alt som lagres er kryptert med koden deres, så ingen andre kan lese det.</p>` : ''}
+        <div class="knapprad">${lukkKnapp}</div>`;
+    }
+
+    let qrLastet = null;
+    async function visQr(el, tekst) {
+      try {
+        qrLastet ??= new Promise((ok, feil) => { const sk = document.createElement('script'); sk.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sk.onload = ok; sk.onerror = feil; document.head.append(sk); });
+        await qrLastet;
+        el.innerHTML = '';
+        new window.QRCode(el, { text: tekst, width: 190, height: 190, correctLevel: window.QRCode.CorrectLevel.M });
+      } catch { el.remove(); }
+    }
+
+    function visLenke(kode) {
+      const lenke = delingslenke(kode);
+      dialog(`
+        <h2 id="delTittel">Send lenken til ${esc(andre())}</h2>
+        <p class="forklaring">Åpne lenken på den andre telefonen, eller skann koden med kameraet. Bare de som har lenken kan se budsjettet, så ikke del den med andre.</p>
+        <div class="qr" id="qr"></div>
+        <div class="lenkefelt"><input id="lenke" readonly value="${esc(lenke)}" aria-label="Delingslenke"><button class="knapp" type="button" id="kopierLenke">Kopier</button></div>
+        ${navigator.share ? '<button class="knapp hoved" type="button" id="delLenke">Del lenken …</button>' : ''}
+        <p class="forklaring" style="text-align:center">Eller skriv inn koden:</p>
+        <div class="kode">${esc(kode)}</div>
+        <div class="knapprad">${lukkKnapp}</div>`);
+      visQr($('qr'), lenke);
+    }
+
+    function startDelingDialog() {
+      dialog(`
+        <h2 id="delTittel">Del budsjettet</h2>
+        <p class="forklaring">Alt dere har lagt inn her blir felles: budsjettet, utgiftene og lønna. Det krypteres på telefonen før det lagres.</p>
+        <div class="felt"><label>Hvem er du?</label>
+          <div class="velger" style="margin:0" id="velgJeg">${S.plan.personer.map((p, i) => `<button type="button" data-velgjeg="${esc(p.id)}" aria-pressed="${i === 0}">${esc(p.navn)}</button>`).join('')}</div></div>
+        <div class="knapprad"><button class="knapp hoved" type="button" id="lagDeling">Lag felles budsjett</button>${lukkKnapp}</div>`);
+    }
+
+    async function bliMedDialog(kode) {
+      dialog(`<h2 id="delTittel">Felles budsjett</h2><p class="forklaring">Henter budsjettet …</p>`);
+      try {
+        const funnet = await finnDelt(kode);
+        dialog(`
+          <h2 id="delTittel">Bli med i felles budsjett</h2>
+          <p class="forklaring">Budsjettet på denne telefonen byttes ut med det felles budsjettet til ${esc(funnet.personer.map((p) => p.navn).join(' og '))}.</p>
+          <div class="felt"><label>Hvem er du?</label>
+            <div class="velger" style="margin:0" id="velgJeg">${funnet.personer.map((p, i) => `<button type="button" data-velgjeg="${esc(p.id)}" aria-pressed="${i === funnet.personer.length - 1}">${esc(p.navn)}</button>`).join('')}</div></div>
+          <div class="knapprad"><button class="knapp hoved" type="button" id="bliMed" data-kode="${esc(funnet.kode)}">Bli med</button>${lukkKnapp}</div>`);
+      } catch (e) { dialog(feilHtml(e)); }
+    }
+
+    const valgtJeg = () => document.querySelector('#velgJeg [aria-pressed="true"]')?.dataset.velgjeg;
+
+    function etterSynk(r) {
+      if (r?.endret) { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); tegnAlt(); }
+      else tegnDeling();
+    }
+
+    async function synkNa(vis = false) {
+      try { const r = await synk(); etterSynk(r); if (vis) vis_(r.endret ? 'Oppdatert ✓' : 'Alt er oppdatert ✓'); }
+      catch (e) { tegnDeling(); if (vis) dialog(feilHtml(e)); }
+    }
+    const vis_ = (t) => vis(t);
+
+    document.addEventListener('click', async (e) => {
+      const el = e.target.closest('button');
+      if (!el) return;
+      if ('lukk' in el.dataset) { $('delDialog').close(); return; }
+      if (el.dataset.velgjeg) { document.querySelectorAll('#velgJeg button').forEach((b) => b.setAttribute('aria-pressed', String(b === el))); return; }
+      if (el.dataset.jeg) { settJeg(el.dataset.jeg); S.lonnPerson = el.dataset.jeg; tegnAlt(); return; }
+      switch (el.id) {
+        case 'startDeling': startDelingDialog(); break;
+        case 'lagDeling': {
+          el.disabled = true; el.textContent = 'Lager …';
+          try { const kode = await startDeling(valgtJeg()); S.lonnPerson = meg(); tegnAlt(); visLenke(kode); }
+          catch (err) { dialog(feilHtml(err)); }
+          break;
+        }
+        case 'bliMed': {
+          el.disabled = true; el.textContent = 'Henter …';
+          try {
+            await bliMed(el.dataset.kode, valgtJeg());
+            S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.lonnPerson = meg();
+            history.replaceState(null, '', location.pathname + '#oversikt');
+            $('delDialog').close(); tegnAlt(); vis('Dere har nå felles budsjett ✓');
+          } catch (err) { dialog(feilHtml(err)); }
+          break;
+        }
+        case 'synkNa': synkNa(true); break;
+        case 'visLenke': visLenke(deling().kode); break;
+        case 'kopierLenke': try { await navigator.clipboard.writeText($('lenke').value); vis('Lenken er kopiert ✓'); } catch { $('lenke').select(); } break;
+        case 'delLenke': navigator.share({ title: 'Felles budsjett', text: 'Bli med i budsjettet vårt:', url: $('lenke').value }).catch(() => {}); break;
+        case 'kobleFra':
+          if (confirm('Slutte å dele budsjettet på denne telefonen? Det som ligger her nå blir liggende, men oppdateres ikke lenger.')) { kobleFra(); tegnDeling(); vis('Delingen er slått av her'); }
+          break;
+      }
+    });
+    $('delDialog').addEventListener('click', (e) => { if (e.target === $('delDialog')) $('delDialog').close(); });
+
     function tegnAlt() {
+      tegnDeling();
       tegnKategorivalg(); tegnOversikt(); tegnLonn(); tegnSlipper(); tegnForslag(); tegnBudsjett(); tegnPlanRedigering(); tegnHusstand();
     }
 
@@ -670,7 +838,7 @@
     $('bildeFil').addEventListener('change', (e) => { const fil = e.target.files?.[0]; if (fil) lesBilde(fil); e.target.value = ''; });
 
     $('lonnskort').addEventListener('input', (e) => {
-      const pr = lonnsprofil(S.lonn, S.lonn.valgt);
+      const pr = lonnsprofil(S.lonn, S.lonnPerson);
       const v = Math.max(0, tallFra(e.target.value) || 0);
       if (e.target.id === 'aTimer') pr.timer = v;
       else if (e.target.id === 'aTimelonn') pr.timelonn = v;
@@ -701,7 +869,7 @@
         skatt: skatt >= 0 ? skatt : (netto > 0 ? Math.max(0, brutto - netto) : 0), ...(netto > 0 ? { netto } : {}),
         iSnitt: !(f.feriepenger > 0),
       });
-      S.lonn.valgt = f.hvem;
+      S.lonnPerson = f.hvem;
       lagreLonn(S.lonn);
       S.forslag = null;
       tegnForslag(); tegnSlipper(); tegnLonn();
@@ -714,7 +882,7 @@
       const ds = el.dataset;
       if (ds.hurtig) { S.valgtKategori = ds.hurtig; tegnKategorivalg(); $('pBelop').focus(); return; }
       if (ds.visning) { S.visning = ds.visning; tegnBudsjett(); return; }
-      if (ds.lonnperson) { S.lonn.valgt = ds.lonnperson; lagreLonn(S.lonn); tegnLonn(); return; }
+      if (ds.lonnperson) { S.lonnPerson = ds.lonnperson; tegnLonn(); return; }
       if (ds.forslaghvem && S.forslag) {
         S.forslag.hvem = ds.forslaghvem;
         document.querySelectorAll('[data-forslaghvem]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.forslaghvem === ds.forslaghvem)));
@@ -747,15 +915,15 @@
       }
       switch (el.id) {
         case 'allePoster': S.visAllePoster = !S.visAllePoster; tegnPoster(); break;
-        case 'manuell': S.forslag = { hvem: S.lonn.valgt, maaned: maanedAv(idag()), timer: null, brutto: null, skatt: null, netto: null, lest: false, funnet: [] }; tegnForslag(); break;
+        case 'manuell': S.forslag = { hvem: S.lonnPerson, maaned: maanedAv(idag()), timer: null, brutto: null, skatt: null, netto: null, lest: false, funnet: [] }; tegnForslag(); break;
         case 'avbrytForslag': S.forslag = null; tegnForslag(); $('ocrStatus').hidden = true; break;
         case 'brukSlipper': {
-          const stat = lonnsstatistikk(S.lonn.slipper.filter((x) => x.hvem === S.lonn.valgt));
-          if (stat) { const pr = lonnsprofil(S.lonn, S.lonn.valgt); pr.timelonn = Math.round(stat.perTimeBrutto); pr.trekk = Math.round(stat.trekkandel * 100); lagreLonn(S.lonn); tegnLonn(); vis('Hentet fra lønnsslippene ✓'); }
+          const stat = lonnsstatistikk(S.lonn.slipper.filter((x) => x.hvem === S.lonnPerson));
+          if (stat) { const pr = lonnsprofil(S.lonn, S.lonnPerson); pr.timelonn = Math.round(stat.perTimeBrutto); pr.trekk = Math.round(stat.trekkandel * 100); lagreLonn(S.lonn); tegnLonn(); vis('Hentet fra lønnsslippene ✓'); }
           break;
         }
         case 'brukLonn': {
-          const hvem = S.lonn.valgt, belop = Number(ds.belop) || 0;
+          const hvem = S.lonnPerson, belop = Number(ds.belop) || 0;
           let linje = S.plan.inntekter.find((l) => l.hvem === hvem && /jobb|lønn/i.test(l.navn));
           if (!linje) { linje = { id: nyId(), navn: 'Jobb', belop: 0, hvem }; S.plan.inntekter.push(linje); }
           linje.belop = belop; lagre(); tegnAlt();
@@ -828,8 +996,18 @@
     });
 
     if (S.plan.migrert) { lagre(); }
+    S.lonnPerson = meg();
     visFane();
     tegnAlt();
+    startAutoSynk(etterSynk);
+    function sjekkInvitasjon() {
+      const invitasjon = location.hash.match(/bli-med=([A-Za-z0-9-]+)/);
+      if (!invitasjon) return;
+      if (erDelt() && normaliserKode(invitasjon[1]) === deling().kode) history.replaceState(null, '', location.pathname + '#oversikt');
+      else bliMedDialog(invitasjon[1]);
+    }
+    window.addEventListener('hashchange', sjekkInvitasjon);
+    sjekkInvitasjon();
   </script>
 </body>
 </html>

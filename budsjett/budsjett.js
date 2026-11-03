@@ -72,6 +72,10 @@ function les(nokkel, standard) {
 function skriv(nokkel, verdi) {
   try { localStorage.setItem(nokkel, JSON.stringify(verdi)); return true; } catch { return false; }
 }
+// Gir beskjed til synk.js (felles budsjett) om at noe er endret på denne telefonen
+function varsle(hva, stille) {
+  if (!stille && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('budsjett-lagret', { detail: hva }));
+}
 
 const lik = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -127,9 +131,9 @@ export function normaliserPlan(p, basis = null) {
 }
 
 export const lesPlan = () => normaliserPlan(les(NOKKEL_PLAN, null), les(NOKKEL_BASIS, null));
-export const lagrePlan = (plan) => skriv(NOKKEL_PLAN, plan) && skriv(NOKKEL_BASIS, STANDARD_PLAN);
+export const lagrePlan = (plan, { stille = false } = {}) => { const ok = skriv(NOKKEL_PLAN, plan) && skriv(NOKKEL_BASIS, STANDARD_PLAN); varsle('plan', stille); return ok; };
 export const lesPoster = () => les(NOKKEL_POSTER, []);
-export const lagrePoster = (poster) => skriv(NOKKEL_POSTER, poster);
+export const lagrePoster = (poster, { stille = false } = {}) => { const ok = skriv(NOKKEL_POSTER, poster); varsle('poster', stille); return ok; };
 // Lønnsprofil per person: timer (per uke eller måned), timelønn (inkl. tips) og skattetrekk i prosent.
 export const STANDARD_LONN = {
   slipper: [],
@@ -153,7 +157,7 @@ export const lesLonn = () => {
 export function lonnsprofil(lonn, hvem) {
   return (lonn.personer[hvem] ??= { timer: 0, per: 'maaned', timelonn: 0, trekk: 0 });
 }
-export const lagreLonn = (lonn) => skriv(NOKKEL_LONN, lonn);
+export const lagreLonn = (lonn, { stille = false } = {}) => { const ok = skriv(NOKKEL_LONN, lonn); varsle('lonn', stille); return ok; };
 
 export const nyId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 

@@ -45,18 +45,34 @@ function maanedFra(linjer) {
 
 const UTELAT = /hittil|i år|i aar|akkumulert|grunnlag|opptjent|saldo|tidligere|forrige/i;
 
-function sisteBelop(linjer, mønstre) {
+// Første beløp etter nøkkelordet. Står flere felt på samme linje («Brutto 9 480 Skattetrekk 475 …»)
+// eller både «denne periode» og «hittil i år», er det første tallet det riktige.
+function sisteBelop(linjer, mønstre, { skattelinje = false } = {}) {
   for (const re of mønstre) {
     for (const l of linjer) {
-      if (!re.test(l) || UTELAT.test(l)) continue;
-      const tall = tallI(etter(l, re));
-      if (tall.length) return Math.abs(tall[tall.length - 1]);
+      if (!re.test(l) || UTELAT.test(l.slice(0, (l.match(re)?.index ?? 0) + 40))) continue;
+      let rest = etter(l, re).replace(/\b(?:trekk)?tabell\s*\d{4}\b/gi, ' ');
+      if (skattelinje) rest = rest.replace(/\b[78]\d{3}\b(?=\s+-?\d)/g, ' '); // tabellnummer uten ordet «tabell»
+      const tall = tallI(rest);
+      if (tall.length) return Math.abs(tall[0]);
     }
   }
   return null;
 }
 
+// Står satsen før antallet i tabellen («Sats Antall Beløp»)?
+function satsForst(linjer) {
+  for (const l of linjer) {
+    const s = l.toLowerCase();
+    const iSats = s.search(/\bsats\b|\bpris\b|timesats|à pris/);
+    const iAnt = s.search(/\bantall\b|\bant\.?\b|\btimer\b|\bmengde\b/);
+    if (iSats >= 0 && iAnt >= 0) return iSats < iAnt;
+  }
+  return false;
+}
+
 function timerFra(linjer) {
+  const omvendt = satsForst(linjer);
   let sum = 0;
   let funnet = false;
   const timeLinje = /tim(e|er)?l[øo]nn|\btimer\b|ordin[æa]r|grunnl[øo]nn|overtid|time(?:r)? jobbet|antall timer/i;
@@ -71,10 +87,12 @@ function timerFra(linjer) {
     const ord = rest.replace(DATO, ' ').replace(/\d+(?:,\d+)?\s?%/g, ' ').trim().split(' ').filter((t) => /^-?[\d.,]+-?$/.test(t));
     const [oa, ob, ...oc] = ord.map((t) => t);
     const alt = ord.length >= 3 ? [tilTall(oa), tilTall(ob), tilTall(oc.join(''))].map((n) => Math.abs(n ?? NaN)) : null;
+    const velg = (a, b) => (omvendt ? b : a);
     if (tall.length >= 3 && passer(...tall.slice(-3))) {
-      timer = tall[tall.length - 3];
+      const [a, b] = tall.slice(-3);
+      timer = velg(a, b);
     } else if (alt && passer(...alt)) {
-      timer = alt[0];
+      timer = velg(alt[0], alt[1]);
     } else if (tall.length === 2) {
       const [a, c] = tall;
       if (a > 0 && a <= 400 && c / a >= 100 && c / a <= 1500) timer = a;
@@ -91,7 +109,7 @@ export function tolkLonnsslipp(tekst) {
   const maaned = maanedFra(linjer);
   const timer = timerFra(linjer);
   let brutto = sisteBelop(linjer, [/sum brutto|brutto ?l[øo]nn|bruttobel[øo]p|sum l[øo]nn/i, /\bbrutto\b/i]);
-  let skatt = sisteBelop(linjer, [/forskuddstrekk|skattetrekk|tabelltrekk|prosenttrekk/i, /\bskatt\b/i]);
+  let skatt = sisteBelop(linjer, [/forskuddstrekk|skattetrekk|tabelltrekk|prosenttrekk|trekk etter tabell|skatt etter tabell|skatt i prosent/i, /\bskatt\b|\bforskudd\b/i], { skattelinje: true });
   let netto = sisteBelop(linjer, [/netto ?utbetalt|til utbetaling|utbetalt bel[øo]p|[åa] utbetale|sum utbetalt|nettol[øo]nn/i, /\bnetto\b|\butbetalt\b|utbetales/i]);
   const tips = sisteBelop(linjer, [/\btips\b|\bdriks\b/i]);
   const feriepenger = sisteBelop(linjer, [/feriepenger/i]);

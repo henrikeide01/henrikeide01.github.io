@@ -324,6 +324,7 @@
   <script type="module">
     import { lagTilbudsfilter, vurder, erMat, kr, lagHistorikk, NIVAA_REKKEFOLGE, normaliser } from './motor.js';
     import { lesPlan, ukesMatbudsjett, matBruktDenneUka, leggTilPost, kroner } from '../budsjett/budsjett.js';
+    import { erDelt, synk } from '../budsjett/synk.js';
 
     // ---------- Lagring (tåler privat modus) ----------
     const lager = {
@@ -476,6 +477,7 @@
       }
       importerFraLenke();
       tegnAlt();
+      if (erDelt()) synk().then(tegnBudsjettlinje).catch(() => {}); // hent det som er ført på den andre telefonen
       hentJson('data/historikk.json').then((h) => { S.historikk = h.tilbud || null; tegnInnhold(); }).catch(() => {});
     }
 
@@ -541,6 +543,7 @@
       const butikker = [...new Set(S.handleliste.map((h) => h.butikk))].join(', ');
       leggTilPost({ belop, kategori, notat: butikker ? `Handletur: ${butikker}` : 'Handletur' });
       tegnBudsjettlinje();
+      if (erDelt()) synk().then(tegnBudsjettlinje).catch(() => {});
       if (confirm(`${kroner(belop)} kr er ført i budsjettet ✓\n\nVil du tømme handlelista?`)) {
         S.handleliste = []; lager.skriv('handleliste', []); tegnHandlelinje(); tegnInnhold(); $('handleDialog').close();
       } else {
