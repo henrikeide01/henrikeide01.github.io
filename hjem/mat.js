@@ -532,6 +532,14 @@ function passerMaltid(m, pr) {
 }
 
 const ONSKER = { frokost: 'frokostvaner', lunsj: 'lunsjvaner', mellom: 'mellomvaner', kveld: 'mellomvaner' };
+// Har personen sagt hva hen liker til et måltid, foreslås bare det. Passer ingenting av det, vises alt.
+const onskerFor = (pr, slot) => new Set((pr?.[ONSKER[slot]] || []).filter((x) => x !== 'hopper'));
+const liker = (x, onsker) => x.tags.some((t) => onsker.has(t));
+function etterOnsker(liste, onsker) {
+  if (!onsker.size) return liste;
+  const likte = liste.filter((x) => liker(x, onsker));
+  return likte.length ? likte : liste;
+}
 const SLOTANDEL = { frokost: 0.27, lunsj: 0.33, mellom: 0.17, kveld: 0.15 };
 const hashTall = (tekst) => { let h = 0; for (const c of tekst) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 
@@ -568,12 +576,13 @@ export function dagsplan({ mat, personer, personId, dato }) {
   const ut = [];
   for (const slot of slots) {
     const mal_kcal = restKcal * (SLOTANDEL[slot] / andelSum);
-    const onsker = new Set(pr[ONSKER[slot]] || []);
-    const kandidater = MALTIDER.filter((x) => x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom'))
+    const onsker = onskerFor(pr, slot);
+    const alle = MALTIDER.filter((x) => x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom'))
       .filter((x) => passerMaltid(x, pr) && !brukt.has(x.id))
       .filter((x) => !x.utstyr || !utstyr?.length || utstyr.includes(x.utstyr))
       .filter((x) => !x.rester || naeringMaltid(x, 1, mat, dato))
       .filter((x) => !x.tags.includes('kantine') || onsker.has('kantine'));
+    const kandidater = etterOnsker(alle, onsker);
     const poeng = (x) => {
       let p = 0;
       if (x.tags.some((t) => onsker.has(t))) p += 6;
@@ -624,8 +633,15 @@ export function dagsplan({ mat, personer, personId, dato }) {
 // Alternativer når man vil bytte et måltid
 export function alternativer({ mat, personId, slot, dato }) {
   const pr = mat.profiler?.[personId] || {};
-  return MALTIDER.filter((x) => (x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom')) && passerMaltid(x, pr))
-    .filter((x) => !x.rester || naeringMaltid(x, 1, mat, dato));
+  const utstyr = mat.husstand?.utstyr;
+  const onsker = onskerFor(pr, slot);
+  const alle = MALTIDER.filter((x) => (x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom')) && passerMaltid(x, pr))
+    .filter((x) => !x.utstyr || !utstyr?.length || utstyr.includes(x.utstyr))
+    .filter((x) => !x.rester || naeringMaltid(x, 1, mat, dato))
+    .filter((x) => !x.tags.includes('kantine') || onsker.has('kantine'));
+  // Bare det personen liker, så lenge det finnes minst to å bytte mellom
+  const likte = onsker.size ? alle.filter((x) => liker(x, onsker) || (x.rester && onsker.has('rester'))) : alle;
+  return likte.length >= 2 ? likte : alle;
 }
 
 // ================= Ukeshandel: alt dere trenger den neste uka =================
@@ -761,6 +777,7 @@ export function fraKjokkenet({ mat, personer, personId, dato }) {
   const pr = mat.profiler?.[personId] || {};
   const maltider = MALTIDER
     .filter((m) => !m.rester && !m.kcal && passerMaltid(m, pr) && harUtstyr(m.utstyr))
+    .filter((m) => { const o = onskerFor(pr, m.maltid); return !o.size || liker(m, o) || !MALTIDER.some((y) => y.maltid === m.maltid && liker(y, o)); })
     .map((m) => { const d = dekning(m.ingredienser, 1, kjokken); return d ? { m, ...d, poeng: d.bruker.filter((k) => snart.has(k)).length } : null; })
     .filter((x) => x && x.andel >= 0.6 && x.mangler.length <= 1)
     .sort(sorter);

@@ -236,9 +236,9 @@ export const lagreLonn = (lonn, { stille = false } = {}) => { const ok = skriv(N
 
 export const nyId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-export function leggTilPost({ belop, kategori, dato = idag(), notat = '' }) {
+export function leggTilPost({ belop, kategori, dato = idag(), notat = '', ...ekstra }) {
   const poster = lesPoster();
-  const post = { id: nyId(), dato, belop: Math.round(belop * 100) / 100, kategori, notat };
+  const post = { id: nyId(), dato, belop: Math.round(belop * 100) / 100, kategori, notat, ...ekstra };
   poster.push(post);
   lagrePoster(poster);
   return post;
@@ -272,10 +272,20 @@ export function andelFor(plan, hvem) {
   return total > 0 ? (Number(p.andel) || 0) / total : 1 / plan.personer.length;
 }
 
+// Matbudsjettet kan deles med egne prosenter (plan.matFordeling = { type: 'likt' | 'kalorier' | 'egen', andeler: { id: % } })
+export function matAndelFor(plan, hvem) {
+  const f = plan.matFordeling;
+  if (!f || f.type === 'likt' || !f.andeler) return andelFor(plan, hvem);
+  const total = plan.personer.reduce((s, p) => s + (Number(f.andeler[p.id]) || 0), 0);
+  if (!(total > 0)) return andelFor(plan, hvem);
+  return (Number(f.andeler[hvem]) || 0) / total;
+}
+export const harEgenMatdeling = (plan) => !!plan.matFordeling && plan.matFordeling.type !== 'likt' && !!plan.matFordeling.andeler;
+
 // visning = 'alle' (hele husstanden) eller en person-id («min del»)
 export function faktor(plan, linje, visning = 'alle') {
   if (visning === 'alle') return 1;
-  if (linje.hvem === 'felles') return andelFor(plan, visning);
+  if (linje.hvem === 'felles') return linje.gruppe === 'mat' ? matAndelFor(plan, visning) : andelFor(plan, visning);
   return linje.hvem === visning ? 1 : 0;
 }
 

@@ -13,6 +13,7 @@ export const PERSONSPORSMAL = [
   { id: 'mal', type: 'valg', tekst: 'Hva er målet ditt?', valg: [
     V('ned', 'Gå ned i vekt', '📉'), V('nedmuskler', 'Gå ned i vekt og bygge muskler', '🔥', 'Litt færre kalorier og ekstra mye protein'),
     V('holde', 'Holde vekten', '⚖️'), V('muskler', 'Bygge muskler', '💪'), V('opp', 'Gå opp i vekt', '📈')] },
+  { id: 'malvekt', type: 'tall', tekst: 'Har du en målvekt?', enhet: 'kg', min: 30, max: 250, hjelp: 'Hopp over hvis du ikke vil sette en. Du kan endre den under vekt senere.', naar: (s) => ['ned', 'nedmuskler', 'opp'].includes(s.mal) },
   { id: 'middag', type: 'valg', tekst: 'Hvor stor er middagen for deg?', valg: [
     V('liten', 'Liten', '🥄', 'Jeg spiser mest ellers i løpet av dagen'), V('normal', 'Vanlig', '🍽️'), V('stor', 'Stor', '🍲', 'Middag er dagens hovedmåltid')] },
   { id: 'kosthold', type: 'valg', tekst: 'Hva spiser du?', valg: [
@@ -32,7 +33,8 @@ export const PERSONSPORSMAL = [
 
 // ---------- Nytt i versjon 2: dagsplaner (frokost, lunsj og mellommåltid) ----------
 // Versjon 3: eget mål for å gå ned i vekt og bygge muskler samtidig
-export const SPORSMALSVERSJON = 3;
+// Versjon 4: målvekt, og hvordan matbudsjettet deles
+export const SPORSMALSVERSJON = 4;
 export const NYE_PERSONSPORSMAL = [
   { id: 'maltider', type: 'valg', tekst: 'Hvor mange måltider spiser du om dagen?', valg: [
     V('3', '3 – frokost, lunsj og middag', '🍽️'), V('4', '4 – pluss et mellommåltid', '🍎'), V('5', '5 – pluss mellommåltid og kveldsmat', '🌙')] },
@@ -85,8 +87,10 @@ export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig
   let i = 0;
   const lukk = () => { dlg.close(); dlg.remove(); };
 
+  const passer = (j) => !sporsmal[j]?.naar || sporsmal[j].naar(svarNa);
   function neste() {
     i++;
+    while (i < sporsmal.length && !passer(i)) i++;
     if (i >= sporsmal.length) { lukk(); vedFerdig?.(svarNa); return; }
     tegn();
   }
@@ -127,7 +131,7 @@ export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig
     if (!b) return;
     const q = sporsmal[i];
     if ('lukkSp' in b.dataset) { lukk(); vedAvbryt?.(svarNa); return; }
-    if ('tilbake' in b.dataset) { i = Math.max(0, i - 1); tegn(); return; }
+    if ('tilbake' in b.dataset) { let j = i - 1; while (j > 0 && !passer(j)) j--; i = Math.max(0, j); tegn(); return; }
     if ('hopp' in b.dataset) { neste(); return; }
     if (b.dataset.v != null) { svarNa[q.id] = b.dataset.v; setTimeout(neste, 120); b.classList.add('valgt'); return; }
     if (b.dataset.flere != null) {
@@ -150,6 +154,8 @@ export function kjorSporsmal({ tittel, sporsmal, svar = {}, navn = '', vedFerdig
     neste();
   });
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); lukk(); vedAvbryt?.(svarNa); });
+  while (i < sporsmal.length && !passer(i)) i++;
+  if (i >= sporsmal.length) { dlg.remove(); vedFerdig?.(svarNa); return; }
   tegn();
   dlg.showModal();
 }
@@ -162,14 +168,23 @@ const MALSPORSMAL = PERSONSPORSMAL.find((q) => q.id === 'mal');
 export const NYE_PERSONSPORSMAL_V3 = [{ ...MALSPORSMAL, hjelp: 'Nytt: Du kan nå velge å gå ned i vekt og bygge muskler samtidig.' }];
 
 // De nye spørsmålene en person ikke har fått ennå
+export const MALVEKT = PERSONSPORSMAL.find((q) => q.id === 'malvekt');
 export function nyeSporsmalFor(pr) {
   const v = Number(pr?.v) || 1;
   const ut = [];
   if (v < 2) ut.push(...NYE_PERSONSPORSMAL);
   if (v < 3 && ['ned', 'muskler'].includes(pr?.mal)) ut.push(...NYE_PERSONSPORSMAL_V3);
+  // Versjon 4: målvekt for den som vil gå ned eller opp i vekt (og ikke har satt en)
+  if (v < 4 && pr?.malvekt == null && (ut.some((q) => q.id === 'mal') || ['ned', 'nedmuskler', 'opp'].includes(pr?.mal))) ut.push(MALVEKT);
   return ut;
 }
-export function nyeHusstandssporsmalFor(h) {
+
+// Hvordan matbudsjettet deles (spørres bare når flere bor sammen)
+export const MATDELING = { id: 'matdeling', type: 'valg', tekst: 'Hvordan vil dere dele matbudsjettet?', hjelp: 'Husleie og andre felles utgifter deles som før. Dette gjelder bare mat.', valg: [
+  V('likt', 'Som resten av felles utgifter', '⚖️'), V('kalorier', 'Etter hvor mye hver spiser', '🍽️', 'Regnes ut fra kalorimålet til hver av dere'), V('egen', 'Vi bestemmer prosentene selv', '✏️', 'Sett prosentene under Oss')] };
+export function nyeHusstandssporsmalFor(h, { flere = false } = {}) {
   const v = Number(h?.v) || 1;
-  return v < 2 ? NYE_HUSSTANDSPORSMAL : [];
+  const ut = v < 2 ? [...NYE_HUSSTANDSPORSMAL] : [];
+  if (v < 4 && flere && !h?.matdeling) ut.push(MATDELING);
+  return ut;
 }

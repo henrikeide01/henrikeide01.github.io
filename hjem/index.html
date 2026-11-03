@@ -317,6 +317,28 @@
     .kanlage .knapp { white-space: nowrap; padding: 9px 12px; font-size: 14px; }
     .undertittel { font-size: 13px; font-weight: 700; color: var(--dempet); text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 2px; }
 
+    /* Vekt */
+    .vekttopp { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .vekttopp h2 { margin: 0; }
+    .vekttall { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin-top: 4px; }
+    .vekttall small { font-size: 15px; color: var(--dempet); font-weight: 600; margin-left: 8px; letter-spacing: 0; }
+    .vektrad { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 8px 0 6px; }
+    .graf { position: relative; margin: 6px 0 2px; touch-action: pan-y; }
+    .graf svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .graf .tips { position: absolute; top: 0; pointer-events: none; background: var(--tekst); color: var(--bg); font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 10px; white-space: nowrap; transform: translate(-50%, -110%); opacity: 0; transition: opacity .1s; }
+    .graf .tips.vis { opacity: 1; }
+    .ukerad { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--linje); font-size: 15px; }
+    .ukerad small { display: block; color: var(--dempet); font-size: 12.5px; }
+    .ukerad .tall { white-space: nowrap; }
+    .vann { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--dempet); margin-top: 4px; }
+    .vann span { margin-right: auto; }
+    .vann .ikonknapp { width: 30px; height: 30px; }
+    /* Kvittering og matføring */
+    .kvitteringrad { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .kvitteringrad .forklaring { font-size: 13.5px; flex: 1 1 160px; }
+    .matvalg { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--flate-2); }
+    .matvalg .rad2 { align-items: end; }
+
     /* Oppdatering */
     .nytt { list-style: none; display: grid; gap: 12px; }
     .nytt li { display: grid; grid-template-columns: 30px 1fr; gap: 8px; font-size: 15px; }
@@ -344,6 +366,7 @@
       <div class="kort middag" id="middagIdag"></div>
       <div class="kort" id="dagsplan"></div>
       <div class="kort" id="dagensMakro"></div>
+      <div class="kort" id="vektkort" hidden></div>
       <div class="fliser">
         <a class="flis" href="#uke" id="flisHandle"></a>
         <a class="flis" href="#penger" id="flisPenger"></a>
@@ -394,6 +417,8 @@
         <h2 style="margin:0">Før en utgift</h2>
         <div class="belopfelt"><input id="pBelop" type="number" inputmode="decimal" min="0" step="any" placeholder="0" aria-label="Beløp i kroner" required><span>kr</span></div>
         <div class="brikker" id="hurtig" aria-label="Kategori"></div>
+        <div class="kvitteringrad"><label class="knapp" for="kvitteringFil" id="kvitteringKnapp">🧾 Les kvittering</label><span class="forklaring" id="kvitteringStatus">Ta bilde av kvitteringen, så fylles beløpet inn.</span></div>
+        <input type="file" id="kvitteringFil" accept="image/*" hidden>
         <details>
           <summary class="lenke">＋ Dato, notat eller annen kategori</summary>
           <div class="rad2" style="margin-top:8px">
@@ -517,7 +542,10 @@
       idag, maanedAv, dagerIMaaned, sum, summerPlan, andelFor, ukesMatbudsjett, matBruktDenneUka,
       nettoAv, lonnsstatistikk, anslagLonn, lonnsprofil, FRIKORTGRENSE, kroner, normaliserPlan,
       lesMat, lagreMat, harPlan, sikreTidligereOppsett, hentTidligereOppsett, lagNyPlan, leggTilPerson, fjernPerson,
+      matAndelFor, harEgenMatdeling,
     } from './budsjett.js';
+    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt } from './vekt.js';
+    import { tolkKvittering } from './kvittering.js';
     import {
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
@@ -526,7 +554,7 @@
     } from './mat.js';
     import {
       ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
-      nyeSporsmalFor, nyeHusstandssporsmalFor,
+      nyeSporsmalFor, nyeHusstandssporsmalFor, MATDELING,
     } from './sporsmal.js';
     import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js';
     import { MAT_EN } from './mat-en.js';
@@ -584,7 +612,7 @@
       fane = GAMLE_FANER[fane] || fane;
       const [hoved, under] = fane.split('-');
       const gyldig = ['idag', 'uke', 'kjokken', 'penger', 'oss'].includes(hoved) ? hoved : 'idag';
-      if (gyldig === 'penger' && ['oversikt', 'lonn', 'plan'].includes(under)) S.penger = under;
+      if (gyldig === 'penger') S.penger = ['oversikt', 'lonn', 'plan'].includes(under) ? under : 'oversikt';
       document.querySelectorAll('[data-fane]').forEach((el) => { el.hidden = el.dataset.fane !== gyldig; });
       document.querySelectorAll('[data-penger]').forEach((el) => { el.hidden = el.dataset.penger !== S.penger; });
       document.querySelectorAll('[data-penger-til]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pengerTil === S.penger)));
@@ -645,7 +673,7 @@
       const synlige = S.visAllePoster ? liste : liste.slice(0, 6);
       $('poster').innerHTML = liste.length ? synlige.map((p) => `
         <div class="post">
-          <div class="hva">${esc(kategoriNavn(p.kategori))}<small>${esc(dagFmt.format(new Date(p.dato + 'T12:00:00Z')))}${p.notat ? ' · ' + esc(p.notat) : ''}</small></div>
+          <div class="hva">${esc(kategoriNavn(p.kategori))}<small>${esc(dagFmt.format(new Date(p.dato + 'T12:00:00Z')))}${p.notat ? ' · ' + esc(p.notat) : ''}${p.kvittering ? ' · 🧾' : ''}</small></div>
           <div class="belop tall">${kroner(p.belop)} kr</div>
           <button class="ikonknapp" data-slett-post="${esc(p.id)}" aria-label="Slett utgiften">✕</button>
         </div>`).join('') + `
@@ -750,7 +778,7 @@
     }
 
     let ocrArbeider = null;
-    const OCR_TEKST = { 'loading tesseract core': 'Laster tekstgjenkjenning …', 'initializing tesseract': 'Starter …', 'loading language traineddata': 'Laster norsk språkfil (bare første gang) …', 'initializing api': 'Starter …', 'recognizing text': 'Leser lønnsslippen …' };
+    const OCR_TEKST = { 'loading tesseract core': 'Laster tekstgjenkjenning …', 'initializing tesseract': 'Starter …', 'loading language traineddata': 'Laster norsk språkfil (bare første gang) …', 'initializing api': 'Starter …', 'recognizing text': 'Leser bildet …' };
     function ocrStatus(tekst, andel) {
       $('ocrStatus').hidden = false;
       $('ocrTekst').textContent = tekst;
@@ -768,25 +796,33 @@
       return c;
     }
 
+    // Leser teksten i et bilde (lønnsslipp eller kvittering). status(tekst, andel 0–1)
+    let ocrLogger = null;
+    async function ocrTekst(fil, status) {
+      ocrLogger = (m) => status(OCR_TEKST[m.status] || 'Leser …', m.status === 'recognizing text' ? 0.3 + m.progress * 0.7 : Math.min(0.3, (m.progress || 0) * 0.3));
+      status('Laster tekstgjenkjenning …', 0.02);
+      if (!window.Tesseract) await lastSkript(OCR.skript);
+      if (!ocrArbeider) {
+        ocrArbeider = await Tesseract.createWorker('nor', 1, {
+          workerPath: OCR.workerPath, corePath: OCR.corePath, langPath: OCR.langPath,
+          logger: (m) => ocrLogger?.(m),
+        });
+      }
+      const kilde = await forbered(fil);
+      status('Leser bildet …', 0.3);
+      const { data } = await ocrArbeider.recognize(kilde);
+      return data.text;
+    }
+
     async function lesBilde(fil) {
       const url = URL.createObjectURL(fil);
       $('bildeKnapp').setAttribute('aria-disabled', 'true');
       try {
-        ocrStatus('Laster tekstgjenkjenning …', 0.02);
-        if (!window.Tesseract) await lastSkript(OCR.skript);
-        if (!ocrArbeider) {
-          ocrArbeider = await Tesseract.createWorker('nor', 1, {
-            workerPath: OCR.workerPath, corePath: OCR.corePath, langPath: OCR.langPath,
-            logger: (m) => ocrStatus(OCR_TEKST[m.status] || 'Leser …', m.status === 'recognizing text' ? 0.3 + m.progress * 0.7 : Math.min(0.3, (m.progress || 0) * 0.3)),
-          });
-        }
-        const kilde = await forbered(fil);
-        ocrStatus('Leser lønnsslippen …', 0.3);
-        const { data } = await ocrArbeider.recognize(kilde);
-        const r = tolkLonnsslipp(data.text);
-        const lavt = data.text.toLowerCase();
+        const tekst = await ocrTekst(fil, ocrStatus);
+        const r = tolkLonnsslipp(tekst);
+        const lavt = tekst.toLowerCase();
         const hvem = S.plan.personer.find((p) => p.navn && lavt.includes(p.navn.toLowerCase()))?.id || S.lonnPerson;
-        S.forslag = { ...r, hvem, bilde: url, tekst: data.text, lest: true };
+        S.forslag = { ...r, hvem, bilde: url, tekst, lest: true };
         $('ocrStatus').hidden = true;
         tegnForslag();
         $('slippForslag').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -797,6 +833,30 @@
         tegnForslag();
       } finally {
         $('bildeKnapp').removeAttribute('aria-disabled');
+      }
+    }
+
+    // Kvittering → beløp, butikk og dato i «Før en utgift»
+    async function lesKvittering(fil) {
+      const status = (tekst, andel) => { $('kvitteringStatus').textContent = andel != null && andel > 0.05 && andel < 1 ? `${oversett(tekst)} ${Math.round(andel * 100)} %` : oversett(tekst); };
+      $('kvitteringKnapp').setAttribute('aria-disabled', 'true');
+      try {
+        const k = tolkKvittering(await ocrTekst(fil, status), { idag: idag() });
+        if (k.belop) $('pBelop').value = String(k.belop);
+        $('pNotat').value = k.butikk ? t('Kvittering {butikk}', { butikk: k.butikk }) : t('Kvittering');
+        if (k.dato) $('pDato').value = k.dato;
+        if (k.matbutikk) { S.valgtKategori = matKategori(); tegnKategorivalg(); }
+        if (k.dato || k.butikk) $('nyPost').querySelector('details').open = true;
+        S.fraKvittering = true;
+        const kr = k.belop?.toLocaleString(LOK, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        status(!k.belop ? 'Fant ikke totalen. Skriv inn beløpet selv.'
+          : k.butikk ? t('Fant {kr} kr fra {butikk}. Sjekk beløpet og trykk Legg til.', { kr, butikk: k.butikk }) : t('Fant {kr} kr. Sjekk beløpet og trykk Legg til.', { kr }));
+        $('pBelop').focus();
+      } catch (e) {
+        console.error(e);
+        status('Klarte ikke å lese bildet. Sjekk at du er på nett, eller skriv inn beløpet selv.');
+      } finally {
+        $('kvitteringKnapp').removeAttribute('aria-disabled');
       }
     }
 
@@ -824,7 +884,9 @@
       $('forklaringsliste').innerHTML = deler.map((d) => `<div class="rad"><span class="prikk" style="background:${d.farge}"></span><span>${esc(d.navn)}</span><span class="andel tall">${Math.round((d.belop / hel) * 100)} %</span><span class="kr tall">${kroner(d.belop)} kr</span></div>`).join('');
       $('planvarsel').innerHTML = tilOvers < 0
         ? `<div class="varsel kritisk">⚠️ Utgiftene er ${kroner(-tilOvers)} kr høyere enn inntekten. Se fanen Lønn for hvor mange timer som trengs.</div>`
-        : v !== 'alle' ? `<div class="varsel">${esc(t('{navn} betaler {p} % av felles utgifter.', { navn: personNavn(v), p: Math.round(andelFor(S.plan, v) * 100) }))}</div>` : '';
+        : v !== 'alle' ? `<div class="varsel">${esc(harEgenMatdeling(S.plan)
+          ? t('{navn} betaler {p} % av felles utgifter og {m} % av maten.', { navn: personNavn(v), p: Math.round(andelFor(S.plan, v) * 100), m: Math.round(matAndelFor(S.plan, v) * 100) })
+          : t('{navn} betaler {p} % av felles utgifter.', { navn: personNavn(v), p: Math.round(andelFor(S.plan, v) * 100) }))}</div>` : '';
     }
 
     function linjeHtml(type, l) {
@@ -861,7 +923,42 @@
       $('husstand').innerHTML = `
         <p class="forklaring">Hvor mange prosent av felles utgifter (husleie, mat …) hver betaler.</p>
         ${S.plan.personer.map((p) => `<div class="andelrad"><label for="andel-${esc(p.id)}">${esc(p.navn)}</label><input id="andel-${esc(p.id)}" data-andel="${esc(p.id)}" type="number" inputmode="numeric" min="0" max="100" step="1" value="${Number(p.andel) || 0}"></div>`).join('')}
-        <p class="forklaring" id="andelSum" style="margin-top:8px">${total === 100 ? 'Til sammen 100 % ✓' : `Til sammen ${total} %. Det fordeles likevel riktig etter forholdet mellom tallene.`}</p>`;
+        <p class="forklaring" id="andelSum" style="margin-top:8px">${total === 100 ? 'Til sammen 100 % ✓' : `Til sammen ${total} %. Det fordeles likevel riktig etter forholdet mellom tallene.`}</p>
+        ${flere() ? matdelingHtml() : ''}`;
+    }
+
+    // Matbudsjettet kan deles annerledes enn husleie og resten
+    const matType = () => S.plan.matFordeling?.type || 'likt';
+    function kaloriAndeler() {
+      const kcal = Object.fromEntries(S.plan.personer.map((p) => [p.id, beregnMal(profil(p.id))?.kcal || 2000]));
+      const total = Object.values(kcal).reduce((a, b) => a + b, 0);
+      const ut = Object.fromEntries(Object.entries(kcal).map(([id, k]) => [id, Math.round((k / total) * 100)]));
+      const rest = 100 - Object.values(ut).reduce((a, b) => a + b, 0);
+      if (rest && S.plan.personer[0]) ut[S.plan.personer[0].id] += rest;
+      return ut;
+    }
+    function settMatdeling(type) {
+      const andeler = type === 'kalorier' ? kaloriAndeler()
+        : type === 'egen' ? (S.plan.matFordeling?.andeler || Object.fromEntries(S.plan.personer.map((p) => [p.id, Math.round(andelFor(S.plan, p.id) * 100)])))
+        : undefined;
+      S.plan.matFordeling = type === 'likt' ? { type: 'likt' } : { type, andeler };
+      lagre();
+    }
+    // Deles maten etter kaloriene, følger fordelingen med når målene endres
+    function oppdaterMatFordeling() {
+      if (matType() !== 'kalorier') return;
+      const ny = kaloriAndeler();
+      if (JSON.stringify(ny) !== JSON.stringify(S.plan.matFordeling.andeler)) { S.plan.matFordeling.andeler = ny; lagre(); }
+    }
+    function matdelingHtml() {
+      const type = matType();
+      const valg = [['likt', 'Som resten'], ['kalorier', 'Etter kaloriene'], ['egen', 'Egen fordeling']];
+      const fordeling = liste(S.plan.personer.map((p) => `${p.navn} ${Math.round(matAndelFor(S.plan, p.id) * 100)} %`));
+      return `<h3 style="margin:16px 0 4px">🛒 ${esc(t('Matbudsjettet'))}</h3>
+        <p class="forklaring">Hvor mange prosent hver betaler av maten. Husleie og resten deles som over.</p>
+        <div class="chips" style="margin:8px 0">${valg.map(([v, tx]) => `<button type="button" class="chip" data-matdeling="${v}" aria-pressed="${type === v}">${tx}</button>`).join('')}</div>
+        ${type === 'egen' ? S.plan.personer.map((p) => `<div class="andelrad"><label for="matandel-${esc(p.id)}">${esc(p.navn)}</label><input id="matandel-${esc(p.id)}" data-matandel="${esc(p.id)}" type="number" inputmode="numeric" min="0" max="100" step="1" value="${Number(S.plan.matFordeling.andeler?.[p.id]) || 0}"></div>`).join('') : ''}
+        <p class="forklaring" id="matFordelingTekst" style="margin-top:6px">${esc(type === 'likt' ? t('Maten deles som resten: {fordeling}.', { fordeling }) : type === 'kalorier' ? t('{fordeling} – etter kalorimålene, og følger med når målene endres.', { fordeling }) : t('Maten deles: {fordeling}.', { fordeling }))}</p>`;
     }
 
     function oppdaterGruppesummer() {
@@ -912,7 +1009,7 @@
     const harNyeSvar = (id) => { const pr = profil(id); return pr.maltider != null || pr.frokostvaner != null || pr.lunsjvaner != null; };
     const trengerNye = (id) => Object.keys(profil(id)).length > 0 && nyeSporsmalFor(profil(id)).length > 0;
     const husHarSvart = () => Object.keys(S.mat.husstand || {}).some((k) => k !== 'fokus');
-    const husTrengerNye = () => husHarSvart() && nyeHusstandssporsmalFor(S.mat.husstand).length > 0;
+    const husTrengerNye = () => husHarSvart() && nyeHusstandssporsmalFor(S.mat.husstand, { flere: flere() }).length > 0;
     const bareNyttMal = (id) => (Number(profil(id).v) || 1) >= 2; // har svart på dagsplan-spørsmålene, mangler bare målet
     const navnPaa = (key) => oversett(INGREDIENSER[key]?.navn || key);
     const mengdeT = (key, gram, o) => { const m = mengdeTekst(key, gram, o); return erEngelsk ? m.replace(/ stk$/, ' pcs').replace(/(\d),(\d)/, '$1.$2') : erSpansk ? m.replace(/ stk$/, ' u.') : m; };
@@ -1008,6 +1105,7 @@
           <div class="linje1"><b>${esc(p.navn)}</b><span class="tall">${kroner(s.kcal)} / ${kroner(mal.kcal)} kcal</span></div>
           ${meterHtml(s.kcal, mal.kcal)}
           <span class="forklaring" style="font-size:13px">${esc(t('Protein {p} av {pm} g · karbo {k} av {km} g · fett {f} av {fm} g', { p: kroner(s.protein), pm: kroner(mal.protein), k: kroner(s.karbo), km: kroner(mal.karbo), f: kroner(s.fett), fm: kroner(mal.fett) }))}</span>
+          ${vannHtml(p.id)}
         </div>`;
       }).join('') + `<p class="forklaring" style="font-size:12.5px;margin-top:6px">Trykk ✓ på måltidene og «Vi har spist» på middagen, så føres det her. Tallene er anslag.</p>`;
     }
@@ -1024,7 +1122,7 @@
     // Rester vises med navnet på retten
     function maltidNavn(m, l, x) {
       const rett = l?.rett ? oppskrift(l.rett) : !l && x?.fra ? x.fra : null;
-      return rett ? t('Rester: {rett}', { rett: oversett(rett.navn) }) : m?.navn || '';
+      return rett ? t('Rester: {rett}', { rett: oversett(rett.navn) }) : m?.navn || l?.navn || '';
     }
 
     function tegnDagsplan() {
@@ -1061,7 +1159,7 @@
         const m = maltid(l.maltid);
         kcal += l.kcal || 0; protein += l.p || 0;
         return `<div class="maltid spist">
-          <span class="rettknapp"><span class="ikon">${m?.ikon || '🍽️'}</span><span><small class="slot">${esc(t('Ekstra'))}</small><b>${esc(maltidNavn(m, l))}</b><small>${esc(`${kroner(l.kcal)} kcal · ${gProt(l.p)}`)}</small></span></span>
+          <span class="rettknapp"><span class="ikon">${m?.ikon || '🍽️'}</span><span><small class="slot">${esc(l.del ? `${t('Ekstra')} · ${oversett(MALTIDSNAVN[l.del])}` : t('Ekstra'))}</small><b>${esc(maltidNavn(m, l))}</b><small>${esc(`${kroner(l.kcal)} kcal · ${gProt(l.p)}`)}</small></span></span>
           <span></span>
           <button class="ikonknapp spistknapp" type="button" data-angre-logg="${esc(l.id)}" aria-pressed="true" aria-label="${esc(t('Angre'))}">✓</button>
         </div>`;
@@ -1076,6 +1174,7 @@
         ${ps.length > 1 ? `<div class="velger" style="margin:0 0 6px" aria-label="${esc(t('Dagsplan for'))}">${ps.map((p) => `<button type="button" data-dagperson="${esc(p.id)}" aria-pressed="${p.id === pid}">${esc(p.navn)}</button>`).join('')}</div>` : ''}
         ${rader || '<div class="tomt">Ingen måltider å vise.</div>'}${ekstraHtml}
         <p class="forklaring dagtotal">${esc(total)}</p>
+        <button class="knapp stor" type="button" data-for-mat style="margin-top:8px">＋ Før annen mat</button>
         ${!beregnMal(pr) ? `<button class="lenke" type="button" data-sporsmal="${esc(pid)}">Svar på spørsmålene for riktige mengder →</button>`
           : !harNyeSvar(pid) ? `<button class="lenke" type="button" data-sporsmal-nye="${esc(pid)}">Tilpass dagsplanen – 4 raske spørsmål →</button>` : ''}`;
     }
@@ -1279,7 +1378,7 @@
       const jeg = personer().find((p) => p.id === meg());
       $('hilsen').textContent = jeg && jeg.navn !== 'Meg' ? t('Hei, {navn}!', { navn: jeg.navn }) : 'I dag';
       $('dagensDato').textContent = dagLang.format(somDato(idag()));
-      tegnPaaminnelse(); tegnMiddagIdag(); tegnDagsplan(); tegnMakro(); tegnIdagFliser();
+      tegnPaaminnelse(); tegnMiddagIdag(); tegnDagsplan(); tegnMakro(); tegnVektkort(); tegnIdagFliser();
     }
 
     // ---------- Uke ----------
@@ -1456,6 +1555,7 @@
             <div class="knapprad">
               ${nye ? `<button class="knapp hoved" type="button" data-sporsmal-nye="${esc(p.id)}">Svar på nye spørsmål</button>` : ''}
               <button class="knapp ${mal ? '' : 'hoved'}" type="button" data-sporsmal="${esc(p.id)}">${mal ? 'Endre svar' : 'Svar på spørsmål'}</button>
+              ${mal ? `<button class="knapp" type="button" data-vis-vekt="${esc(p.id)}">📈 Vekt</button>` : ''}
               ${personer().length > 1 ? `<button class="lenke" type="button" data-fjern-person="${esc(p.id)}" style="color:var(--kritisk-tekst)">Fjern</button>` : ''}
             </div>
           </div>
@@ -1481,7 +1581,255 @@
         </div>`;
     }
 
-    function tegnMat() { tegnIdag(); tegnUkemeny(); tegnHandleliste(); tegnKjokken(); tegnKanLage(); tegnOss(); }
+    // ================= Vann =================
+    const vannMal = (pr) => (Number(pr.vekt) > 0 ? Math.min(14, Math.max(6, Math.round((Number(pr.vekt) * 0.033) / 0.25))) : 8); // glass à 2,5 dl
+    const vannI = (d, pid) => Number(S.mat.vann?.[d]?.[pid]) || 0;
+    function vannHtml(pid) {
+      const n = vannI(idag(), pid), mal = vannMal(profil(pid));
+      return `<div class="vann"><span>💧 ${esc(t('Vann: {n} av {mal} glass', { n, mal }))}${n >= mal ? ' ✓' : ''}</span>
+        <button class="ikonknapp" type="button" data-vann-minus="${esc(pid)}" aria-label="${esc(t('Ett glass mindre'))}">−</button>
+        <button class="ikonknapp" type="button" data-vann-pluss="${esc(pid)}" aria-label="${esc(t('Ett glass til'))}">＋</button></div>`;
+    }
+    function endreVann(pid, steg) {
+      const d = idag();
+      S.mat.vann ??= {};
+      const dag = (S.mat.vann[d] ??= {});
+      dag[pid] = Math.max(0, (Number(dag[pid]) || 0) + steg);
+      lagreMatNa(); tegnMakro();
+    }
+
+    // ================= Vekt hver uke =================
+    const kgT = (x) => Number(x).toLocaleString(LOK, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const endringT = (d) => `${d < 0 ? '−' : d > 0 ? '+' : '±'}${kgT(Math.abs(d))} kg`;
+    const vektserie = (pid) => ukeserie(S.mat.vekt?.[pid] || []);
+    function vurderingTekst(pid, serie) {
+      const pr = profil(pid), perUke = trendPerUke(serie), v = vurdering(pr.mal, perUke);
+      const deler = [t(v.tekst, { kg: v.kg != null ? kgT(v.kg) : '' })];
+      const mal = tilMalvekt(serie.at(-1)?.kg, Number(pr.malvekt), perUke);
+      if (mal?.nadd) deler.push(t('🎯 Du har nådd målvekta!'));
+      else if (mal && mal.uker) deler.push(t('{kg} kg igjen til målvekta – ca. {uker} uker med farten nå.', { kg: kgT(Math.abs(mal.igjen)), uker: mal.uker }));
+      else if (mal) deler.push(t('{kg} kg igjen til målvekta.', { kg: kgT(Math.abs(mal.igjen)) }));
+      return deler.join(' ');
+    }
+    function tegnVektkort() {
+      const pid = dagPerson(), pr = profil(pid);
+      if (!beregnMal(pr)) { $('vektkort').hidden = true; return; }
+      $('vektkort').hidden = false;
+      const serie = vektserie(pid), uke = isoUke(idag());
+      const naa = serie.find((r) => r.nokkel === uke.nokkel);
+      const forrige = [...serie].reverse().find((r) => r.nokkel < uke.nokkel);
+      const sist = serie.at(-1)?.kg || Number(pr.vekt) || '';
+      $('vektkort').innerHTML = `
+        <div class="vekttopp"><h2>⚖️ ${esc(t('Vekt – uke {n}', { n: uke.uke }))}</h2><button class="lenke" type="button" data-vis-vekt="${esc(pid)}">Se utvikling →</button></div>
+        ${naa ? `<div class="vekttall tall">${kgT(naa.kg)} kg${forrige ? `<small>${esc(t('{endring} fra forrige uke', { endring: endringT(naa.kg - forrige.kg) }))}</small>` : ''}</div>`
+          : `<p class="forklaring" style="margin-top:4px">${esc(personer().length > 1 ? t('Ukens veiing: hva veier {navn} denne uka?', { navn: personNavn(pid) }) : t('Ukens veiing: hva veier du denne uka?'))}</p>`}
+        <form class="vektrad" data-vektform="${esc(pid)}" autocomplete="off">
+          <div class="belopfelt"><input name="kg" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="${esc(sist ? kgT(sist) : '')}" aria-label="${esc(t('Vekt i kg'))}" style="font-size:20px;padding:9px 44px 9px 12px"><span>kg</span></div>
+          <button class="knapp ${naa ? '' : 'hoved'}" type="submit">${naa ? 'Oppdater' : 'Lagre'}</button>
+        </form>
+        ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}`;
+    }
+    function lagreVekt(pid, kg) {
+      S.mat.vekt ??= {};
+      const liste_ = (S.mat.vekt[pid] ??= []);
+      const iDag = liste_.find((m) => m.dato === idag());
+      if (iDag) iDag.kg = kg; else liste_.push({ id: nyId(), dato: idag(), kg });
+      S.mat.profiler = { ...(S.mat.profiler || {}), [pid]: { ...profil(pid), vekt: kg } }; // kalorimålet regnes ut fra den nye vekta
+      lagreMatNa(); tegnAlt();
+      if ($('rettDialog').open && S.vektApen) visVekt(pid);
+      vis(t('{kg} kg er lagret ✓ Kalorimålet er oppdatert.', { kg: kgT(kg) }));
+    }
+
+    // Graf: én linje (vekt per uke), tynne gridlinjer, målvekt som referanselinje, hover viser uka
+    function vektgrafHtml(serie, malvekt) {
+      const W = 360, H = 200, v = { l: 40, r: 12, t: 14, b: 26 };
+      const verdier = serie.map((r) => r.kg).concat(malvekt > 0 ? [Number(malvekt)] : []);
+      let min = Math.min(...verdier), maks = Math.max(...verdier);
+      if (maks - min < 2) { const m = (maks + min) / 2; min = m - 1; maks = m + 1; }
+      const luft = (maks - min) * 0.12; min -= luft; maks += luft;
+      const x = (i) => (serie.length === 1 ? (v.l + W - v.r) / 2 : v.l + (i * (W - v.l - v.r)) / (serie.length - 1));
+      const y = (k) => v.t + ((maks - k) * (H - v.t - v.b)) / (maks - min);
+      const steg = [0.5, 1, 2, 5, 10, 20].find((st) => (maks - min) / st <= 5) || 50;
+      const linjer = [];
+      for (let k = Math.ceil(min / steg) * steg; k <= maks; k += steg) linjer.push(k);
+      const hvert = Math.ceil(serie.length / 6);
+      const punkter = serie.map((r, i) => ({ x: x(i), y: y(r.kg), uke: r.uke, kg: r.kg, endring: i ? r.kg - serie[i - 1].kg : null }));
+      const sti = punkter.map((pt, i) => `${i ? 'L' : 'M'}${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ');
+      return `<div class="graf" data-graf='${esc(JSON.stringify(punkter.map((pt) => [Math.round(pt.x * 10) / 10, Math.round(pt.y * 10) / 10, pt.uke, pt.kg, pt.endring])))}' data-w="${W}">
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('Vekt per uke'))}">
+          ${linjer.map((k) => `<line x1="${v.l}" x2="${W - v.r}" y1="${y(k).toFixed(1)}" y2="${y(k).toFixed(1)}" stroke="var(--linje)" stroke-width="1"/><text x="${v.l - 6}" y="${(y(k) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--dempet)">${kgT(k).replace(/[.,]0$/, '')}</text>`).join('')}
+          ${malvekt > 0 ? `<line x1="${v.l}" x2="${W - v.r}" y1="${y(malvekt).toFixed(1)}" y2="${y(malvekt).toFixed(1)}" stroke="var(--dempet)" stroke-width="1"/><text x="${W - v.r}" y="${(y(malvekt) - 5).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--dempet)">${esc(t('Mål {kg} kg', { kg: kgT(malvekt) }))}</text>` : ''}
+          ${punkter.map((pt, i) => (i % hvert === 0 || i === punkter.length - 1) && !(i !== punkter.length - 1 && punkter.length - 1 - i < hvert) ? `<text x="${pt.x.toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--dempet)">${esc(t('uke {n}', { n: pt.uke }))}</text>` : '').join('')}
+          <path d="${sti}" fill="none" stroke="var(--serie-1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${punkter.map((pt) => `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="4" fill="var(--serie-1)" stroke="var(--flate)" stroke-width="2"/>`).join('')}
+          <line class="sikte" x1="0" x2="0" y1="${v.t}" y2="${H - v.b}" stroke="var(--dempet)" stroke-width="1" visibility="hidden"/>
+          <rect x="${v.l}" y="0" width="${W - v.l - v.r}" height="${H}" fill="transparent" data-flate/>
+        </svg>
+        <div class="tips" role="status"></div>
+      </div>`;
+    }
+    // Siktelinje og verktøytips som finner nærmeste uke
+    function grafPeker(e) {
+      const flate = e.target.closest?.('[data-flate]');
+      const graf = flate?.closest('[data-graf]');
+      document.querySelectorAll('.graf .tips.vis').forEach((tp) => { if (!graf || !graf.contains(tp)) { tp.classList.remove('vis'); tp.closest('.graf').querySelector('.sikte').setAttribute('visibility', 'hidden'); } });
+      if (!graf) return;
+      const punkter = JSON.parse(graf.dataset.graf), svg = graf.querySelector('svg'), boks = svg.getBoundingClientRect();
+      const skala = boks.width / Number(graf.dataset.w);
+      const sx = (e.clientX - boks.left) / skala;
+      const pt = punkter.reduce((a, b) => (Math.abs(b[0] - sx) < Math.abs(a[0] - sx) ? b : a));
+      const sikte = svg.querySelector('.sikte');
+      sikte.setAttribute('x1', pt[0]); sikte.setAttribute('x2', pt[0]); sikte.setAttribute('visibility', 'visible');
+      const tp = graf.querySelector('.tips');
+      tp.textContent = `${t('Uke {n}', { n: pt[2] })} · ${kgT(pt[3])} kg${pt[4] != null ? ` (${endringT(pt[4])})` : ''}`;
+      tp.style.left = `${Math.min(boks.width - 60, Math.max(60, pt[0] * skala))}px`;
+      tp.style.top = `${pt[1] * skala}px`;
+      tp.classList.add('vis');
+    }
+    document.addEventListener('pointermove', grafPeker);
+    document.addEventListener('pointerdown', grafPeker);
+
+    // Snitt av det som er ført de siste 7 dagene
+    function ukesrapport(pid) {
+      const mal = beregnMal(profil(pid));
+      const dager = Array.from({ length: 7 }, (_, i) => leggTilDager(idag(), -i)).map((d) => spistI(d, pid)).filter((s) => s.kcal > 0);
+      if (!dager.length) return t('Ingen mat ført de siste 7 dagene.');
+      const kcal = dager.reduce((a, s) => a + s.kcal, 0) / dager.length, p = dager.reduce((a, s) => a + s.protein, 0) / dager.length;
+      return mal ? t('Snitt de dagene du har ført ({n} av 7): {kcal} kcal ({pst} % av målet) og {p} g protein (mål {pm} g).', { n: dager.length, kcal: kroner(kcal), pst: Math.round((kcal / mal.kcal) * 100), p: kroner(p), pm: kroner(mal.protein) })
+        : t('Snitt de dagene du har ført ({n} av 7): {kcal} kcal og {p} g protein.', { n: dager.length, kcal: kroner(kcal), p: kroner(p) });
+    }
+
+    function visVekt(pid) {
+      const pr = profil(pid), serie = vektserie(pid);
+      S.vektApen = pid;
+      const rader = [...serie].reverse().map((r, i, a) => {
+        const forrige = a[i + 1];
+        return `<div class="ukerad"><span>${esc(t('Uke {n}', { n: r.uke }))}<small>${esc(r.maalinger.map((m) => dagFmt.format(somDato(m.dato))).join(', '))}</small></span>
+          <span class="tall">${kgT(r.kg)} kg${forrige ? `<small>${esc(endringT(r.kg - forrige.kg))}</small>` : ''}</span>
+          <button class="ikonknapp" type="button" data-slett-vekt="${esc(r.maalinger.map((m) => m.id).join(','))}" data-person="${esc(pid)}" aria-label="${esc(t('Slett målingen for uke {n}', { n: r.uke }))}">✕</button></div>`;
+      }).join('');
+      $('rettInnhold').innerHTML = `
+        <h2 id="rettTittel">📈 ${esc(t('Vekt – {navn}', { navn: personNavn(pid) }))}</h2>
+        ${personer().length > 1 ? `<div class="velger" style="margin:0">${personer().filter((p) => beregnMal(profil(p.id))).map((p) => `<button type="button" data-vis-vekt="${esc(p.id)}" aria-pressed="${p.id === pid}">${esc(p.navn)}</button>`).join('')}</div>` : ''}
+        ${serie.length ? vektgrafHtml(serie, Number(pr.malvekt)) : '<p class="tomt">Ingen målinger ennå. Før vekten én gang i uka, gjerne samme dag og tid.</p>'}
+        ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}
+        <form class="vektrad" data-vektform="${esc(pid)}" autocomplete="off">
+          <div class="belopfelt"><input name="kg" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="${esc(kgT(serie.at(-1)?.kg || Number(pr.vekt) || 0))}" aria-label="${esc(t('Vekt i kg'))}" style="font-size:20px;padding:9px 44px 9px 12px"><span>kg</span></div>
+          <button class="knapp hoved" type="submit">Før vekt i dag</button>
+        </form>
+        <form class="vektrad" data-malvektform="${esc(pid)}" autocomplete="off">
+          <div class="felt"><label for="malvektInput">Målvekt</label><div class="belopfelt"><input id="malvektInput" name="kg" type="number" inputmode="decimal" step="0.1" min="30" max="300" value="${esc(pr.malvekt ?? '')}" placeholder="${esc(t('Ingen'))}" style="font-size:17px;padding:9px 44px 9px 12px"><span>kg</span></div></div>
+          <button class="knapp" type="submit" style="align-self:end">Lagre</button>
+        </form>
+        <div><h3 style="margin:8px 0 4px">Siste 7 dager</h3><p class="forklaring">${esc(ukesrapport(pid))}</p></div>
+        ${rader ? `<div><h3 style="margin:8px 0 2px">Alle uker</h3>${rader}</div>` : ''}
+        <div class="knapprad"><button class="knapp" type="button" data-lukk-rett>Lukk</button></div>`;
+      if (!$('rettDialog').open) $('rettDialog').showModal();
+    }
+
+    // ================= Før annen mat (søk, strekkode eller selv) =================
+    const OFF = 'https://world.openfoodfacts.org';
+    const OFF_FELT = 'code,product_name,product_name_nb,product_name_no,brands,nutriments,serving_quantity';
+    const ZXING = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js';
+    const DELER = ['frokost', 'lunsj', 'middag', 'mellom', 'kveld'];
+    const delNaa = () => { const h = new Date().getHours(); return h < 10 ? 'frokost' : h < 14 ? 'lunsj' : h < 16 ? 'mellom' : h < 20 ? 'middag' : 'kveld'; };
+    function offVare(p) {
+      const n = p?.nutriments || {};
+      const kcal = n['energy-kcal_100g'] ?? (n.energy_100g != null ? n.energy_100g / 4.184 : null);
+      const navn = (p?.product_name_nb || p?.product_name_no || p?.product_name || '').trim();
+      if (kcal == null || !(Number(kcal) >= 0) || !navn) return null;
+      return { kode: p.code, navn, merke: String(p.brands || '').split(',')[0].trim(), per100: { kcal: Number(kcal), p: Number(n.proteins_100g) || 0, f: Number(n.fat_100g) || 0, k: Number(n.carbohydrates_100g) || 0 }, porsjon: Number(p.serving_quantity) > 0 ? Math.round(Number(p.serving_quantity)) : null };
+    }
+    async function hentJson(url) {
+      const r = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined });
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    }
+    async function offSok(q) {
+      const j = await hentJson(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&sort_by=unique_scans_n&fields=${OFF_FELT}`);
+      return (j.products || []).map(offVare).filter(Boolean);
+    }
+    async function offStrekkode(kode) {
+      const j = await hentJson(`${OFF}/api/v2/product/${encodeURIComponent(kode)}.json?fields=${OFF_FELT}`);
+      return j.status === 1 ? offVare({ ...j.product, code: j.product?.code || kode }) : null;
+    }
+    async function lesStrekkode(fil) {
+      const kilde = await forbered(fil);
+      if ('BarcodeDetector' in window) {
+        try { const r = await new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }).detect(kilde); if (r[0]?.rawValue) return r[0].rawValue; } catch {}
+      }
+      if (!window.ZXing) await lastSkript(ZXING);
+      const Z = window.ZXing;
+      let lerret = kilde;
+      if (!lerret.getContext) { // bildet kunne ikke skaleres – tegn det rett på et lerret
+        const img = new Image(); img.src = URL.createObjectURL(fil); await img.decode();
+        lerret = document.createElement('canvas'); lerret.width = img.naturalWidth; lerret.height = img.naturalHeight; lerret.getContext('2d').drawImage(img, 0, 0);
+      }
+      const hint = new Map([[Z.DecodeHintType.TRY_HARDER, true]]); // (formatlisten gjør at ZXing ikke finner EAN-koder)
+      for (const Binarisering of [Z.HybridBinarizer, Z.GlobalHistogramBinarizer]) {
+        try {
+          const leser = new Z.MultiFormatReader(); leser.setHints(hint);
+          return leser.decode(new Z.BinaryBitmap(new Binarisering(new Z.HTMLCanvasElementLuminanceSource(lerret)))).getText();
+        } catch {}
+      }
+      throw new Error('fant ingen strekkode');
+    }
+
+    function visForMat(endring = {}) {
+      S.forMat = { fane: 'sok', del: delNaa(), resultater: null, laster: false, feil: '', sok: '', valgt: null, ...(S.forMat || {}), ...endring };
+      const f = S.forMat, pid = dagPerson();
+      const fane = (id, tekst) => `<button type="button" data-mat-fane="${id}" aria-pressed="${f.fane === id}">${tekst}</button>`;
+      const rad = (v, attr, i) => `<div class="dag" style="grid-template-columns:1fr auto">
+          <button class="rettknapp" type="button" ${attr}="${i}"><span class="ikon">🍽️</span><span><b data-ikke-oversett>${esc(v.navn)}</b><small>${esc([v.merke, t('{kcal} kcal per 100 g', { kcal: kroner(v.per100.kcal) })].filter(Boolean).join(' · '))}</small></span></button>
+          <button class="knapp" type="button" ${attr}="${i}">Velg</button></div>`;
+      let kropp = '';
+      if (f.valgt) {
+        const v = f.valgt, g = f.gram ?? v.porsjon ?? 100, n = (x) => (x * g) / 100;
+        kropp = `<div class="matvalg">
+          <div><b data-ikke-oversett>${esc(v.navn)}</b>${v.merke ? `<div class="forklaring" data-ikke-oversett>${esc(v.merke)}</div>` : ''}</div>
+          <div class="rad2"><div class="felt"><label for="matGram">Mengde</label><div class="belopfelt"><input id="matGram" type="number" inputmode="decimal" min="1" step="any" value="${g}" style="font-size:20px;padding:9px 40px 9px 12px"><span>g</span></div></div>
+            <div class="forklaring" id="matSum" style="padding-bottom:10px">${esc(t('= {kcal} kcal · {p} g protein', { kcal: kroner(n(v.per100.kcal)), p: kroner(n(v.per100.p)) }))}</div></div>
+          ${v.porsjon ? `<button class="lenke" type="button" data-mat-gram="${v.porsjon}" style="justify-self:start">${esc(t('Én porsjon ({g} g)', { g: v.porsjon }))}</button>` : ''}
+          <div class="knapprad"><button class="knapp hoved" type="button" data-for-valgt>✓ Før</button><button class="knapp" type="button" data-mat-tilbake>Tilbake</button></div>
+        </div>`;
+      } else if (f.fane === 'sok') {
+        const nylig = S.mat.nyligMat || [];
+        kropp = `<form class="lenkefelt" data-matsok autocomplete="off"><input name="q" value="${esc(f.sok)}" placeholder="${esc(t('F.eks. Grandiosa, skyr eller banan'))}" aria-label="${esc(t('Søk etter mat'))}"><button class="knapp hoved" type="submit">Søk</button></form>
+          ${f.laster ? '<p class="forklaring">Søker …</p>' : ''}${f.feil ? `<p class="varsel">${esc(f.feil)}</p>` : ''}
+          ${f.resultater ? (f.resultater.length ? f.resultater.map((v, i) => rad(v, 'data-off-valg', i)).join('') : '<p class="tomt">Fant ingenting. Prøv et annet ord, eller skriv inn selv.</p>')
+            : nylig.length ? `<div class="undertittel">Nylig ført</div>${nylig.map((v, i) => rad(v, 'data-nylig-valg', i)).join('')}` : ''}
+          <p class="forklaring" style="font-size:12px">Fra Open Food Facts, en åpen matdatabase. Sjekk gjerne tallene på pakken.</p>`;
+      } else if (f.fane === 'strek') {
+        kropp = `<label class="knapp hoved stor" for="strekFil" style="text-align:center">📷 Ta bilde av strekkoden</label>
+          <input type="file" id="strekFil" accept="image/*" capture="environment" hidden>
+          <form class="lenkefelt" data-strekform autocomplete="off"><input name="kode" inputmode="numeric" placeholder="${esc(t('Eller skriv tallene under strekkoden'))}" aria-label="${esc(t('Strekkode'))}"><button class="knapp" type="submit">Finn</button></form>
+          ${f.laster ? '<p class="forklaring">Leter …</p>' : ''}${f.feil ? `<p class="varsel">${esc(f.feil)}</p>` : ''}`;
+      } else {
+        kropp = `<form class="matvalg" data-selvform autocomplete="off">
+          <div class="felt"><label for="selvNavn">Hva spiste du?</label><input id="selvNavn" name="navn" placeholder="${esc(t('F.eks. Kebab'))}" required></div>
+          <div class="rad2"><div class="felt"><label for="selvKcal">Kalorier</label><input id="selvKcal" name="kcal" type="number" inputmode="decimal" min="0" step="any" placeholder="kcal" required></div>
+            <div class="felt"><label for="selvP">Protein (valgfritt)</label><input id="selvP" name="p" type="number" inputmode="decimal" min="0" step="any" placeholder="g"></div></div>
+          <button class="knapp hoved" type="submit">✓ Før</button>
+        </form>`;
+      }
+      $('rettInnhold').innerHTML = `
+        <h2 id="rettTittel">＋ ${esc(t('Før mat for {navn}', { navn: personNavn(pid) }))}</h2>
+        <div class="felt"><label>Måltid</label><div class="chips">${DELER.map((d) => `<button type="button" class="chip" data-mat-del="${d}" aria-pressed="${f.del === d}">${esc(oversett(MALTIDSNAVN[d]))}</button>`).join('')}</div></div>
+        ${f.valgt ? '' : `<div class="velger" style="margin:0">${fane('sok', '🔍 Søk')}${fane('strek', '▦ Strekkode')}${fane('selv', '✏️ Skriv selv')}</div>`}
+        ${kropp}
+        <div class="knapprad"><button class="knapp" type="button" data-lukk-rett>Lukk</button></div>`;
+      if (!$('rettDialog').open) $('rettDialog').showModal();
+    }
+    function forAnnenMat({ navn, kcal, p = 0, f = 0, k = 0, kilde, vare, gram }) {
+      const d = idag(), pid = dagPerson(), rund = (x) => Math.round(x || 0);
+      S.mat.logg = [...(S.mat.logg || []), { id: nyId(), type: 'maltid', dato: d, person: pid, slot: `ekstra-${nyId()}`, maltid: null, navn, del: S.forMat?.del, kcal: rund(kcal), p: rund(p), f: rund(f), k: rund(k), kilde, ...(gram ? { gram: rund(gram) } : {}) }];
+      if (vare) S.mat.nyligMat = [vare, ...(S.mat.nyligMat || []).filter((x) => x.navn !== vare.navn || x.kode !== vare.kode)].slice(0, 15);
+      S.forMat = null;
+      lagreMatNa(); $('rettDialog').close(); tegnMat();
+      vis(t('{hva} er ført ✓', { hva: navn }));
+    }
+
+    function tegnMat() { oppdaterMatFordeling(); tegnIdag(); tegnUkemeny(); tegnHandleliste(); tegnKjokken(); tegnKanLage(); tegnOss(); }
 
     // ---------- Dialoger ----------
     function visRett(id, dato) {
@@ -1652,8 +2000,10 @@
 
     function husstandSporsmal(etter, { bareNye = false } = {}) {
       kjorSporsmal({
-        tittel: 'Husstanden', sporsmal: bareNye ? nyeHusstandssporsmalFor(S.mat.husstand) : HUSSTANDSPORSMAL, svar: S.mat.husstand || {},
+        tittel: 'Husstanden', sporsmal: bareNye ? nyeHusstandssporsmalFor(S.mat.husstand, { flere: flere() }) : [...HUSSTANDSPORSMAL, ...(flere() ? [MATDELING] : [])],
+        svar: { ...(S.mat.husstand || {}), ...(S.plan.matFordeling ? { matdeling: S.plan.matFordeling.type } : {}) },
         vedFerdig: (svar) => {
+          if (svar.matdeling && svar.matdeling !== matType()) settMatdeling(svar.matdeling);
           const forMange = Number(svar.middager) < Number(S.mat.husstand?.middager || 7);
           S.mat.husstand = { ...(S.mat.husstand || {}), ...svar, v: SPORSMALSVERSJON };
           if (forMange) for (const [d, m] of Object.entries(S.mat.meny || {})) if (d >= idag() && !m.spist && !m.laast) delete S.mat.meny[d];
@@ -1677,7 +2027,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 4, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 5, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -1686,6 +2036,10 @@
       { v: 3, ikon: '🥫', tittel: 'Kjøkkenet følger med', tekst: 'Det dere fører som spist, trekkes fra kjøkkenet, og rester fra middagen blir egne porsjoner. Angrer du, legges varene tilbake.' },
       { v: 3, ikon: '🧑‍🍳', tittel: 'Hva kan vi lage?', tekst: 'Forslag til middager og småmåltider ut fra det dere har i kjøleskapet – under Kjøkken.' },
       { v: 4, ikon: '🇦🇷', tittel: 'Español', tekst: 'Appen finnes nå også på argentinsk spansk. Velg språk øverst på siden.', sprak: true },
+      { v: 5, ikon: '⚖️', tittel: 'Vekt hver uke', tekst: 'Før vekten én gang i uka, så ser du utviklingen i en graf og om du er i rute mot målet. Kalorimålet følger med.' },
+      { v: 5, ikon: '🔍', tittel: 'Før all mat', tekst: 'Søk i en stor matdatabase, ta bilde av strekkoden eller skriv inn kalorier selv – også for mat utenom planen. Vann kan også føres.' },
+      { v: 5, ikon: '🛒', tittel: 'Del matbudsjettet', tekst: 'Velg hvor mange prosent hver betaler av maten, for eksempel etter hvor mye hver spiser.' },
+      { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
     ];
     const settOppdatering = () => { try { localStorage.setItem(OPPD_NOKKEL, String(OPPDATERING)); } catch {} };
     const settVersjon = () => { try { return Number(localStorage.getItem(OPPD_NOKKEL)) || 0; } catch { return OPPDATERING; } };
@@ -1804,8 +2158,30 @@
       const ds = b.dataset;
       if (ds.pengerTil) { location.hash = ds.pengerTil === 'oversikt' ? '#penger' : `#penger-${ds.pengerTil}`; return; }
       if (ds.rett) { visRett(ds.rett, ds.dato); return; }
-      if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); tegnKanLage(); if ($('rettDialog').open && S.kanLageApen) visKanLage(); return; }
+      if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); tegnVektkort(); tegnKanLage(); if ($('rettDialog').open && S.kanLageApen) visKanLage(); return; }
       if ('kanLage' in ds) { visKanLage(); return; }
+      if (ds.visVekt) { visVekt(ds.visVekt); return; }
+      if (ds.slettVekt) {
+        const ider = new Set(ds.slettVekt.split(','));
+        if (confirm(t('Slette målingen?'))) { S.mat.vekt[ds.person] = (S.mat.vekt[ds.person] || []).filter((m) => !ider.has(m.id)); lagreMatNa(); tegnAlt(); visVekt(ds.person); }
+        return;
+      }
+      if (ds.vannPluss || ds.vannMinus) { endreVann(ds.vannPluss || ds.vannMinus, ds.vannPluss ? 1 : -1); return; }
+      if (ds.matdeling) { settMatdeling(ds.matdeling); tegnAlt(); return; }
+      if ('forMat' in ds) { S.forMat = null; visForMat(); return; }
+      if (ds.matFane) { visForMat({ fane: ds.matFane, feil: '', valgt: null }); return; }
+      if (ds.matDel) { S.forMat.del = ds.matDel; document.querySelectorAll('[data-mat-del]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); return; }
+      if (ds.offValg != null) { visForMat({ valgt: S.forMat.resultater[Number(ds.offValg)], gram: null }); return; }
+      if (ds.nyligValg != null) { visForMat({ valgt: (S.mat.nyligMat || [])[Number(ds.nyligValg)], gram: null }); return; }
+      if ('matTilbake' in ds) { visForMat({ valgt: null }); return; }
+      if (ds.matGram) { $('matGram').value = ds.matGram; $('matGram').dispatchEvent(new Event('input', { bubbles: true })); return; }
+      if ('forValgt' in ds) {
+        const v = S.forMat.valgt, g = tallFra($('matGram').value);
+        if (!(g > 0)) { $('matGram').focus(); return; }
+        const n = (x) => (x * g) / 100;
+        forAnnenMat({ navn: v.navn, kcal: n(v.per100.kcal), p: n(v.per100.p), f: n(v.per100.f), k: n(v.per100.k), kilde: 'off', vare: v, gram: g });
+        return;
+      }
       if (ds.lagNa) { lagNa(ds.lagNa); return; }
       if (ds.spisNa) { spisNa(ds.spisNa); return; }
       if (ds.spisRest) { spisRest(ds.spisRest); return; }
@@ -1891,7 +2267,45 @@
       if (t.dataset.hak) { S.mat.haket = { ...(S.mat.haket || {}), [t.dataset.hak]: t.checked }; lagreMatNa(); tegnHandleliste(); }
       if (t.dataset.hakm) { const v = (S.mat.handleliste || []).find((x) => x.id === t.dataset.hakm); if (v) { v.haket = t.checked; lagreMatNa(); tegnHandleliste(); } }
     });
-    document.addEventListener('submit', (e) => {
+    document.addEventListener('submit', async (e) => {
+      const f = e.target;
+      if (f.dataset.vektform) {
+        e.preventDefault();
+        const kg = tallFra(f.elements.kg.value);
+        if (!(kg >= 30 && kg <= 300)) { f.elements.kg.focus(); vis(t('Skriv inn vekta i kg')); return; }
+        lagreVekt(f.dataset.vektform, Math.round(kg * 10) / 10);
+        return;
+      }
+      if (f.dataset.malvektform) {
+        e.preventDefault();
+        const kg = tallFra(f.elements.kg.value), pid = f.dataset.malvektform;
+        S.mat.profiler = { ...(S.mat.profiler || {}), [pid]: { ...profil(pid), malvekt: kg >= 30 && kg <= 300 ? Math.round(kg * 10) / 10 : null } };
+        lagreMatNa(); tegnAlt(); visVekt(pid); vis(t('Lagret ✓'));
+        return;
+      }
+      if ('matsok' in f.dataset) {
+        e.preventDefault();
+        const q = f.elements.q.value.trim();
+        if (!q) return;
+        visForMat({ sok: q, laster: true, feil: '', resultater: null });
+        try { const res = await offSok(q); if (S.forMat) visForMat({ resultater: res, laster: false }); }
+        catch { if (S.forMat) visForMat({ laster: false, feil: t('Fikk ikke kontakt med matdatabasen. Prøv igjen, eller skriv inn selv.') }); }
+        return;
+      }
+      if ('strekform' in f.dataset) {
+        e.preventDefault();
+        const kode = f.elements.kode.value.replace(/\D/g, '');
+        if (kode.length < 8) { f.elements.kode.focus(); return; }
+        finnStrekkode(kode);
+        return;
+      }
+      if ('selvform' in f.dataset) {
+        e.preventDefault();
+        const kcal = tallFra(f.elements.kcal.value), p = tallFra(f.elements.p.value) || 0;
+        if (!(kcal >= 0)) { f.elements.kcal.focus(); return; }
+        forAnnenMat({ navn: f.elements.navn.value.trim() || t('Annen mat'), kcal, p, kilde: 'selv' });
+        return;
+      }
       if (e.target.id !== 'nyVareForm') return;
       e.preventDefault();
       const tekst = $('nyVareTekst').value.trim();
@@ -1901,7 +2315,31 @@
       $('nyVareTekst').focus();
     });
     $('rettDialog').addEventListener('click', (e) => { if (e.target === $('rettDialog')) $('rettDialog').close(); });
-    $('rettDialog').addEventListener('close', () => { S.kanLageApen = false; });
+    $('rettDialog').addEventListener('close', () => { S.kanLageApen = false; S.vektApen = null; });
+    async function finnStrekkode(kode) {
+      visForMat({ laster: true, feil: '' });
+      try {
+        const v = await offStrekkode(kode);
+        if (!S.forMat) return;
+        if (v) visForMat({ valgt: v, gram: null, laster: false });
+        else visForMat({ laster: false, feil: t('Fant ikke varen med strekkode {kode}. Søk på navnet, eller skriv inn selv.', { kode }) });
+      } catch { if (S.forMat) visForMat({ laster: false, feil: t('Fikk ikke kontakt med matdatabasen. Prøv igjen, eller skriv inn selv.') }); }
+    }
+    document.addEventListener('change', async (e) => {
+      if (e.target.id !== 'strekFil') return;
+      const fil = e.target.files?.[0];
+      e.target.value = '';
+      if (!fil) return;
+      visForMat({ laster: true, feil: '' });
+      try { const kode = await lesStrekkode(fil); finnStrekkode(kode); }
+      catch (err) { console.warn(err); if (S.forMat) visForMat({ laster: false, feil: t('Fant ingen strekkode på bildet. Ta bildet litt nærmere, eller skriv inn tallene.') }); }
+    });
+    document.addEventListener('input', (e) => {
+      if (e.target.id !== 'matGram' || !S.forMat?.valgt) return;
+      const g = tallFra(e.target.value) || 0, v = S.forMat.valgt;
+      S.forMat.gram = g;
+      $('matSum').textContent = t('= {kcal} kcal · {p} g protein', { kcal: kroner((v.per100.kcal * g) / 100), p: kroner((v.per100.p * g) / 100) });
+    });
 
     // ================= FELLES BUDSJETT =================
     const meg = () => { const j = deling()?.jeg; return S.plan.personer.some((p) => p.id === j) ? j : S.plan.personer[0]?.id; };
@@ -2091,7 +2529,8 @@
       e.preventDefault();
       const belop = tallFra($('pBelop').value);
       if (!(belop > 0)) { $('pBelop').focus(); return; }
-      const post = leggTilPost({ belop, kategori: S.valgtKategori, dato: $('pDato').value || idag(), notat: $('pNotat').value.trim() });
+      const post = leggTilPost({ belop, kategori: S.valgtKategori, dato: $('pDato').value || idag(), notat: $('pNotat').value.trim(), ...(S.fraKvittering ? { kvittering: true } : {}) });
+      if (S.fraKvittering) { S.fraKvittering = false; $('kvitteringStatus').textContent = oversett('Ta bilde av kvitteringen, så fylles beløpet inn.'); }
       S.poster = lesPoster(); S.maaned = maanedAv(post.dato);
       $('pBelop').value = ''; $('pNotat').value = ''; $('pDato').value = idag();
       tegnOversikt(); tegnBudsjett();
@@ -2099,6 +2538,7 @@
     });
 
     $('bildeFil').addEventListener('change', (e) => { const fil = e.target.files?.[0]; if (fil) lesBilde(fil); e.target.value = ''; });
+    $('kvitteringFil').addEventListener('change', (e) => { const fil = e.target.files?.[0]; if (fil) lesKvittering(fil); e.target.value = ''; });
 
     $('lonnskort').addEventListener('input', (e) => {
       const pr = lonnsprofil(S.lonn, S.lonnPerson);
@@ -2229,6 +2669,23 @@
     $('planredigering').addEventListener('change', () => tegnKategorivalg());
 
     $('husstand').addEventListener('input', (e) => {
+      const mid = e.target.dataset.matandel;
+      if (mid) {
+        const verdi = Math.min(100, Math.max(0, Math.round(tallFra(e.target.value) || 0)));
+        const andeler = { ...(S.plan.matFordeling?.andeler || {}), [mid]: verdi };
+        // To personer: den andre får resten, så det alltid blir 100 %
+        if (S.plan.personer.length === 2) {
+          const annen = S.plan.personer.find((p) => p.id !== mid);
+          andeler[annen.id] = 100 - verdi;
+          const felt = $('husstand').querySelector(`[data-matandel="${CSS.escape(annen.id)}"]`);
+          if (felt) felt.value = 100 - verdi;
+        }
+        S.plan.matFordeling = { type: 'egen', andeler };
+        lagre(); tegnBudsjett();
+        const tekst = $('matFordelingTekst');
+        if (tekst) tekst.textContent = t('Maten deles: {fordeling}.', { fordeling: liste(S.plan.personer.map((p) => `${p.navn} ${Math.round(matAndelFor(S.plan, p.id) * 100)} %`)) });
+        return;
+      }
       const id = e.target.dataset.andel;
       if (!id) return;
       const p = S.plan.personer.find((x) => x.id === id);
@@ -2243,7 +2700,8 @@
       const p = S.plan.personer.find((x) => x.id === id);
       if (p && e.target.value.trim()) { p.navn = e.target.value.trim(); lagre(); tegnAlt(); }
     });
-    $('husstand').addEventListener('change', () => tegnAlt());
+    // Ikke tegn prosentfeltene på nytt mens noen skriver i dem (da forsvinner det de skriver i neste felt)
+    $('husstand').addEventListener('change', (e) => { if (e.target.dataset.andel || e.target.dataset.matandel) { tegnOversikt(); tegnBudsjett(); tegnLonn(); return; } tegnAlt(); });
 
     $('importerFil').addEventListener('change', async (e) => {
       const fil = e.target.files?.[0]; if (!fil) return;
