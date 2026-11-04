@@ -368,6 +368,19 @@ export const ES = {
   "Kvitteringer": "Tickets",
   "Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.": "Sacale una foto al ticket en Plata, y la app lee el total y lo anota en el presupuesto.",
 
+  // ---------- Supabase ----------
+  "Felles budsjett er ikke koblet til databasen ennå.": "El presupuesto compartido todavía no está conectado a la base de datos.",
+  "Databasen er ikke satt opp for Hjemme ennå.": "La base de datos todavía no está configurada para En casa.",
+  "Databasen er ikke satt opp ennå": "La base de datos todavía no está configurada",
+  "Ingenting er borte – alt ligger fortsatt på telefonen. Databasen (Supabase, samme som WireWise) må bare settes opp for Hjemme én gang, helst på PC:": "No se perdió nada, todo sigue en el celu. Solo hay que configurar la base de datos (Supabase, la misma de WireWise) para En casa una vez, mejor desde una compu:",
+  "Trykk **Åpne SQL Editor** og logg inn i Supabase. Sjekk at WireWise-prosjektet er valgt.": "Tocá **Abrir SQL Editor** y entrá a Supabase. Fijate que esté elegido el proyecto de WireWise.",
+  "Trykk **Kopier SQL**, lim den inn i det tomme feltet og trykk **Run**. Du skal få «Success».": "Tocá **Copiar SQL**, pegalo en el campo vacío y tocá **Run**. Tiene que aparecer «Success».",
+  "Åpne SQL Editor": "Abrir SQL Editor",
+  "Kopier SQL": "Copiar SQL",
+  "SQL-en lager en egen tabell for Hjemme og rører ingenting annet i WireWise. Alt som lagres der er kryptert med koden deres, så ingen andre kan lese det.": "El SQL crea una tabla aparte para En casa y no toca nada más de WireWise. Todo lo que se guarda ahí está cifrado con su código, así que nadie más lo puede leer.",
+  "SQL-en er kopiert ✓": "SQL copiado ✓",
+  "Kopier SQL-en:": "Copiá el SQL:",
+
   // ---------- Tilbudsavisen ----------
   'Min tilbudsavis': 'Mis ofertas', 'Henter ukens tilbud…': 'Buscando las ofertas de la semana…', 'Laster tilbud…': 'Cargando ofertas…',
   '{antall} tilbud fra {butikker} butikker rundt {sted} · oppdatert {tid}': '{antall} ofertas de {butikker} súper cerca de {sted} · actualizado {tid}',

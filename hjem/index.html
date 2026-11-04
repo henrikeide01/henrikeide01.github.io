@@ -564,7 +564,7 @@
     // Telefoner som brukte budsjettet før oppstarten kom, beholder oppsettet sitt
     sikreTidligereOppsett();
     import { tolkLonnsslipp } from './lonnsslipp.js';
-    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode } from './synk.js';
+    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode, SQL_EDITOR } from './synk.js';
 
     // Tekstgjenkjenning (lastes først når du laster opp et bilde)
     const OCR = {
@@ -2346,10 +2346,9 @@
     const andre = () => liste(S.plan.personer.filter((p) => p.id !== meg()).map((p) => p.navn)) || t('resten av husstanden');
     const klokke = new Intl.DateTimeFormat(LOK, { hour: '2-digit', minute: '2-digit' });
 
-    const REGLER = `"budsjett": {
-  "$hus": { ".read": true, ".write": true }
-},`;
-    const REGELSIDE = 'https://console.firebase.google.com/project/eidert/database/eidert-default-rtdb/rules';
+    // SQL-en som setter opp Hjemme i Supabase (samme fil som ligger i hjem/supabase-oppsett.sql)
+    let oppsettSql = null;
+    const hentOppsettSql = async () => (oppsettSql ??= await fetch('./supabase-oppsett.sql', { cache: 'no-cache' }).then((r) => r.text()));
 
     function tegnDeling() {
       const d = deling();
@@ -2367,7 +2366,7 @@
       const sist = d.sist ? klokke.format(new Date(d.sist)) : null;
       $('delingMini').innerHTML = d.feil ? `<div class="delingslinje feil"><span>⚠️ Ikke oppdatert</span><button type="button" id="synkNa">Prøv igjen</button></div>` : '';
       $('deling').innerHTML = d.feil
-        ? `<div class="delingslinje feil"><span>⚠️ ${d.feil === 'nektet' ? 'Databasen tillater ikke lagring ennå' : 'Ikke oppdatert – er du på nett?'}</span><button type="button" id="synkNa">Prøv igjen</button></div>`
+        ? `<div class="delingslinje feil"><span>⚠️ ${d.feil === 'nektet' || d.feil === 'oppsett' ? 'Databasen er ikke satt opp ennå' : 'Ikke oppdatert – er du på nett?'}</span><button type="button" id="synkNa">Prøv igjen</button></div>`
         : `<div class="delingslinje"><span>👥 <b>${esc(t('Felles med {navn}', { navn: andre() }))}</b>${sist ? ` · ${esc(t('oppdatert {tid}', { tid: sist }))}` : ''}</span><button type="button" id="synkNa">⟳ Oppdater</button></div>`;
       $('delingskort').hidden = false;
       $('delingsinnstillinger').innerHTML = `
@@ -2386,20 +2385,16 @@
     const md = (tekst) => esc(tekst).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
     let provIgjen = null; // det som skal prøves på nytt fra feilmeldingen
     function feilHtml(e) {
-      const eksempel = `{\n  "rules": {\n${REGLER.split('\n').map((l) => '    ' + l).join('\n')}\n    ${t('… det som sto der fra før …')}\n  }\n}`;
+      const oppsett = e.type === 'nektet' || e.type === 'oppsett';
       return `<h2 id="delTittel">Det gikk ikke</h2><p>${esc(e.message || 'Noe gikk galt.')}</p>
-        ${e.type === 'nektet' ? `<p class="forklaring">${esc(t('Ingenting er borte – alt ligger fortsatt på telefonen. Databasen har bare ikke fått lov til å lagre felles budsjett ennå. Det fikser du én gang, helst på PC:'))}</p>
+        ${oppsett ? `<p class="forklaring">${esc(t('Ingenting er borte – alt ligger fortsatt på telefonen. Databasen (Supabase, samme som WireWise) må bare settes opp for Hjemme én gang, helst på PC:'))}</p>
         <ol class="steg" style="font-size:14.5px">
-          <li>${md(t('Trykk **Åpne Firebase-reglene** og logg inn med Google-kontoen du lagde Firebase med. Sjekk at det står **Realtime Database** øverst (ikke Firestore), og at fanen **Regler** (Rules) er valgt.'))}</li>
-          <li>${md(t('Sett markøren rett etter `"rules": {` på linje 2, trykk Enter og lim inn regelen. Alt annet skal stå som før.'))}</li>
-          <li>${md(t('Trykk **Publiser** (Publish). Kommer det en rød feil, mangler det som regel et komma – regelen skal slutte med `},`.'))}</li>
+          <li>${md(t('Trykk **Åpne SQL Editor** og logg inn i Supabase. Sjekk at WireWise-prosjektet er valgt.'))}</li>
+          <li>${md(t('Trykk **Kopier SQL**, lim den inn i det tomme feltet og trykk **Run**. Du skal få «Success».'))}</li>
           <li>${md(t('Kom tilbake hit og trykk **Prøv igjen**.'))}</li>
         </ol>
-        <pre class="regler">${esc(REGLER)}</pre>
-        <div class="knapprad"><a class="knapp" href="${REGELSIDE}" target="_blank" rel="noopener">Åpne Firebase-reglene</a><button class="knapp" type="button" id="kopierRegel">Kopier regelen</button></div>
-        <details><summary class="lenke">Slik skal starten se ut etterpå</summary><pre class="regler">${esc(eksempel)}</pre></details>
-        <p class="forklaring">${esc(t('Virker det fortsatt ikke? Ta et skjermbilde av regelsiden, så er det lett å se hva som er galt.'))}</p>
-        <p class="forklaring">Alt som lagres der er kryptert med koden deres, så ingen andre kan lese det.</p>` : ''}
+        <div class="knapprad"><a class="knapp" href="${SQL_EDITOR}" target="_blank" rel="noopener">Åpne SQL Editor</a><button class="knapp" type="button" id="kopierSql">Kopier SQL</button></div>
+        <p class="forklaring">${esc(t('SQL-en lager en egen tabell for Hjemme og rører ingenting annet i WireWise. Alt som lagres der er kryptert med koden deres, så ingen andre kan lese det.'))}</p>` : ''}
         <div class="knapprad">${provIgjen ? '<button class="knapp hoved" type="button" id="provIgjen">Prøv igjen</button>' : ''}${lukkKnapp}</div>`;
     }
     function visFeil(e, igjen) { provIgjen = igjen || null; dialog(feilHtml(e)); }
@@ -2499,7 +2494,11 @@
         }
         case 'synkNa': synkNa(true); break;
         case 'visLenke': visLenke(deling().kode); break;
-        case 'kopierRegel': try { await navigator.clipboard.writeText(REGLER); vis(t('Regelen er kopiert ✓')); } catch { prompt(t('Kopier regelen:'), REGLER); } break;
+        case 'kopierSql': {
+          const sql = await hentOppsettSql().catch(() => '');
+          try { await navigator.clipboard.writeText(sql); vis(t('SQL-en er kopiert ✓')); } catch { prompt(t('Kopier SQL-en:'), sql); }
+          break;
+        }
         case 'kopierLenke': try { await navigator.clipboard.writeText($('lenke').value); vis('Lenken er kopiert ✓'); } catch { $('lenke').select(); } break;
         case 'delLenke': navigator.share({ title: t('Felles budsjett'), text: t('Bli med i budsjettet vårt:'), url: $('lenke').value }).catch(() => {}); break;
         case 'kobleFra':

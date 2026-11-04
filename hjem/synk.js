@@ -1,6 +1,7 @@
 // Felles budsjett på flere telefoner (Henrik og Hanna).
 // Alt krypteres på telefonen med husstandskoden (AES-GCM, nøkkel fra PBKDF2) før det sendes til
-// Firebase-databasen. Databasen lagrer bare uleselig tekst – uten koden kan ingen lese budsjettet.
+// databasen (Supabase, samme prosjekt som WireWise). Databasen lagrer bare uleselig tekst –
+// uten koden kan ingen lese budsjettet. Oppsettet i databasen: hjem/supabase-oppsett.sql
 import { lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn, lesMat, lagreMat } from './budsjett.js';
 
 // Det som synkes som én helhet (sist lagret vinner). Utgifter synkes hver for seg.
@@ -10,7 +11,11 @@ const DELER = [
   { navn: 'mat', les: lesMat, lagre: lagreMat },
 ];
 
-export const DB = 'https://eidert-default-rtdb.europe-west1.firebasedatabase.app';
+// Supabase: adressen og den offentlige nøkkelen («Publishable key» / «anon public»). Den nøkkelen er laget for å stå
+// i nettleserkode – den hemmelige «service_role»-nøkkelen skal aldri hit.
+export const SUPABASE_URL = 'https://faqcxyrrhqrexolnhxbc.supabase.co';
+export const SUPABASE_NOKKEL = '';
+export const SQL_EDITOR = 'https://supabase.com/dashboard/project/faqcxyrrhqrexolnhxbc/sql/new';
 const NOKKEL = 'budsjett.deling';
 const TEGN = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // uten I, O, 0 og 1
 
@@ -65,27 +70,33 @@ async function dekrypter(key, tekst) {
   return JSON.parse(dec.decode(ren));
 }
 
-// ---------- Database (Firebase REST) ----------
+// ---------- Database (Supabase: funksjonene hjem_hent og hjem_lagre) ----------
 export class SynkFeil extends Error {
   constructor(melding, type) { super(melding); this.type = type; }
 }
 
-async function kall(metode, url, kropp) {
+async function rpc(funksjon, argumenter) {
+  if (!SUPABASE_NOKKEL) throw new SynkFeil('Felles budsjett er ikke koblet til databasen ennå.', 'oppsett');
   let res;
   try {
-    res = await fetch(url, { method: metode, headers: kropp ? { 'Content-Type': 'application/json' } : {}, body: kropp ? JSON.stringify(kropp) : undefined });
+    res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${funksjon}`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_NOKKEL, 'Content-Type': 'application/json', ...(SUPABASE_NOKKEL.startsWith('eyJ') ? { Authorization: `Bearer ${SUPABASE_NOKKEL}` } : {}) },
+      body: JSON.stringify(argumenter),
+    });
   } catch {
     throw new SynkFeil('Fikk ikke kontakt med databasen. Er du på nett?', 'nett');
   }
+  const tekst = await res.text().catch(() => '');
   if (!res.ok) {
-    const tekst = await res.text().catch(() => '');
-    if (res.status === 401 || res.status === 403 || /permission/i.test(tekst)) throw new SynkFeil('Databasen tillater ikke lagring av budsjettet ennå.', 'nektet');
+    if (res.status === 404 || /PGRST202|could not find the function|schema cache/i.test(tekst)) throw new SynkFeil('Databasen er ikke satt opp for Hjemme ennå.', 'oppsett');
+    if (res.status === 401 || res.status === 403 || /permission denied|invalid api key|jwt/i.test(tekst)) throw new SynkFeil('Databasen tillater ikke lagring av budsjettet ennå.', 'nektet');
     throw new SynkFeil(`Databasen svarte med feil (${res.status}).`, 'server');
   }
-  return res.status === 204 ? null : res.json();
+  return tekst ? JSON.parse(tekst) : null;
 }
-
-const sti = (husId, del = '') => `${DB}/budsjett/${husId}${del}.json`;
+const hent = (husId) => rpc('hjem_hent', { p_hus: husId });
+const lagreEndring = (husId, endring) => rpc('hjem_lagre', { p_hus: husId, p_endring: endring });
 
 // ---------- Endringer på denne telefonen ----------
 // budsjett.js sender «budsjett-lagret» når plan eller lønn lagres; da merker vi det for opplasting.
@@ -123,10 +134,10 @@ export function synk() {
     for (const id of kjente) if (!ider.has(id)) { endring[`poster/${id}`] = null; endring[`slettet/${id}`] = { '.sv': 'timestamp' }; }
     const endretFoer = Object.fromEntries(DELER.map((x) => [x.navn, d[`${x.navn}Endret`] || 0]));
     for (const x of DELER) if (endretFoer[x.navn]) endring[x.navn] = { d: await krypter(key, x.les()), t: { '.sv': 'timestamp' } };
-    if (Object.keys(endring).length) await kall('PATCH', sti(husId), endring);
+    if (Object.keys(endring).length) await lagreEndring(husId, endring);
 
     // 2) Hent alt og bruk det felles
-    const fjern = (await kall('GET', sti(husId))) || {};
+    const fjern = (await hent(husId)) || {};
     const slettet = new Set(Object.keys(fjern.slettet || {}));
     const poster = (await Promise.all(Object.values(fjern.poster || {}).map((v) => dekrypter(key, v.d).catch(() => null))))
       .filter((p) => p && !slettet.has(p.id));
@@ -175,7 +186,7 @@ export async function finnDelt(kode) {
   const k = normaliserKode(kode);
   if (k.replace(/-/g, '').length < 12) throw new SynkFeil('Koden er for kort.', 'kode');
   const { husId, key } = await krypto(k);
-  const fjern = await kall('GET', sti(husId, '/plan'));
+  const fjern = (await hent(husId))?.plan;
   if (!fjern?.d) throw new SynkFeil('Fant ikke noe felles budsjett med denne koden.', 'kode');
   let plan;
   try { plan = await dekrypter(key, fjern.d); } catch { throw new SynkFeil('Koden stemmer ikke.', 'kode'); }

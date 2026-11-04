@@ -368,6 +368,19 @@ export const EN = {
   "Kvitteringer": "Receipts",
   "Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.": "Take a photo of the receipt under Money, and the app reads the total and adds it to the budget.",
 
+  // ---------- Supabase ----------
+  "Felles budsjett er ikke koblet til databasen ennå.": "The shared budget is not connected to the database yet.",
+  "Databasen er ikke satt opp for Hjemme ennå.": "The database hasn't been set up for Home yet.",
+  "Databasen er ikke satt opp ennå": "The database isn't set up yet",
+  "Ingenting er borte – alt ligger fortsatt på telefonen. Databasen (Supabase, samme som WireWise) må bare settes opp for Hjemme én gang, helst på PC:": "Nothing is lost – everything is still on the phone. The database (Supabase, the same as WireWise) just needs to be set up for Home once, preferably on a PC:",
+  "Trykk **Åpne SQL Editor** og logg inn i Supabase. Sjekk at WireWise-prosjektet er valgt.": "Tap **Open SQL Editor** and sign in to Supabase. Check that the WireWise project is selected.",
+  "Trykk **Kopier SQL**, lim den inn i det tomme feltet og trykk **Run**. Du skal få «Success».": "Tap **Copy SQL**, paste it into the empty field and tap **Run**. You should get “Success”.",
+  "Åpne SQL Editor": "Open SQL Editor",
+  "Kopier SQL": "Copy SQL",
+  "SQL-en lager en egen tabell for Hjemme og rører ingenting annet i WireWise. Alt som lagres der er kryptert med koden deres, så ingen andre kan lese det.": "The SQL creates a separate table for Home and touches nothing else in WireWise. Everything stored there is encrypted with your code, so nobody else can read it.",
+  "SQL-en er kopiert ✓": "The SQL is copied ✓",
+  "Kopier SQL-en:": "Copy the SQL:",
+
   // ---------- Tilbudsavisen ----------
   'Min tilbudsavis': 'My offers', 'Henter ukens tilbud…': "Fetching this week's offers…", 'Laster tilbud…': 'Loading offers…',
   '{antall} tilbud fra {butikker} butikker rundt {sted} · oppdatert {tid}': '{antall} offers from {butikker} stores around {sted} · updated {tid}',
