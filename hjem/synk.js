@@ -13,8 +13,8 @@ const DELER = [
 
 // Supabase: adressen og den offentlige nøkkelen («Publishable key» / «anon public»). Den nøkkelen er laget for å stå
 // i nettleserkode – den hemmelige «service_role»-nøkkelen skal aldri hit.
-export const SUPABASE_URL = '';
-export const SUPABASE_NOKKEL = '';
+export const SUPABASE_URL = 'https://mexhgazwendxklbmxesx.supabase.co';
+export const SUPABASE_NOKKEL = 'sb_publishable_Kww-QK7HgEWaoGPY8NP2hg_W4M4DwQE';
 const prosjekt = SUPABASE_URL.match(/^https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 export const SQL_EDITOR = prosjekt ? `https://supabase.com/dashboard/project/${prosjekt}/sql/new` : 'https://supabase.com/dashboard/projects';
 const NOKKEL = 'budsjett.deling';
