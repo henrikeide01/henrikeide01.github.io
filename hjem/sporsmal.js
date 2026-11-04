@@ -14,6 +14,8 @@ export const PERSONSPORSMAL = [
     V('ned', 'Gå ned i vekt', '📉'), V('nedmuskler', 'Gå ned i vekt og bygge muskler', '🔥', 'Litt færre kalorier og ekstra mye protein'),
     V('holde', 'Holde vekten', '⚖️'), V('muskler', 'Bygge muskler', '💪'), V('opp', 'Gå opp i vekt', '📈')] },
   { id: 'malvekt', type: 'tall', tekst: 'Har du en målvekt?', enhet: 'kg', min: 30, max: 250, hjelp: 'Hopp over hvis du ikke vil sette en. Du kan endre den under vekt senere.', naar: (s) => ['ned', 'nedmuskler', 'opp'].includes(s.mal) },
+  { id: 'malfrist', type: 'valg', tekst: 'Når vil du nå målvekta?', hjelp: 'Kalorimålet justeres etter dette. Er det for raskt, velger appen en trygg fart.', naar: (s) => ['ned', 'nedmuskler', 'opp'].includes(s.mal) && Number(s.malvekt) > 0, valg: [
+    V('3', 'Om 3 måneder', '⚡'), V('6', 'Om et halvt år', '📅'), V('12', 'Om et år', '🗓️'), V('ingen', 'Ingen hast', '🐢', 'Følg det vanlige kalorimålet')] },
   { id: 'middag', type: 'valg', tekst: 'Hvor stor er middagen for deg?', valg: [
     V('liten', 'Liten', '🥄', 'Jeg spiser mest ellers i løpet av dagen'), V('normal', 'Vanlig', '🍽️'), V('stor', 'Stor', '🍲', 'Middag er dagens hovedmåltid')] },
   { id: 'kosthold', type: 'valg', tekst: 'Hva spiser du?', valg: [
@@ -25,6 +27,8 @@ export const PERSONSPORSMAL = [
     V('fisk', 'Fisk', '🐟'), V('skalldyr', 'Skalldyr', '🦐'), V('sopp', 'Sopp', '🍄'), V('lok', 'Løk', '🧅'), V('paprika', 'Paprika', '🫑'),
     V('tomat', 'Tomat', '🍅'), V('bonner', 'Bønner og linser', '🫘'), V('kokos', 'Kokos', '🥥'), V('svin', 'Svinekjøtt', '🐖'),
     V('kylling', 'Kylling', '🍗'), V('ost', 'Ost', '🧀'), V('egg', 'Egg', '🥚'), V('avokado', 'Avokado', '🥑'), V('sterk', 'Sterk mat', '🌶️')] },
+  { id: 'oktMal', type: 'valg', tekst: 'Hvor mange treningsøkter vil du ha i uka?', hjelp: 'Brukes som ukemål. Du huker av når du har trent.', valg: [
+    V('0', 'Ingen mål for trening', '🙂'), V('1', '1 økt', '🚶'), V('2', '2 økter', '🏃'), V('3', '3 økter', '💪'), V('4', '4 økter', '🏋️'), V('5', '5 økter eller mer', '🔥')] },
   { id: 'favoritter', type: 'flere', tekst: 'Hva elsker du å spise?', hjelp: 'Velg så mange du vil.', valg: [
     V('kylling', 'Kylling', '🍗'), V('kjottdeig', 'Kjøttdeig', '🥩'), V('biff', 'Biff', '🥩'), V('laks', 'Laks', '🐟'), V('fisk', 'Annen fisk', '🐠'),
     V('pasta', 'Pasta', '🍝'), V('ris', 'Risretter', '🍚'), V('taco', 'Taco', '🌮'), V('pizza', 'Pizza', '🍕'), V('wok', 'Wok', '🥡'),
@@ -34,7 +38,8 @@ export const PERSONSPORSMAL = [
 // ---------- Nytt i versjon 2: dagsplaner (frokost, lunsj og mellommåltid) ----------
 // Versjon 3: eget mål for å gå ned i vekt og bygge muskler samtidig
 // Versjon 4: målvekt, og hvordan matbudsjettet deles
-export const SPORSMALSVERSJON = 4;
+// Versjon 5: når du vil nå målvekta, og mål for trening i uka
+export const SPORSMALSVERSJON = 5;
 export const NYE_PERSONSPORSMAL = [
   { id: 'maltider', type: 'valg', tekst: 'Hvor mange måltider spiser du om dagen?', valg: [
     V('3', '3 – frokost, lunsj og middag', '🍽️'), V('4', '4 – pluss et mellommåltid', '🍎'), V('5', '5 – pluss mellommåltid og kveldsmat', '🌙')] },
@@ -169,6 +174,8 @@ export const NYE_PERSONSPORSMAL_V3 = [{ ...MALSPORSMAL, hjelp: 'Nytt: Du kan nå
 
 // De nye spørsmålene en person ikke har fått ennå
 export const MALVEKT = PERSONSPORSMAL.find((q) => q.id === 'malvekt');
+export const MALFRIST = PERSONSPORSMAL.find((q) => q.id === 'malfrist');
+export const OKTMAL = PERSONSPORSMAL.find((q) => q.id === 'oktMal');
 export function nyeSporsmalFor(pr) {
   const v = Number(pr?.v) || 1;
   const ut = [];
@@ -176,6 +183,11 @@ export function nyeSporsmalFor(pr) {
   if (v < 3 && ['ned', 'muskler'].includes(pr?.mal)) ut.push(...NYE_PERSONSPORSMAL_V3);
   // Versjon 4: målvekt for den som vil gå ned eller opp i vekt (og ikke har satt en)
   if (v < 4 && pr?.malvekt == null && (ut.some((q) => q.id === 'mal') || ['ned', 'nedmuskler', 'opp'].includes(pr?.mal))) ut.push(MALVEKT);
+  // Versjon 5: frist for målvekta (bare med målvekt) og treningsmål
+  if (v < 5) {
+    if (!pr?.malDato && (ut.some((q) => q.id === 'malvekt') || Number(pr?.malvekt) > 0)) ut.push(MALFRIST);
+    if (pr?.oktMal == null) ut.push(OKTMAL);
+  }
   return ut;
 }
 

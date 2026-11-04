@@ -212,12 +212,20 @@ export function beregnMal(pr) {
   if (!(vekt > 0 && hoyde > 0 && alder > 0)) return pr?.malTall?.kcal > 0 ? { ...pr.malTall } : null;
   const kjonn = pr.kjonn === 'mann' ? 5 : pr.kjonn === 'kvinne' ? -161 : -78;
   const bmr = 10 * vekt + 6.25 * hoyde - 5 * alder + kjonn;
-  let kcal = bmr * (AKTIVITET[pr.aktivitet] ?? 1.45) * (1 + (MAL[pr.mal] ?? 0));
+  const tdee = bmr * (AKTIVITET[pr.aktivitet] ?? 1.45); // det kroppen bruker på en vanlig dag
+  let kcal = tdee * (1 + (MAL[pr.mal] ?? 0));
+  // Ønsket tempo (kg per uke, fra ønsket dato for målvekta): 7700 kcal ≈ 1 kg kroppsfett.
+  // Aldri under hvilestoffskiftet / 1200–1500 kcal, og aldri mer enn 20 % over forbruket.
+  const tempo = pr.tempo == null || pr.tempo === '' ? NaN : Number(pr.tempo);
+  if (Number.isFinite(tempo) && pr.mal && pr.mal !== 'holde') {
+    const gulv = Math.max(bmr, pr.kjonn === 'kvinne' ? 1200 : 1500);
+    kcal = Math.min(tdee * 1.2, Math.max(gulv, tdee + (tempo * 7700) / 7));
+  }
   const protein = (PROTEIN_PER_KG[pr.mal] ?? 1.4) * vekt;
   const fett = (kcal * 0.3) / 9;
   const karbo = Math.max(0, (kcal - protein * 4 - fett * 9) / 4);
   const andel = pr.middag === 'stor' ? 0.42 : pr.middag === 'liten' ? 0.28 : 0.35;
-  return { kcal, protein, fett, karbo, middagKcal: kcal * andel, middagProtein: protein * andel };
+  return { kcal, protein, fett, karbo, middagKcal: kcal * andel, middagProtein: protein * andel, tdee };
 }
 
 // Porsjonsfaktor per person ut fra kalorimålet (1 = én vanlig porsjon)

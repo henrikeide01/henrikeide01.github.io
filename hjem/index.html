@@ -339,6 +339,18 @@
     .matvalg { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--flate-2); }
     .matvalg .rad2 { align-items: end; }
 
+    /* Coach */
+    .ukemal { display: grid; gap: 2px; margin-top: 8px; }
+    .ukemal .rad { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--linje); font-size: 14.5px; }
+    .ukemal .rad:first-of-type { border-top: 0; }
+    .ukemal .tall.ok { color: var(--god-tekst); font-weight: 700; }
+    .ukemal .tall { color: var(--dempet); white-space: nowrap; }
+    .coachtips { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--flate-2); font-size: 14px; display: grid; gap: 6px; }
+    .coach { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--flate-2); }
+    .coach h3 { margin: 0; }
+    .coach .meter { margin-top: 2px; }
+    .coach .rad2 { align-items: end; }
+
     /* Oppdatering */
     .nytt { list-style: none; display: grid; gap: 12px; }
     .nytt li { display: grid; grid-template-columns: 30px 1fr; gap: 8px; font-size: 15px; }
@@ -544,7 +556,7 @@
       lesMat, lagreMat, harPlan, sikreTidligereOppsett, hentTidligereOppsett, lagNyPlan, leggTilPerson, fjernPerson,
       matAndelFor, harEgenMatdeling,
     } from './budsjett.js';
-    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt } from './vekt.js';
+    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder } from './vekt.js';
     import { tolkKvittering } from './kvittering.js';
     import {
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
@@ -975,7 +987,8 @@
     // ---------- Privat: vekt, målvekt og veiinger ligger bare på telefonen til den det gjelder ----------
     // De sendes aldri til den felles databasen. De andre i husstanden får bare det ferdige kalorimålet (malTall).
     const PRIVAT_NOKKEL = 'hjem.privat';
-    const PRIVATE_FELT = ['vekt', 'malvekt'];
+    const PRIVATE_FELT = ['vekt', 'malvekt', 'malDato', 'tempo', 'malfrist'];
+    const privatProfil = (pv) => Object.fromEntries(['vekt', 'malvekt', 'malDato', 'tempo'].filter((k) => pv?.[k] != null).map((k) => [k, pv[k]]));
     const lesPrivat = () => { try { return JSON.parse(localStorage.getItem(PRIVAT_NOKKEL)) || {}; } catch { return {}; } };
     const lagrePrivat = () => { try { localStorage.setItem(PRIVAT_NOKKEL, JSON.stringify(S.privat)); } catch {} };
     S.privat = lesPrivat(); // les inn det som ligger her fra før – ellers kan det bli overskrevet
@@ -985,8 +998,7 @@
     const profil = (id) => {
       const pr = S.mat.profiler?.[id] || {};
       if (!erMeg(id)) return offentlig(pr); // andres vekt vises aldri her
-      const pv = S.privat[id] || {};
-      return { ...pr, ...(pv.vekt != null ? { vekt: pv.vekt } : {}), ...('malvekt' in pv ? { malvekt: pv.malvekt } : {}) };
+      return { ...pr, ...privatProfil(S.privat[id]) };
     };
     const rundMal = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, Math.round(v)]));
     // Flytter min vekt fra det felles til denne telefonen, og holder kalorimålet mitt oppdatert for de andre
@@ -1003,7 +1015,7 @@
           if ('malvekt' in delt && !('malvekt' in pv)) pv.malvekt = delt.malvekt;
           for (const m of S.mat.vekt?.[p.id] || []) if (!pv.vektlogg.some((x) => x.id === m.id)) pv.vektlogg.push(m);
           lagrePrivat();
-          const mal = beregnMal({ ...offentlig(delt), ...(pv.vekt != null ? { vekt: pv.vekt } : {}) });
+          const mal = beregnMal({ ...offentlig(delt), ...privatProfil(pv) });
           const ny = { ...offentlig(delt), ...(mal ? { malTall: rundMal(mal) } : {}), vektPrivat: true };
           if (JSON.stringify(ny) !== JSON.stringify(delt)) { S.mat.profiler[p.id] = ny; endret = true; }
           if (S.mat.vekt?.[p.id]) { delete S.mat.vekt[p.id]; endret = true; } // ligger nå på denne telefonen
@@ -1677,7 +1689,102 @@
           <button class="knapp ${naa ? '' : 'hoved'}" type="submit">${naa ? 'Oppdater' : 'Lagre'}</button>
         </form>
         ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}
+        ${coachKortHtml(pid)}
         ${personer().length > 1 ? `<p class="forklaring" style="font-size:12.5px">🔒 ${esc(t('Vekta di ligger bare på denne telefonen. De andre i husstanden ser den ikke.'))}</p>` : ''}`;
+    }
+
+    // ================= Coach: målvekt, ønsket dato og ukas mål =================
+    const datoLang = new Intl.DateTimeFormat(LOK, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const datoT = (d) => datoLang.format(somDato(d));
+    const fartT = (f) => kgT(Math.abs(f));
+    function settMalDato(pid, dato) {
+      const pv = privat(pid);
+      if (!dato) { pv.malDato = null; pv.tempo = null; lagrePrivat(); return null; }
+      const naa = vektserie(pid).at(-1)?.kg || Number(pv.vekt);
+      const r = fartForDato({ naa, malvekt: Number(pv.malvekt), dato, idag: idag(), mal: profil(pid).mal });
+      pv.malDato = dato;
+      pv.tempo = r && !r.forTidlig ? Math.round(r.brukFart * 100) / 100 : null;
+      lagrePrivat();
+      return r;
+    }
+    function coachData(pid) {
+      const pr = profil(pid), mal = beregnMal(pr), pv = privat(pid), serie = vektserie(pid);
+      const naa = serie.at(-1)?.kg || Number(pv.vekt) || null;
+      const malvekt = Number(pv.malvekt) || null;
+      const plan = planFart(mal), malt = trendPerUke(serie);
+      const uke = isoUke(idag()), dager = [];
+      for (let d = uke.mandag; d <= idag(); d = leggTilDager(d, 1)) dager.push(d);
+      return {
+        pr, mal, naa, malvekt, plan, malt,
+        estPlan: malvekt ? estimat({ naa, malvekt, fart: plan, idag: idag() }) : null,
+        estMalt: malvekt && malt != null && serie.length >= 3 ? estimat({ naa, malvekt, fart: malt, idag: idag() }) : null,
+        frem: malvekt ? fremgang({ start: serie[0]?.kg || naa, naa, malvekt }) : null,
+        dato: pv.malDato && malvekt ? fartForDato({ naa, malvekt, dato: pv.malDato, idag: idag(), mal: pr.mal }) : null,
+        malDato: pv.malDato,
+        dager: dager.length,
+        proteinDager: mal ? dager.filter((d) => spistI(d, pid).protein >= mal.protein * 0.9).length : 0,
+        vannDager: dager.filter((d) => vannI(d, pid) >= vannMal(pr)).length,
+        forteDager: dager.filter((d) => spistI(d, pid).kcal > 0).length,
+        okter: (pv.okter || []).filter((d) => d >= uke.mandag && d <= idag()).length,
+        oktMal: Number(pr.oktMal) || 0,
+        veidUka: serie.some((r) => r.nokkel === uke.nokkel),
+        trentIdag: (pv.okter || []).includes(idag()),
+      };
+    }
+    function estimatTekst(c) {
+      if (!c.malvekt) return '';
+      if (c.frem && c.frem.andel >= 1) return t('🎯 Du har nådd målvekta!');
+      const kg = kgT(c.malvekt);
+      if (c.dato && !c.dato.forTidlig) {
+        return c.dato.trygg
+          ? t('Mål: {kg} kg innen {dato}. Det krever ca. {fart} kg i uka, og kalorimålet er justert til {kcal} kcal.', { kg, dato: datoT(c.malDato), fart: fartT(c.dato.fart), kcal: kroner(c.mal.kcal) })
+          : t('{kg} kg innen {dato} er for raskt. Med trygg fart ({fart} kg i uka) når du det rundt {tidligst}. Kalorimålet er satt til {kcal} kcal.', { kg, dato: datoT(c.malDato), fart: fartT(c.dato.grense), tidligst: datoT(c.dato.tidligst), kcal: kroner(c.mal.kcal) });
+      }
+      if (c.estPlan) return t('Med kalorimålet ditt når du {kg} kg rundt {dato} (ca. {uker} uker).', { kg, dato: datoT(c.estPlan.dato), uker: c.estPlan.uker });
+      return t('{kg} kg igjen til målvekta.', { kg: kgT(Math.abs(c.malvekt - c.naa)) });
+    }
+    function coachTips(c) {
+      const tips = [], n = c.dager;
+      if (!c.veidUka) tips.push(t('Vei deg denne uka, gjerne om morgenen før frokost – da blir tallene mest like.'));
+      if (c.malvekt && c.malt != null && c.malvekt < c.naa && c.malt > -0.1) tips.push(t('Vekta har stått stille en stund. Kutt rundt 100 kcal om dagen, eller legg inn en ekstra gåtur.'));
+      if (c.mal && n >= 3 && c.proteinDager < Math.ceil(n * 0.6)) tips.push(t('Proteinet er litt lavt denne uka. Skyr, cottage cheese, egg og kylling er enkle måter å få inn mer.'));
+      if (c.oktMal && c.okter < c.oktMal && n >= 4) tips.push(t('{n} økter igjen for å nå treningsmålet denne uka.', { n: c.oktMal - c.okter }));
+      if (n >= 3 && c.vannDager < Math.ceil(n / 2)) tips.push(t('Drikk et glass vann til hvert måltid, så når du vannmålet lettere.'));
+      return tips.slice(0, 2);
+    }
+    function coachKortHtml(pid) {
+      const c = coachData(pid);
+      const rad = (ikon, tekst, ok, hoyre = '') => `<div class="rad"><span>${ikon}</span><span>${esc(tekst)}</span><span class="tall ${ok ? 'ok' : ''}">${hoyre || (ok ? '✓' : '')}</span></div>`;
+      const tips = coachTips(c);
+      return `
+        ${c.malvekt ? `<p class="forklaring">🎯 ${esc(estimatTekst(c))}</p>` : `<button class="lenke" type="button" data-vis-vekt="${esc(pid)}">🎯 Sett en målvekt og en dato →</button>`}
+        <div class="undertittel">Ukas mål</div>
+        <div class="ukemal">
+          ${rad('⚖️', t('Veid deg denne uka'), c.veidUka)}
+          ${c.oktMal ? `<div class="rad"><span>💪</span><span>${esc(t('Trening: {n} av {mal} økter', { n: c.okter, mal: c.oktMal }))}</span><button class="knapp ${c.trentIdag ? '' : 'hoved'}" type="button" data-trent-idag style="padding:6px 10px;font-size:13.5px">${c.trentIdag ? '✓ Trent i dag' : '＋ Trent i dag'}</button></div>` : ''}
+          ${c.mal ? rad('🥩', t('Protein nådd {n} av {d} dager', { n: c.proteinDager, d: c.dager }), c.proteinDager >= Math.max(1, c.dager - 1)) : ''}
+          ${rad('💧', t('Vann nådd {n} av {d} dager', { n: c.vannDager, d: c.dager }), c.vannDager >= Math.max(1, c.dager - 1))}
+          ${rad('📝', t('Mat ført {n} av {d} dager', { n: c.forteDager, d: c.dager }), c.forteDager >= c.dager)}
+        </div>
+        ${tips.length ? `<div class="coachtips">${tips.map((x) => `<span>💡 ${esc(x)}</span>`).join('')}</div>` : ''}`;
+    }
+    function coachHtml(pid) {
+      const c = coachData(pid);
+      if (!c.malvekt) return `<div class="coach"><h3>🎯 Målet ditt</h3><p class="forklaring">${esc(t('Sett en målvekt under, så regner appen ut når du når den og hjelper deg å holde farten.'))}</p></div>`;
+      const pst = c.frem ? Math.round(c.frem.andel * 100) : 0;
+      return `<div class="coach">
+        <h3>🎯 Målet ditt</h3>
+        ${c.frem ? `<div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pst}" aria-label="${esc(t('{p} % av veien', { p: pst }))}"><span style="width:${pst}%"></span></div>
+          <p class="forklaring">${esc(t('{start} kg → {naa} kg → mål {mal} kg · {p} % av veien', { start: kgT((c.naa - c.frem.endring)), naa: kgT(c.naa), mal: kgT(c.malvekt), p: pst }))}</p>
+          ${c.frem.andel < 1 ? `<p class="forklaring">${esc(t('Neste delmål: {kg} kg ({igjen} kg igjen).', { kg: kgT(c.frem.delmal), igjen: kgT(c.frem.tilDelmal) }))}</p>` : ''}` : ''}
+        <p>${esc(estimatTekst(c))}</p>
+        ${c.estMalt && !(c.frem && c.frem.andel >= 1) ? `<p class="forklaring">${esc(t('Med farten de siste ukene: rundt {dato} (ca. {uker} uker).', { dato: datoT(c.estMalt.dato), uker: c.estMalt.uker }))}</p>` : ''}
+        <form class="rad2" data-maldatoform="${esc(pid)}" autocomplete="off">
+          <div class="felt"><label for="malDato">${esc(t('Når vil du nå målvekta?'))}</label><input id="malDato" name="dato" type="date" min="${leggTilDager(idag(), 7)}" value="${esc(c.malDato || '')}"></div>
+          <div class="knapprad" style="margin:0"><button class="knapp hoved" type="submit">Bruk datoen</button>${c.malDato ? '<button class="lenke" type="button" data-fjern-maldato>Fjern dato</button>' : ''}</div>
+        </form>
+        <div class="felt"><label>${esc(t('Treningsøkter i uka'))}</label><div class="chips">${[0, 1, 2, 3, 4, 5, 6].map((n) => `<button type="button" class="chip" data-oktmal="${n}" aria-pressed="${c.oktMal === n}">${n ? n : esc(t('Ingen'))}</button>`).join('')}</div></div>
+      </div>`;
     }
     function lagreVekt(pid, kg) {
       if (!erMeg(pid)) return;
@@ -1685,7 +1792,9 @@
       const iDag = pv.vektlogg.find((m) => m.dato === idag());
       if (iDag) iDag.kg = kg; else pv.vektlogg.push({ id: nyId(), dato: idag(), kg });
       pv.vekt = kg; // kalorimålet regnes ut fra den nye vekta
-      lagrePrivat(); tegnAlt();
+      lagrePrivat();
+      if (pv.malDato) settMalDato(pid, pv.malDato); // mot ønsket dato: farten justeres etter der du er nå
+      tegnAlt();
       if ($('rettDialog').open && S.vektApen) visVekt(pid);
       vis(t('{kg} kg er lagret ✓ Kalorimålet er oppdatert.', { kg: kgT(kg) }));
     }
@@ -1764,6 +1873,7 @@
         ${personer().length > 1 ? `<p class="forklaring">🔒 ${esc(t('Vekta di ligger bare på denne telefonen. De andre i husstanden ser den ikke.'))}</p>` : ''}
         ${serie.length ? vektgrafHtml(serie, Number(pr.malvekt)) : '<p class="tomt">Ingen målinger ennå. Før vekten én gang i uka, gjerne samme dag og tid.</p>'}
         ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}
+        ${coachHtml(pid)}
         <form class="vektrad" data-vektform="${esc(pid)}" autocomplete="off">
           <div class="belopfelt"><input name="kg" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="${esc(kgT(serie.at(-1)?.kg || Number(pr.vekt) || 0))}" aria-label="${esc(t('Vekt i kg'))}" style="font-size:20px;padding:9px 44px 9px 12px"><span>kg</span></div>
           <button class="knapp hoved" type="submit">Før vekt i dag</button>
@@ -2034,6 +2144,8 @@
           if (rest.vekt > 0) pv.vekt = rest.vekt;
           if ('malvekt' in rest) pv.malvekt = rest.malvekt ?? null;
           lagrePrivat();
+          if (rest.malfrist) settMalDato(id, rest.malfrist === 'ingen' ? null : plussMaaneder(idag(), Number(rest.malfrist)));
+          else if (pv.malDato) settMalDato(id, pv.malDato); // ny vekt eller målvekt: regn farten på nytt
         } else if (rest.vekt > 0) {
           // Svarer du for en annen, lagres bare kalorimålet – ikke vekta
           const mal = beregnMal({ ...felles, vekt: rest.vekt });
@@ -2090,7 +2202,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 5, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 6, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -2103,6 +2215,8 @@
       { v: 5, ikon: '🔍', tittel: 'Før all mat', tekst: 'Søk i en stor matdatabase, ta bilde av strekkoden eller skriv inn kalorier selv – også for mat utenom planen. Vann kan også føres.' },
       { v: 5, ikon: '🛒', tittel: 'Del matbudsjettet', tekst: 'Velg hvor mange prosent hver betaler av maten, for eksempel etter hvor mye hver spiser.' },
       { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
+      { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Se når du når målvekta, velg en dato som justerer kalorimålet, og følg ukas mål for trening, protein, vann og matføring.' },
+      { v: 6, ikon: '🔒', tittel: 'Vekta er privat', tekst: 'Vekta di ligger bare på din egen telefon. De andre i husstanden ser den ikke.' },
     ];
     const settOppdatering = () => { try { localStorage.setItem(OPPD_NOKKEL, String(OPPDATERING)); } catch {} };
     const settVersjon = () => { try { return Number(localStorage.getItem(OPPD_NOKKEL)) || 0; } catch { return OPPDATERING; } };
@@ -2224,6 +2338,22 @@
       if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); tegnVektkort(); tegnKanLage(); if ($('rettDialog').open && S.kanLageApen) visKanLage(); return; }
       if ('kanLage' in ds) { visKanLage(); return; }
       if (ds.visVekt) { visVekt(ds.visVekt); return; }
+      if ('trentIdag' in ds) {
+        const pv = privat(meg());
+        pv.okter ??= [];
+        const fantes = pv.okter.includes(idag());
+        pv.okter = fantes ? pv.okter.filter((d) => d !== idag()) : [...pv.okter, idag()];
+        lagrePrivat(); tegnVektkort();
+        vis(fantes ? t('Angret') : t('💪 Økta er ført – bra jobba!'));
+        return;
+      }
+      if ('fjernMaldato' in ds) { settMalDato(meg(), null); tegnAlt(); visVekt(meg()); vis(t('Datoen er fjernet. Kalorimålet følger det vanlige målet.')); return; }
+      if (ds.oktmal != null) {
+        const id = meg();
+        S.mat.profiler = { ...(S.mat.profiler || {}), [id]: { ...(S.mat.profiler?.[id] || {}), oktMal: Number(ds.oktmal) } };
+        lagreMatNa(); tegnVektkort(); if (S.vektApen) visVekt(id);
+        return;
+      }
       if (ds.slettVekt) {
         const ider = new Set(ds.slettVekt.split(','));
         if (erMeg(ds.person) && confirm(t('Slette målingen?'))) { const pv = privat(ds.person); pv.vektlogg = pv.vektlogg.filter((m) => !ider.has(m.id)); lagrePrivat(); tegnAlt(); visVekt(ds.person); }
@@ -2339,12 +2469,23 @@
         lagreVekt(f.dataset.vektform, Math.round(kg * 10) / 10);
         return;
       }
+      if (f.dataset.maldatoform) {
+        e.preventDefault();
+        const pid = f.dataset.maldatoform, dato = f.elements.dato.value;
+        if (!dato) { f.elements.dato.focus(); return; }
+        const r = settMalDato(pid, dato);
+        tegnAlt(); visVekt(pid);
+        vis(!r || r.forTidlig ? t('Velg en dato minst en uke fram i tid.') : r.trygg ? t('Kalorimålet er justert ✓') : t('For raskt – appen bruker en trygg fart i stedet.'));
+        return;
+      }
       if (f.dataset.malvektform) {
         e.preventDefault();
         const kg = tallFra(f.elements.kg.value), pid = f.dataset.malvektform;
         if (!erMeg(pid)) return;
         privat(pid).malvekt = kg >= 30 && kg <= 300 ? Math.round(kg * 10) / 10 : null;
-        lagrePrivat(); tegnAlt(); visVekt(pid); vis(t('Lagret ✓'));
+        lagrePrivat();
+        if (privat(pid).malDato) settMalDato(pid, privat(pid).malDato);
+        tegnAlt(); visVekt(pid); vis(t('Lagret ✓'));
         return;
       }
       if ('matsok' in f.dataset) {
