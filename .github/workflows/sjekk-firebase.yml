@@ -21,3 +21,4 @@ jobs:
           echo "6 tabell direkte: $(curl -s -o /tmp/svar -w '%{http_code}' "$U/rest/v1/hjem_husstand?select=hus" -H "apikey: $K") $(head -c 200 /tmp/svar)"
           echo "7 hjelper: $(kall hjem_sett '{"d":{},"sti":["a"],"v":1}')"
           echo "8 CORS: $(curl -s -o /dev/null -D - -X OPTIONS "$U/rest/v1/rpc/hjem_hent" -H 'Origin: https://eidert.no' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: apikey,content-type' | grep -i 'access-control-allow-origin' | tr -d '\r')"
+# kjørt på nytt 10:43
