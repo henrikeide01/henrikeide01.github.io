@@ -1,6 +1,6 @@
 // Felles budsjett på flere telefoner (Henrik og Hanna).
 // Alt krypteres på telefonen med husstandskoden (AES-GCM, nøkkel fra PBKDF2) før det sendes til
-// databasen (Supabase, samme prosjekt som WireWise). Databasen lagrer bare uleselig tekst –
+// databasen (et eget Supabase-prosjekt for eidert). Databasen lagrer bare uleselig tekst –
 // uten koden kan ingen lese budsjettet. Oppsettet i databasen: hjem/supabase-oppsett.sql
 import { lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn, lesMat, lagreMat } from './budsjett.js';
 
@@ -13,9 +13,10 @@ const DELER = [
 
 // Supabase: adressen og den offentlige nøkkelen («Publishable key» / «anon public»). Den nøkkelen er laget for å stå
 // i nettleserkode – den hemmelige «service_role»-nøkkelen skal aldri hit.
-export const SUPABASE_URL = 'https://faqcxyrrhqrexolnhxbc.supabase.co';
+export const SUPABASE_URL = '';
 export const SUPABASE_NOKKEL = '';
-export const SQL_EDITOR = 'https://supabase.com/dashboard/project/faqcxyrrhqrexolnhxbc/sql/new';
+const prosjekt = SUPABASE_URL.match(/^https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
+export const SQL_EDITOR = prosjekt ? `https://supabase.com/dashboard/project/${prosjekt}/sql/new` : 'https://supabase.com/dashboard/projects';
 const NOKKEL = 'budsjett.deling';
 const TEGN = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // uten I, O, 0 og 1
 
@@ -76,7 +77,7 @@ export class SynkFeil extends Error {
 }
 
 async function rpc(funksjon, argumenter) {
-  if (!SUPABASE_NOKKEL) throw new SynkFeil('Felles budsjett er ikke koblet til databasen ennå.', 'oppsett');
+  if (!SUPABASE_URL || !SUPABASE_NOKKEL) throw new SynkFeil('Felles budsjett er ikke koblet til databasen ennå.', 'oppsett');
   let res;
   try {
     res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${funksjon}`, {
