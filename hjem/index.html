@@ -170,7 +170,9 @@
 
     /* Faner nederst */
     nav.faner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: color-mix(in srgb, var(--flate) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--linje); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 4px; }
-    nav.faner a { flex: 1; max-width: 140px; display: grid; justify-items: center; gap: 1px; padding: 6px 4px; border-radius: 12px; text-decoration: none; color: var(--dempet); font-size: 12.5px; font-weight: 600; }
+    nav.faner a { flex: 1; min-width: 0; max-width: 140px; position: relative; display: grid; justify-items: center; gap: 1px; padding: 6px 2px; border-radius: 12px; text-decoration: none; color: var(--dempet); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 360px) { nav.faner a { font-size: 11px; } }
+    nav.faner .merke { position: absolute; top: 2px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--serie-2); color: #fff; font-size: 11px; line-height: 18px; font-weight: 700; text-align: center; }
     nav.faner a span { font-size: 21px; line-height: 1.1; }
     nav.faner a[aria-current="page"] { color: var(--tekst); background: var(--flate-2); }
 
@@ -350,6 +352,39 @@
     .coach h3 { margin: 0; }
     .coach .meter { margin-top: 2px; }
     .coach .rad2 { align-items: end; }
+    /* Coach-fanen */
+    .coachbanner { display: flex; align-items: center; gap: 8px; margin: 2px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--aksent-svak); color: var(--tekst); text-decoration: none; font-size: 14.5px; font-weight: 600; }
+    .coachbanner::after { content: '›'; margin-left: auto; color: var(--dempet); font-size: 20px; }
+    .coachhode { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .coachhode h2 { margin: 0; }
+    .coachhode .tall { color: var(--dempet); font-weight: 600; white-space: nowrap; }
+    .husk { display: grid; gap: 8px; margin-top: 12px; }
+    .huskrad { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--flate-2); font-size: 14.5px; }
+    .huskrad .knapp, .sjekk .knapp { padding: 7px 11px; font-size: 13.5px; white-space: nowrap; text-decoration: none; color: var(--tekst); }
+    .huskrad .knapp.hoved, .sjekk .knapp.hoved { color: var(--aksent-tekst); }
+    .huskrad.bra { background: var(--aksent-svak); }
+    .sjekk { display: grid; margin-top: 10px; }
+    .sjekk .rad { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--linje); font-size: 15px; }
+    .sjekk .rad:first-child { border-top: 0; }
+    .sjekk .hake { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--linje); display: grid; place-items: center; font-size: 13px; font-weight: 800; color: transparent; }
+    .sjekk .rad.ok .hake { background: var(--aksent); border-color: var(--aksent); color: var(--aksent-tekst); }
+    .sjekk .rad small { display: block; color: var(--dempet); font-size: 13px; }
+    .sjekk .knapper { display: flex; gap: 6px; }
+    .sjekk .ikonknapp { width: 32px; height: 32px; }
+    .rekker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .rekker span { padding: 6px 10px; border-radius: 999px; background: var(--flate-2); font-size: 13.5px; font-weight: 600; }
+    .ukerapport { display: grid; gap: 0; }
+    .ukerapport .rad { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--linje); font-size: 14.5px; }
+    .ukerapport .rad:first-child { border-top: 0; }
+    .ukerapport .rad span:last-child { color: var(--dempet); text-align: right; }
+    .pmrad { display: grid; gap: 8px; padding: 10px 0; border-top: 1px solid var(--linje); }
+    .pmrad:first-of-type { border-top: 0; }
+    .pmbryter { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+    .pmvalg { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 28px; }
+    .pmvalg input[type=time], .pmvalg select { width: auto; padding: 7px 9px; font-size: 15px; }
+    .pmvalg .chips { width: 100%; gap: 4px; }
+    .pmvalg .chip { padding: 6px 9px; font-size: 13px; }
+    .pmrad.av .pmvalg { opacity: .45; }
 
     /* Oppdatering */
     .nytt { list-style: none; display: grid; gap: 12px; }
@@ -374,6 +409,7 @@
     <main data-fane="idag">
       <div id="delingMini"></div>
       <div class="hilsen"><h1 id="hilsen">I dag</h1><small id="dagensDato"></small></div>
+      <a class="coachbanner" id="coachBanner" href="#coach" hidden></a>
       <div id="profilPaaminnelse"></div>
       <div class="kort middag" id="middagIdag"></div>
       <div class="kort" id="dagsplan"></div>
@@ -383,6 +419,16 @@
         <a class="flis" href="#uke" id="flisHandle"></a>
         <a class="flis" href="#penger" id="flisPenger"></a>
       </div>
+    </main>
+
+    <!-- ============ COACH ============ -->
+    <main data-fane="coach" hidden>
+      <div class="hilsen"><h1>Coach</h1><small id="coachDato"></small></div>
+      <p class="forklaring" style="margin:-4px 0 12px">🔒 Bare for deg. Det du ser her ligger på denne telefonen.</p>
+      <div class="kort" id="coachIdag"></div>
+      <div class="kort" id="coachUke"></div>
+      <div class="kort" id="coachMal"></div>
+      <div class="kort" id="coachPaaminnelser"></div>
     </main>
 
     <!-- ============ UKE ============ -->
@@ -535,6 +581,7 @@
 
   <nav class="faner" aria-label="Faner">
     <a href="#idag" data-til="idag"><span>🍽️</span>I dag</a>
+    <a href="#coach" data-til="coach"><span>🎯</span>Coach<b class="merke" id="coachMerke" hidden></b></a>
     <a href="#uke" data-til="uke"><span>📅</span>Uke</a>
     <a href="#kjokken" data-til="kjokken"><span>🥫</span>Kjøkken</a>
     <a href="#penger" data-til="penger"><span>💸</span>Penger</a>
@@ -558,6 +605,7 @@
     } from './budsjett.js';
     import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder } from './vekt.js';
     import { tolkKvittering } from './kvittering.js';
+    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST } from './coach.js';
     import {
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
@@ -623,7 +671,8 @@
       let fane = location.hash.replace('#', '').split('=')[0] || 'idag';
       fane = GAMLE_FANER[fane] || fane;
       const [hoved, under] = fane.split('-');
-      const gyldig = ['idag', 'uke', 'kjokken', 'penger', 'oss'].includes(hoved) ? hoved : 'idag';
+      const gyldig = ['idag', 'coach', 'uke', 'kjokken', 'penger', 'oss'].includes(hoved) ? hoved : 'idag';
+      if (gyldig === 'coach') { if (meg() && nyUkesoppdatering(meg())) S.visForrigeUke = true; merkUkeSett(); tegnCoach(); }
       if (gyldig === 'penger') S.penger = ['oversikt', 'lonn', 'plan'].includes(under) ? under : 'oversikt';
       document.querySelectorAll('[data-fane]').forEach((el) => { el.hidden = el.dataset.fane !== gyldig; });
       document.querySelectorAll('[data-penger]').forEach((el) => { el.hidden = el.dataset.penger !== S.penger; });
@@ -1168,6 +1217,7 @@
           ${vannHtml(p.id)}
         </div>`;
       }).join('') + `<p class="forklaring" style="font-size:12.5px;margin-top:6px">Trykk ✓ på måltidene og «Vi har spist» på middagen, så føres det her. Tallene er anslag.</p>`;
+      tegnCoach();
     }
 
     // ---------- Dagsplan: frokost, lunsj, mellommåltid, middag og kveldsmat ----------
@@ -1427,12 +1477,13 @@
     }
 
     function tegnIdagFliser() {
-      const antall = handlelisteVarer().length + (S.mat.handleliste || []).filter((v) => !v.haket).length;
+      const antall = antallHandlevarer();
       $('flisHandle').innerHTML = `<span class="etikett">🛒 ${handleDager() === 7 ? 'Ukeshandel' : 'Handleliste'}</span><span class="verdi">${antall} ${antall === 1 ? 'vare' : 'varer'}</span><span class="liten">${handleDager() === 7 ? 'for hele uka →' : 'til de neste dagene →'}</span>`;
       const budsjett = sum(lopende());
       const brukt = sum(S.poster.filter((p) => maanedAv(p.dato) === maanedAv(idag()) && LOPENDE.has(gruppeAv(p.kategori))));
       const igjen = budsjett - brukt;
       $('flisPenger').innerHTML = `<span class="etikett">💸 ${esc(t('Igjen i {mnd}', { mnd: mndKort.format(fraMaaned(maanedAv(idag()))) }))}</span><span class="verdi ${igjen < 0 ? 'minus' : ''}">${igjen < 0 ? '−' : ''}${kroner(Math.abs(igjen))} kr</span><span class="liten">til mat og forbruk →</span>`;
+      tegnCoach();
     }
 
     function tegnIdag() {
@@ -1691,6 +1742,7 @@
         ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}
         ${coachKortHtml(pid)}
         ${personer().length > 1 ? `<p class="forklaring" style="font-size:12.5px">🔒 ${esc(t('Vekta di ligger bare på denne telefonen. De andre i husstanden ser den ikke.'))}</p>` : ''}`;
+      tegnCoach();
     }
 
     // ================= Coach: målvekt, ønsket dato og ukas mål =================
@@ -1707,13 +1759,27 @@
       lagrePrivat();
       return r;
     }
+    // Tall for en uke (eller en del av den): mat, protein, vann og trening
+    function ukeStat(pid, fra, til) {
+      const pr = profil(pid), mal = beregnMal(pr), pv = privat(pid), dager = [];
+      for (let d = fra; d <= til; d = leggTilDager(d, 1)) dager.push(d);
+      const spist = dager.map((d) => spistI(d, pid)), forte = spist.filter((x) => x.kcal > 0);
+      const snitt = (k) => (forte.length ? forte.reduce((a, x) => a + x[k], 0) / forte.length : 0);
+      return {
+        dager: dager.length,
+        forteDager: forte.length,
+        snittKcal: snitt('kcal'), snittProtein: snitt('protein'),
+        proteinDager: mal ? spist.filter((x) => x.protein >= mal.protein * 0.9).length : 0,
+        vannDager: dager.filter((d) => vannI(d, pid) >= vannMal(pr)).length,
+        okter: (pv.okter || []).filter((d) => d >= fra && d <= til).length,
+      };
+    }
     function coachData(pid) {
       const pr = profil(pid), mal = beregnMal(pr), pv = privat(pid), serie = vektserie(pid);
       const naa = serie.at(-1)?.kg || Number(pv.vekt) || null;
       const malvekt = Number(pv.malvekt) || null;
       const plan = planFart(mal), malt = trendPerUke(serie);
-      const uke = isoUke(idag()), dager = [];
-      for (let d = uke.mandag; d <= idag(); d = leggTilDager(d, 1)) dager.push(d);
+      const uke = isoUke(idag()), st = ukeStat(pid, uke.mandag, idag());
       return {
         pr, mal, naa, malvekt, plan, malt,
         estPlan: malvekt ? estimat({ naa, malvekt, fart: plan, idag: idag() }) : null,
@@ -1721,11 +1787,7 @@
         frem: malvekt ? fremgang({ start: serie[0]?.kg || naa, naa, malvekt }) : null,
         dato: pv.malDato && malvekt ? fartForDato({ naa, malvekt, dato: pv.malDato, idag: idag(), mal: pr.mal }) : null,
         malDato: pv.malDato,
-        dager: dager.length,
-        proteinDager: mal ? dager.filter((d) => spistI(d, pid).protein >= mal.protein * 0.9).length : 0,
-        vannDager: dager.filter((d) => vannI(d, pid) >= vannMal(pr)).length,
-        forteDager: dager.filter((d) => spistI(d, pid).kcal > 0).length,
-        okter: (pv.okter || []).filter((d) => d >= uke.mandag && d <= idag()).length,
+        dager: st.dager, proteinDager: st.proteinDager, vannDager: st.vannDager, forteDager: st.forteDager, okter: st.okter,
         oktMal: Number(pr.oktMal) || 0,
         veidUka: serie.some((r) => r.nokkel === uke.nokkel),
         trentIdag: (pv.okter || []).includes(idag()),
@@ -1754,22 +1816,27 @@
     }
     function coachKortHtml(pid) {
       const c = coachData(pid);
+      return `
+        ${c.malvekt ? `<p class="forklaring">🎯 ${esc(estimatTekst(c))}</p>` : `<button class="lenke" type="button" data-vis-vekt="${esc(pid)}">🎯 Sett en målvekt og en dato →</button>`}
+        <a class="lenke" href="#coach" style="display:inline-block;text-decoration:none">${esc(t('Ukas mål, påminnelser og tips i Coach →'))}</a>`;
+    }
+    function ukemalHtml(c) {
       const rad = (ikon, tekst, ok, hoyre = '') => `<div class="rad"><span>${ikon}</span><span>${esc(tekst)}</span><span class="tall ${ok ? 'ok' : ''}">${hoyre || (ok ? '✓' : '')}</span></div>`;
       const tips = coachTips(c);
       return `
-        ${c.malvekt ? `<p class="forklaring">🎯 ${esc(estimatTekst(c))}</p>` : `<button class="lenke" type="button" data-vis-vekt="${esc(pid)}">🎯 Sett en målvekt og en dato →</button>`}
         <div class="undertittel">Ukas mål</div>
         <div class="ukemal">
           ${rad('⚖️', t('Veid deg denne uka'), c.veidUka)}
-          ${c.oktMal ? `<div class="rad"><span>💪</span><span>${esc(t('Trening: {n} av {mal} økter', { n: c.okter, mal: c.oktMal }))}</span><button class="knapp ${c.trentIdag ? '' : 'hoved'}" type="button" data-trent-idag style="padding:6px 10px;font-size:13.5px">${c.trentIdag ? '✓ Trent i dag' : '＋ Trent i dag'}</button></div>` : ''}
+          ${c.oktMal ? rad('💪', t('Trening: {n} av {mal} økter', { n: c.okter, mal: c.oktMal }), c.okter >= c.oktMal) : ''}
           ${c.mal ? rad('🥩', t('Protein nådd {n} av {d} dager', { n: c.proteinDager, d: c.dager }), c.proteinDager >= Math.max(1, c.dager - 1)) : ''}
           ${rad('💧', t('Vann nådd {n} av {d} dager', { n: c.vannDager, d: c.dager }), c.vannDager >= Math.max(1, c.dager - 1))}
           ${rad('📝', t('Mat ført {n} av {d} dager', { n: c.forteDager, d: c.dager }), c.forteDager >= c.dager)}
         </div>
         ${tips.length ? `<div class="coachtips">${tips.map((x) => `<span>💡 ${esc(x)}</span>`).join('')}</div>` : ''}`;
     }
-    function coachHtml(pid) {
+    function coachHtml(pid, feltId = 'malDato') {
       const c = coachData(pid);
+      if (!c.malvekt && feltId !== 'malDato') return `<div class="coach"><h3>🎯 Målet ditt</h3><p class="forklaring">${esc(t('Sett en målvekt, så regner appen ut når du når den og hjelper deg å holde farten.'))}</p><button class="knapp hoved" type="button" data-vis-vekt="${esc(pid)}">${esc(t('Sett målvekt'))}</button></div>`;
       if (!c.malvekt) return `<div class="coach"><h3>🎯 Målet ditt</h3><p class="forklaring">${esc(t('Sett en målvekt under, så regner appen ut når du når den og hjelper deg å holde farten.'))}</p></div>`;
       const pst = c.frem ? Math.round(c.frem.andel * 100) : 0;
       return `<div class="coach">
@@ -1780,12 +1847,231 @@
         <p>${esc(estimatTekst(c))}</p>
         ${c.estMalt && !(c.frem && c.frem.andel >= 1) ? `<p class="forklaring">${esc(t('Med farten de siste ukene: rundt {dato} (ca. {uker} uker).', { dato: datoT(c.estMalt.dato), uker: c.estMalt.uker }))}</p>` : ''}
         <form class="rad2" data-maldatoform="${esc(pid)}" autocomplete="off">
-          <div class="felt"><label for="malDato">${esc(t('Når vil du nå målvekta?'))}</label><input id="malDato" name="dato" type="date" min="${leggTilDager(idag(), 7)}" value="${esc(c.malDato || '')}"></div>
+          <div class="felt"><label for="${feltId}">${esc(t('Når vil du nå målvekta?'))}</label><input id="${feltId}" name="dato" type="date" min="${leggTilDager(idag(), 7)}" value="${esc(c.malDato || '')}"></div>
           <div class="knapprad" style="margin:0"><button class="knapp hoved" type="submit">Bruk datoen</button>${c.malDato ? '<button class="lenke" type="button" data-fjern-maldato>Fjern dato</button>' : ''}</div>
         </form>
         <div class="felt"><label>${esc(t('Treningsøkter i uka'))}</label><div class="chips">${[0, 1, 2, 3, 4, 5, 6].map((n) => `<button type="button" class="chip" data-oktmal="${n}" aria-pressed="${c.oktMal === n}">${n ? n : esc(t('Ingen'))}</button>`).join('')}</div></div>
       </div>`;
     }
+    // ================= Coach-fanen: i dag, uka, målet og påminnelser =================
+    const naaMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+    const ukedagNavn = (n, stil = 'long') => new Intl.DateTimeFormat(LOK, { weekday: stil, timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, n))); // 1. jan. 2024 var en mandag
+    const antallHandlevarer = () => handlelisteVarer().length + (S.mat.handleliste || []).filter((v) => !v.haket).length;
+    const paaminnelser = (pid) => fyllPaaminnelser(privat(pid).paaminnelser, standardPaaminnelser({ oktMal: profil(pid).oktMal }));
+    function endrePaaminnelser(pid, endre) {
+      const p = paaminnelser(pid);
+      endre(p);
+      privat(pid).paaminnelser = p;
+      lagrePrivat();
+      if ($('pmStatus')) $('pmStatus').innerHTML = pmStatusHtml(pid);
+    }
+
+    // Hvordan dagen ligger an akkurat nå
+    function dagStatus(pid) {
+      const d = idag(), pr = profil(pid), mal = beregnMal(pr), dag = ukedag(d), p = paaminnelser(pid), c = coachData(pid);
+      const plan = dagsplan({ mat: S.mat, personer: personer(), personId: pid, dato: d });
+      const ekstra = new Set((S.mat.logg || []).filter((l) => l.type === 'maltid' && l.dato === d && l.person === pid && l.del).map((l) => l.del));
+      const maltider = plan.maltider.map((x) => ({ slot: x.slot, fort: x.slot === 'middag' ? !!S.mat.meny?.[d]?.spist || ekstra.has('middag') : !!maltidLogg(d, pid, x.slot) || ekstra.has(x.slot) }));
+      const igjenOkter = c.oktMal - c.okter, igjenDager = 8 - dag;
+      return {
+        d, dag, min: naaMin(), mal, c, p, maltider,
+        s: spistI(d, pid), vann: vannI(d, pid), vannMal: vannMal(pr),
+        veiedag: p.veiing.pa && p.veiing.dag === dag,
+        treningsdag: c.oktMal > 0 && igjenOkter > 0 && ((p.trening.pa && p.trening.dager.includes(dag)) || igjenDager <= igjenOkter),
+        handledag: p.handle.pa && p.handle.dag === dag,
+        ukeslutt: p.uke.pa ? p.uke.dag === dag : dag === 7,
+        varer: antallHandlevarer(),
+      };
+    }
+
+    const trentKnapp = (c) => `<button class="knapp ${c.trentIdag ? '' : 'hoved'}" type="button" data-trent-idag>${c.trentIdag ? esc(t('✓ Trent i dag')) : esc(t('＋ Trent i dag'))}</button>`;
+    const veiKnapp = (pid) => `<button class="knapp hoved" type="button" data-vis-vekt="${esc(pid)}">${esc(t('Vei deg'))}</button>`;
+    const tilKnapp = (hash, tekst) => `<a class="knapp" href="${hash}">${esc(tekst)}</a>`;
+
+    // Det som er lurt å gjøre nå, viktigst først
+    function huskNaa(st, pid) {
+      const h = [], { min } = st;
+      if (st.veiedag && !st.c.veidUka && min < 12 * 60) h.push({ id: 'veiing', ikon: '⚖️', tekst: t('Veiedag! Vei deg før frokost, så blir tallene mest like.'), knapp: veiKnapp(pid) });
+      const glemt = st.maltider.filter((m) => !m.fort && min >= MALTID_FRIST[m.slot]);
+      if (glemt.length === 1) h.push({ id: 'mat', ikon: '🍳', tekst: t('Har du spist {maltid}? Huk det av, eller før det du spiste.', { maltid: oversett(MALTIDSNAVN[glemt[0].slot]).toLowerCase() }), knapp: tilKnapp('#idag', t('Før')) });
+      else if (glemt.length > 1) h.push({ id: 'mat', ikon: '🍳', tekst: t('{n} måltider er ikke ført ennå i dag.', { n: glemt.length }), knapp: tilKnapp('#idag', t('Før')) });
+      const bak = vannForventet(st.vannMal, min) - st.vann;
+      if (bak >= 2) h.push({ id: 'vann', ikon: '💧', tekst: t('Du ligger {n} glass bak på vann – ta et glass nå.', { n: bak }), knapp: `<button class="knapp" type="button" data-vann-pluss="${esc(pid)}">${esc(t('＋ Ett glass'))}</button>` });
+      if (st.mal && min >= 16 * 60 && st.mal.protein - st.s.protein > 30) h.push({ id: 'protein', ikon: '🥩', tekst: t('Du mangler {g} g protein i dag. Skyr, cottage cheese eller egg til kvelds hjelper.', { g: kroner(st.mal.protein - st.s.protein) }) });
+      if (st.mal && st.s.kcal > st.mal.kcal * 1.1) h.push({ id: 'kcal', ikon: '🔥', tekst: t('Du er {kcal} kcal over målet i dag. En gåtur hjelper, og i morgen er en ny dag.', { kcal: kroner(st.s.kcal - st.mal.kcal) }) });
+      if (st.treningsdag && !st.c.trentIdag && min >= 14 * 60) h.push({ id: 'trening', ikon: '💪', tekst: t('Treningsdag i dag – har du fått trent?'), knapp: trentKnapp(st.c) });
+      if (st.handledag && st.varer > 0) h.push({ id: 'handle', ikon: '🛒', tekst: t('Handledag i dag – {n} varer på lista.', { n: st.varer }), knapp: tilKnapp('#uke', t('Handleliste')) });
+      if (st.ukeslutt && min >= 16 * 60) h.push({ id: 'uke', ikon: '📊', tekst: t('Uka er snart ferdig. Se hvordan det gikk, og lag ukemenyen for neste uke.'), knapp: tilKnapp('#uke', t('Ukemeny')) });
+      const rekkefolge = ['veiing', 'trening', 'handle', 'uke', 'mat', 'vann', 'kcal', 'protein']; // det som skjer på faste dager først
+      return h.sort((a, b) => rekkefolge.indexOf(a.id) - rekkefolge.indexOf(b.id)).slice(0, 3);
+    }
+
+    // Sjekklista for i dag
+    function sjekkliste(st, pid) {
+      const l = [], { c, mal, s } = st;
+      const n = st.maltider.filter((m) => m.fort).length, neste = st.maltider.find((m) => !m.fort);
+      if (st.maltider.length) l.push({ ikon: '🍳', tekst: t('Måltider ført: {n} av {m}', { n, m: st.maltider.length }), ok: !neste, under: neste ? t('Neste: {maltid}', { maltid: oversett(MALTIDSNAVN[neste.slot]) }) : '', knapp: neste ? tilKnapp('#idag', t('Før')) : '' });
+      l.push({ ikon: '💧', tekst: t('Vann: {n} av {mal} glass', { n: st.vann, mal: st.vannMal }), ok: st.vann >= st.vannMal,
+        knapp: `<span class="knapper"><button class="ikonknapp" type="button" data-vann-minus="${esc(pid)}" aria-label="${esc(t('Ett glass mindre'))}">−</button><button class="ikonknapp" type="button" data-vann-pluss="${esc(pid)}" aria-label="${esc(t('Ett glass til'))}">＋</button></span>` });
+      if (mal) {
+        l.push({ ikon: '🥩', tekst: t('Protein: {p} av {pm} g', { p: kroner(s.protein), pm: kroner(mal.protein) }), ok: s.protein >= mal.protein * 0.9 });
+        const over = s.kcal > mal.kcal * 1.1;
+        l.push({ ikon: '🔥', tekst: t('Kalorier: {k} av {km} kcal', { k: kroner(s.kcal), km: kroner(mal.kcal) }), ok: s.kcal >= mal.kcal * 0.85 && !over, under: over ? t('Litt over målet i dag') : s.kcal < mal.kcal * 0.85 ? t('{k} kcal igjen', { k: kroner(mal.kcal - s.kcal) }) : t('I rute') });
+      }
+      if (c.oktMal > 0) l.push({ ikon: '💪', tekst: c.trentIdag ? t('Trent i dag') : st.treningsdag ? t('Treningsdag i dag') : t('Trent i dag?'), ok: c.trentIdag, valgfri: !st.treningsdag && !c.trentIdag, under: t('Trening: {n} av {mal} økter', { n: c.okter, mal: c.oktMal }), knapp: trentKnapp(c) });
+      if (c.veidUka) l.push({ ikon: '⚖️', tekst: t('Veid denne uka'), ok: true });
+      else if (st.veiedag || !st.p.veiing.pa || st.dag > st.p.veiing.dag) l.push({ ikon: '⚖️', tekst: st.veiedag ? t('Veiedag i dag') : t('Vei deg denne uka'), ok: false, knapp: veiKnapp(pid) });
+      if (st.handledag) l.push({ ikon: '🛒', tekst: st.varer ? t('Handledag – {n} varer på lista', { n: st.varer }) : t('Handledag – lista er tom'), ok: !st.varer, knapp: st.varer ? tilKnapp('#uke', t('Handleliste')) : '' });
+      return l;
+    }
+
+    // Rekker: dager på rad med mat ført og vannmålet nådd, uker på rad med veiing
+    function rekker(pid) {
+      const mat = new Set(), vann = new Set(), mal = vannMal(profil(pid));
+      for (const l of S.mat.logg || []) if (l.type === 'maltid' ? l.person === pid : (l.porsjoner?.[pid] || 0) > 0) mat.add(l.dato);
+      for (const [d, v] of Object.entries(S.mat.vann || {})) if (Number(v?.[pid]) >= mal) vann.add(d);
+      return {
+        mat: rekke(mat, idag()), vann: rekke(vann, idag()),
+        veiing: ukerekke(new Set(vektserie(pid).map((r) => r.nokkel)), isoUke(idag()).mandag, (m) => isoUke(m).nokkel),
+      };
+    }
+
+    // Oppsummering av forrige uke
+    function forrigeUke(pid) {
+      const naa = isoUke(idag()), fra = leggTilDager(naa.mandag, -7), u = isoUke(fra);
+      const st = ukeStat(pid, fra, leggTilDager(naa.mandag, -1)), serie = vektserie(pid);
+      const i = serie.findIndex((r) => r.nokkel === u.nokkel);
+      return { ...st, uke: u.uke, nokkel: u.nokkel, kg: i >= 0 ? serie[i].kg : null, endring: i > 0 ? serie[i].kg - serie[i - 1].kg : null, harData: st.forteDager > 0 || st.okter > 0 || i >= 0 };
+    }
+    const nyUkesoppdatering = (pid) => { const f = forrigeUke(pid); return f.harData && privat(pid).coachSettUke !== isoUke(idag()).nokkel ? f : null; };
+    function merkUkeSett() {
+      const pid = meg();
+      if (!pid) return;
+      const n = isoUke(idag()).nokkel;
+      if (privat(pid).coachSettUke !== n) { privat(pid).coachSettUke = n; lagrePrivat(); }
+    }
+
+    function ukerapportHtml(pid, f) {
+      const mal = beregnMal(profil(pid)), oktMal = Number(profil(pid).oktMal) || 0;
+      const rad = (a, b) => `<div class="rad"><span>${a}</span><span>${esc(b)}</span></div>`;
+      return `<div class="ukerapport">
+        ${rad(`⚖️ ${esc(t('Vekt'))}`, f.kg != null ? `${kgT(f.kg)} kg${f.endring != null ? ` (${endringT(f.endring)})` : ''}` : t('Ikke veid'))}
+        ${rad(`📝 ${esc(t('Mat ført'))}`, t('{n} av {d} dager', { n: f.forteDager, d: 7 }))}
+        ${f.forteDager ? rad(`🔥 ${esc(t('Snitt kalorier'))}`, mal ? t('{kcal} kcal ({pst} % av målet)', { kcal: kroner(f.snittKcal), pst: Math.round((f.snittKcal / mal.kcal) * 100) }) : `${kroner(f.snittKcal)} kcal`) : ''}
+        ${mal ? rad(`🥩 ${esc(t('Protein nådd'))}`, t('{n} av {d} dager', { n: f.proteinDager, d: 7 })) : ''}
+        ${rad(`💧 ${esc(t('Vannmålet nådd'))}`, t('{n} av {d} dager', { n: f.vannDager, d: 7 }))}
+        ${oktMal || f.okter ? rad(`💪 ${esc(t('Treningsøkter'))}`, oktMal ? t('{n} av {mal} økter', { n: f.okter, mal: oktMal }) : t('{n} økter', { n: f.okter })) : ''}
+      </div>`;
+    }
+
+    function pmStatusHtml(pid) {
+      const pv = privat(pid);
+      if (!pv.pmEksportert) return '';
+      return pv.pmEksportert === JSON.stringify(paaminnelser(pid))
+        ? `<p class="forklaring">✓ ${esc(t('Lagt i kalenderen {dato}.', { dato: datoT(pv.pmEksportertDato || idag()) }))}</p>`
+        : `<p class="varsel">⚠️ ${esc(t('Du har endret påminnelsene. Legg dem i kalenderen på nytt, og slett de gamle der.'))}</p>`;
+    }
+    function paaminnelserHtml(pid) {
+      const p = paaminnelser(pid);
+      const dagValg = (id, dag) => `<select data-pm-dag="${id}" aria-label="${esc(t('Ukedag'))}">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option value="${n}" ${n === dag ? 'selected' : ''}>${esc(ukedagNavn(n))}</option>`).join('')}</select>`;
+      const tid = (id, v, i) => `<input type="time" data-pm-tid="${id}" ${i != null ? `data-pm-i="${i}"` : ''} value="${esc(v)}" aria-label="${esc(t('Klokkeslett'))}">`;
+      const rad = (id, ikon, navn, valg) => `<div class="pmrad ${p[id].pa ? '' : 'av'}"><label class="pmbryter"><input type="checkbox" data-pm="${id}" ${p[id].pa ? 'checked' : ''}><span>${ikon} ${esc(navn)}</span></label><div class="pmvalg">${valg}</div></div>`;
+      const dager = `<div class="chips" aria-label="${esc(t('Treningsdager'))}">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<button type="button" class="chip" data-pm-trdag="${n}" aria-pressed="${p.trening.dager.includes(n)}">${esc(ukedagNavn(n, 'short').replace('.', ''))}</button>`).join('')}</div>`;
+      return `<h2>🔔 Påminnelser</h2>
+        <p class="forklaring">${esc(t('Appen kan ikke sende varsler når den er lukket. Legg påminnelsene i kalenderen på telefonen, så varsler den deg til riktig tid. Trykk på varselet for å komme rett hit.'))}</p>
+        <div style="margin-top:6px">
+          ${rad('veiing', '⚖️', t('Veiing'), dagValg('veiing', p.veiing.dag) + tid('veiing', p.veiing.tid))}
+          ${rad('vann', '💧', t('Drikk vann'), p.vann.tider.map((v, i) => tid('vann', v, i)).join(''))}
+          ${rad('mat', '📝', t('Før dagens mat'), tid('mat', p.mat.tid))}
+          ${rad('trening', '💪', t('Treningsøkter'), dager + tid('trening', p.trening.tid))}
+          ${rad('handle', '🛒', t('Handledag'), dagValg('handle', p.handle.dag) + tid('handle', p.handle.tid))}
+          ${rad('uke', '📊', t('Ukessjekk og ny ukemeny'), dagValg('uke', p.uke.dag) + tid('uke', p.uke.tid))}
+        </div>
+        <div id="pmStatus">${pmStatusHtml(pid)}</div>
+        <div class="knapprad"><button class="knapp hoved stor" type="button" data-pm-kalender>📅 Legg i kalenderen</button></div>
+        <p class="forklaring" style="font-size:12.5px">${esc(t('Tips: Velg en egen kalender, for eksempel «Hjemme», når du legger dem til. Da er det lett å endre eller fjerne alle senere.'))}</p>`;
+    }
+
+    function leggIKalenderen(pid) {
+      const p = paaminnelser(pid);
+      const tekster = {
+        veiing: { tittel: t('⚖️ Vei deg'), tekst: t('Vei deg før frokost, og før vekta i Hjemme.') },
+        vann: { tittel: t('💧 Drikk et glass vann'), tekst: t('Trykk ＋ på vannet i Hjemme når du har drukket.') },
+        mat: { tittel: t('📝 Før dagens mat'), tekst: t('Huk av måltidene du har spist i dag.') },
+        trening: { tittel: t('💪 Treningsdag'), tekst: t('Trykk «Trent i dag» i Coach når økta er gjort.') },
+        handle: { tittel: t('🛒 Handledag'), tekst: t('Handlelista ligger klar i Hjemme.') },
+        uke: { tittel: t('📊 Ukessjekk'), tekst: t('Se hvordan uka gikk i Coach, og lag ukemenyen for neste uke.') },
+      };
+      const hendelser = hendelserFor(p, tekster);
+      if (!hendelser.length) { vis(t('Slå på minst én påminnelse først.')); return; }
+      const ics = lagIcs({ hendelser, idag: idag(), url: `${location.origin}${location.pathname}#coach`, kalendernavn: t('Hjemme – coach'), stempel: tidsstempel(new Date()) });
+      const a = document.createElement('a');
+      a.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+      a.download = 'hjemme-paaminnelser.ics';
+      a.rel = 'noopener';
+      document.body.append(a); a.click(); a.remove();
+      const pv = privat(pid);
+      pv.pmEksportert = JSON.stringify(p); pv.pmEksportertDato = idag();
+      lagrePrivat();
+      $('pmStatus').innerHTML = pmStatusHtml(pid);
+      vis(t('Åpne fila, og velg «Legg til alle» i kalenderen.'));
+    }
+
+    // Tegner bare kortet på nytt hvis du ikke står og skriver i det
+    function settInnhold(id, html) {
+      const el = $(id), a = document.activeElement;
+      if (!el || (a && el.contains(a) && a.matches('input, select, textarea'))) return;
+      el.innerHTML = html;
+    }
+    let coachVenter = false;
+    function tegnCoach() { if (coachVenter) return; coachVenter = true; queueMicrotask(() => { coachVenter = false; tegnCoachNa(); }); }
+    function tegnCoachNa() {
+      const pid = meg();
+      if (!pid) return;
+      const jeg = personer().find((p) => p.id === pid), pr = profil(pid);
+      $('coachDato').textContent = dagLang.format(somDato(idag()));
+      const harMal = !!beregnMal(pr);
+      const st = harMal ? dagStatus(pid) : null, husk = st ? huskNaa(st, pid) : [], ny = harMal ? nyUkesoppdatering(pid) : null;
+      // Merke på fanen og banner på I dag
+      const antall = husk.length + (ny ? 1 : 0);
+      $('coachMerke').hidden = !antall; $('coachMerke').textContent = antall;
+      const banner = ny ? `📊 ${t('Ukesoppdateringen for uke {n} er klar', { n: ny.uke })}` : husk[0] ? `${husk[0].ikon} ${husk[0].tekst}` : '';
+      $('coachBanner').hidden = !banner; $('coachBanner').textContent = banner;
+      for (const id of ['coachUke', 'coachMal']) $(id).hidden = !harMal;
+      if (!harMal) {
+        $('coachIdag').innerHTML = `<h2>🎯 ${esc(jeg && jeg.navn !== 'Meg' ? t('Hei, {navn}!', { navn: jeg.navn }) : t('Coach'))}</h2>
+          <p class="forklaring">${esc(t('Svar på noen raske spørsmål, så setter coachen mål for kalorier, protein, vann og trening, og minner deg på det som gjenstår hver dag.'))}</p>
+          <div class="knapprad"><button class="knapp hoved" type="button" data-sporsmal="${esc(pid)}">${esc(t('Svar på spørsmål'))}</button></div>`;
+        settInnhold('coachPaaminnelser', paaminnelserHtml(pid));
+        return;
+      }
+      // I dag
+      const liste = sjekkliste(st, pid), telles = liste.filter((x) => !x.valgfri), ok = telles.filter((x) => x.ok).length;
+      const hk = st.min < 10 * 60 ? 'God morgen' : st.min < 17 * 60 ? 'God dag' : 'God kveld';
+      const hilsen = jeg && jeg.navn !== 'Meg' ? t(`${hk}, {navn}!`, { navn: jeg.navn }) : t(`${hk}!`);
+      const bra = !husk.length ? (ok === telles.length ? t('Alt er gjort i dag. Godt jobba! 🎉') : st.min < 10 * 60 ? t('Start dagen med et glass vann og en god frokost.') : t('Du er i rute i dag. Fortsett sånn!')) : '';
+      $('coachIdag').innerHTML = `
+        <div class="coachhode"><h2>☀️ ${esc(hilsen)}</h2><span class="tall">${esc(t('{n} av {m} gjort', { n: ok, m: telles.length }))}</span></div>
+        <div class="meter" role="meter" aria-valuemin="0" aria-valuemax="${telles.length}" aria-valuenow="${ok}" aria-label="${esc(t('{n} av {m} gjort', { n: ok, m: telles.length }))}"><span style="width:${telles.length ? Math.round((ok / telles.length) * 100) : 0}%"></span></div>
+        <div class="husk">${husk.length ? husk.map((x) => `<div class="huskrad"><span>${x.ikon}</span><span>${esc(x.tekst)}</span>${x.knapp || '<span></span>'}</div>`).join('') : `<div class="huskrad bra"><span>✨</span><span>${esc(bra)}</span><span></span></div>`}</div>
+        <div class="undertittel">${esc(t('Sjekkliste for i dag'))}</div>
+        <div class="sjekk">${liste.map((x) => `<div class="rad ${x.ok ? 'ok' : ''}"><span class="hake" aria-label="${esc(x.ok ? t('Gjort') : t('Ikke gjort'))}">✓</span><span>${x.ikon} ${esc(x.tekst)}${x.under ? `<small>${esc(x.under)}</small>` : ''}</span>${x.knapp || '<span></span>'}</div>`).join('')}</div>`;
+      // Uka
+      const c = st.c, r = rekker(pid), f = forrigeUke(pid), uke = isoUke(idag());
+      const serie = vektserie(pid), denne = serie.find((x) => x.nokkel === uke.nokkel), fjor = [...serie].reverse().find((x) => x.nokkel < uke.nokkel);
+      const rekkeChips = [r.mat >= 2 ? `🔥 ${t('Mat ført {n} dager på rad', { n: r.mat })}` : '', r.vann >= 2 ? `💧 ${t('Vannmålet {n} dager på rad', { n: r.vann })}` : '', r.veiing >= 2 ? `⚖️ ${t('Veid {n} uker på rad', { n: r.veiing })}` : ''].filter(Boolean);
+      settInnhold('coachUke', `
+        <div class="coachhode"><h2>📊 ${esc(t('Uke {n} så langt', { n: uke.uke }))}</h2></div>
+        <p class="forklaring" style="margin-top:4px">${esc(denne ? `${kgT(denne.kg)} kg${fjor ? ` · ${t('{endring} fra forrige uke', { endring: endringT(denne.kg - fjor.kg) })}` : ''}` : t('Ikke veid ennå denne uka.'))}${c.malvekt ? ` ${esc(estimatTekst(c))}` : ''}</p>
+        ${ukemalHtml(c)}
+        ${rekkeChips.length ? `<div class="rekker">${rekkeChips.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
+        ${f.harData ? `<details class="fold" style="margin-top:12px" ${ny || S.visForrigeUke ? 'open' : ''}><summary>${esc(t('Uke {n}: slik gikk det', { n: f.uke }))}</summary><div class="innhold">${ukerapportHtml(pid, f)}</div></details>` : ''}`);
+      // Målet
+      settInnhold('coachMal', `${coachHtml(pid, 'coachMalDato')}
+        <div class="knapprad"><button class="knapp" type="button" data-vis-vekt="${esc(pid)}">📈 ${esc(t('Vekt og utvikling'))}</button></div>`);
+      settInnhold('coachPaaminnelser', paaminnelserHtml(pid));
+    }
+
     function lagreVekt(pid, kg) {
       if (!erMeg(pid)) return;
       const pv = privat(pid);
@@ -2215,7 +2501,8 @@
       { v: 5, ikon: '🔍', tittel: 'Før all mat', tekst: 'Søk i en stor matdatabase, ta bilde av strekkoden eller skriv inn kalorier selv – også for mat utenom planen. Vann kan også føres.' },
       { v: 5, ikon: '🛒', tittel: 'Del matbudsjettet', tekst: 'Velg hvor mange prosent hver betaler av maten, for eksempel etter hvor mye hver spiser.' },
       { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
-      { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Se når du når målvekta, velg en dato som justerer kalorimålet, og følg ukas mål for trening, protein, vann og matføring.' },
+      { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Ny Coach-fane som minner deg på det som gjenstår i dag, viser ukas mål og hvordan forrige uke gikk, og regner ut når du når målvekta.' },
+      { v: 6, ikon: '📅', tittel: 'Påminnelser', tekst: 'Velg når du vil bli minnet på veiing, vann, mat og trening, og legg det i kalenderen på telefonen, så får du varsel.' },
       { v: 6, ikon: '🔒', tittel: 'Vekta er privat', tekst: 'Vekta di ligger bare på din egen telefon. De andre i husstanden ser den ikke.' },
     ];
     const settOppdatering = () => { try { localStorage.setItem(OPPD_NOKKEL, String(OPPDATERING)); } catch {} };
@@ -2343,11 +2630,11 @@
         pv.okter ??= [];
         const fantes = pv.okter.includes(idag());
         pv.okter = fantes ? pv.okter.filter((d) => d !== idag()) : [...pv.okter, idag()];
-        lagrePrivat(); tegnVektkort();
+        lagrePrivat(); tegnVektkort(); tegnCoach();
         vis(fantes ? t('Angret') : t('💪 Økta er ført – bra jobba!'));
         return;
       }
-      if ('fjernMaldato' in ds) { settMalDato(meg(), null); tegnAlt(); visVekt(meg()); vis(t('Datoen er fjernet. Kalorimålet følger det vanlige målet.')); return; }
+      if ('fjernMaldato' in ds) { settMalDato(meg(), null); tegnAlt(); if ($('rettDialog').open) visVekt(meg()); vis(t('Datoen er fjernet. Kalorimålet følger det vanlige målet.')); return; }
       if (ds.oktmal != null) {
         const id = meg();
         S.mat.profiler = { ...(S.mat.profiler || {}), [id]: { ...(S.mat.profiler?.[id] || {}), oktMal: Number(ds.oktmal) } };
@@ -2360,6 +2647,13 @@
         return;
       }
       if (ds.vannPluss || ds.vannMinus) { endreVann(ds.vannPluss || ds.vannMinus, ds.vannPluss ? 1 : -1); return; }
+      if (ds.pmTrdag) {
+        const n = Number(ds.pmTrdag);
+        endrePaaminnelser(meg(), (p) => { const har = p.trening.dager.includes(n); p.trening.dager = har ? p.trening.dager.filter((x) => x !== n) : [...p.trening.dager, n].sort(); if (!har) p.trening.pa = true; });
+        settInnhold('coachPaaminnelser', paaminnelserHtml(meg())); tegnCoach();
+        return;
+      }
+      if ('pmKalender' in ds) { leggIKalenderen(meg()); return; }
       if (ds.matdeling) { settMatdeling(ds.matdeling); tegnAlt(); return; }
       if ('forMat' in ds) { S.forMat = null; visForMat(); return; }
       if (ds.matFane) { visForMat({ fane: ds.matFane, feil: '', valgt: null }); return; }
@@ -2460,6 +2754,19 @@
       if (t.dataset.hak) { S.mat.haket = { ...(S.mat.haket || {}), [t.dataset.hak]: t.checked }; lagreMatNa(); tegnHandleliste(); }
       if (t.dataset.hakm) { const v = (S.mat.handleliste || []).find((x) => x.id === t.dataset.hakm); if (v) { v.haket = t.checked; lagreMatNa(); tegnHandleliste(); } }
     });
+    // Påminnelser: lagres med en gang, uten å tegne skjemaet på nytt mens du velger
+    document.addEventListener('change', (e) => {
+      const el = e.target, ds = el.dataset || {};
+      if (!(ds.pm || ds.pmDag || ds.pmTid)) return;
+      const pid = meg();
+      endrePaaminnelser(pid, (p) => {
+        if (ds.pm) p[ds.pm].pa = el.checked;
+        if (ds.pmDag) p[ds.pmDag].dag = Number(el.value);
+        if (ds.pmTid && /^\d{2}:\d{2}$/.test(el.value)) { if (ds.pmI != null) p[ds.pmTid].tider[Number(ds.pmI)] = el.value; else p[ds.pmTid].tid = el.value; }
+      });
+      if (ds.pm) el.closest('.pmrad')?.classList.toggle('av', !el.checked);
+      tegnCoach();
+    });
     document.addEventListener('submit', async (e) => {
       const f = e.target;
       if (f.dataset.vektform) {
@@ -2474,7 +2781,7 @@
         const pid = f.dataset.maldatoform, dato = f.elements.dato.value;
         if (!dato) { f.elements.dato.focus(); return; }
         const r = settMalDato(pid, dato);
-        tegnAlt(); visVekt(pid);
+        tegnAlt(); if ($('rettDialog').open) visVekt(pid);
         vis(!r || r.forTidlig ? t('Velg en dato minst en uke fram i tid.') : r.trygg ? t('Kalorimålet er justert ✓') : t('For raskt – appen bruker en trygg fart i stedet.'));
         return;
       }
@@ -2931,6 +3238,14 @@
     window.addEventListener('storage', (e) => {
       if (e.key?.startsWith('budsjett.') || e.key === 'hjem.mat' || e.key === PRIVAT_NOKKEL) { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); S.privat = lesPrivat(); tegnAlt(); }
     });
+    // Coach følger klokka: oppdater når appen hentes fram igjen, og hvert 5. minutt mens den er åpen
+    let sistDag = idag();
+    function friskOpp() {
+      if (document.hidden) return;
+      if (idag() !== sistDag) { sistDag = idag(); tegnAlt(); } else tegnCoach();
+    }
+    document.addEventListener('visibilitychange', friskOpp);
+    setInterval(friskOpp, 5 * 60 * 1000);
 
     if (S.plan.migrert) { lagre(); }
     S.lonnPerson = meg();
