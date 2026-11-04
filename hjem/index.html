@@ -222,6 +222,10 @@
     .dag { display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--linje); }
     .dag:first-child { border-top: 0; padding-top: 0; }
     .dag .dagnavn { font-weight: 700; font-size: 14px; }
+    .dag .dagmaltider { grid-column: 2 / -1; display: grid; gap: 3px; margin-top: -4px; font-size: 13.5px; }
+    .dag .dagmaltider span { display: flex; gap: 6px; align-items: baseline; color: var(--tekst); }
+    .dag .dagmaltider small { min-width: 92px; color: var(--dempet); font-size: 12px; font-weight: 600; }
+    .dag .dagmaltider span.spist { color: var(--dempet); text-decoration: line-through; }
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
     .dag .dagnavn small { display: block; color: var(--dempet); font-weight: 500; }
@@ -664,7 +668,7 @@
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
       dagsplan, alternativer, maltid, MALTIDSNAVN, behovForUke, butikkanbefaling,
       fraKjokkenet, resterFor, slotsFor, naeringMaltid, RESTER_DAGER,
-      proteinBytter,
+      proteinBytter, kjopFor, kjopSomPasser, passerFor,
     } from './mat.js?v=9';
     import {
       ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
@@ -1149,6 +1153,11 @@
     }
 
     function sikreMeny() {
+      const profiler = personer().map((p) => S.mat.profiler?.[p.id] || {});
+      for (const [d, m] of Object.entries(S.mat.meny || {})) {
+        const r = m?.id ? oppskrift(m.id) : null;
+        if (d >= idag() && r && !m.spist && !m.laast && !passerFor(r, profiler)) delete S.mat.meny[d];
+      }
       const ny = fyllMeny({ mat: S.mat, personer: personer(), tilbud: S.tilbud, fra: idag() });
       if (JSON.stringify(ny) !== JSON.stringify(S.mat.meny)) { S.mat.meny = ny; lagreMatNa(); }
     }
@@ -1285,6 +1294,8 @@
     const dagPerson = () => (personer().some((p) => p.id === S.dagPerson) ? S.dagPerson : meg());
     // Rester vises med navnet på retten
     function maltidNavn(m, l, x) {
+      const kj = l?.kjop ? kjopFor(l.kjop) : !l && x?.kjop ? x.kjop : null;
+      if (kj) return t('Kjøp: {hva}', { hva: oversett(kj.navn) });
       const rett = l?.rett ? oppskrift(l.rett) : !l && x?.fra ? x.fra : null;
       return rett ? t('Rester: {rett}', { rett: oversett(rett.navn) }) : m?.navn || l?.navn || '';
     }
@@ -1312,7 +1323,7 @@
         const mangler = !l && brukerKjokken && x.mangler?.length ? `<small class="mangel">🛒 ${esc(t('Mangler {hva}', { hva: liste(x.mangler.slice(0, 3).map((key) => navnPaa(key).toLowerCase())) }))}</small>` : '';
         const navn = x.tillegg ? t('Proteintillegg') : oversett(MALTIDSNAVN[x.slot]);
         return `<div class="maltid ${l ? 'spist' : ''}">
-          <button class="rettknapp" type="button" data-maltid-vis="${x.slot}"><span class="ikon">${m.ikon}</span><span><small class="slot">${esc(navn)}</small><b>${esc(maltidNavn(m, l, x))}</b><small>${esc(`${mengdeMaltid(m, faktor)} · ${kroner(k)} kcal · ${gProt(p)}${fra}`)}</small>${mangler}</span></button>
+          <button class="rettknapp" type="button" data-maltid-vis="${x.slot}"><span class="ikon">${m.ikon}</span><span><small class="slot">${esc(navn)}</small><b>${esc(maltidNavn(m, l, x))}</b><small>${esc(`${x.kjop || l?.kjop ? t('I kantina eller på butikken') : mengdeMaltid(m, faktor)} · ${kroner(k)} kcal · ${gProt(p)}${fra}`)}</small>${mangler}</span></button>
           ${l ? '<span></span>' : `<button class="ikonknapp" type="button" data-maltid-bytt="${x.slot}" aria-label="${esc(t('Bytt {hva}', { hva: navn.toLowerCase() }))}">🔄</button>`}
           <button class="ikonknapp spistknapp" type="button" data-maltid-spist="${x.slot}" aria-pressed="${!!l}" aria-label="${esc(l ? t('Angre {hva}', { hva: navn.toLowerCase() }) : t('Spist {hva}', { hva: navn.toLowerCase() }))}">✓</button>
         </div>`;
@@ -1355,7 +1366,7 @@
       const bytter = proteinBytter({ mat: S.mat, personId: pid, dato: d, plan, spist }).slice(0, 2);
       return `<div class="proteinsjekk">
         <b>🥩 ${esc(t('Planen gir {p} av {pm} g protein.', { p: kroner(protein), pm: kroner(mal.protein) }))}</b>
-        ${bytter.length ? `<span>${esc(t('Disse byttene hjelper mest:'))}</span>${bytter.map((b) => `<button class="knapp" type="button" data-proteinbytt="${b.slot}|${esc(b.til.id)}">${b.til.ikon} ${esc(t('Bytt {hva} til {ny}', { hva: oversett(MALTIDSNAVN[b.slot]).toLowerCase(), ny: oversett(b.til.navn) }))}<small>+${kroner(b.gevinst)} g</small></button>`).join('')}`
+        ${bytter.length ? `<span>${esc(t('Disse byttene hjelper mest:'))}</span>${bytter.map((b) => `<button class="knapp" type="button" data-proteinbytt="${b.slot}|${esc(b.til.id)}${b.kjop ? `|${esc(b.kjop.id)}` : ''}">${(b.kjop || b.til).ikon} ${esc(b.kjop ? t('Kjøp {ny} til lunsj i stedet', { ny: oversett(b.kjop.navn).toLowerCase() }) : t('Bytt {hva} til {ny}', { hva: oversett(MALTIDSNAVN[b.slot]).toLowerCase(), ny: oversett(b.til.navn) }))}<small>+${kroner(b.gevinst)} g</small></button>`).join('')}`
           : `<span>${esc(t('Velg måltider med mer protein med 🔄, eller før ekstra skyr, cottage cheese, egg eller kylling.'))}</span>`}
         ${uten}
       </div>`;
@@ -1376,12 +1387,13 @@
         return `<div class="ingrediens"><span>${esc(ing.navn)}${ing.basis ? '<small>basisvare</small>' : har ? '<small class="har">✓ har hjemme</small>' : ''}</span><span class="tall">${esc(mengdeT(key, trenger))}</span></div>`;
       }).join('');
       $('rettInnhold').innerHTML = `
-        <div style="font-size:44px">${m.ikon}</div>
+        <div style="font-size:44px">${(l?.kjop ? kjopFor(l.kjop) : x.kjop)?.ikon || m.ikon}</div>
         <div class="forklaring" style="font-weight:600"><span>${esc(MALTIDSNAVN[slot])}</span> · <span>${esc(personNavn(pid))}</span></div>
         <h2 id="rettTittel">${esc(maltidNavn(m, l, x))}</h2>
-        <p class="forklaring">${esc(mengdeMaltid(m, faktor))}</p>
+        <p class="forklaring">${esc(x.kjop || l?.kjop ? t('Kjøp dette i kantina eller på butikken. Tallene er omtrentlige.') : mengdeMaltid(m, faktor))}</p>
         <div class="makrorad"><div><b>${kroner(n.kcal)}</b><span>kcal</span></div><div><b>${kroner(n.p)} g</b><span>protein</span></div><div><b>${kroner(n.k)} g</b><span>karbo</span></div><div><b>${kroner(n.f)} g</b><span>fett</span></div></div>
         ${rader ? `<div><h3 style="margin-bottom:4px">Du trenger</h3>${rader}</div>` : ''}
+        ${x.kjop && !l ? `<div><h3 style="margin-bottom:6px">${esc(t('Eller kjøp noe annet'))}</h3><div class="chips">${kjopSomPasser(S.mat.profiler?.[pid] || {}).map((v) => `<button type="button" class="chip" data-kjop-velg="${slot}|${esc(v.id)}" aria-pressed="${v.id === x.kjop.id}">${v.ikon} ${esc(oversett(v.navn))} · ${v.p} g</button>`).join('')}</div></div>` : ''}
         <div class="knapprad">
           <button class="knapp hoved" type="button" data-maltid-spist="${slot}">${l ? 'Angre' : '✓ Spist'}</button>
           ${l ? '' : `<button class="knapp" type="button" data-maltid-bytt="${slot}" data-i-dialog>🔄 Noe annet</button>`}
@@ -1392,9 +1404,10 @@
     }
 
     // Fører et måltid som spist: varene trekkes fra kjøkkenet, og rester tas av porsjonene som ligger der
-    function forMaltid({ d, pid, slot, m, faktor, rest = null }) {
+    function forMaltid({ d, pid, slot, m, faktor, rest = null, kjop = null }) {
       let n;
-      if (rest) { const r = oppskrift(rest.oppskrift), pp = perPorsjon(r); n = { kcal: pp.kcal * faktor, p: pp.p * faktor, f: pp.f * faktor, k: pp.k * faktor, fra: r, restId: rest.id }; }
+      if (kjop) n = { kcal: kjop.kcal, p: kjop.p, f: kjop.f, k: kjop.k };
+      else if (rest) { const r = oppskrift(rest.oppskrift), pp = perPorsjon(r); n = { kcal: pp.kcal * faktor, p: pp.p * faktor, f: pp.f * faktor, k: pp.k * faktor, fra: r, restId: rest.id }; }
       else n = naeringMaltid(m, faktor, S.mat, d);
       if (!n) return null;
       const trukket = trekkFra(m.ingredienser, faktor);
@@ -1404,7 +1417,7 @@
         if (r) { const ta = Math.min(r.porsjoner, faktor); r.porsjoner = Math.round((r.porsjoner - ta) * 100) / 100; restTatt = { id: r.id, porsjoner: ta }; }
       }
       const rund = (v) => Math.round(v || 0);
-      const l = { id: nyId(), type: 'maltid', dato: d, person: pid, slot, maltid: m.id, faktor, kcal: rund(n.kcal), p: rund(n.p), f: rund(n.f), k: rund(n.k), trukket, ...(restTatt ? { restTatt } : {}), ...(n.fra ? { rett: n.fra.id } : {}) };
+      const l = { id: nyId(), type: 'maltid', dato: d, person: pid, slot, maltid: m.id, faktor, kcal: rund(n.kcal), p: rund(n.p), f: rund(n.f), k: rund(n.k), trukket, ...(restTatt ? { restTatt } : {}), ...(n.fra ? { rett: n.fra.id } : {}), ...(kjop ? { kjop: kjop.id } : {}) };
       S.mat.logg = [...(S.mat.logg || []), l];
       return l;
     }
@@ -1431,9 +1444,10 @@
       if (l) { angreLogg(l); return; }
       const x = dagsplan({ mat: S.mat, personer: personer(), personId: pid, dato: d }).maltider.find((y) => y.slot === slot);
       if (!x?.m) return;
-      const ny = forMaltid({ d, pid, slot, m: x.m, faktor: x.faktor });
+      const ny = forMaltid({ d, pid, slot, m: x.m, faktor: x.faktor, kjop: x.kjop });
       if (!ny) return;
-      S.mat.dagsplaner ??= {}; ((S.mat.dagsplaner[d] ??= {})[pid] ??= {})[slot] = x.m.id;
+      S.mat.dagsplaner ??= {}; const valg = ((S.mat.dagsplaner[d] ??= {})[pid] ??= {}); valg[slot] = x.m.id;
+      if (x.kjop) valg[`${slot}Kjop`] = x.kjop.id;
       ferdigFort(ny, oversett(MALTIDSNAVN[slot]));
     }
 
@@ -1538,6 +1552,19 @@
       const d = idag(), pid = dagPerson();
       const plan = dagsplan({ mat: S.mat, personer: personer(), personId: pid, dato: d });
       const naa = plan.maltider.find((y) => y.slot === slot)?.m?.id;
+      const kj = plan.maltider.find((y) => y.slot === slot)?.kjop;
+      if (kj) {
+        const liste = kjopSomPasser(S.mat.profiler?.[pid] || {}), i = liste.findIndex((v) => v.id === kj.id);
+        const valg = ((S.mat.dagsplaner ??= {})[d] ??= {})[pid] ??= {};
+        if (i >= 0 && i < liste.length - 1) {
+          const v = liste[i + 1];
+          valg[slot] = naa; valg[`${slot}Kjop`] = v.id;
+          lagreMatNa(); tegnDagsplan(); tegnIdagFliser(); tegnCoach();
+          if (iDialog) visMaltid(slot); else vis(`${v.ikon} ${t('Kjøp: {hva}', { hva: oversett(v.navn) })}`);
+          return;
+        }
+        delete valg[`${slot}Kjop`]; // alle kjøpeforslag er vist – gå videre til noe du lager selv
+      }
       const andre = new Set(plan.maltider.filter((y) => y.slot !== slot && y.m).map((y) => y.m.id));
       const alt = alternativer({ mat: S.mat, personId: pid, slot, dato: d }).filter((m) => !andre.has(m.id));
       if (!alt.length) { vis(t('Fant ikke flere forslag')); return; }
@@ -1576,6 +1603,20 @@
       sikreMeny();
     }
 
+    // Frokost, lunsj og resten av dagens måltider under middagen i ukemenyen
+    function dagensMaltiderHtml(d) {
+      const pid = dagPerson();
+      let plan;
+      try { plan = dagsplan({ mat: S.mat, personer: personer(), personId: pid, dato: d }); } catch { return ''; }
+      const andre = plan.maltider.filter((x) => x.slot !== 'middag' && x.m);
+      if (!andre.length) return '';
+      return `<div class="dagmaltider">${andre.map((x) => {
+        const l = maltidLogg(d, pid, x.slot), m = (l && maltid(l.maltid)) || x.m;
+        const ikon = (l?.kjop ? kjopFor(l.kjop) : x.kjop)?.ikon || m.ikon;
+        return `<span class="${l ? 'spist' : ''}"><small>${esc(x.tillegg ? t('Proteintillegg') : oversett(MALTIDSNAVN[x.slot]))}</small>${ikon} ${esc(maltidNavn(m, l, x))}</span>`;
+      }).join('')}</div>`;
+    }
+
     function tegnUkemeny() {
       tegnFokus();
       const rader = [];
@@ -1586,17 +1627,18 @@
         const ukedag = dagKort.format(somDato(d)).split(' ')[0].replace('.', '');
         const navn = `<div class="dagnavn">${esc(i === 0 ? 'I dag' : ukedag.charAt(0).toUpperCase() + ukedag.slice(1))}<small>${esc(somDato(d).getUTCDate() + (oversettes ? '/' : '.') + (somDato(d).getUTCMonth() + 1))}</small></div>`;
         if (!r) {
-          rader.push(`<div class="dag fri ${i === 0 ? 'idag' : ''}">${navn}<button class="rettknapp" type="button" data-foresla="${d}"><span class="ikon">➕</span><span><b>Ingen middag</b><small>Trykk for et forslag</small></span></button><span></span></div>`);
+          rader.push(`<div class="dag fri ${i === 0 ? 'idag' : ''}">${navn}<button class="rettknapp" type="button" data-foresla="${d}"><span class="ikon">➕</span><span><b>Ingen middag</b><small>Trykk for et forslag</small></span></button><span></span>${dagensMaltiderHtml(d)}</div>`);
           continue;
         }
         const info = infoFor(r, d);
         rader.push(`<div class="dag ${m.spist ? 'spist' : ''} ${i === 0 ? 'idag' : ''}">${navn}
           <button class="rettknapp" type="button" data-rett="${esc(r.id)}" data-dato="${d}"><span class="ikon">${r.ikon}</span><span><b>${esc(r.navn)}</b><small>${r.tid} min · ${kroner(info.prisPerPorsjon)} kr/porsj${info.paTilbud.some((t) => t.hoved) ? ' · 🏷️ tilbud' : ''}</small></span></button>
-          ${m.spist ? '<span></span>' : `<button class="ikonknapp" type="button" data-bytt="${d}" aria-label="Bytt middag ${esc(datoTekst(d))}">🔄</button>`}</div>`);
+          ${m.spist ? '<span></span>' : `<button class="ikonknapp" type="button" data-bytt="${d}" aria-label="Bytt middag ${esc(datoTekst(d))}">🔄</button>`}${dagensMaltiderHtml(d)}</div>`);
       }
       const pris = Object.entries(S.mat.meny || {}).filter(([d, m]) => d >= idag() && d <= leggTilDager(idag(), 6) && m.id && !m.spist)
         .reduce((s, [d, m]) => s + infoFor(oppskrift(m.id), d).pris, 0);
-      $('ukemeny').innerHTML = rader.join('') + `<p class="forklaring" style="margin-top:10px">Middagene resten av uka koster ca. <b>${kroner(pris)} kr</b> til sammen.</p>`;
+      const ps = personer(), velger = ps.length > 1 ? `<div class="velger" style="margin:0 0 4px" aria-label="${esc(t('Måltider for'))}">${ps.map((p) => `<button type="button" data-dagperson="${esc(p.id)}" aria-pressed="${p.id === dagPerson()}">${esc(p.navn)}</button>`).join('')}</div>` : '';
+      $('ukemeny').innerHTML = velger + rader.join('') + `<p class="forklaring" style="margin-top:10px">Middagene resten av uka koster ca. <b>${kroner(pris)} kr</b> til sammen.</p>`;
     }
 
     // ---------- Ukeshandel / handleliste ----------
@@ -2700,7 +2742,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 9, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 10, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -2715,6 +2757,9 @@
       { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
       { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Ny Coach-fane som minner deg på det som gjenstår i dag, viser ukas mål og hvordan forrige uke gikk, og regner ut når du når målvekta.' },
       { v: 6, ikon: '📅', tittel: 'Påminnelser', tekst: 'Velg når du vil bli minnet på veiing, vann, mat og trening, og legg det i kalenderen på telefonen, så får du varsel.' },
+      { v: 10, ikon: '🗓️', tittel: 'Alle måltidene i ukemenyen', tekst: 'Ukemenyen viser nå frokost, lunsj og mellommåltid for hver dag, ikke bare middagen.' },
+      { v: 10, ikon: '🏪', tittel: 'Hva du skal kjøpe til lunsj', tekst: 'Står det kjøpt lunsj, foreslår appen hva du kan kjøpe, for eksempel kyllingsalat eller sushi. Trykk 🔄 for et annet forslag.' },
+      { v: 10, ikon: '🐟', tittel: 'Fisk bare når dere liker det', tekst: 'Fisk utenom laks kommer bare hvis noen har valgt «Annen fisk» blant det de liker, og laks bare hvis noen har valgt laks.' },
       { v: 9, ikon: '🥩', tittel: 'Mer protein i dagsplanen', tekst: 'Proteinmålet er mer realistisk, og får du for lite med planen, legges det til et proteinrikt mellommåltid og forslag til bytter du kan ta med ett trykk.' },
       { v: 8, ikon: '🧮', tittel: 'Skritt, trening og kalkulator', tekst: 'Før skritt og treningsøkter i Coach, og se i kalkulatoren hvor mye fortere du går ned med for eksempel 10 000 skritt om dagen.' },
       { v: 7, ikon: '⚡', tittel: 'Raskere tempo', tekst: 'Har du satt en dato for målvekta, kan du nå velge «Raskere» under Målet ditt i Coach, så går du fortere ned.' },
@@ -2837,7 +2882,7 @@
       const ds = b.dataset;
       if (ds.pengerTil) { location.hash = ds.pengerTil === 'oversikt' ? '#penger' : `#penger-${ds.pengerTil}`; return; }
       if (ds.rett) { visRett(ds.rett, ds.dato); return; }
-      if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); tegnVektkort(); tegnKanLage(); if ($('rettDialog').open && S.kanLageApen) visKanLage(); return; }
+      if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); tegnVektkort(); tegnKanLage(); tegnUkemeny(); if ($('rettDialog').open && S.kanLageApen) visKanLage(); return; }
       if ('kanLage' in ds) { visKanLage(); return; }
       if (ds.visVekt) { visVekt(ds.visVekt); return; }
       if ('aktivitet' in ds) { visAktivitet(); return; }
@@ -2896,11 +2941,21 @@
         return;
       }
       if (ds.proteinbytt) {
-        const [slot, id] = ds.proteinbytt.split('|'), d = idag(), pid = dagPerson(), m = maltid(id);
+        const [slot, id, kjopId] = ds.proteinbytt.split('|'), d = idag(), pid = dagPerson(), m = maltid(id), kj = kjopId ? kjopFor(kjopId) : null;
         if (!m) return;
-        S.mat.dagsplaner ??= {}; ((S.mat.dagsplaner[d] ??= {})[pid] ??= {})[slot] = id;
+        S.mat.dagsplaner ??= {}; const valg = ((S.mat.dagsplaner[d] ??= {})[pid] ??= {}); valg[slot] = id;
+        if (kj) valg[`${slot}Kjop`] = kj.id; else delete valg[`${slot}Kjop`];
         lagreMatNa(); tegnDagsplan(); tegnHandleliste(); tegnIdagFliser(); tegnCoach();
-        vis(`${m.ikon} ${t('Byttet til {ny} ✓', { ny: oversett(m.navn) })}`);
+        vis(`${(kj || m).ikon} ${t('Byttet til {ny} ✓', { ny: oversett((kj || m).navn) })}`);
+        return;
+      }
+      if (ds.kjopVelg) {
+        const [slot, id] = ds.kjopVelg.split('|'), d = idag(), pid = dagPerson(), kj = kjopFor(id);
+        if (!kj) return;
+        S.mat.dagsplaner ??= {}; const valg = ((S.mat.dagsplaner[d] ??= {})[pid] ??= {}); valg[slot] = 'kantine'; valg[`${slot}Kjop`] = kj.id;
+        lagreMatNa(); tegnDagsplan(); tegnIdagFliser(); tegnCoach();
+        if ($('rettDialog').open) visMaltid(slot);
+        vis(`${kj.ikon} ${t('Kjøp: {hva}', { hva: oversett(kj.navn) })}`);
         return;
       }
       if ('utenTillegg' in ds) {

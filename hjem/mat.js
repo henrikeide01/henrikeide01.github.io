@@ -261,7 +261,21 @@ const MISLIKER = {
   kylling: ['kyllingfilet', 'kyllinglar'], ost: ['ost', 'feta'], egg: ['egg'], avokado: ['avokado'],
 };
 
+// Fisk bare når noen har sagt at de liker det: laks krever «Laks» eller «Annen fisk», annen fisk krever «Annen fisk».
+// Har ingen svart på hva de liker ennå, gjelder ingen begrensning.
+export function fiskOk(ingredienser, profiler) {
+  const svart = profiler.filter((pr) => (pr?.favoritter || []).length);
+  if (!svart.length) return true;
+  const fisk = Object.keys(ingredienser || {}).filter((k) => INGREDIENSER[k]?.type === 'fisk');
+  if (!fisk.length) return true;
+  const liker = (x) => svart.some((pr) => pr.favoritter.includes(x));
+  if (fisk.some((k) => k !== 'laks') && !liker('fisk')) return false;
+  if (fisk.includes('laks') && !liker('laks') && !liker('fisk')) return false;
+  return true;
+}
+
 export function passerFor(r, profiler) {
+  if (!fiskOk(r.ingredienser, profiler)) return false;
   const ingr = Object.keys(r.ingredienser).map((k) => INGREDIENSER[k]).filter(Boolean);
   const allergener = new Set(ingr.flatMap((i) => i.allergener));
   for (const pr of profiler) {
@@ -537,12 +551,39 @@ export function naeringMaltid(m, faktor = 1, mat = null, dato = null) {
 }
 
 function passerMaltid(m, pr) {
+  if (!fiskOk(m.ingredienser, [pr])) return false;
   const ingr = Object.keys(m.ingredienser).map((k) => INGREDIENSER[k]).filter(Boolean);
   if ((pr.allergier || []).some((a) => ingr.some((i) => i.allergener.includes(a)))) return false;
   const forbud = FORBUDT[pr.kosthold];
   if (forbud && ingr.some(forbud)) return false;
   if ((pr.misliker || []).some((x) => (MISLIKER[x] || []).some((k) => k in m.ingredienser))) return false;
   return true;
+}
+
+// Kjøpt lunsj: konkrete forslag til hva du kan kjøpe i kantina eller på butikken (omtrentlige næringsverdier).
+// Ingrediensene brukes bare til å sjekke allergier, kosthold og det du ikke liker – de havner ikke på handlelista.
+const K = (id, navn, ikon, kcal, p, f, k, ingredienser) => ({ id, navn, ikon, kcal, p, f, k, ingredienser });
+export const KJOPELUNSJ = [
+  K('kyllingsalat', 'Kyllingsalat', '🥗', 420, 35, 18, 24, { kyllingfilet: 120, salat: 100 }),
+  K('kyllingwrap', 'Wrap med kylling', '🌯', 540, 32, 20, 55, { kyllingfilet: 100, tortilla: 80 }),
+  K('kyllingris', 'Kylling med ris (varmrett)', '🍛', 620, 42, 16, 72, { kyllingfilet: 150, ris: 150 }),
+  K('sushi', 'Sushi, 10 biter med laks', '🍣', 460, 20, 10, 72, { laks: 80, ris: 150 }),
+  K('baguettkylling', 'Baguett med kylling og pesto', '🥖', 600, 30, 24, 62, { kyllingfilet: 80, brod: 150, pesto: 15 }),
+  K('baguettskinke', 'Baguett med skinke og ost', '🥖', 560, 26, 22, 60, { skinke: 60, ost: 40, brod: 150 }),
+  K('pastasalat', 'Pastasalat med kylling', '🍝', 560, 30, 20, 62, { pasta: 100, kyllingfilet: 80 }),
+  K('suppebrod', 'Suppe med brød', '🍲', 430, 16, 14, 58, { brod: 60 }),
+  K('skyrbar', 'Skyr og en proteinbar', '💪', 330, 37, 7, 30, { skyr: 170, proteinbar: 55 }),
+  K('falafel', 'Falafelwrap', '🧆', 520, 16, 22, 62, { tortilla: 80, salat: 50 }),
+];
+export const kjopFor = (id) => KJOPELUNSJ.find((x) => x.id === id) || null;
+// Hvilke kjøpeforslag som passer personen (allergier, kosthold, det de ikke liker og fisk)
+export const kjopSomPasser = (pr) => KJOPELUNSJ.filter((v) => passerMaltid(v, pr));
+// Velger det kjøpeforslaget som passer best med kaloriene og proteinet for måltidet, med litt variasjon fra dag til dag
+function velgKjop({ pr, malKcal, proteinVekt, proteinBehov, dato, personId, slot, valgtId }) {
+  const liste = kjopSomPasser(pr);
+  if (valgtId) { const v = liste.find((x) => x.id === valgtId); if (v) return v; }
+  const poeng = (v) => -Math.abs(v.kcal - malKcal) / 60 + (v.p / v.kcal) * 100 * proteinVekt * proteinBehov + ((hashTall(`${dato}|${personId}|${slot}|${v.id}`) % 100) / 100) * 2.5;
+  return [...liste].sort((a, b) => poeng(b) - poeng(a))[0] || null;
 }
 
 const ONSKER = { frokost: 'frokostvaner', lunsj: 'lunsjvaner', mellom: 'mellomvaner', kveld: 'mellomvaner' };
@@ -599,7 +640,7 @@ export function dagsplan({ mat, personer, personId, dato }) {
       .filter((x) => !x.utstyr || !utstyr?.length || utstyr.includes(x.utstyr))
       .filter((x) => !x.rester || naeringMaltid(x, 1, mat, dato))
       .filter((x) => !x.tags.includes('kantine') || onsker.has('kantine'))
-      .filter((x) => { if (!erTillegg || valgt.mellom) return true; const n = naeringMaltid(x, 1, mat, dato); return n && n.p / Math.max(1, n.kcal) >= 0.08; });
+      .filter((x) => { if (!erTillegg || valgt.mellom) return true; const n = naeringMaltid(x, 1, mat, dato); return n && n.p / Math.max(1, n.kcal) >= 0.08 && !Object.entries(x.ingredienser).some(([k, g]) => g >= 100 && bruktVarer.has(k)); });
     const kandidater = erTillegg ? alle : etterOnsker(alle, onsker);
     const poeng = (x) => {
       let p = 0;
@@ -630,6 +671,17 @@ export function dagsplan({ mat, personer, personId, dato }) {
     if (!valgtM) continue;
     brukt.add(valgtM.id);
     for (const [k, g] of Object.entries(valgtM.ingredienser)) if (g >= 100) bruktVarer.add(k);
+    if (valgtM.tags.includes('kantine')) {
+      const kjop = velgKjop({ pr, malKcal: mal_kcal, proteinVekt, proteinBehov: Math.max(0, 1 - proteinSaaLangt / Math.max(1, mal.protein)), dato, personId, slot, valgtId: valgt[`${slot}Kjop`] });
+      if (kjop) {
+        const n = { kcal: kjop.kcal, p: kjop.p, f: kjop.f, k: kjop.k };
+        proteinSaaLangt += n.p;
+        brukt.add(valgtM.id);
+        for (const [k, g] of Object.entries(kjop.ingredienser)) if (g >= 100) bruktVarer.add(k);
+        ut.push({ slot, m: valgtM, faktor: 1, ...n, mangler: [], kjop, ...(erTillegg ? { tillegg: true } : {}) });
+        continue;
+      }
+    }
     const n1 = naeringMaltid(valgtM, 1, mat, dato);
     if (!n1) continue;
     let faktor = n1.kcal ? mal_kcal / n1.kcal : 1;
@@ -668,6 +720,12 @@ export function proteinBytter({ mat, personId, dato, plan, spist = new Set() }) 
     if (x.slot === 'middag' || !x.m || spist.has(x.slot)) continue;
     const onsker = onskerFor(pr, x.slot);
     let best = null;
+    if (x.kjop) {
+      for (const v of kjopSomPasser(pr)) {
+        const gevinst = v.p - x.p;
+        if (v.id !== x.kjop.id && gevinst >= 8 && v.kcal <= x.kcal * 1.2 + 40 && (!best || gevinst > best.gevinst)) best = { slot: x.slot, fra: x.m, til: x.m, kjop: v, faktor: 1, kcal: v.kcal, p: v.p, gevinst };
+      }
+    }
     for (const c of MALTIDER) {
       if (!(c.maltid === x.slot || (x.slot === 'kveld' && c.maltid === 'mellom')) || iBruk.has(c.id) || !passerMaltid(c, pr)) continue;
       if (c.rester || (c.utstyr && utstyr?.length && !utstyr.includes(c.utstyr)) || (c.tags.includes('kantine') && !onsker.has('kantine'))) continue;
