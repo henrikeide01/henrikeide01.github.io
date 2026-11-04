@@ -178,6 +178,11 @@
 
     .melding { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: var(--tekst); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
     .melding.vis { opacity: 1; }
+    #feillinje { position: fixed; left: 8px; right: 8px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 80; display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 14px; background: #b3261e; color: #fff; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.3); max-width: 720px; margin: 0 auto; }
+    #feillinje > div { flex: 1; min-width: 0; }
+    #feillinje small { display: block; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; opacity: .9; overflow-wrap: anywhere; }
+    #feillinje small span { display: block; }
+    #feillinje button { border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff; border-radius: 10px; padding: 7px 10px; font-weight: 600; white-space: nowrap; }
 
     /* Deling */
     .delingslinje { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--flate); border: 1px solid var(--linje); border-radius: 999px; padding: 6px 6px 6px 14px; margin-bottom: 12px; font-size: 14px; color: var(--dempet); }
@@ -342,6 +347,10 @@
     .matvalg .rad2 { align-items: end; }
 
     /* Coach */
+    .proteinsjekk { display: grid; gap: 6px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--flate-2); font-size: 14px; }
+    .proteinsjekk .knapp { text-align: left; padding: 9px 12px; font-size: 14px; }
+    .proteinsjekk .knapp small { color: var(--god-tekst); font-weight: 700; margin-left: 6px; }
+    .proteinsjekk .lenke { justify-self: start; }
     .ukemal { display: grid; gap: 2px; margin-top: 8px; }
     .ukemal .rad { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--linje); font-size: 14.5px; }
     .ukemal .rad:first-of-type { border-top: 0; }
@@ -404,6 +413,42 @@
       .nokkel .verdi { font-size: 17px; }
     }
   </style>
+  <script>
+    // Viser feil på skjermen, så de kan meldes inn – også feil før appen har startet
+    (function () {
+      var sett = {};
+      var STOY = /ResizeObserver|Failed to fetch|NetworkError|Load failed|AbortError|Script error\.?$/;
+      function vis(tekst) {
+        tekst = String(tekst || 'Ukjent feil').slice(0, 300);
+        if (STOY.test(tekst) || sett[tekst]) return;
+        sett[tekst] = 1;
+        var lag = function () {
+          var el = document.getElementById('feillinje');
+          if (!el) {
+            el = document.createElement('div'); el.id = 'feillinje'; el.setAttribute('role', 'alert');
+            el.innerHTML = '<div><b>⚠️ Noe gikk galt.</b> Ta et skjermbilde av dette og send det til Claude.<small></small></div>' +
+              '<button type="button" data-feil-last>Last inn på nytt</button><button type="button" data-feil-lukk aria-label="Lukk">✕</button>';
+            el.addEventListener('click', function (e) {
+              if (e.target.closest('[data-feil-last]')) location.reload();
+              if (e.target.closest('[data-feil-lukk]')) el.remove();
+            });
+            document.body.appendChild(el);
+          }
+          var s = document.createElement('span'); s.textContent = tekst; el.querySelector('small').appendChild(s);
+        };
+        if (document.body) lag(); else document.addEventListener('DOMContentLoaded', lag);
+      }
+      window.hjemFeil = vis;
+      window.addEventListener('error', function (e) {
+        if (!e.message) return;
+        vis(e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : ''));
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason; if (r && r.name === 'SynkFeil') return;
+        vis(r && (r.message || r) || 'Ukjent feil');
+      });
+    })();
+  </script>
 </head>
 <body>
   <div class="side">
@@ -610,29 +655,30 @@
       nettoAv, lonnsstatistikk, anslagLonn, lonnsprofil, FRIKORTGRENSE, kroner, normaliserPlan,
       lesMat, lagreMat, harPlan, sikreTidligereOppsett, hentTidligereOppsett, lagNyPlan, leggTilPerson, fjernPerson,
       matAndelFor, harEgenMatdeling,
-    } from './budsjett.js';
-    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js';
-    import { tolkKvittering } from './kvittering.js';
-    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST, OKTTYPER, INKL_OKTER, VANLIGE_SKRITT, kcalSkritt, kcalOkt, ekstraPerDag, fortAktivitet } from './coach.js';
+    } from './budsjett.js?v=9';
+    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js?v=9';
+    import { tolkKvittering } from './kvittering.js?v=9';
+    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST, OKTTYPER, INKL_OKTER, VANLIGE_SKRITT, kcalSkritt, kcalOkt, ekstraPerDag, fortAktivitet } from './coach.js?v=9';
     import {
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
       dagsplan, alternativer, maltid, MALTIDSNAVN, behovForUke, butikkanbefaling,
       fraKjokkenet, resterFor, slotsFor, naeringMaltid, RESTER_DAGER,
-    } from './mat.js';
+      proteinBytter,
+    } from './mat.js?v=9';
     import {
       ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
       nyeSporsmalFor, nyeHusstandssporsmalFor, MATDELING,
-    } from './sporsmal.js';
-    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js';
-    import { MAT_EN } from './mat-en.js';
-    import { MAT_ES } from './mat-es.js';
+    } from './sporsmal.js?v=9';
+    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js?v=9';
+    import { MAT_EN } from './mat-en.js?v=9';
+    import { MAT_ES } from './mat-es.js?v=9';
     leggTilOrdbok({ en: MAT_EN, es: MAT_ES });
 
     // Telefoner som brukte budsjettet før oppstarten kom, beholder oppsettet sitt
     sikreTidligereOppsett();
-    import { tolkLonnsslipp } from './lonnsslipp.js';
-    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode, SQL_EDITOR } from './synk.js';
+    import { tolkLonnsslipp } from './lonnsslipp.js?v=9';
+    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode, SQL_EDITOR } from './synk.js?v=9';
 
     // Tekstgjenkjenning (lastes først når du laster opp et bilde)
     const OCR = {
@@ -1264,7 +1310,7 @@
         kcal += k; protein += p;
         const fra = '';
         const mangler = !l && brukerKjokken && x.mangler?.length ? `<small class="mangel">🛒 ${esc(t('Mangler {hva}', { hva: liste(x.mangler.slice(0, 3).map((key) => navnPaa(key).toLowerCase())) }))}</small>` : '';
-        const navn = oversett(MALTIDSNAVN[x.slot]);
+        const navn = x.tillegg ? t('Proteintillegg') : oversett(MALTIDSNAVN[x.slot]);
         return `<div class="maltid ${l ? 'spist' : ''}">
           <button class="rettknapp" type="button" data-maltid-vis="${x.slot}"><span class="ikon">${m.ikon}</span><span><small class="slot">${esc(navn)}</small><b>${esc(maltidNavn(m, l, x))}</b><small>${esc(`${mengdeMaltid(m, faktor)} · ${kroner(k)} kcal · ${gProt(p)}${fra}`)}</small>${mangler}</span></button>
           ${l ? '<span></span>' : `<button class="ikonknapp" type="button" data-maltid-bytt="${x.slot}" aria-label="${esc(t('Bytt {hva}', { hva: navn.toLowerCase() }))}">🔄</button>`}
@@ -1293,9 +1339,26 @@
         ${ps.length > 1 ? `<div class="velger" style="margin:0 0 6px" aria-label="${esc(t('Dagsplan for'))}">${ps.map((p) => `<button type="button" data-dagperson="${esc(p.id)}" aria-pressed="${p.id === pid}">${esc(p.navn)}</button>`).join('')}</div>` : ''}
         ${rader || '<div class="tomt">Ingen måltider å vise.</div>'}${ekstraHtml}
         <p class="forklaring dagtotal">${esc(total)}</p>
+        ${proteinsjekkHtml(pid, plan, protein, middagSpist)}
         <button class="knapp stor" type="button" data-for-mat style="margin-top:8px">＋ Før annen mat</button>
         ${!beregnMal(pr) ? `<button class="lenke" type="button" data-sporsmal="${esc(pid)}">Svar på spørsmålene for riktige mengder →</button>`
           : !harNyeSvar(pid) ? `<button class="lenke" type="button" data-sporsmal-nye="${esc(pid)}">Tilpass dagsplanen – 4 raske spørsmål →</button>` : ''}`;
+    }
+
+    // Får du for lite protein med planen, foreslås bytter som gir mer – med ett trykk
+    function proteinsjekkHtml(pid, plan, protein, middagSpist) {
+      const mal = plan.mal, d = idag();
+      const tillegg = plan.maltider.some((x) => x.tillegg) && !maltidLogg(d, pid, 'mellom');
+      const uten = tillegg ? `<button class="lenke" type="button" data-uten-tillegg>${esc(t('Uten proteintillegg i dag'))}</button>` : '';
+      if (!erMeg(pid) || mal.utenMal || protein >= mal.protein * 0.85) return uten ? `<div>${uten}</div>` : '';
+      const spist = new Set(plan.maltider.filter((x) => (x.slot === 'middag' ? middagSpist : maltidLogg(d, pid, x.slot))).map((x) => x.slot));
+      const bytter = proteinBytter({ mat: S.mat, personId: pid, dato: d, plan, spist }).slice(0, 2);
+      return `<div class="proteinsjekk">
+        <b>🥩 ${esc(t('Planen gir {p} av {pm} g protein.', { p: kroner(protein), pm: kroner(mal.protein) }))}</b>
+        ${bytter.length ? `<span>${esc(t('Disse byttene hjelper mest:'))}</span>${bytter.map((b) => `<button class="knapp" type="button" data-proteinbytt="${b.slot}|${esc(b.til.id)}">${b.til.ikon} ${esc(t('Bytt {hva} til {ny}', { hva: oversett(MALTIDSNAVN[b.slot]).toLowerCase(), ny: oversett(b.til.navn) }))}<small>+${kroner(b.gevinst)} g</small></button>`).join('')}`
+          : `<span>${esc(t('Velg måltider med mer protein med 🔄, eller før ekstra skyr, cottage cheese, egg eller kylling.'))}</span>`}
+        ${uten}
+      </div>`;
     }
 
     function visMaltid(slot) {
@@ -1498,7 +1561,7 @@
       const jeg = personer().find((p) => p.id === meg());
       $('hilsen').textContent = jeg && jeg.navn !== 'Meg' ? t('Hei, {navn}!', { navn: jeg.navn }) : 'I dag';
       $('dagensDato').textContent = dagLang.format(somDato(idag()));
-      tegnPaaminnelse(); tegnMiddagIdag(); tegnDagsplan(); tegnMakro(); tegnVektkort(); tegnIdagFliser();
+      trygt(tegnPaaminnelse, tegnMiddagIdag, tegnDagsplan, tegnMakro, tegnVektkort, tegnIdagFliser);
     }
 
     // ---------- Uke ----------
@@ -2062,7 +2125,7 @@
       el.innerHTML = html;
     }
     let coachVenter = false;
-    function tegnCoach() { if (coachVenter) return; coachVenter = true; queueMicrotask(() => { coachVenter = false; tegnCoachNa(); }); }
+    function tegnCoach() { if (coachVenter) return; coachVenter = true; queueMicrotask(() => { coachVenter = false; trygt(tegnCoachNa); }); }
     function tegnCoachNa() {
       const pid = meg();
       if (!pid) return;
@@ -2419,7 +2482,13 @@
       vis(t('{hva} er ført ✓', { hva: navn }));
     }
 
-    function tegnMat() { oppdaterMatFordeling(); tegnIdag(); tegnUkemeny(); tegnHandleliste(); tegnKjokken(); tegnKanLage(); tegnOss(); }
+    // Tegner hver del for seg: feiler én del, virker resten av siden likevel, og feilen vises
+    function trygt(...deler) {
+      for (const f of deler) {
+        try { f(); } catch (e) { console.error(e); window.hjemFeil?.(`${f.name || 'tegning'}: ${e.message}${e.stack ? ` – ${String(e.stack).split('\n').slice(1, 3).map((x) => x.trim().replace(/^at /, '').replace(/https?:\/\/[^ )]*\//g, '')).join(' · ')}` : ''}`); }
+      }
+    }
+    function tegnMat() { trygt(oppdaterMatFordeling, tegnIdag, tegnUkemeny, tegnHandleliste, tegnKjokken, tegnKanLage, tegnOss); }
 
     // ---------- Dialoger ----------
     function visRett(id, dato) {
@@ -2631,7 +2700,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 8, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 9, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -2646,6 +2715,7 @@
       { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
       { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Ny Coach-fane som minner deg på det som gjenstår i dag, viser ukas mål og hvordan forrige uke gikk, og regner ut når du når målvekta.' },
       { v: 6, ikon: '📅', tittel: 'Påminnelser', tekst: 'Velg når du vil bli minnet på veiing, vann, mat og trening, og legg det i kalenderen på telefonen, så får du varsel.' },
+      { v: 9, ikon: '🥩', tittel: 'Mer protein i dagsplanen', tekst: 'Proteinmålet er mer realistisk, og får du for lite med planen, legges det til et proteinrikt mellommåltid og forslag til bytter du kan ta med ett trykk.' },
       { v: 8, ikon: '🧮', tittel: 'Skritt, trening og kalkulator', tekst: 'Før skritt og treningsøkter i Coach, og se i kalkulatoren hvor mye fortere du går ned med for eksempel 10 000 skritt om dagen.' },
       { v: 7, ikon: '⚡', tittel: 'Raskere tempo', tekst: 'Har du satt en dato for målvekta, kan du nå velge «Raskere» under Målet ditt i Coach, så går du fortere ned.' },
       { v: 6, ikon: '🔒', tittel: 'Vekta er privat', tekst: 'Vekta di ligger bare på din egen telefon. De andre i husstanden ser den ikke.' },
@@ -2823,6 +2893,21 @@
       if (ds.slettVekt) {
         const ider = new Set(ds.slettVekt.split(','));
         if (erMeg(ds.person) && confirm(t('Slette målingen?'))) { const pv = privat(ds.person); pv.vektlogg = pv.vektlogg.filter((m) => !ider.has(m.id)); lagrePrivat(); tegnAlt(); visVekt(ds.person); }
+        return;
+      }
+      if (ds.proteinbytt) {
+        const [slot, id] = ds.proteinbytt.split('|'), d = idag(), pid = dagPerson(), m = maltid(id);
+        if (!m) return;
+        S.mat.dagsplaner ??= {}; ((S.mat.dagsplaner[d] ??= {})[pid] ??= {})[slot] = id;
+        lagreMatNa(); tegnDagsplan(); tegnHandleliste(); tegnIdagFliser(); tegnCoach();
+        vis(`${m.ikon} ${t('Byttet til {ny} ✓', { ny: oversett(m.navn) })}`);
+        return;
+      }
+      if ('utenTillegg' in ds) {
+        const d = idag(), pid = dagPerson();
+        S.mat.dagsplaner ??= {}; ((S.mat.dagsplaner[d] ??= {})[pid] ??= {}).utenTillegg = true;
+        lagreMatNa(); tegnDagsplan(); tegnHandleliste(); tegnIdagFliser(); tegnCoach();
+        vis(t('Proteintillegget er fjernet for i dag'));
         return;
       }
       if (ds.vannPluss || ds.vannMinus) { endreVann(ds.vannPluss || ds.vannMinus, ds.vannPluss ? 1 : -1); return; }
@@ -3233,10 +3318,7 @@
     $('delDialog').addEventListener('click', (e) => { if (e.target === $('delDialog')) $('delDialog').close(); });
 
     function tegnAlt() {
-      oppdaterPrivat();
-      tegnDeling();
-      tegnKategorivalg(); tegnOversikt(); tegnLonn(); tegnSlipper(); tegnForslag(); tegnBudsjett(); tegnPlanRedigering(); tegnHusstand();
-      tegnMat();
+      trygt(oppdaterPrivat, tegnDeling, tegnKategorivalg, tegnOversikt, tegnLonn, tegnSlipper, tegnForslag, tegnBudsjett, tegnPlanRedigering, tegnHusstand, tegnMat);
     }
 
     // ================= HENDELSER =================

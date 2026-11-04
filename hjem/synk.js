@@ -2,7 +2,7 @@
 // Alt krypteres på telefonen med husstandskoden (AES-GCM, nøkkel fra PBKDF2) før det sendes til
 // databasen (et eget Supabase-prosjekt for eidert). Databasen lagrer bare uleselig tekst –
 // uten koden kan ingen lese budsjettet. Oppsettet i databasen: hjem/supabase-oppsett.sql
-import { lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn, lesMat, lagreMat } from './budsjett.js';
+import { lesPlan, lagrePlan, lesPoster, lagrePoster, lesLonn, lagreLonn, lesMat, lagreMat } from './budsjett.js?v=9';
 
 // Det som synkes som én helhet (sist lagret vinner). Utgifter synkes hver for seg.
 const DELER = [

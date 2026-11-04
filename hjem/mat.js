@@ -1,6 +1,6 @@
 // Mat: ingredienser med næringsinnhold, oppskrifter, kalori-/makromål og middagsforslag.
 // Ingen DOM her, så alt kan testes med Node. Næringsverdier er omtrentlige (per 100 g, rå vare).
-import { lagMatcher, vurder } from '../tilbud/motor.js';
+import { lagMatcher, vurder } from '../tilbud/motor.js?v=9';
 
 // navn, kcal, protein, fett, karbo (per 100 g), pakke (g), pris (kr/kg), type, allergener, søkeord mot tilbud
 const I = (navn, kcal, p, f, k, pakke, pris, type, allergener = [], sok = [], ikke = [], ekstra = {}) =>
@@ -223,7 +223,10 @@ export function beregnMal(pr) {
   if (Number.isFinite(tempo) && pr.mal && pr.mal !== 'holde') {
     kcal = Math.min(tdee * 1.2, Math.max(gulv, tdee + (tempo * 7700) / 7));
   }
-  const protein = (PROTEIN_PER_KG[pr.mal] ?? 1.4) * vekt;
+  // Protein per kg kroppsvekt – ved overvekt regnet fra vekta du ville hatt med BMI 25 (det er musklene som trenger det),
+  // og aldri mer enn 40 % av kaloriene
+  const refVekt = Math.min(vekt, 25 * (hoyde / 100) ** 2);
+  const protein = Math.min((PROTEIN_PER_KG[pr.mal] ?? 1.4) * refVekt, (kcal * 0.4) / 4);
   const fett = (kcal * 0.3) / 9;
   const karbo = Math.max(0, (kcal - protein * 4 - fett * 9) / 4);
   const andel = pr.middag === 'stor' ? 0.42 : pr.middag === 'liten' ? 0.28 : 0.35;
@@ -578,8 +581,10 @@ export function dagsplan({ mat, personer, personId, dato }) {
   let middag = null;
   if (r) { const f = porsjonFor(pr, r); const n = perPorsjon(r); middag = { slot: 'middag', r, faktor: f, kcal: n.kcal * f, p: n.p * f, f: n.f * f, k: n.k * f }; }
 
-  const slots = slotsFor(pr);
   const restKcal = Math.max(600, mal.kcal - (middag?.kcal ?? mal.middagKcal));
+  // Protein veier tyngre når du vil ned i vekt eller bygge muskler – da er det viktig å holde på musklene
+  const proteinVekt = fokus.has('protein') || VIL_HA_PROTEIN.has(pr.mal) || pr.mal === 'ned' ? 0.6 : 0.2;
+  const bygg = (slots, tillegg) => {
   const andelSum = slots.reduce((s, x) => s + SLOTANDEL[x], 0);
   const brukt = new Set();
   const bruktVarer = new Set();
@@ -588,12 +593,14 @@ export function dagsplan({ mat, personer, personId, dato }) {
   for (const slot of slots) {
     const mal_kcal = restKcal * (SLOTANDEL[slot] / andelSum);
     const onsker = onskerFor(pr, slot);
+    const erTillegg = tillegg && slot === 'mellom';
     const alle = MALTIDER.filter((x) => x.maltid === slot || (slot === 'kveld' && x.maltid === 'mellom'))
       .filter((x) => passerMaltid(x, pr) && !brukt.has(x.id))
       .filter((x) => !x.utstyr || !utstyr?.length || utstyr.includes(x.utstyr))
       .filter((x) => !x.rester || naeringMaltid(x, 1, mat, dato))
-      .filter((x) => !x.tags.includes('kantine') || onsker.has('kantine'));
-    const kandidater = etterOnsker(alle, onsker);
+      .filter((x) => !x.tags.includes('kantine') || onsker.has('kantine'))
+      .filter((x) => { if (!erTillegg || valgt.mellom) return true; const n = naeringMaltid(x, 1, mat, dato); return n && n.p / Math.max(1, n.kcal) >= 0.08; });
+    const kandidater = erTillegg ? alle : etterOnsker(alle, onsker);
     const poeng = (x) => {
       let p = 0;
       if (x.tags.some((t) => onsker.has(t))) p += 6;
@@ -604,7 +611,7 @@ export function dagsplan({ mat, personer, personId, dato }) {
       const n = naeringMaltid(x, 1, mat, dato);
       // Protein teller bare så lenge dagsmålet ikke er nådd
       const proteinBehov = Math.max(0, 1 - proteinSaaLangt / Math.max(1, mal.protein));
-      if (n) p += (n.p / Math.max(1, n.kcal)) * 100 * (fokus.has('protein') || VIL_HA_PROTEIN.has(pr.mal) ? 0.6 : 0.2) * proteinBehov;
+      if (n) p += (n.p / Math.max(1, n.kcal)) * 100 * (erTillegg ? 1.5 : proteinVekt) * proteinBehov;
       if (x.maltid === slot) p += 2;
       if (x.rester && n?.restId) p += 3; // rester som ligger i kjøleskapet bør spises før de blir gamle
       // Pris teller når dere vil spare
@@ -632,13 +639,48 @@ export function dagsplan({ mat, personer, personId, dato }) {
     const n = naeringMaltid(valgtM, faktor, mat, dato);
     const mangler = Object.keys(valgtM.ingredienser).filter((k) => !INGREDIENSER[k]?.basis && !((kjokken[k] || 0) >= valgtM.ingredienser[k] * faktor * 0.9));
     proteinSaaLangt += n.p;
-    ut.push({ slot, m: valgtM, faktor, ...n, mangler });
+    ut.push({ slot, m: valgtM, faktor, ...n, mangler, ...(erTillegg ? { tillegg: true } : {}) });
+  }
+  return ut;
+  };
+  // Mangler dagen mye protein og du ikke har mellommåltid, legges et proteinrikt mellommåltid til (skyr, cottage cheese …)
+  const vanlige = slotsFor(pr);
+  let ut = bygg(vanlige, false);
+  const proteinDag = ut.reduce((a, x) => a + x.p, middag?.p || 0);
+  const mellomSpist = (mat.logg || []).some((l) => l && l.type === 'maltid' && l.dato === dato && l.person === personId && l.slot === 'mellom');
+  if (!mal.utenMal && !vanlige.includes('mellom') && (valgt.mellom || mellomSpist || (proteinDag < mal.protein * 0.8 && valgt.utenTillegg !== true))) {
+    ut = bygg(['frokost', 'lunsj', 'mellom', 'kveld'].filter((x) => vanlige.includes(x) || x === 'mellom'), true);
   }
   if (middag) ut.push(middag);
   const REKKE = ['frokost', 'lunsj', 'mellom', 'middag', 'kveld'];
   ut.sort((x, y) => REKKE.indexOf(x.slot) - REKKE.indexOf(y.slot));
   const total = ut.reduce((s, x) => ({ kcal: s.kcal + x.kcal, p: s.p + x.p, f: s.f + x.f, k: s.k + x.k }), { kcal: 0, p: 0, f: 0, k: 0 });
   return { maltider: ut, total, mal };
+}
+
+// Bytter som gir mest mer protein for omtrent samme kalorier. Hopper over måltider som er spist.
+export function proteinBytter({ mat, personId, dato, plan, spist = new Set() }) {
+  const pr = mat.profiler?.[personId] || {};
+  const utstyr = mat.husstand?.utstyr;
+  const iBruk = new Set(plan.maltider.filter((x) => x.m).map((x) => x.m.id));
+  const forslag = [];
+  for (const x of plan.maltider) {
+    if (x.slot === 'middag' || !x.m || spist.has(x.slot)) continue;
+    const onsker = onskerFor(pr, x.slot);
+    let best = null;
+    for (const c of MALTIDER) {
+      if (!(c.maltid === x.slot || (x.slot === 'kveld' && c.maltid === 'mellom')) || iBruk.has(c.id) || !passerMaltid(c, pr)) continue;
+      if (c.rester || (c.utstyr && utstyr?.length && !utstyr.includes(c.utstyr)) || (c.tags.includes('kantine') && !onsker.has('kantine'))) continue;
+      const n1 = naeringMaltid(c, 1, mat, dato);
+      if (!n1?.kcal) continue;
+      const faktor = c.fast ? 1 : Math.min(2, Math.max(0.5, Math.round((x.kcal / n1.kcal) * 4) / 4));
+      const n = naeringMaltid(c, faktor, mat, dato);
+      const gevinst = n.p - x.p;
+      if (gevinst >= 8 && n.kcal <= x.kcal * 1.2 + 40 && (!best || gevinst > best.gevinst)) best = { slot: x.slot, fra: x.m, til: c, faktor, kcal: n.kcal, p: n.p, gevinst };
+    }
+    if (best) forslag.push(best);
+  }
+  return forslag.sort((a, b) => b.gevinst - a.gevinst);
 }
 
 // Alternativer når man vil bytte et måltid
