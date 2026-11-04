@@ -603,7 +603,7 @@
       lesMat, lagreMat, harPlan, sikreTidligereOppsett, hentTidligereOppsett, lagNyPlan, leggTilPerson, fjernPerson,
       matAndelFor, harEgenMatdeling,
     } from './budsjett.js';
-    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder } from './vekt.js';
+    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js';
     import { tolkKvittering } from './kvittering.js';
     import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST } from './coach.js';
     import {
@@ -1036,8 +1036,8 @@
     // ---------- Privat: vekt, målvekt og veiinger ligger bare på telefonen til den det gjelder ----------
     // De sendes aldri til den felles databasen. De andre i husstanden får bare det ferdige kalorimålet (malTall).
     const PRIVAT_NOKKEL = 'hjem.privat';
-    const PRIVATE_FELT = ['vekt', 'malvekt', 'malDato', 'tempo', 'malfrist'];
-    const privatProfil = (pv) => Object.fromEntries(['vekt', 'malvekt', 'malDato', 'tempo'].filter((k) => pv?.[k] != null).map((k) => [k, pv[k]]));
+    const PRIVATE_FELT = ['vekt', 'malvekt', 'malDato', 'tempo', 'malfrist', 'rask'];
+    const privatProfil = (pv) => Object.fromEntries(['vekt', 'malvekt', 'malDato', 'tempo', 'rask'].filter((k) => pv?.[k] != null).map((k) => [k, pv[k]]));
     const lesPrivat = () => { try { return JSON.parse(localStorage.getItem(PRIVAT_NOKKEL)) || {}; } catch { return {}; } };
     const lagrePrivat = () => { try { localStorage.setItem(PRIVAT_NOKKEL, JSON.stringify(S.privat)); } catch {} };
     S.privat = lesPrivat(); // les inn det som ligger her fra før – ellers kan det bli overskrevet
@@ -1049,7 +1049,7 @@
       if (!erMeg(id)) return offentlig(pr); // andres vekt vises aldri her
       return { ...pr, ...privatProfil(S.privat[id]) };
     };
-    const rundMal = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, Math.round(v)]));
+    const rundMal = (m) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== 'tdee' && k !== 'gulv').map(([k, v]) => [k, Math.round(v)]));
     // Flytter min vekt fra det felles til denne telefonen, og holder kalorimålet mitt oppdatert for de andre
     function oppdaterPrivat() {
       if (!S.mat.profiler) return;
@@ -1715,7 +1715,7 @@
     const endringT = (d) => `${d < 0 ? '−' : d > 0 ? '+' : '±'}${kgT(Math.abs(d))} kg`;
     const vektserie = (pid) => (erMeg(pid) ? ukeserie(privat(pid).vektlogg) : []);
     function vurderingTekst(pid, serie) {
-      const pr = profil(pid), perUke = trendPerUke(serie), v = vurdering(pr.mal, perUke);
+      const pr = profil(pid), perUke = trendPerUke(serie), v = vurdering(pr.mal, perUke, !!privat(pid).rask);
       const deler = [t(v.tekst, { kg: v.kg != null ? kgT(v.kg) : '' })];
       const mal = tilMalvekt(serie.at(-1)?.kg, Number(pr.malvekt), perUke);
       if (mal?.nadd) deler.push(t('🎯 Du har nådd målvekta!'));
@@ -1753,7 +1753,7 @@
       const pv = privat(pid);
       if (!dato) { pv.malDato = null; pv.tempo = null; lagrePrivat(); return null; }
       const naa = vektserie(pid).at(-1)?.kg || Number(pv.vekt);
-      const r = fartForDato({ naa, malvekt: Number(pv.malvekt), dato, idag: idag(), mal: profil(pid).mal });
+      const r = fartForDato({ naa, malvekt: Number(pv.malvekt), dato, idag: idag(), mal: profil(pid).mal, rask: !!pv.rask, gulv: gulvFart(beregnMal(profil(pid))) });
       pv.malDato = dato;
       pv.tempo = r && !r.forTidlig ? Math.round(r.brukFart * 100) / 100 : null;
       lagrePrivat();
@@ -1785,7 +1785,8 @@
         estPlan: malvekt ? estimat({ naa, malvekt, fart: plan, idag: idag() }) : null,
         estMalt: malvekt && malt != null && serie.length >= 3 ? estimat({ naa, malvekt, fart: malt, idag: idag() }) : null,
         frem: malvekt ? fremgang({ start: serie[0]?.kg || naa, naa, malvekt }) : null,
-        dato: pv.malDato && malvekt ? fartForDato({ naa, malvekt, dato: pv.malDato, idag: idag(), mal: pr.mal }) : null,
+        dato: pv.malDato && malvekt ? fartForDato({ naa, malvekt, dato: pv.malDato, idag: idag(), mal: pr.mal, rask: !!pv.rask, gulv: gulvFart(mal) }) : null,
+        rask: !!pv.rask,
         malDato: pv.malDato,
         dager: st.dager, proteinDager: st.proteinDager, vannDager: st.vannDager, forteDager: st.forteDager, okter: st.okter,
         oktMal: Number(pr.oktMal) || 0,
@@ -1800,6 +1801,8 @@
       if (c.dato && !c.dato.forTidlig) {
         return c.dato.trygg
           ? t('Mål: {kg} kg innen {dato}. Det krever ca. {fart} kg i uka, og kalorimålet er justert til {kcal} kcal.', { kg, dato: datoT(c.malDato), fart: fartT(c.dato.fart), kcal: kroner(c.mal.kcal) })
+          : c.dato.kcalStopp ? t('{kg} kg innen {dato} krever færre kalorier enn appen går ned til ({kcal} kcal). Med den raskeste farten for deg ({fart} kg i uka) når du det rundt {tidligst}.', { kg, dato: datoT(c.malDato), fart: fartT(c.dato.grense), tidligst: datoT(c.dato.tidligst), kcal: kroner(c.mal.kcal) })
+          : c.rask ? t('{kg} kg innen {dato} er for raskt, selv med raskere tempo. Med {fart} kg i uka når du det rundt {tidligst}. Kalorimålet er satt til {kcal} kcal.', { kg, dato: datoT(c.malDato), fart: fartT(c.dato.grense), tidligst: datoT(c.dato.tidligst), kcal: kroner(c.mal.kcal) })
           : t('{kg} kg innen {dato} er for raskt. Med trygg fart ({fart} kg i uka) når du det rundt {tidligst}. Kalorimålet er satt til {kcal} kcal.', { kg, dato: datoT(c.malDato), fart: fartT(c.dato.grense), tidligst: datoT(c.dato.tidligst), kcal: kroner(c.mal.kcal) });
       }
       if (c.estPlan) return t('Med kalorimålet ditt når du {kg} kg rundt {dato} (ca. {uker} uker).', { kg, dato: datoT(c.estPlan.dato), uker: c.estPlan.uker });
@@ -1834,6 +1837,21 @@
         </div>
         ${tips.length ? `<div class="coachtips">${tips.map((x) => `<span>💡 ${esc(x)}</span>`).join('')}</div>` : ''}`;
     }
+    // Raskeste fart ned med anbefalt eller raskere tempo – også begrenset av kalorigulvet
+    function maksFart(pid, rask) {
+      const pr = profil(pid), naa = vektserie(pid).at(-1)?.kg || Number(pr.vekt);
+      const f = tryggFart(naa, -1, pr.mal, rask), g = gulvFart(beregnMal({ ...pr, rask }));
+      return g != null && g > f ? g : f;
+    }
+    function tempoHtml(pid, c) {
+      const valg = [[false, t('Anbefalt'), maksFart(pid, false)], [true, t('Raskere'), maksFart(pid, true)]];
+      const gulv = beregnMal({ ...profil(pid), rask: true })?.gulv;
+      return `<div class="felt"><label>${esc(t('Tempo'))}</label>
+        <div class="chips">${valg.map(([rask, navn, fart]) => `<button type="button" class="chip" data-tempo="${rask ? 'rask' : 'trygg'}" aria-pressed="${c.rask === rask}">${esc(navn)} · ${esc(t('maks {kg} kg/uke', { kg: fartT(fart) }))}</button>`).join('')}</div>
+        ${c.rask ? `<p class="forklaring" style="font-size:13px">⚠️ ${esc(t('Raskere tempo er tøffere å holde, og du mister lettere muskler. Spis mye protein, styrketren og sov godt. Kalorimålet går aldri under {kcal} kcal. Har du helseplager, snakk med legen først.', { kcal: kroner(gulv || 0) }))}</p>`
+          : !c.dato?.trygg && !c.dato?.forTidlig ? `<p class="forklaring" style="font-size:13px">${esc(t('Vil du gå fortere ned? Velg «Raskere».'))}</p>` : ''}
+      </div>`;
+    }
     function coachHtml(pid, feltId = 'malDato') {
       const c = coachData(pid);
       if (!c.malvekt && feltId !== 'malDato') return `<div class="coach"><h3>🎯 Målet ditt</h3><p class="forklaring">${esc(t('Sett en målvekt, så regner appen ut når du når den og hjelper deg å holde farten.'))}</p><button class="knapp hoved" type="button" data-vis-vekt="${esc(pid)}">${esc(t('Sett målvekt'))}</button></div>`;
@@ -1850,6 +1868,7 @@
           <div class="felt"><label for="${feltId}">${esc(t('Når vil du nå målvekta?'))}</label><input id="${feltId}" name="dato" type="date" min="${leggTilDager(idag(), 7)}" value="${esc(c.malDato || '')}"></div>
           <div class="knapprad" style="margin:0"><button class="knapp hoved" type="submit">Bruk datoen</button>${c.malDato ? '<button class="lenke" type="button" data-fjern-maldato>Fjern dato</button>' : ''}</div>
         </form>
+        ${c.malDato && c.malvekt < c.naa ? tempoHtml(pid, c) : ''}
         <div class="felt"><label>${esc(t('Treningsøkter i uka'))}</label><div class="chips">${[0, 1, 2, 3, 4, 5, 6].map((n) => `<button type="button" class="chip" data-oktmal="${n}" aria-pressed="${c.oktMal === n}">${n ? n : esc(t('Ingen'))}</button>`).join('')}</div></div>
       </div>`;
     }
@@ -2488,7 +2507,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 6, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 7, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -2503,6 +2522,7 @@
       { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
       { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Ny Coach-fane som minner deg på det som gjenstår i dag, viser ukas mål og hvordan forrige uke gikk, og regner ut når du når målvekta.' },
       { v: 6, ikon: '📅', tittel: 'Påminnelser', tekst: 'Velg når du vil bli minnet på veiing, vann, mat og trening, og legg det i kalenderen på telefonen, så får du varsel.' },
+      { v: 7, ikon: '⚡', tittel: 'Raskere tempo', tekst: 'Har du satt en dato for målvekta, kan du nå velge «Raskere» under Målet ditt i Coach, så går du fortere ned.' },
       { v: 6, ikon: '🔒', tittel: 'Vekta er privat', tekst: 'Vekta di ligger bare på din egen telefon. De andre i husstanden ser den ikke.' },
     ];
     const settOppdatering = () => { try { localStorage.setItem(OPPD_NOKKEL, String(OPPDATERING)); } catch {} };
@@ -2632,6 +2652,17 @@
         pv.okter = fantes ? pv.okter.filter((d) => d !== idag()) : [...pv.okter, idag()];
         lagrePrivat(); tegnVektkort(); tegnCoach();
         vis(fantes ? t('Angret') : t('💪 Økta er ført – bra jobba!'));
+        return;
+      }
+      if (ds.tempo) {
+        const pid = meg(), pv = privat(pid), rask = ds.tempo === 'rask';
+        if (!!pv.rask === rask) return;
+        pv.rask = rask || null;
+        lagrePrivat();
+        const r = pv.malDato ? settMalDato(pid, pv.malDato) : null;
+        tegnAlt(); if ($('rettDialog').open) visVekt(pid);
+        const kcal = kroner(beregnMal(profil(pid))?.kcal || 0);
+        vis(rask ? t('Raskere tempo – kalorimålet er {kcal} kcal.', { kcal }) : t('Anbefalt tempo – kalorimålet er {kcal} kcal.', { kcal }));
         return;
       }
       if ('fjernMaldato' in ds) { settMalDato(meg(), null); tegnAlt(); if ($('rettDialog').open) visVekt(meg()); vis(t('Datoen er fjernet. Kalorimålet følger det vanlige målet.')); return; }
@@ -2782,7 +2813,7 @@
         if (!dato) { f.elements.dato.focus(); return; }
         const r = settMalDato(pid, dato);
         tegnAlt(); if ($('rettDialog').open) visVekt(pid);
-        vis(!r || r.forTidlig ? t('Velg en dato minst en uke fram i tid.') : r.trygg ? t('Kalorimålet er justert ✓') : t('For raskt – appen bruker en trygg fart i stedet.'));
+        vis(!r || r.forTidlig ? t('Velg en dato minst en uke fram i tid.') : r.trygg ? t('Kalorimålet er justert ✓') : privat(pid).rask ? t('For raskt – appen bruker den raskeste farten den tillater.') : t('For raskt – appen bruker en trygg fart i stedet. Velg «Raskere» hvis du vil gå fortere ned.'));
         return;
       }
       if (f.dataset.malvektform) {

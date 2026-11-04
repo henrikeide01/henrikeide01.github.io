@@ -41,9 +41,11 @@ export function trendPerUke(serie, uker = 6) {
 export const MALFART = { ned: [-0.75, -0.25], nedmuskler: [-0.5, -0.1], holde: [-0.2, 0.2], muskler: [0.1, 0.35], opp: [0.2, 0.5] };
 
 // Returnerer en norsk tekst med {kg} som plassholder, og en status
-export function vurdering(mal, perUke) {
+export function vurdering(mal, perUke, rask = false) {
   if (perUke == null) return { status: 'for-lite', tekst: 'Før vekten én gang i uka, så ser du utviklingen og om du er i rute.' };
-  const [lav, hoy] = MALFART[mal] || MALFART.holde;
+  let [lav, hoy] = MALFART[mal] || MALFART.holde;
+  if (rask && mal === 'ned') lav = -1.6; // valgt raskere tempo
+  if (rask && mal === 'nedmuskler') lav = -0.85;
   const kg = Math.abs(Math.round(perUke * 10) / 10);
   if (mal === 'ned' || mal === 'nedmuskler') {
     if (perUke > 0.1) return { status: 'feil-vei', kg, tekst: 'Vekten går opp ca. {kg} kg i uka. Prøv å holde deg litt under kalorimålet.' };
@@ -84,11 +86,18 @@ export function planFart(mal) {
 }
 
 // Trygg fart: ned maks 1 % av kroppsvekta (høyst 1 kg) i uka – 0,7 % (høyst 0,5 kg) når du samtidig vil bygge muskler.
+// Raskere tempo (valgt selv): ned maks 1,5 % (høyst 1,5 kg) – 1 % (høyst 0,75 kg) med muskler.
 // Opp maks 0,5 kg i uka, 0,35 kg når målet er muskler.
-export function tryggFart(kg, retning, mal) {
-  if (retning < 0) return mal === 'nedmuskler' ? -Math.min(0.5, Math.round(kg * 0.007 * 100) / 100) : -Math.min(1, Math.round(kg * 0.01 * 100) / 100);
+export function tryggFart(kg, retning, mal, rask = false) {
+  if (retning < 0) {
+    if (mal === 'nedmuskler') return -Math.min(rask ? 0.75 : 0.5, Math.round(kg * (rask ? 0.01 : 0.007) * 100) / 100);
+    return -Math.min(rask ? 1.5 : 1, Math.round(kg * (rask ? 0.015 : 0.01) * 100) / 100);
+  }
   return mal === 'muskler' ? 0.35 : 0.5;
 }
+
+// Raskeste fart ned som kalorigulvet tillater (negativ), eller null
+export const gulvFart = (m) => (m?.tdee > 0 && m?.gulv > 0 && m.gulv < m.tdee ? ((m.gulv - m.tdee) * 7) / 7700 : null);
 
 // Når nås målvekta med en gitt fart? { uker, dato } eller null hvis farten går feil vei / er for liten
 export function estimat({ naa, malvekt, fart, idag }) {
@@ -101,15 +110,18 @@ export function estimat({ naa, malvekt, fart, idag }) {
 }
 
 // Hva krever en ønsket dato? Farten som trengs, og om den er trygg (ellers den tryggeste farten og når den gir målet)
-export function fartForDato({ naa, malvekt, dato, idag, mal }) {
+// gulv: raskeste fart kalorigulvet tillater (fra gulvFart). kcalStopp = det er kaloriene som setter grensen.
+export function fartForDato({ naa, malvekt, dato, idag, mal, rask = false, gulv = null }) {
   if (!(naa > 0) || !(malvekt > 0) || !dato) return null;
   const uker = (Date.parse(dato) - Date.parse(idag)) / (7 * DAG);
   if (!(uker > 0.5)) return { forTidlig: true };
   const igjen = malvekt - naa;
   const fart = igjen / uker;
-  const grense = tryggFart(naa, Math.sign(igjen), mal);
+  let grense = tryggFart(naa, Math.sign(igjen), mal, rask);
+  const kcalStopp = igjen < 0 && gulv != null && gulv > grense;
+  if (kcalStopp) grense = Math.round(gulv * 100) / 100;
   const trygg = Math.abs(fart) <= Math.abs(grense);
-  return { fart, trygg, uker: Math.ceil(uker), grense, brukFart: trygg ? fart : grense, tidligst: trygg ? dato : plussDager(idag, Math.ceil(igjen / grense) * 7) };
+  return { fart, trygg, uker: Math.ceil(uker), grense, kcalStopp: kcalStopp && !trygg, brukFart: trygg ? fart : grense, tidligst: trygg ? dato : plussDager(idag, Math.ceil(igjen / grense) * 7) };
 }
 
 export const plussMaaneder = (dato, n) => { const d = new Date(dato + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 10); };

@@ -215,17 +215,19 @@ export function beregnMal(pr) {
   const tdee = bmr * (AKTIVITET[pr.aktivitet] ?? 1.45); // det kroppen bruker på en vanlig dag
   let kcal = tdee * (1 + (MAL[pr.mal] ?? 0));
   // Ønsket tempo (kg per uke, fra ønsket dato for målvekta): 7700 kcal ≈ 1 kg kroppsfett.
-  // Aldri under hvilestoffskiftet / 1200–1500 kcal, og aldri mer enn 20 % over forbruket.
+  // Aldri under hvilestoffskiftet (med raskere tempo: aldri under 1200 kcal for kvinner / 1500 ellers),
+  // og aldri mer enn 20 % over forbruket.
+  const minimum = pr.kjonn === 'kvinne' ? 1200 : 1500;
+  const gulv = pr.rask ? minimum : Math.max(bmr, minimum);
   const tempo = pr.tempo == null || pr.tempo === '' ? NaN : Number(pr.tempo);
   if (Number.isFinite(tempo) && pr.mal && pr.mal !== 'holde') {
-    const gulv = Math.max(bmr, pr.kjonn === 'kvinne' ? 1200 : 1500);
     kcal = Math.min(tdee * 1.2, Math.max(gulv, tdee + (tempo * 7700) / 7));
   }
   const protein = (PROTEIN_PER_KG[pr.mal] ?? 1.4) * vekt;
   const fett = (kcal * 0.3) / 9;
   const karbo = Math.max(0, (kcal - protein * 4 - fett * 9) / 4);
   const andel = pr.middag === 'stor' ? 0.42 : pr.middag === 'liten' ? 0.28 : 0.35;
-  return { kcal, protein, fett, karbo, middagKcal: kcal * andel, middagProtein: protein * andel, tdee };
+  return { kcal, protein, fett, karbo, middagKcal: kcal * andel, middagProtein: protein * andel, tdee, gulv };
 }
 
 // Porsjonsfaktor per person ut fra kalorimålet (1 = én vanlig porsjon)
