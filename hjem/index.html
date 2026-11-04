@@ -385,6 +385,13 @@
     .pmvalg .chips { width: 100%; gap: 4px; }
     .pmvalg .chip { padding: 6px 9px; font-size: 13px; }
     .pmrad.av .pmvalg { opacity: .45; }
+    .kalksvar { display: grid; gap: 0; margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: var(--flate-2); }
+    .kalksvar .rad { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 14.5px; }
+    .kalksvar .rad span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .kalksvar .sum { border-top: 1px solid var(--linje); margin-top: 4px; padding-top: 8px; font-weight: 700; }
+    .kalksvar p { margin-top: 6px; }
+    .kalksvar .stort { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin-top: 8px; }
+    .oktliste .ukerad { grid-template-columns: 1fr auto 34px; }
 
     /* Oppdatering */
     .nytt { list-style: none; display: grid; gap: 12px; }
@@ -428,6 +435,7 @@
       <div class="kort" id="coachIdag"></div>
       <div class="kort" id="coachUke"></div>
       <div class="kort" id="coachMal"></div>
+      <div class="kort" id="coachKalk" hidden></div>
       <div class="kort" id="coachPaaminnelser"></div>
     </main>
 
@@ -605,7 +613,7 @@
     } from './budsjett.js';
     import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js';
     import { tolkKvittering } from './kvittering.js';
-    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST } from './coach.js';
+    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST, OKTTYPER, INKL_OKTER, VANLIGE_SKRITT, kcalSkritt, kcalOkt, ekstraPerDag, fortAktivitet } from './coach.js';
     import {
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
@@ -1787,6 +1795,7 @@
         frem: malvekt ? fremgang({ start: serie[0]?.kg || naa, naa, malvekt }) : null,
         dato: pv.malDato && malvekt ? fartForDato({ naa, malvekt, dato: pv.malDato, idag: idag(), mal: pr.mal, rask: !!pv.rask, gulv: gulvFart(mal) }) : null,
         rask: !!pv.rask,
+        akt: aktivitetFor(pid, leggTilDager(idag(), -6), idag()),
         malDato: pv.malDato,
         dager: st.dager, proteinDager: st.proteinDager, vannDager: st.vannDager, forteDager: st.forteDager, okter: st.okter,
         oktMal: Number(pr.oktMal) || 0,
@@ -1863,6 +1872,7 @@
           <p class="forklaring">${esc(t('{start} kg → {naa} kg → mål {mal} kg · {p} % av veien', { start: kgT((c.naa - c.frem.endring)), naa: kgT(c.naa), mal: kgT(c.malvekt), p: pst }))}</p>
           ${c.frem.andel < 1 ? `<p class="forklaring">${esc(t('Neste delmål: {kg} kg ({igjen} kg igjen).', { kg: kgT(c.frem.delmal), igjen: kgT(c.frem.tilDelmal) }))}</p>` : ''}` : ''}
         <p>${esc(estimatTekst(c))}</p>
+        ${(() => { if (!c.akt || c.akt.perDag < 30 || !c.malvekt || c.malvekt >= c.naa || c.plan == null) return ''; const e = estimat({ naa: c.naa, malvekt: c.malvekt, fart: c.plan - (c.akt.perDag * 7) / 7700, idag: idag() }); return e ? `<p class="forklaring">⚡ ${esc(t('Med aktiviteten du har ført de siste 7 dagene (+{kcal} kcal om dagen): rundt {dato} (ca. {uker} uker).', { kcal: tallT(c.akt.perDag), dato: datoT(e.dato), uker: e.uker }))}</p>` : ''; })()}
         ${c.estMalt && !(c.frem && c.frem.andel >= 1) ? `<p class="forklaring">${esc(t('Med farten de siste ukene: rundt {dato} (ca. {uker} uker).', { dato: datoT(c.estMalt.dato), uker: c.estMalt.uker }))}</p>` : ''}
         <form class="rad2" data-maldatoform="${esc(pid)}" autocomplete="off">
           <div class="felt"><label for="${feltId}">${esc(t('Når vil du nå målvekta?'))}</label><input id="${feltId}" name="dato" type="date" min="${leggTilDager(idag(), 7)}" value="${esc(c.malDato || '')}"></div>
@@ -1919,9 +1929,11 @@
       if (st.mal && min >= 16 * 60 && st.mal.protein - st.s.protein > 30) h.push({ id: 'protein', ikon: '🥩', tekst: t('Du mangler {g} g protein i dag. Skyr, cottage cheese eller egg til kvelds hjelper.', { g: kroner(st.mal.protein - st.s.protein) }) });
       if (st.mal && st.s.kcal > st.mal.kcal * 1.1) h.push({ id: 'kcal', ikon: '🔥', tekst: t('Du er {kcal} kcal over målet i dag. En gåtur hjelper, og i morgen er en ny dag.', { kcal: kroner(st.s.kcal - st.mal.kcal) }) });
       if (st.treningsdag && !st.c.trentIdag && min >= 14 * 60) h.push({ id: 'trening', ikon: '💪', tekst: t('Treningsdag i dag – har du fått trent?'), knapp: trentKnapp(st.c) });
+      const skrittMal = Number(privat(pid).skrittMal) || 0, mangler = skrittMal - skrittI(st.d, pid);
+      if (skrittMal && min >= 17 * 60 && mangler > 1000) h.push({ id: 'skritt', ikon: '👟', tekst: t('Du mangler {n} skritt i dag – en gåtur på ca. {min} minutter fikser det.', { n: tallT(mangler), min: Math.max(10, Math.round(mangler / 100 / 5) * 5) }), knapp: `<button class="knapp" type="button" data-aktivitet>${esc(t('Før'))}</button>` });
       if (st.handledag && st.varer > 0) h.push({ id: 'handle', ikon: '🛒', tekst: t('Handledag i dag – {n} varer på lista.', { n: st.varer }), knapp: tilKnapp('#uke', t('Handleliste')) });
       if (st.ukeslutt && min >= 16 * 60) h.push({ id: 'uke', ikon: '📊', tekst: t('Uka er snart ferdig. Se hvordan det gikk, og lag ukemenyen for neste uke.'), knapp: tilKnapp('#uke', t('Ukemeny')) });
-      const rekkefolge = ['veiing', 'trening', 'handle', 'uke', 'mat', 'vann', 'kcal', 'protein']; // det som skjer på faste dager først
+      const rekkefolge = ['veiing', 'trening', 'handle', 'uke', 'mat', 'vann', 'skritt', 'kcal', 'protein']; // det som skjer på faste dager først
       return h.sort((a, b) => rekkefolge.indexOf(a.id) - rekkefolge.indexOf(b.id)).slice(0, 3);
     }
 
@@ -1938,6 +1950,12 @@
         l.push({ ikon: '🔥', tekst: t('Kalorier: {k} av {km} kcal', { k: kroner(s.kcal), km: kroner(mal.kcal) }), ok: s.kcal >= mal.kcal * 0.85 && !over, under: over ? t('Litt over målet i dag') : s.kcal < mal.kcal * 0.85 ? t('{k} kcal igjen', { k: kroner(mal.kcal - s.kcal) }) : t('I rute') });
       }
       if (c.oktMal > 0) l.push({ ikon: '💪', tekst: c.trentIdag ? t('Trent i dag') : st.treningsdag ? t('Treningsdag i dag') : t('Trent i dag?'), ok: c.trentIdag, valgfri: !st.treningsdag && !c.trentIdag, under: t('Trening: {n} av {mal} økter', { n: c.okter, mal: c.oktMal }), knapp: trentKnapp(c) });
+      const skritt = skrittI(st.d, pid), skrittMal = Number(privat(pid).skrittMal) || 0, okter = okterI(st.d, pid), k = kropp(pid);
+      const ekstraKcal = k ? kcalSkritt(skritt - vanligeSkritt(pid), k.kg, k.hoyde, k.kjonn) + okter.reduce((a, o) => a + kcalOkt(o.type, o.min, k.kg), 0) : 0;
+      const forKnapp = `<button class="knapp" type="button" data-aktivitet>${esc(t('Før'))}</button>`;
+      const forbrentTekst = ekstraKcal > 0 ? t('≈ {kcal} kcal forbrent på skritt og trening i dag', { kcal: tallT(ekstraKcal) }) : '';
+      if (skrittMal) l.push({ ikon: '👟', tekst: t('Skritt: {n} av {mal}', { n: tallT(skritt), mal: tallT(skrittMal) }), ok: skritt >= skrittMal, under: forbrentTekst, knapp: forKnapp });
+      else l.push({ ikon: '⚡', tekst: skritt || okter.length ? t('Aktivitet: {n} skritt · {o} økter', { n: tallT(skritt), o: okter.length }) : t('Skritt og trening'), ok: false, valgfri: true, under: forbrentTekst || t('Før det, så ser du hva du forbrenner ekstra'), knapp: forKnapp });
       if (c.veidUka) l.push({ ikon: '⚖️', tekst: t('Veid denne uka'), ok: true });
       else if (st.veiedag || !st.p.veiing.pa || st.dag > st.p.veiing.dag) l.push({ ikon: '⚖️', tekst: st.veiedag ? t('Veiedag i dag') : t('Vei deg denne uka'), ok: false, knapp: veiKnapp(pid) });
       if (st.handledag) l.push({ ikon: '🛒', tekst: st.varer ? t('Handledag – {n} varer på lista', { n: st.varer }) : t('Handledag – lista er tom'), ok: !st.varer, knapp: st.varer ? tilKnapp('#uke', t('Handleliste')) : '' });
@@ -1960,7 +1978,7 @@
       const naa = isoUke(idag()), fra = leggTilDager(naa.mandag, -7), u = isoUke(fra);
       const st = ukeStat(pid, fra, leggTilDager(naa.mandag, -1)), serie = vektserie(pid);
       const i = serie.findIndex((r) => r.nokkel === u.nokkel);
-      return { ...st, uke: u.uke, nokkel: u.nokkel, kg: i >= 0 ? serie[i].kg : null, endring: i > 0 ? serie[i].kg - serie[i - 1].kg : null, harData: st.forteDager > 0 || st.okter > 0 || i >= 0 };
+      return { ...st, akt: aktivitetFor(pid, fra, leggTilDager(naa.mandag, -1)), uke: u.uke, nokkel: u.nokkel, kg: i >= 0 ? serie[i].kg : null, endring: i > 0 ? serie[i].kg - serie[i - 1].kg : null, harData: st.forteDager > 0 || st.okter > 0 || i >= 0 };
     }
     const nyUkesoppdatering = (pid) => { const f = forrigeUke(pid); return f.harData && privat(pid).coachSettUke !== isoUke(idag()).nokkel ? f : null; };
     function merkUkeSett() {
@@ -1979,6 +1997,7 @@
         ${f.forteDager ? rad(`🔥 ${esc(t('Snitt kalorier'))}`, mal ? t('{kcal} kcal ({pst} % av målet)', { kcal: kroner(f.snittKcal), pst: Math.round((f.snittKcal / mal.kcal) * 100) }) : `${kroner(f.snittKcal)} kcal`) : ''}
         ${mal ? rad(`🥩 ${esc(t('Protein nådd'))}`, t('{n} av {d} dager', { n: f.proteinDager, d: 7 })) : ''}
         ${rad(`💧 ${esc(t('Vannmålet nådd'))}`, t('{n} av {d} dager', { n: f.vannDager, d: 7 }))}
+        ${f.akt && (f.akt.skrittDager || f.akt.antallOkter) ? rad(`👟 ${esc(t('Skritt i snitt'))}`, f.akt.skrittDager ? tallT(f.akt.skrittSnitt) : '–') + rad(`⚡ ${esc(t('Ekstra forbrent'))}`, `≈ ${tallT(f.akt.sum)} kcal`) : ''}
         ${oktMal || f.okter ? rad(`💪 ${esc(t('Treningsøkter'))}`, oktMal ? t('{n} av {mal} økter', { n: f.okter, mal: oktMal }) : t('{n} økter', { n: f.okter })) : ''}
       </div>`;
     }
@@ -2057,6 +2076,9 @@
       const banner = ny ? `📊 ${t('Ukesoppdateringen for uke {n} er klar', { n: ny.uke })}` : husk[0] ? `${husk[0].ikon} ${husk[0].tekst}` : '';
       $('coachBanner').hidden = !banner; $('coachBanner').textContent = banner;
       for (const id of ['coachUke', 'coachMal']) $(id).hidden = !harMal;
+      const visKalk = harMal && !!beregnMal(pr)?.tdee && !!kropp(pid) && ['ned', 'nedmuskler'].includes(pr.mal);
+      $('coachKalk').hidden = !visKalk;
+      if (visKalk) settInnhold('coachKalk', kalkHtml(pid));
       if (!harMal) {
         $('coachIdag').innerHTML = `<h2>🎯 ${esc(jeg && jeg.navn !== 'Meg' ? t('Hei, {navn}!', { navn: jeg.navn }) : t('Coach'))}</h2>
           <p class="forklaring">${esc(t('Svar på noen raske spørsmål, så setter coachen mål for kalorier, protein, vann og trening, og minner deg på det som gjenstår hver dag.'))}</p>
@@ -2083,12 +2105,114 @@
         <div class="coachhode"><h2>📊 ${esc(t('Uke {n} så langt', { n: uke.uke }))}</h2></div>
         <p class="forklaring" style="margin-top:4px">${esc(denne ? `${kgT(denne.kg)} kg${fjor ? ` · ${t('{endring} fra forrige uke', { endring: endringT(denne.kg - fjor.kg) })}` : ''}` : t('Ikke veid ennå denne uka.'))}${c.malvekt ? ` ${esc(estimatTekst(c))}` : ''}</p>
         ${ukemalHtml(c)}
+        ${(() => { const a = aktivitetFor(pid, uke.mandag, idag()); return a && (a.skrittDager || a.antallOkter) ? `<p class="forklaring" style="margin-top:8px">⚡ ${esc(a.sum / 7700 >= 0.05 ? t('Ekstra forbrent denne uka, utover det profilen regner med: ≈ {kcal} kcal (ca. {kg} kg).', { kcal: tallT(a.sum), kg: kgT(a.sum / 7700) }) : t('Ekstra forbrent denne uka, utover det profilen regner med: ≈ {kcal} kcal.', { kcal: tallT(a.sum) }))}${a.skrittDager ? ` ${esc(t('Snitt {n} skritt de dagene du har ført.', { n: tallT(a.skrittSnitt) }))}` : ''}</p>` : ''; })()}
         ${rekkeChips.length ? `<div class="rekker">${rekkeChips.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
         ${f.harData ? `<details class="fold" style="margin-top:12px" ${ny || S.visForrigeUke ? 'open' : ''}><summary>${esc(t('Uke {n}: slik gikk det', { n: f.uke }))}</summary><div class="innhold">${ukerapportHtml(pid, f)}</div></details>` : ''}`);
       // Målet
       settInnhold('coachMal', `${coachHtml(pid, 'coachMalDato')}
         <div class="knapprad"><button class="knapp" type="button" data-vis-vekt="${esc(pid)}">📈 ${esc(t('Vekt og utvikling'))}</button></div>`);
       settInnhold('coachPaaminnelser', paaminnelserHtml(pid));
+    }
+
+    // ================= Aktivitet: skritt og økter, og kalkulatoren =================
+    const tallT = (n) => kroner(Math.round(n));
+    function kropp(pid) {
+      const pr = profil(pid), kg = vektserie(pid).at(-1)?.kg || Number(pr.vekt);
+      return kg > 0 && Number(pr.hoyde) > 0 ? { kg, hoyde: Number(pr.hoyde), kjonn: pr.kjonn, aktivitet: pr.aktivitet || 'middels' } : null;
+    }
+    const vanligeSkritt = (pid) => Number(privat(pid).skrittVanlig) || VANLIGE_SKRITT;
+    const skrittI = (d, pid) => Number(privat(pid).skritt?.[d]) || 0;
+    const okterI = (d, pid) => (privat(pid).oktlogg || []).filter((o) => o.dato === d);
+    function aktivitetFor(pid, fra, til) {
+      const k = kropp(pid);
+      if (!k) return null;
+      const pv = privat(pid);
+      return fortAktivitet({ ...k, skritt: pv.skritt || {}, okter: pv.oktlogg || [], fra, til, vanlig: vanligeSkritt(pid) });
+    }
+    const aktivitetsniva = (pr) => oversett(ALLE_PERSONSPORSMAL.find((q) => q.id === 'aktivitet')?.valg.find((v) => v.v === pr.aktivitet)?.tekst || '');
+    const oktNavn = (type) => `${OKTTYPER[type]?.ikon || '💪'} ${oversett(OKTTYPER[type]?.navn || 'Annet')}`;
+
+    // Dialog: før skritt og økter for i dag
+    function visAktivitet() {
+      const pid = meg(), k = kropp(pid), d = idag();
+      S.aktivitetApen = true;
+      const n = skrittI(d, pid), okter = okterI(d, pid), vanlig = vanligeSkritt(pid);
+      const inkl = INKL_OKTER[profil(pid).aktivitet] ?? 0;
+      const skrittKcal = k ? kcalSkritt(n - vanlig, k.kg, k.hoyde, k.kjonn) : 0;
+      $('rettInnhold').innerHTML = `
+        <h2 id="rettTittel">⚡ ${esc(t('Aktivitet i dag'))}</h2>
+        <p class="forklaring">${esc(t('Kalorimålet endres ikke. Det du forbrenner ekstra gjør at du går fortere ned.'))}</p>
+        <form class="vektrad" data-skrittform autocomplete="off">
+          <div class="felt"><label for="skrittInput">👟 ${esc(t('Skritt i dag'))}</label><input id="skrittInput" name="n" type="number" inputmode="numeric" min="0" max="100000" step="1" value="${n || ''}" placeholder="10000"></div>
+          <button class="knapp hoved" type="submit" style="align-self:end">Lagre</button>
+        </form>
+        ${n ? `<p class="forklaring">${esc(n > vanlig ? t('≈ {kcal} kcal ekstra fra skritt (utover {vanlig} skritt på en vanlig dag).', { kcal: tallT(skrittKcal), vanlig: tallT(vanlig) }) : t('Det er ikke mer enn en vanlig dag ({vanlig} skritt), så det teller ikke ekstra.', { vanlig: tallT(vanlig) }))}</p>` : ''}
+        <h3 style="margin:10px 0 0">💪 ${esc(t('Legg til økt'))}</h3>
+        <form class="rad2" data-oktform autocomplete="off" style="align-items:end">
+          <div class="felt"><label for="oktType">${esc(t('Type'))}</label><select id="oktType" name="type">${Object.keys(OKTTYPER).map((ty) => `<option value="${ty}" ${ty === (S.oktType || 'styrke') ? 'selected' : ''}>${esc(oktNavn(ty))}</option>`).join('')}</select></div>
+          <div class="felt"><label for="oktMin">${esc(t('Minutter'))}</label><input id="oktMin" name="min" type="number" inputmode="numeric" min="5" max="600" step="5" value="${S.oktMin || 45}"></div>
+          <button class="knapp hoved" type="submit" style="grid-column:1/-1">${esc(t('Legg til økt'))}</button>
+        </form>
+        ${okter.length ? `<div class="oktliste">${okter.map((o) => `<div class="ukerad"><span>${esc(oktNavn(o.type))}<small>${esc(t('{min} min', { min: o.min }))}</small></span><span class="tall">${k ? `≈ ${tallT(kcalOkt(o.type, o.min, k.kg))} kcal` : ''}</span><button class="ikonknapp" type="button" data-slett-okt="${esc(o.id)}" aria-label="${esc(t('Slett økta'))}">✕</button></div>`).join('')}</div>` : ''}
+        ${inkl > 0 ? `<p class="forklaring" style="font-size:13px">ℹ️ ${esc(t('Profilen din («{niva}») regner allerede med den treningen i kalorimålet. Bare økter utover det gjør at du går fortere ned.', { niva: aktivitetsniva(profil(pid)) }))}</p>` : ''}
+        <div class="knapprad"><button class="knapp" type="button" data-lukk-rett>Lukk</button></div>`;
+      if (!$('rettDialog').open) $('rettDialog').showModal();
+    }
+
+    // Kalkulator: hvor fort går det med mer aktivitet i tillegg til kalorimålet?
+    function kalkVerdier(pid) {
+      const pv = privat(pid), pr = profil(pid), mal = beregnMal(pr), k = pv.kalk || {};
+      return {
+        kcal: Number(k.kcal) > 0 ? Number(k.kcal) : Math.round(mal?.kcal || 0),
+        skritt: Number(k.skritt) >= 0 && k.skritt !== '' && k.skritt != null ? Number(k.skritt) : 10000,
+        okter: Number.isFinite(Number(k.okter)) && k.okter != null ? Number(k.okter) : Math.round(INKL_OKTER[pr.aktivitet] ?? 0) || Number(pr.oktMal) || 0,
+        type: OKTTYPER[k.type] ? k.type : 'styrke',
+        min: Number(k.min) > 0 ? Number(k.min) : 45,
+      };
+    }
+    function kalkSvarHtml(pid) {
+      const pr = profil(pid), mal = beregnMal(pr), k = kropp(pid), v = kalkVerdier(pid);
+      if (!mal?.tdee || !k) return '';
+      const minimum = pr.kjonn === 'kvinne' ? 1200 : 1500, spiser = Math.max(minimum, v.kcal);
+      const e = ekstraPerDag({ ...k, skritt: v.skritt, vanlig: vanligeSkritt(pid), okterUke: v.okter, type: v.type, min: v.min });
+      const forbruk = mal.tdee + e.sum, underskudd = forbruk - spiser;
+      const fart = (underskudd * 7) / 7700, fartUten = ((mal.tdee - spiser) * 7) / 7700;
+      const malvekt = Number(privat(pid).malvekt) || null;
+      const est = malvekt && malvekt < k.kg && fart > 0.05 ? estimat({ naa: k.kg, malvekt, fart: -fart, idag: idag() }) : null;
+      const estUten = malvekt && malvekt < k.kg && fartUten > 0.05 ? estimat({ naa: k.kg, malvekt, fart: -fartUten, idag: idag() }) : null;
+      const rad = (a, b, kl = '') => `<div class="rad ${kl}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`;
+      const raskGrense = Math.min(1.5, k.kg * 0.015);
+      return `<div class="kalksvar">
+        ${rad(t('Forbruk en vanlig dag'), `${tallT(mal.tdee)} kcal`)}
+        ${rad(t('Ekstra skritt ({n})', { n: tallT(Math.max(0, v.skritt - vanligeSkritt(pid))) }), `+${tallT(e.fraSkritt)} kcal`)}
+        ${rad(t('Ekstra økter ({n} i uka)', { n: (Math.round(e.ekstraOkter * 10) / 10).toLocaleString(LOK) }), `+${tallT(e.fraOkter)} kcal`)}
+        ${rad(t('Du spiser'), `−${tallT(spiser)} kcal`)}
+        ${rad(underskudd > 0 ? t('Underskudd per dag') : t('Overskudd per dag'), `${tallT(Math.abs(underskudd))} kcal`, 'sum')}
+        <div class="stort">${esc(underskudd > 0 ? t('≈ {kg} kg ned i uka', { kg: kgT(fart) }) : t('Du går ikke ned med dette'))}</div>
+        ${est ? `<p>${esc(t('{kg} kg rundt {dato} (ca. {uker} uker).', { kg: kgT(malvekt), dato: datoT(est.dato), uker: est.uker }))}</p>` : ''}
+        ${estUten && est && estUten.uker !== est.uker ? `<p class="forklaring">${esc(t('Uten den ekstra aktiviteten: {fart} kg i uka, rundt {dato}.', { fart: kgT(fartUten), dato: datoT(estUten.dato) }))}</p>` : ''}
+        ${v.kcal < minimum ? `<p class="forklaring">${esc(t('Appen regner ikke med under {kcal} kcal om dagen.', { kcal: tallT(minimum) }))}</p>` : ''}
+        ${fart > raskGrense ? `<p class="forklaring">⚠️ ${esc(t('Det er raskere enn appen anbefaler. Spis heller litt mer på dager med mye trening, så holder du på musklene og orker mer.'))}</p>` : ''}
+        ${e.inkl > 0 ? `<p class="forklaring" style="font-size:13px">ℹ️ ${esc(t('Profilen din («{niva}») regner allerede med den treningen, og {vanlig} skritt er en vanlig dag. Bare det du gjør i tillegg teller.', { niva: aktivitetsniva(pr), vanlig: tallT(vanligeSkritt(pid)) }))}</p>` : ''}
+      </div>`;
+    }
+    function kalkHtml(pid) {
+      const v = kalkVerdier(pid), pv = privat(pid);
+      const felt = (id, navn, verdi, ekstra = '') => `<div class="felt"><label for="kalk_${id}">${esc(navn)}</label><input id="kalk_${id}" data-kalk="${id}" type="number" inputmode="numeric" value="${esc(verdi)}" ${ekstra}></div>`;
+      return `<h2>🧮 ${esc(t('Kalkulator'))}</h2>
+        <p class="forklaring">${esc(t('Se hvor fort du går ned hvis du er mer aktiv i tillegg til kalorimålet.'))}</p>
+        <div class="rad2" style="margin-top:10px">
+          ${felt('kcal', t('Kalorier per dag'), v.kcal, 'min="1000" max="6000" step="50"')}
+          ${felt('skritt', t('Skritt per dag'), v.skritt, 'min="0" max="60000" step="500"')}
+        </div>
+        <div class="rad2" style="margin-top:8px">
+          ${felt('vanlig', t('Skritt en vanlig dag nå'), vanligeSkritt(pid), 'min="0" max="40000" step="500"')}
+          ${felt('min', t('Minutter per økt'), v.min, 'min="5" max="300" step="5"')}
+        </div>
+        <div class="felt" style="margin-top:8px"><label>${esc(t('Treningsøkter i uka'))}</label><div class="chips">${[0, 1, 2, 3, 4, 5, 6, 7].map((n) => `<button type="button" class="chip" data-kalk-okter="${n}" aria-pressed="${v.okter === n}">${n}</button>`).join('')}</div></div>
+        <div class="felt" style="margin-top:8px"><label for="kalkType">${esc(t('Type økt'))}</label><select id="kalkType" data-kalk="type">${Object.keys(OKTTYPER).map((ty) => `<option value="${ty}" ${ty === v.type ? 'selected' : ''}>${esc(oktNavn(ty))}</option>`).join('')}</select></div>
+        <div id="kalkSvar">${kalkSvarHtml(pid)}</div>
+        <div class="knapprad">${Number(pv.skrittMal) === v.skritt ? `<span class="forklaring">✓ ${esc(t('Dagsmål: {n} skritt', { n: tallT(v.skritt) }))}</span>` : `<button class="knapp" type="button" data-kalk-bruk>${esc(t('Bruk {n} skritt som dagsmål', { n: tallT(v.skritt) }))}</button>`}</div>`;
     }
 
     function lagreVekt(pid, kg) {
@@ -2507,7 +2631,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 7, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 8, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -2522,6 +2646,7 @@
       { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
       { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Ny Coach-fane som minner deg på det som gjenstår i dag, viser ukas mål og hvordan forrige uke gikk, og regner ut når du når målvekta.' },
       { v: 6, ikon: '📅', tittel: 'Påminnelser', tekst: 'Velg når du vil bli minnet på veiing, vann, mat og trening, og legg det i kalenderen på telefonen, så får du varsel.' },
+      { v: 8, ikon: '🧮', tittel: 'Skritt, trening og kalkulator', tekst: 'Før skritt og treningsøkter i Coach, og se i kalkulatoren hvor mye fortere du går ned med for eksempel 10 000 skritt om dagen.' },
       { v: 7, ikon: '⚡', tittel: 'Raskere tempo', tekst: 'Har du satt en dato for målvekta, kan du nå velge «Raskere» under Målet ditt i Coach, så går du fortere ned.' },
       { v: 6, ikon: '🔒', tittel: 'Vekta er privat', tekst: 'Vekta di ligger bare på din egen telefon. De andre i husstanden ser den ikke.' },
     ];
@@ -2645,7 +2770,30 @@
       if (ds.dagperson) { S.dagPerson = ds.dagperson; tegnDagsplan(); tegnVektkort(); tegnKanLage(); if ($('rettDialog').open && S.kanLageApen) visKanLage(); return; }
       if ('kanLage' in ds) { visKanLage(); return; }
       if (ds.visVekt) { visVekt(ds.visVekt); return; }
+      if ('aktivitet' in ds) { visAktivitet(); return; }
+      if (ds.slettOkt) {
+        const pv = privat(meg()), o = (pv.oktlogg || []).find((x) => x.id === ds.slettOkt);
+        if (!o || !confirm(t('Slette økta?'))) return;
+        pv.oktlogg = pv.oktlogg.filter((x) => x.id !== o.id);
+        if (!pv.oktlogg.some((x) => x.dato === o.dato)) pv.okter = (pv.okter || []).filter((d) => d !== o.dato);
+        lagrePrivat(); tegnVektkort(); tegnCoach(); visAktivitet();
+        return;
+      }
+      if (ds.kalkOkter != null) {
+        const pid = meg(), pv = privat(pid);
+        pv.kalk = { ...kalkVerdier(pid), okter: Number(ds.kalkOkter) }; lagrePrivat();
+        document.querySelectorAll('[data-kalk-okter]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        $('kalkSvar').innerHTML = kalkSvarHtml(pid);
+        return;
+      }
+      if ('kalkBruk' in ds) {
+        const pid = meg(), pv = privat(pid), n = kalkVerdier(pid).skritt;
+        pv.skrittMal = n > 0 ? n : null; lagrePrivat(); tegnCoach();
+        vis(n > 0 ? t('Dagsmålet er {n} skritt ✓', { n: tallT(n) }) : t('Skrittmålet er fjernet'));
+        return;
+      }
       if ('trentIdag' in ds) {
+        if (okterI(idag(), meg()).length) { visAktivitet(); return; } // ført med detaljer: endre det i dialogen
         const pv = privat(meg());
         pv.okter ??= [];
         const fantes = pv.okter.includes(idag());
@@ -2785,6 +2933,16 @@
       if (t.dataset.hak) { S.mat.haket = { ...(S.mat.haket || {}), [t.dataset.hak]: t.checked }; lagreMatNa(); tegnHandleliste(); }
       if (t.dataset.hakm) { const v = (S.mat.handleliste || []).find((x) => x.id === t.dataset.hakm); if (v) { v.haket = t.checked; lagreMatNa(); tegnHandleliste(); } }
     });
+    // Kalkulatoren regner ut på nytt mens du skriver
+    document.addEventListener('input', (e) => {
+      const el = e.target, felt = el.dataset?.kalk;
+      if (!felt) return;
+      const pid = meg(), pv = privat(pid);
+      if (felt === 'vanlig') { const n = Number(el.value); pv.skrittVanlig = el.value === '' ? null : Math.max(0, Math.min(40000, n)); }
+      else pv.kalk = { ...kalkVerdier(pid), [felt]: felt === 'type' ? el.value : el.value === '' ? null : Number(el.value) };
+      lagrePrivat();
+      $('kalkSvar').innerHTML = kalkSvarHtml(pid);
+    });
     // Påminnelser: lagres med en gang, uten å tegne skjemaet på nytt mens du velger
     document.addEventListener('change', (e) => {
       const el = e.target, ds = el.dataset || {};
@@ -2805,6 +2963,29 @@
         const kg = tallFra(f.elements.kg.value);
         if (!(kg >= 30 && kg <= 300)) { f.elements.kg.focus(); vis(t('Skriv inn vekta i kg')); return; }
         lagreVekt(f.dataset.vektform, Math.round(kg * 10) / 10);
+        return;
+      }
+      if ('skrittform' in f.dataset) {
+        e.preventDefault();
+        const pid = meg(), pv = privat(pid), raa = f.elements.n.value.trim(), n = Math.round(tallFra(raa));
+        if (raa && !(n >= 0 && n <= 100000)) { f.elements.n.focus(); return; }
+        pv.skritt ??= {};
+        if (!raa || n === 0) delete pv.skritt[idag()]; else pv.skritt[idag()] = n;
+        lagrePrivat(); tegnCoach(); visAktivitet();
+        vis(raa && n ? t('{n} skritt er lagret ✓', { n: tallT(n) }) : t('Skrittene er fjernet'));
+        return;
+      }
+      if ('oktform' in f.dataset) {
+        e.preventDefault();
+        const pid = meg(), pv = privat(pid), type = f.elements.type.value, min = Math.round(tallFra(f.elements.min.value));
+        if (!(min >= 5 && min <= 600)) { f.elements.min.focus(); vis(t('Skriv inn hvor mange minutter')); return; }
+        S.oktType = type; S.oktMin = min;
+        (pv.oktlogg ??= []).push({ id: nyId(), dato: idag(), type, min });
+        pv.okter ??= [];
+        if (!pv.okter.includes(idag())) pv.okter.push(idag());
+        lagrePrivat(); tegnVektkort(); tegnCoach(); visAktivitet();
+        const k = kropp(pid);
+        vis(k ? t('💪 Økta er ført – ≈ {kcal} kcal', { kcal: tallT(kcalOkt(type, min, k.kg)) }) : t('💪 Økta er ført – bra jobba!'));
         return;
       }
       if (f.dataset.maldatoform) {
@@ -2858,7 +3039,7 @@
       $('nyVareTekst').focus();
     });
     $('rettDialog').addEventListener('click', (e) => { if (e.target === $('rettDialog')) $('rettDialog').close(); });
-    $('rettDialog').addEventListener('close', () => { S.kanLageApen = false; S.vektApen = null; });
+    $('rettDialog').addEventListener('close', () => { S.kanLageApen = false; S.vektApen = null; S.aktivitetApen = false; });
     async function finnStrekkode(kode) {
       visForMat({ laster: true, feil: '' });
       try {

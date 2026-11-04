@@ -118,3 +118,51 @@ export function vannForventet(mal, minutter) {
 
 // Når et måltid regnes som «burde vært ført»
 export const MALTID_FRIST = { frokost: 10 * 60 + 30, lunsj: 14 * 60, mellom: 16 * 60 + 30, middag: 19 * 60 + 30, kveld: 22 * 60 };
+
+// ================= Aktivitet: skritt og treningsøkter =================
+// MET-verdier (Compendium of Physical Activities, avrundet). Netto forbruk = (MET − 1) × kg × timer,
+// fordi hvilestoffskiftet allerede er med i det daglige forbruket.
+export const OKTTYPER = {
+  styrke: { met: 5, ikon: '🏋️', navn: 'Styrke' },
+  lop: { met: 9, ikon: '🏃', navn: 'Løping' },
+  sykkel: { met: 7, ikon: '🚴', navn: 'Sykling' },
+  gaa: { met: 4.3, ikon: '🚶', navn: 'Rask gåtur' },
+  svom: { met: 7, ikon: '🏊', navn: 'Svømming' },
+  gruppe: { met: 7.5, ikon: '🤸', navn: 'Gruppetime' },
+  ball: { met: 7, ikon: '⚽', navn: 'Ballsport' },
+  annet: { met: 3.5, ikon: '🧘', navn: 'Annet' },
+};
+// Hvor mange økter i uka aktivitetsnivået i profilen allerede regner med
+export const INKL_OKTER = { lite: 0, litt: 1.5, middels: 3.5, mye: 5, svaert: 6 };
+export const VANLIGE_SKRITT = 5000; // en vanlig dag uten ekstra gåing
+
+// Skrittlengde ≈ 41,5 % av høyden. Å gå koster ca. 0,5 kcal per kg per km utover hvile.
+export const skrittLengde = (hoyde, kjonn) => (Number(hoyde) * (kjonn === 'kvinne' ? 0.413 : 0.415)) / 100;
+export const kcalSkritt = (n, kg, hoyde, kjonn) => (Math.max(0, Number(n) || 0) * 0.5 * Number(kg) * skrittLengde(hoyde, kjonn)) / 1000;
+export const kcalOkt = (type, min, kg) => Math.max(0, (OKTTYPER[type]?.met ?? 4) - 1) * Number(kg) * (Math.max(0, Number(min) || 0) / 60);
+
+// Ekstra forbruk per dag i tillegg til det profilen allerede regner med
+export function ekstraPerDag({ kg, hoyde, kjonn, aktivitet, skritt, vanlig = VANLIGE_SKRITT, okterUke = 0, type = 'styrke', min = 45 }) {
+  const fraSkritt = kcalSkritt((Number(skritt) || 0) - vanlig, kg, hoyde, kjonn);
+  const inkl = INKL_OKTER[aktivitet] ?? 0;
+  const ekstraOkter = Math.max(0, (Number(okterUke) || 0) - inkl);
+  const perOkt = kcalOkt(type, min, kg);
+  const fraOkter = (ekstraOkter * perOkt) / 7;
+  return { fraSkritt, fraOkter, ekstraOkter, inkl, perOkt, sum: fraSkritt + fraOkter };
+}
+
+// Ført aktivitet i en periode: skritt utover en vanlig dag, og økter utover det profilen regner med
+export function fortAktivitet({ skritt = {}, okter = [], fra, til, kg, hoyde, kjonn, aktivitet, vanlig = VANLIGE_SKRITT }) {
+  let skrittKcal = 0, skrittSum = 0, skrittDager = 0;
+  for (const [d, n] of Object.entries(skritt)) {
+    if (d < fra || d > til || !(Number(n) > 0)) continue;
+    skrittKcal += kcalSkritt(Number(n) - vanlig, kg, hoyde, kjonn); skrittSum += Number(n); skrittDager++;
+  }
+  const iPerioden = okter.filter((o) => o.dato >= fra && o.dato <= til);
+  const oktSum = iPerioden.reduce((a, o) => a + kcalOkt(o.type, o.min, kg), 0);
+  const dager = Math.round((Date.parse(til) - Date.parse(fra)) / 864e5) + 1;
+  const inkl = ((INKL_OKTER[aktivitet] ?? 0) * dager) / 7;
+  const andel = iPerioden.length ? Math.max(0, iPerioden.length - inkl) / iPerioden.length : 0;
+  const oktKcal = oktSum * andel;
+  return { dager, skrittKcal, skrittSnitt: skrittDager ? skrittSum / skrittDager : 0, skrittDager, antallOkter: iPerioden.length, oktSum, oktKcal, sum: skrittKcal + oktKcal, perDag: (skrittKcal + oktKcal) / dager };
+}
