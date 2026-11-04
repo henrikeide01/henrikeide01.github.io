@@ -381,6 +381,12 @@ export const ES = {
   "SQL-en er kopiert ✓": "SQL copiado ✓",
   "Kopier SQL-en:": "Copiá el SQL:",
 
+  // ---------- Privat vekt ----------
+  "Protein {p} g · karbo {k} g · fett {f} g": "Proteína {p} g · carbohidratos {k} g · grasas {f} g",
+  "Vann: {n} glass": "Agua: {n} vasos",
+  "# kcal per dag": "# kcal por día",
+  "Vekta di ligger bare på denne telefonen. De andre i husstanden ser den ikke.": "Tu peso queda solo en este celu. Los demás de la casa no lo ven.",
+
   // ---------- Tilbudsavisen ----------
   'Min tilbudsavis': 'Mis ofertas', 'Henter ukens tilbud…': 'Buscando las ofertas de la semana…', 'Laster tilbud…': 'Cargando ofertas…',
   '{antall} tilbud fra {butikker} butikker rundt {sted} · oppdatert {tid}': '{antall} ofertas de {butikker} súper cerca de {sted} · actualizado {tid}',

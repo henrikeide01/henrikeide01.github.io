@@ -583,7 +583,7 @@
     const tallFra = (v) => parseFloat(String(v ?? '').replace(/\s/g, '').replace(',', '.'));
     const kr2 = (n) => (n == null ? '' : String(Math.round(n * 100) / 100));
 
-    const S = { plan: lesPlan(), poster: lesPoster(), lonn: lesLonn(), mat: lesMat(), tilbud: null, maaned: maanedAv(idag()), valgtKategori: 'mat', visning: 'alle', visAllePoster: false, forslag: null, lonnPerson: null, penger: 'oversikt' };
+    const S = { privat: {}, plan: lesPlan(), poster: lesPoster(), lonn: lesLonn(), mat: lesMat(), tilbud: null, maaned: maanedAv(idag()), valgtKategori: 'mat', visning: 'alle', visAllePoster: false, forslag: null, lonnPerson: null, penger: 'oversikt' };
 
     const flere = () => S.plan.personer.length > 1;
     const personNavn = (id) => S.plan.personer.find((p) => p.id === id)?.navn || '?';
@@ -972,7 +972,53 @@
 
     // ================= MAT =================
     const personer = () => S.plan.personer;
-    const profil = (id) => S.mat.profiler?.[id] || {};
+    // ---------- Privat: vekt, målvekt og veiinger ligger bare på telefonen til den det gjelder ----------
+    // De sendes aldri til den felles databasen. De andre i husstanden får bare det ferdige kalorimålet (malTall).
+    const PRIVAT_NOKKEL = 'hjem.privat';
+    const PRIVATE_FELT = ['vekt', 'malvekt'];
+    const lesPrivat = () => { try { return JSON.parse(localStorage.getItem(PRIVAT_NOKKEL)) || {}; } catch { return {}; } };
+    const lagrePrivat = () => { try { localStorage.setItem(PRIVAT_NOKKEL, JSON.stringify(S.privat)); } catch {} };
+    S.privat = lesPrivat(); // les inn det som ligger her fra før – ellers kan det bli overskrevet
+    const privat = (id) => { S.privat[id] ??= {}; S.privat[id].vektlogg ??= []; return S.privat[id]; };
+    const erMeg = (id) => id === meg();
+    const offentlig = (pr) => Object.fromEntries(Object.entries(pr || {}).filter(([k]) => !PRIVATE_FELT.includes(k)));
+    const profil = (id) => {
+      const pr = S.mat.profiler?.[id] || {};
+      if (!erMeg(id)) return offentlig(pr); // andres vekt vises aldri her
+      const pv = S.privat[id] || {};
+      return { ...pr, ...(pv.vekt != null ? { vekt: pv.vekt } : {}), ...('malvekt' in pv ? { malvekt: pv.malvekt } : {}) };
+    };
+    const rundMal = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, Math.round(v)]));
+    // Flytter min vekt fra det felles til denne telefonen, og holder kalorimålet mitt oppdatert for de andre
+    function oppdaterPrivat() {
+      if (!S.mat.profiler) return;
+      let endret = false;
+      const jeg = meg();
+      for (const p of personer()) {
+        const delt = S.mat.profiler[p.id];
+        if (!delt) continue;
+        if (p.id === jeg) {
+          const pv = privat(p.id);
+          if (delt.vekt != null && pv.vekt == null) pv.vekt = delt.vekt;
+          if ('malvekt' in delt && !('malvekt' in pv)) pv.malvekt = delt.malvekt;
+          for (const m of S.mat.vekt?.[p.id] || []) if (!pv.vektlogg.some((x) => x.id === m.id)) pv.vektlogg.push(m);
+          lagrePrivat();
+          const mal = beregnMal({ ...offentlig(delt), ...(pv.vekt != null ? { vekt: pv.vekt } : {}) });
+          const ny = { ...offentlig(delt), ...(mal ? { malTall: rundMal(mal) } : {}), vektPrivat: true };
+          if (JSON.stringify(ny) !== JSON.stringify(delt)) { S.mat.profiler[p.id] = ny; endret = true; }
+          if (S.mat.vekt?.[p.id]) { delete S.mat.vekt[p.id]; endret = true; } // ligger nå på denne telefonen
+        } else {
+          // Andres vekt: regn ut kalorimålet, men fjern vekta først når eieren har tatt vare på den på sin telefon
+          if (delt.vekt != null && !delt.malTall) { const mal = beregnMal(delt); if (mal) { S.mat.profiler[p.id] = { ...delt, malTall: rundMal(mal) }; endret = true; } }
+          if (S.mat.profiler[p.id].vektPrivat && (PRIVATE_FELT.some((k) => k in S.mat.profiler[p.id]) || S.mat.vekt?.[p.id])) {
+            S.mat.profiler[p.id] = offentlig(S.mat.profiler[p.id]);
+            if (S.mat.vekt?.[p.id]) delete S.mat.vekt[p.id];
+            endret = true;
+          }
+        }
+      }
+      if (endret) lagreMatNa();
+    }
     const dagKort = new Intl.DateTimeFormat(LOK, { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' });
     const dagLang = new Intl.DateTimeFormat(LOK, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
     const somDato = (d) => new Date(d + 'T12:00:00Z');
@@ -1104,7 +1150,9 @@
         return `<div class="person-makro">
           <div class="linje1"><b>${esc(p.navn)}</b><span class="tall">${kroner(s.kcal)} / ${kroner(mal.kcal)} kcal</span></div>
           ${meterHtml(s.kcal, mal.kcal)}
-          <span class="forklaring" style="font-size:13px">${esc(t('Protein {p} av {pm} g · karbo {k} av {km} g · fett {f} av {fm} g', { p: kroner(s.protein), pm: kroner(mal.protein), k: kroner(s.karbo), km: kroner(mal.karbo), f: kroner(s.fett), fm: kroner(mal.fett) }))}</span>
+          <span class="forklaring" style="font-size:13px">${esc(erMeg(p.id)
+            ? t('Protein {p} av {pm} g · karbo {k} av {km} g · fett {f} av {fm} g', { p: kroner(s.protein), pm: kroner(mal.protein), k: kroner(s.karbo), km: kroner(mal.karbo), f: kroner(s.fett), fm: kroner(mal.fett) })
+            : t('Protein {p} g · karbo {k} g · fett {f} g', { p: kroner(s.protein), k: kroner(s.karbo), f: kroner(s.fett) }))}</span>
           ${vannHtml(p.id)}
         </div>`;
       }).join('') + `<p class="forklaring" style="font-size:12.5px;margin-top:6px">Trykk ✓ på måltidene og «Vi har spist» på middagen, så føres det her. Tallene er anslag.</p>`;
@@ -1167,6 +1215,7 @@
       const mal = plan.mal;
       const total = mal.utenMal
         ? t('Hele dagen: ca. {kcal} kcal og {p} g protein.', { kcal: kroner(kcal), p: kroner(protein) })
+        : !erMeg(pid) ? t('Hele dagen: ca. {kcal} kcal og {p} g protein.', { kcal: kroner(kcal), p: kroner(protein) })
         : t('Hele dagen: ca. {kcal} av {km} kcal og {p} av {pm} g protein.', { kcal: kroner(kcal), km: kroner(mal.kcal), p: kroner(protein), pm: kroner(mal.protein) });
       $('dagsplan').innerHTML = `
         <h2 style="margin-bottom:2px">🍳 Dagens måltider</h2>
@@ -1551,11 +1600,11 @@
           <div class="avatar">${esc((p.navn || '?').charAt(0).toUpperCase())}</div>
           <div>
             <h2><input class="navn" data-personnavn="${esc(p.id)}" value="${esc(p.navn)}" aria-label="Navn" style="font-weight:700;font-size:17px;padding:6px 8px;width:auto;max-width:100%">${p.id === meg() ? '<span class="merke">Deg</span>' : ''}${nye ? '<span class="merke ny">Nye spørsmål</span>' : ''}</h2>
-            <div class="mal">${mal ? `🎯 ${kroner(mal.kcal)} kcal · ${kroner(mal.protein)} g protein per dag` : 'Har ikke svart på spørsmålene ennå'}${detaljer ? `<br>${esc(detaljer)}` : ''}</div>
+            <div class="mal">${mal ? (erMeg(p.id) ? `🎯 ${kroner(mal.kcal)} kcal · ${kroner(mal.protein)} g protein per dag` : `🎯 ${kroner(mal.kcal)} kcal per dag`) : 'Har ikke svart på spørsmålene ennå'}${detaljer ? `<br>${esc(detaljer)}` : ''}</div>
             <div class="knapprad">
               ${nye ? `<button class="knapp hoved" type="button" data-sporsmal-nye="${esc(p.id)}">Svar på nye spørsmål</button>` : ''}
               <button class="knapp ${mal ? '' : 'hoved'}" type="button" data-sporsmal="${esc(p.id)}">${mal ? 'Endre svar' : 'Svar på spørsmål'}</button>
-              ${mal ? `<button class="knapp" type="button" data-vis-vekt="${esc(p.id)}">📈 Vekt</button>` : ''}
+              ${mal && erMeg(p.id) ? `<button class="knapp" type="button" data-vis-vekt="${esc(p.id)}">📈 Vekt</button>` : ''}
               ${personer().length > 1 ? `<button class="lenke" type="button" data-fjern-person="${esc(p.id)}" style="color:var(--kritisk-tekst)">Fjern</button>` : ''}
             </div>
           </div>
@@ -1582,11 +1631,11 @@
     }
 
     // ================= Vann =================
-    const vannMal = (pr) => (Number(pr.vekt) > 0 ? Math.min(14, Math.max(6, Math.round((Number(pr.vekt) * 0.033) / 0.25))) : 8); // glass à 2,5 dl
+    const vannMal = (pr) => (Number(pr.vekt) > 0 ? Math.min(14, Math.max(6, Math.round((Number(pr.vekt) * 0.033) / 0.25))) : 8); // glass à 2,5 dl (bare for deg selv)
     const vannI = (d, pid) => Number(S.mat.vann?.[d]?.[pid]) || 0;
     function vannHtml(pid) {
       const n = vannI(idag(), pid), mal = vannMal(profil(pid));
-      return `<div class="vann"><span>💧 ${esc(t('Vann: {n} av {mal} glass', { n, mal }))}${n >= mal ? ' ✓' : ''}</span>
+      return `<div class="vann"><span>💧 ${esc(erMeg(pid) ? t('Vann: {n} av {mal} glass', { n, mal }) : t('Vann: {n} glass', { n }))}${erMeg(pid) && n >= mal ? ' ✓' : ''}</span>
         <button class="ikonknapp" type="button" data-vann-minus="${esc(pid)}" aria-label="${esc(t('Ett glass mindre'))}">−</button>
         <button class="ikonknapp" type="button" data-vann-pluss="${esc(pid)}" aria-label="${esc(t('Ett glass til'))}">＋</button></div>`;
     }
@@ -1601,7 +1650,7 @@
     // ================= Vekt hver uke =================
     const kgT = (x) => Number(x).toLocaleString(LOK, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     const endringT = (d) => `${d < 0 ? '−' : d > 0 ? '+' : '±'}${kgT(Math.abs(d))} kg`;
-    const vektserie = (pid) => ukeserie(S.mat.vekt?.[pid] || []);
+    const vektserie = (pid) => (erMeg(pid) ? ukeserie(privat(pid).vektlogg) : []);
     function vurderingTekst(pid, serie) {
       const pr = profil(pid), perUke = trendPerUke(serie), v = vurdering(pr.mal, perUke);
       const deler = [t(v.tekst, { kg: v.kg != null ? kgT(v.kg) : '' })];
@@ -1612,7 +1661,7 @@
       return deler.join(' ');
     }
     function tegnVektkort() {
-      const pid = dagPerson(), pr = profil(pid);
+      const pid = meg(), pr = profil(pid); // bare din egen vekt
       if (!beregnMal(pr)) { $('vektkort').hidden = true; return; }
       $('vektkort').hidden = false;
       const serie = vektserie(pid), uke = isoUke(idag());
@@ -1622,20 +1671,21 @@
       $('vektkort').innerHTML = `
         <div class="vekttopp"><h2>⚖️ ${esc(t('Vekt – uke {n}', { n: uke.uke }))}</h2><button class="lenke" type="button" data-vis-vekt="${esc(pid)}">Se utvikling →</button></div>
         ${naa ? `<div class="vekttall tall">${kgT(naa.kg)} kg${forrige ? `<small>${esc(t('{endring} fra forrige uke', { endring: endringT(naa.kg - forrige.kg) }))}</small>` : ''}</div>`
-          : `<p class="forklaring" style="margin-top:4px">${esc(personer().length > 1 ? t('Ukens veiing: hva veier {navn} denne uka?', { navn: personNavn(pid) }) : t('Ukens veiing: hva veier du denne uka?'))}</p>`}
+          : `<p class="forklaring" style="margin-top:4px">${esc(t('Ukens veiing: hva veier du denne uka?'))}</p>`}
         <form class="vektrad" data-vektform="${esc(pid)}" autocomplete="off">
           <div class="belopfelt"><input name="kg" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="${esc(sist ? kgT(sist) : '')}" aria-label="${esc(t('Vekt i kg'))}" style="font-size:20px;padding:9px 44px 9px 12px"><span>kg</span></div>
           <button class="knapp ${naa ? '' : 'hoved'}" type="submit">${naa ? 'Oppdater' : 'Lagre'}</button>
         </form>
-        ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}`;
+        ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}
+        ${personer().length > 1 ? `<p class="forklaring" style="font-size:12.5px">🔒 ${esc(t('Vekta di ligger bare på denne telefonen. De andre i husstanden ser den ikke.'))}</p>` : ''}`;
     }
     function lagreVekt(pid, kg) {
-      S.mat.vekt ??= {};
-      const liste_ = (S.mat.vekt[pid] ??= []);
-      const iDag = liste_.find((m) => m.dato === idag());
-      if (iDag) iDag.kg = kg; else liste_.push({ id: nyId(), dato: idag(), kg });
-      S.mat.profiler = { ...(S.mat.profiler || {}), [pid]: { ...profil(pid), vekt: kg } }; // kalorimålet regnes ut fra den nye vekta
-      lagreMatNa(); tegnAlt();
+      if (!erMeg(pid)) return;
+      const pv = privat(pid);
+      const iDag = pv.vektlogg.find((m) => m.dato === idag());
+      if (iDag) iDag.kg = kg; else pv.vektlogg.push({ id: nyId(), dato: idag(), kg });
+      pv.vekt = kg; // kalorimålet regnes ut fra den nye vekta
+      lagrePrivat(); tegnAlt();
       if ($('rettDialog').open && S.vektApen) visVekt(pid);
       vis(t('{kg} kg er lagret ✓ Kalorimålet er oppdatert.', { kg: kgT(kg) }));
     }
@@ -1700,6 +1750,7 @@
     }
 
     function visVekt(pid) {
+      if (!erMeg(pid)) return; // andres vekt vises ikke
       const pr = profil(pid), serie = vektserie(pid);
       S.vektApen = pid;
       const rader = [...serie].reverse().map((r, i, a) => {
@@ -1710,7 +1761,7 @@
       }).join('');
       $('rettInnhold').innerHTML = `
         <h2 id="rettTittel">📈 ${esc(t('Vekt – {navn}', { navn: personNavn(pid) }))}</h2>
-        ${personer().length > 1 ? `<div class="velger" style="margin:0">${personer().filter((p) => beregnMal(profil(p.id))).map((p) => `<button type="button" data-vis-vekt="${esc(p.id)}" aria-pressed="${p.id === pid}">${esc(p.navn)}</button>`).join('')}</div>` : ''}
+        ${personer().length > 1 ? `<p class="forklaring">🔒 ${esc(t('Vekta di ligger bare på denne telefonen. De andre i husstanden ser den ikke.'))}</p>` : ''}
         ${serie.length ? vektgrafHtml(serie, Number(pr.malvekt)) : '<p class="tomt">Ingen målinger ennå. Før vekten én gang i uka, gjerne samme dag og tid.</p>'}
         ${serie.length ? `<p class="forklaring">${esc(vurderingTekst(pid, serie))}</p>` : ''}
         <form class="vektrad" data-vektform="${esc(pid)}" autocomplete="off">
@@ -1977,13 +2028,25 @@
       // Svarene legges oppå de gamle, så ingenting forsvinner
       const lagreSvar = (svar, ferdig) => {
         const { inntekt, ...rest } = svar;
-        S.mat.profiler = { ...(S.mat.profiler || {}), [id]: { ...profil(id), ...rest, ...(ferdig ? { v: SPORSMALSVERSJON } : {}) } };
+        const felles = { ...offentlig(S.mat.profiler?.[id]), ...offentlig(rest), ...(ferdig ? { v: SPORSMALSVERSJON } : {}) };
+        if (erMeg(id)) {
+          const pv = privat(id);
+          if (rest.vekt > 0) pv.vekt = rest.vekt;
+          if ('malvekt' in rest) pv.malvekt = rest.malvekt ?? null;
+          lagrePrivat();
+        } else if (rest.vekt > 0) {
+          // Svarer du for en annen, lagres bare kalorimålet – ikke vekta
+          const mal = beregnMal({ ...felles, vekt: rest.vekt });
+          if (mal) felles.malTall = rundMal(mal);
+        }
+        S.mat.profiler = { ...(S.mat.profiler || {}), [id]: felles };
+        oppdaterPrivat();
         return inntekt;
       };
       kjorSporsmal({
         tittel: p.navn,
         sporsmal: medInntekt ? [INNTEKTSSPORSMAL, ...liste_] : liste_,
-        svar: { ...profil(id), ...(medInntekt && inntektslinje ? { inntekt: inntektslinje.belop || '' } : {}) },
+        svar: { ...profil(id), ...(medInntekt && inntektslinje ? { inntekt: inntektslinje.belop || '' } : {}) }, // profil() har bare din egen vekt
         navn: p.navn,
         vedFerdig: (svar) => {
           const inntekt = lagreSvar(svar, true);
@@ -2163,7 +2226,7 @@
       if (ds.visVekt) { visVekt(ds.visVekt); return; }
       if (ds.slettVekt) {
         const ider = new Set(ds.slettVekt.split(','));
-        if (confirm(t('Slette målingen?'))) { S.mat.vekt[ds.person] = (S.mat.vekt[ds.person] || []).filter((m) => !ider.has(m.id)); lagreMatNa(); tegnAlt(); visVekt(ds.person); }
+        if (erMeg(ds.person) && confirm(t('Slette målingen?'))) { const pv = privat(ds.person); pv.vektlogg = pv.vektlogg.filter((m) => !ider.has(m.id)); lagrePrivat(); tegnAlt(); visVekt(ds.person); }
         return;
       }
       if (ds.vannPluss || ds.vannMinus) { endreVann(ds.vannPluss || ds.vannMinus, ds.vannPluss ? 1 : -1); return; }
@@ -2279,8 +2342,9 @@
       if (f.dataset.malvektform) {
         e.preventDefault();
         const kg = tallFra(f.elements.kg.value), pid = f.dataset.malvektform;
-        S.mat.profiler = { ...(S.mat.profiler || {}), [pid]: { ...profil(pid), malvekt: kg >= 30 && kg <= 300 ? Math.round(kg * 10) / 10 : null } };
-        lagreMatNa(); tegnAlt(); visVekt(pid); vis(t('Lagret ✓'));
+        if (!erMeg(pid)) return;
+        privat(pid).malvekt = kg >= 30 && kg <= 300 ? Math.round(kg * 10) / 10 : null;
+        lagrePrivat(); tegnAlt(); visVekt(pid); vis(t('Lagret ✓'));
         return;
       }
       if ('matsok' in f.dataset) {
@@ -2453,7 +2517,7 @@
     const valgtJeg = () => document.querySelector('#velgJeg [aria-pressed="true"]')?.dataset.velgjeg;
 
     function etterSynk(r) {
-      if (r?.endret) { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); tegnAlt(); }
+      if (r?.endret) { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); S.privat = lesPrivat(); tegnAlt(); }
       else tegnDeling();
     }
 
@@ -2486,7 +2550,7 @@
           el.disabled = true; el.textContent = 'Henter …';
           try {
             await bliMed(el.dataset.kode, valgtJeg());
-            S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.lonnPerson = meg();
+            S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); S.privat = lesPrivat(); S.lonnPerson = meg();
             history.replaceState(null, '', location.pathname + '#idag');
             $('delDialog').close(); tegnAlt(); vis('Dere har nå felles budsjett ✓');
           } catch (err) { const kode = el.dataset.kode; visFeil(err, () => bliMedDialog(kode)); }
@@ -2509,6 +2573,7 @@
     $('delDialog').addEventListener('click', (e) => { if (e.target === $('delDialog')) $('delDialog').close(); });
 
     function tegnAlt() {
+      oppdaterPrivat();
       tegnDeling();
       tegnKategorivalg(); tegnOversikt(); tegnLonn(); tegnSlipper(); tegnForslag(); tegnBudsjett(); tegnPlanRedigering(); tegnHusstand();
       tegnMat();
@@ -2723,7 +2788,7 @@
     }
 
     window.addEventListener('storage', (e) => {
-      if (e.key?.startsWith('budsjett.') || e.key === 'hjem.mat') { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); tegnAlt(); }
+      if (e.key?.startsWith('budsjett.') || e.key === 'hjem.mat' || e.key === PRIVAT_NOKKEL) { S.plan = lesPlan(); S.poster = lesPoster(); S.lonn = lesLonn(); S.mat = lesMat(); S.privat = lesPrivat(); tegnAlt(); }
     });
 
     if (S.plan.migrert) { lagre(); }

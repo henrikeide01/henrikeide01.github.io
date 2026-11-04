@@ -208,7 +208,8 @@ export const VIL_HA_PROTEIN = new Set(['muskler', 'nedmuskler']);
 
 export function beregnMal(pr) {
   const vekt = Number(pr?.vekt), hoyde = Number(pr?.hoyde), alder = Number(pr?.alder);
-  if (!(vekt > 0 && hoyde > 0 && alder > 0)) return null;
+  // Vekta er privat og ligger bare på telefonen til personen selv. Andre telefoner får bare det ferdige målet.
+  if (!(vekt > 0 && hoyde > 0 && alder > 0)) return pr?.malTall?.kcal > 0 ? { ...pr.malTall } : null;
   const kjonn = pr.kjonn === 'mann' ? 5 : pr.kjonn === 'kvinne' ? -161 : -78;
   const bmr = 10 * vekt + 6.25 * hoyde - 5 * alder + kjonn;
   let kcal = bmr * (AKTIVITET[pr.aktivitet] ?? 1.45) * (1 + (MAL[pr.mal] ?? 0));
