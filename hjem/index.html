@@ -241,6 +241,7 @@
     .vare .navn { font-weight: 600; }
     .vare small { display: block; color: var(--dempet); font-size: 12.5px; font-weight: 400; }
     .vare .tilbud { color: var(--aksent); font-weight: 600; }
+    .vare .hylle { color: var(--tekst); }
     .vare.haket .navn { text-decoration: line-through; color: var(--dempet); }
     .vare .mengde { color: var(--dempet); font-size: 14px; white-space: nowrap; text-align: right; }
     .kjokkenrad { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 6px; align-items: center; padding: 8px 0; border-top: 1px solid var(--linje); }
@@ -659,30 +660,30 @@
       nettoAv, lonnsstatistikk, anslagLonn, lonnsprofil, FRIKORTGRENSE, kroner, normaliserPlan,
       lesMat, lagreMat, harPlan, sikreTidligereOppsett, hentTidligereOppsett, lagNyPlan, leggTilPerson, fjernPerson,
       matAndelFor, harEgenMatdeling,
-    } from './budsjett.js?v=9';
-    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js?v=9';
-    import { tolkKvittering } from './kvittering.js?v=9';
-    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST, OKTTYPER, INKL_OKTER, VANLIGE_SKRITT, kcalSkritt, kcalOkt, ekstraPerDag, fortAktivitet } from './coach.js?v=9';
+    } from './budsjett.js?v=11';
+    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js?v=11';
+    import { tolkKvittering } from './kvittering.js?v=11';
+    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST, OKTTYPER, INKL_OKTER, VANLIGE_SKRITT, kcalSkritt, kcalOkt, ekstraPerDag, fortAktivitet } from './coach.js?v=11';
     import {
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
       dagsplan, alternativer, maltid, MALTIDSNAVN, behovForUke, butikkanbefaling,
       fraKjokkenet, resterFor, slotsFor, naeringMaltid, RESTER_DAGER,
       proteinBytter, kjopFor, kjopSomPasser, passerFor,
-    } from './mat.js?v=9';
+    } from './mat.js?v=11';
     import {
       ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
       nyeSporsmalFor, nyeHusstandssporsmalFor, MATDELING,
-    } from './sporsmal.js?v=9';
-    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js?v=9';
-    import { MAT_EN } from './mat-en.js?v=9';
-    import { MAT_ES } from './mat-es.js?v=9';
+    } from './sporsmal.js?v=11';
+    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js?v=11';
+    import { MAT_EN } from './mat-en.js?v=11';
+    import { MAT_ES } from './mat-es.js?v=11';
     leggTilOrdbok({ en: MAT_EN, es: MAT_ES });
 
     // Telefoner som brukte budsjettet før oppstarten kom, beholder oppsettet sitt
     sikreTidligereOppsett();
-    import { tolkLonnsslipp } from './lonnsslipp.js?v=9';
-    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode, SQL_EDITOR } from './synk.js?v=9';
+    import { tolkLonnsslipp } from './lonnsslipp.js?v=11';
+    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode, SQL_EDITOR } from './synk.js?v=11';
 
     // Tekstgjenkjenning (lastes først når du laster opp et bilde)
     const OCR = {
@@ -1150,6 +1151,14 @@
 
     async function hentTilbud() {
       try { const r = await fetch('../tilbud/data/tilbud.json', { cache: 'no-cache' }); if (r.ok) S.tilbud = (await r.json()).tilbud; } catch {}
+      // Hyllepriser per kjede (Kassalapp): gjør anslagene i hele appen til ekte priser
+      try {
+        const r = await fetch('../tilbud/data/priser.json', { cache: 'no-cache' });
+        if (r.ok) {
+          S.priser = await r.json();
+          for (const [k, v] of Object.entries(S.priser.varer || {})) if (INGREDIENSER[k] && v.median > 0) INGREDIENSER[k].pris = v.median;
+        }
+      } catch {}
     }
 
     function sikreMeny() {
@@ -1662,12 +1671,22 @@
     }
 
     // Hvilken butikk er billigst for denne handelen?
+    // Billigste hyllepris for en vare akkurat nå, med pakningen den gjelder
+    function billigstHylle(key) {
+      const per = S.priser?.varer?.[key]?.per;
+      if (!per) return '';
+      const [kjede, x] = Object.entries(per).sort((a, b) => a[1].kg - b[1].kg)[0] || [];
+      if (!x) return '';
+      const perKg = /\b(pr|per)\.? ?kg\b|\bløsvekt\b/i.test(x.navn);
+      return `<span class="hylle" title="${esc(x.navn)}">${esc(perKg ? t('{butikk}: {kr} kr/kg', { butikk: kjede, kr: kroner(x.kg) }) : t('{butikk}: {kr} kr for {navn}', { butikk: kjede, kr: kroner(x.pris), navn: x.navn }))}</span> · `;
+    }
+
     function butikkHtml(varer, a) {
       if (!a?.beste) return '';
       const beste = a.beste;
       const rader = a.totaler.map((x, i) => `
         <div class="butikkrad ${i === 0 ? 'beste' : ''}">
-          <span><b>${esc(x.butikk)}</b>${x.antallTilbud ? `<small>${esc(t(x.antallTilbud === 1 ? '{n} vare på tilbud' : '{n} varer på tilbud', { n: x.antallTilbud }))}</small>` : ''}</span>
+          <span><b>${esc(x.butikk)}</b><small>${esc([x.antallTilbud ? t(x.antallTilbud === 1 ? '{n} vare på tilbud' : '{n} varer på tilbud', { n: x.antallTilbud }) : '', x.antallEkte < x.antall ? t('ekte pris på {n} av {m}, resten anslått', { n: x.antallEkte, m: x.antall }) : t('ekte pris på alle')].filter(Boolean).join(' · '))}</small></span>
           <span class="tall">${i === 0 ? `${kroner(x.sum)} kr` : `+${kroner(x.sum - beste.sum)} kr`}</span>
         </div>`).join('');
       let tips = '';
@@ -1682,9 +1701,10 @@
           ? `<p class="tips">✓ ${esc(t('Passer i matbudsjettet – {kr} kr igjen denne uka.', { kr: kroner(igjen) }))}</p>`
           : `<p class="tips">⚠️ ${esc(t('Ca. {kr} kr mer enn det som er igjen av matbudsjettet denne uka ({igjen} kr).', { kr: kroner(beste.sum - Math.max(0, igjen)), igjen: kroner(Math.max(0, igjen)) }))}</p>`;
       }
+      const kilde = S.priser?.oppdatert ? `<p class="tips" style="font-size:12.5px">${esc(t('Hyllepriser fra Kassalapp, oppdatert {dato}. Coop, Kiwi og REMA 1000 har ikke ferske hyllepriser der, så for dem brukes tilbudene fra kundeavisene og ellers et anslag.', { dato: datoT(S.priser.oppdatert.slice(0, 10)) }))}</p>` : '';
       return `<div class="butikker">
         <div class="etikett">🏪 ${esc(t('Billigst nå: {butikk}', { butikk: beste.butikk }))}</div>
-        ${rader}${tips}${budsjett}
+        ${rader}${tips}${budsjett}${kilde}
         <small class="forklaring" style="font-size:12px">Anslag ut fra ukens tilbud og vanlig prisnivå i butikkene.</small>
       </div>`;
     }
@@ -1692,7 +1712,7 @@
     function tegnHandleliste() {
       const varer = handlelisteVarer();
       const manuelle = S.mat.handleliste || [];
-      const anbefaling = S.tilbud && varer.length ? butikkanbefaling({ varer, tilbud: S.tilbud, foretrukne: S.mat.husstand?.butikker || [] }) : null;
+      const anbefaling = (S.tilbud || S.priser) && varer.length ? butikkanbefaling({ varer, tilbud: S.tilbud, foretrukne: S.mat.husstand?.butikker || [], hylle: S.priser?.varer }) : null;
       const total = anbefaling?.beste?.sum ?? varer.reduce((s, v) => s + v.kr, 0);
       const dager = handleDager();
       const medDagsplan = personer().some((p) => harNyeSvar(p.id));
@@ -1706,7 +1726,7 @@
         ${varer.map((v) => `
           <label class="vare ${v.haket ? 'haket' : ''}">
             <input type="checkbox" data-hak="${esc(v.key)}" ${v.haket ? 'checked' : ''}>
-            <span><span class="navn">${esc(v.navn)}</span><small>${v.tilbud ? `<span class="tilbud">🏷️ ${esc(t('{kr} kr/kg hos {butikk}', { kr: kroner(v.tilbud.kg), butikk: v.tilbud.t.butikk }))}</span> · ` : ''}${esc(v.hvorfor)}</small></span>
+            <span><span class="navn">${esc(v.navn)}</span><small>${v.tilbud ? `<span class="tilbud">🏷️ ${esc(t('{kr} kr/kg hos {butikk}', { kr: kroner(v.tilbud.kg), butikk: v.tilbud.t.butikk }))}</span> · ` : billigstHylle(v.key)}${esc(v.hvorfor)}</small></span>
             <span class="mengde">${esc(v.mengde)}${v.pakker > 1 ? `<br><small>${esc(t('{n} pk', { n: v.pakker }))}</small>` : ''}</span>
           </label>`).join('')}
         ${manuelle.map((v) => `
@@ -2742,7 +2762,7 @@
     }
 
     // ---------- Oppdatering: vises én gang på hver telefon ----------
-    const OPPDATERING = 10, OPPD_NOKKEL = 'hjem.oppdatering';
+    const OPPDATERING = 11, OPPD_NOKKEL = 'hjem.oppdatering';
     const NYHETER = [
       { v: 2, ikon: '🍳', tittel: 'Hele dagen', tekst: 'Forslag til frokost, lunsj, mellommåltid og kveldsmat for hver av dere – ut fra hva dere liker og har i kjøleskapet.' },
       { v: 2, ikon: '🛒', tittel: 'Ukeshandel', tekst: 'Én handleliste for hele uka, og hvilken butikk som er billigst ut fra tilbudene og prisnivået.' },
@@ -2757,6 +2777,7 @@
       { v: 5, ikon: '🧾', tittel: 'Kvitteringer', tekst: 'Ta bilde av kvitteringen under Penger, så leser appen totalen og fører den i budsjettet.' },
       { v: 6, ikon: '🎯', tittel: 'Coach', tekst: 'Ny Coach-fane som minner deg på det som gjenstår i dag, viser ukas mål og hvordan forrige uke gikk, og regner ut når du når målvekta.' },
       { v: 6, ikon: '📅', tittel: 'Påminnelser', tekst: 'Velg når du vil bli minnet på veiing, vann, mat og trening, og legg det i kalenderen på telefonen, så får du varsel.' },
+      { v: 11, ikon: '💰', tittel: 'Ekte priser i butikkene', tekst: 'Handlelista bruker nå hyllepriser fra Eurospar, Meny, Joker og Bunnpris, og tilbudene fra kundeavisene. Du ser hvor hver vare er billigst, og hva hele lista koster i hver butikk.' },
       { v: 10, ikon: '🗓️', tittel: 'Alle måltidene i ukemenyen', tekst: 'Ukemenyen viser nå frokost, lunsj og mellommåltid for hver dag, ikke bare middagen.' },
       { v: 10, ikon: '🏪', tittel: 'Hva du skal kjøpe til lunsj', tekst: 'Står det kjøpt lunsj, foreslår appen hva du kan kjøpe, for eksempel kyllingsalat eller sushi. Trykk 🔄 for et annet forslag.' },
       { v: 10, ikon: '🐟', tittel: 'Fisk bare når dere liker det', tekst: 'Fisk utenom laks kommer bare hvis noen har valgt «Annen fisk» blant det de liker, og laks bare hvis noen har valgt laks.' },

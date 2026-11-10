@@ -1,8 +1,8 @@
 // Språk: norsk (standard), engelsk eller argentinsk spansk. Valget lagres per telefon.
 // Siden skrives på norsk; når et annet språk er valgt, oversettes teksten på siden fortløpende
 // fra ordbøkene i sprak-en.js / sprak-es.js (og navn på retter og varer fra mat-en.js / mat-es.js).
-import { EN, MONSTRE } from './sprak-en.js?v=9';
-import { ES, MONSTRE_ES } from './sprak-es.js?v=9';
+import { EN, MONSTRE } from './sprak-en.js?v=11';
+import { ES, MONSTRE_ES } from './sprak-es.js?v=11';
 export const SPRAK = [
   { id: 'no', navn: 'Norsk', flagg: '🇳🇴', lok: 'nb-NO' },
   { id: 'en', navn: 'English', flagg: '🇬🇧', lok: 'en-GB' },

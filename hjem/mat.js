@@ -1,6 +1,6 @@
 // Mat: ingredienser med næringsinnhold, oppskrifter, kalori-/makromål og middagsforslag.
 // Ingen DOM her, så alt kan testes med Node. Næringsverdier er omtrentlige (per 100 g, rå vare).
-import { lagMatcher, vurder } from '../tilbud/motor.js?v=9';
+import { lagMatcher, vurder } from '../tilbud/motor.js?v=11';
 
 // navn, kcal, protein, fett, karbo (per 100 g), pakke (g), pris (kr/kg), type, allergener, søkeord mot tilbud
 const I = (navn, kcal, p, f, k, pakke, pris, type, allergener = [], sok = [], ikke = [], ekstra = {}) =>
@@ -822,21 +822,34 @@ export function tilbudPerButikk(tilbud) {
   return ut;
 }
 
-export function butikkanbefaling({ varer, tilbud, foretrukne = [] }) {
+// Kjeden en butikk hører til i hyllepris-dataene (Kassalapp har priser per kjede)
+const KJEDE = { Eurospar: 'Eurospar', SPAR: 'Eurospar', EUROSPAR: 'Eurospar', Meny: 'Meny', Joker: 'Joker', Bunnpris: 'Bunnpris' };
+export const hylleprisHos = (hylle, butikk, key) => hylle?.[key]?.per?.[KJEDE[butikk] || butikk] || null;
+
+// Hva handlelista koster i hver butikk: hyllepris eller tilbud der vi har det (ekte priser), ellers et anslag
+export function butikkanbefaling({ varer, tilbud, foretrukne = [], hylle = null }) {
   const perButikk = tilbudPerButikk(tilbud);
-  const butikker = [...new Set([...(tilbud || []).map((t) => t.butikk)])].filter((b) => !foretrukne.length || foretrukne.includes(b));
+  const hylleKjeder = hylle ? [...new Set(Object.values(hylle).flatMap((v) => Object.keys(v.per || {})))] : [];
+  const butikker = [...new Set([...(tilbud || []).map((t) => t.butikk), ...hylleKjeder])]
+    .filter((b) => !foretrukne.length || foretrukne.includes(b) || foretrukne.includes(KJEDE[b]));
   if (!butikker.length || !varer.length) return null;
   const prisHos = (b, v) => {
     const ing = INGREDIENSER[v.key];
+    const anslag = ing.pris * (PRISNIVA[b] ?? 1.05);
     const tb = perButikk[b]?.[v.key];
-    const kg = tb && tb.kg < ing.pris * (PRISNIVA[b] ?? 1.05) ? tb.kg : ing.pris * (PRISNIVA[b] ?? 1.05);
-    return { kr: v.pakker * (ing.pakke / 1000) * kg, tilbud: !!tb && tb.kg < ing.pris * (PRISNIVA[b] ?? 1.05) };
+    const hk = hylleprisHos(hylle, b, v.key)?.kg;
+    // Et tilbud som er dyrere enn vanlig pris, er nesten alltid en annen vare (større/finere variant) – det hoppes over
+    const tbKg = tb && tb.kg <= (hk || anslag) * 1.05 ? tb.kg : null;
+    const ekte = [hk, tbKg].filter((x) => x > 0);
+    const kg = ekte.length ? Math.min(...ekte) : anslag;
+    return { kr: v.pakker * (ing.pakke / 1000) * kg, tilbud: !!tbKg && tbKg <= (hk || anslag), ekte: ekte.length > 0 };
   };
   const totaler = butikker.map((b) => {
-    let sum = 0, antallTilbud = 0;
-    for (const v of varer) { const p = prisHos(b, v); sum += p.kr; if (p.tilbud) antallTilbud++; }
-    return { butikk: b, sum, antallTilbud };
-  }).sort((a, b) => a.sum - b.sum);
+    let sum = 0, antallTilbud = 0, antallEkte = 0;
+    for (const v of varer) { const p = prisHos(b, v); sum += p.kr; if (p.tilbud) antallTilbud++; if (p.ekte) antallEkte++; }
+    return { butikk: b, sum, antallTilbud, antallEkte, antall: varer.length };
+  }).filter((x) => x.antallEkte > 0).sort((a, b) => a.sum - b.sum);
+  if (!totaler.length) return null;
   // Lønner det seg å dele handelen på to butikker?
   let deling = null;
   for (let i = 0; i < totaler.length; i++) for (let j = i + 1; j < totaler.length; j++) {

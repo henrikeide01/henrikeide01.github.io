@@ -635,6 +635,13 @@ export const EN = {
   "Står det kjøpt lunsj, foreslår appen hva du kan kjøpe, for eksempel kyllingsalat eller sushi. Trykk 🔄 for et annet forslag.": "When it says bought lunch, the app suggests what to buy, for example chicken salad or sushi. Tap 🔄 for another suggestion.",
   "Fisk bare når dere liker det": "Fish only when you like it",
   "Fisk utenom laks kommer bare hvis noen har valgt «Annen fisk» blant det de liker, og laks bare hvis noen har valgt laks.": "Fish other than salmon only shows up if someone picked “Other fish” among what they like, and salmon only if someone picked salmon.",
+  "ekte pris på {n} av {m}, resten anslått": "real price for {n} of {m}, the rest estimated",
+  "ekte pris på alle": "real price for everything",
+  "{butikk}: {kr} kr for {navn}": "{butikk}: {kr} kr for {navn}",
+  "Hyllepriser fra Kassalapp, oppdatert {dato}. Coop, Kiwi og REMA 1000 har ikke ferske hyllepriser der, så for dem brukes tilbudene fra kundeavisene og ellers et anslag.": "Shelf prices from Kassalapp, updated {dato}. Coop, Kiwi and REMA 1000 don't have fresh shelf prices there, so for them the flyer offers are used, and otherwise an estimate.",
+  "Ekte priser i butikkene": "Real prices in the shops",
+  "Handlelista bruker nå hyllepriser fra Eurospar, Meny, Joker og Bunnpris, og tilbudene fra kundeavisene. Du ser hvor hver vare er billigst, og hva hele lista koster i hver butikk.": "The shopping list now uses shelf prices from Eurospar, Meny, Joker and Bunnpris, plus the flyer offers. You see where each item is cheapest, and what the whole list costs in each shop.",
+  "{butikk}: {kr} kr/kg": "{butikk}: {kr} kr/kg",
   "Vekta er privat": "Your weight is private",
   "Vekta di ligger bare på din egen telefon. De andre i husstanden ser den ikke.": "Your weight is only stored on your own phone. The others in the household can't see it.",
 

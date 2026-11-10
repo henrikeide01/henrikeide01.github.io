@@ -635,6 +635,13 @@ export const ES = {
   "Står det kjøpt lunsj, foreslår appen hva du kan kjøpe, for eksempel kyllingsalat eller sushi. Trykk 🔄 for et annet forslag.": "Cuando dice almuerzo comprado, la app sugiere qué comprar, por ejemplo ensalada de pollo o sushi. Tocá 🔄 para otra sugerencia.",
   "Fisk bare når dere liker det": "Pescado solo si les gusta",
   "Fisk utenom laks kommer bare hvis noen har valgt «Annen fisk» blant det de liker, og laks bare hvis noen har valgt laks.": "El pescado que no es salmón solo aparece si alguien eligió «Otro pescado» entre lo que le gusta, y el salmón solo si alguien eligió salmón.",
+  "ekte pris på {n} av {m}, resten anslått": "precio real en {n} de {m}, el resto estimado",
+  "ekte pris på alle": "precio real en todo",
+  "{butikk}: {kr} kr for {navn}": "{butikk}: {kr} kr por {navn}",
+  "Hyllepriser fra Kassalapp, oppdatert {dato}. Coop, Kiwi og REMA 1000 har ikke ferske hyllepriser der, så for dem brukes tilbudene fra kundeavisene og ellers et anslag.": "Precios de góndola de Kassalapp, actualizados el {dato}. Coop, Kiwi y REMA 1000 no tienen precios actualizados ahí, así que para ellos se usan las ofertas de los folletos y si no, una estimación.",
+  "Ekte priser i butikkene": "Precios reales en los súper",
+  "Handlelista bruker nå hyllepriser fra Eurospar, Meny, Joker og Bunnpris, og tilbudene fra kundeavisene. Du ser hvor hver vare er billigst, og hva hele lista koster i hver butikk.": "La lista de compras ahora usa precios de góndola de Eurospar, Meny, Joker y Bunnpris, y las ofertas de los folletos. Ves dónde está más barato cada producto y cuánto cuesta toda la lista en cada súper.",
+  "{butikk}: {kr} kr/kg": "{butikk}: {kr} kr/kg",
   "Vekta er privat": "Tu peso es privado",
   "Vekta di ligger bare på din egen telefon. De andre i husstanden ser den ikke.": "Tu peso queda solo en tu propio celu. Los demás de la casa no lo ven.",
 
