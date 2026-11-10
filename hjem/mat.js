@@ -1,6 +1,6 @@
 // Mat: ingredienser med næringsinnhold, oppskrifter, kalori-/makromål og middagsforslag.
 // Ingen DOM her, så alt kan testes med Node. Næringsverdier er omtrentlige (per 100 g, rå vare).
-import { lagMatcher, vurder } from '../tilbud/motor.js?v=11';
+import { lagMatcher, vurder } from '../tilbud/motor.js?v=12';
 
 // navn, kcal, protein, fett, karbo (per 100 g), pakke (g), pris (kr/kg), type, allergener, søkeord mot tilbud
 const I = (navn, kcal, p, f, k, pakke, pris, type, allergener = [], sok = [], ikke = [], ekstra = {}) =>

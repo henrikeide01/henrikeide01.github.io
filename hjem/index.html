@@ -444,6 +444,23 @@
         if (document.body) lag(); else document.addEventListener('DOMContentLoaded', lag);
       }
       window.hjemFeil = vis;
+      // Filer som ikke lastes (f.eks. blokkert av en utvidelse) gir ingen vanlig feil – fang dem her
+      window.addEventListener('error', function (e) {
+        var el = e.target;
+        if (el && el.tagName === 'SCRIPT') { window.__hjemLastefeil = 'Klarte ikke å laste ' + (el.src || 'appen') + '. Er en annonseblokker eller utvidelse slått på for eidert.no?'; vis(window.__hjemLastefeil); }
+      }, true);
+      // Trykker du på en knapp før appen har startet, eller uten at noe skjer, sier vi fra hvorfor
+      var sjekket = 0;
+      document.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest && e.target.closest('button');
+        if (!b || b.closest('#feillinje')) return;
+        if (!window.__hjemKlar) {
+          setTimeout(function () { if (!window.__hjemKlar) vis('Appen har ikke startet, så knappene virker ikke. ' + (window.__hjemLastefeil || 'Prøv å laste siden på nytt med Ctrl+Shift+R.') + ' [' + ((navigator.userAgent.match(/(Edg|OPR|Firefox|Chrome|Version)\/[\d.]+/) || [''])[0]) + ']'); }, 300);
+          return;
+        }
+        var t = window.__hjemTegninger || [], naa = Date.now(), siste = t.filter(function (x) { return naa - x.t < 10000; });
+        if (siste.length >= 15 && sjekket++ < 3) vis('Siden tegnes på nytt hele tiden (' + siste.length + ' ganger på 10 sekunder), så klikk forsvinner. Utløst av: ' + siste.slice(-3).map(function (x) { return x.av; }).join(' | '));
+      }, true);
       window.addEventListener('error', function (e) {
         if (!e.message) return;
         vis(e.message + (e.filename ? ' (' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno + ')' : ''));
@@ -660,30 +677,30 @@
       nettoAv, lonnsstatistikk, anslagLonn, lonnsprofil, FRIKORTGRENSE, kroner, normaliserPlan,
       lesMat, lagreMat, harPlan, sikreTidligereOppsett, hentTidligereOppsett, lagNyPlan, leggTilPerson, fjernPerson,
       matAndelFor, harEgenMatdeling,
-    } from './budsjett.js?v=11';
-    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js?v=11';
-    import { tolkKvittering } from './kvittering.js?v=11';
-    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST, OKTTYPER, INKL_OKTER, VANLIGE_SKRITT, kcalSkritt, kcalOkt, ekstraPerDag, fortAktivitet } from './coach.js?v=11';
+    } from './budsjett.js?v=12';
+    import { isoUke, ukeserie, trendPerUke, vurdering, tilMalvekt, planFart, estimat, fartForDato, fremgang, plussMaaneder, tryggFart, gulvFart } from './vekt.js?v=12';
+    import { tolkKvittering } from './kvittering.js?v=12';
+    import { standardPaaminnelser, fyllPaaminnelser, hendelserFor, lagIcs, tidsstempel, rekke, ukerekke, vannForventet, ukedag, MALTID_FRIST, OKTTYPER, INKL_OKTER, VANLIGE_SKRITT, kcalSkritt, kcalOkt, ekstraPerDag, fortAktivitet } from './coach.js?v=12';
     import {
       INGREDIENSER, OPPSKRIFTER, oppskrift, perPorsjon, beregnMal, porsjonFor, porsjonerFor, foreslaa, fyllMeny,
       snartTomt, mengdeTekst, tilbudPaIngredienser, leggTilDager, prisFor,
       dagsplan, alternativer, maltid, MALTIDSNAVN, behovForUke, butikkanbefaling,
       fraKjokkenet, resterFor, slotsFor, naeringMaltid, RESTER_DAGER,
       proteinBytter, kjopFor, kjopSomPasser, passerFor,
-    } from './mat.js?v=11';
+    } from './mat.js?v=12';
     import {
       ALLE_PERSONSPORSMAL, HUSSTANDSPORSMAL, SPORSMALSVERSJON, INNTEKTSSPORSMAL, FOKUSVALG, kjorSporsmal,
       nyeSporsmalFor, nyeHusstandssporsmalFor, MATDELING,
-    } from './sporsmal.js?v=11';
-    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js?v=11';
-    import { MAT_EN } from './mat-en.js?v=11';
-    import { MAT_ES } from './mat-es.js?v=11';
+    } from './sporsmal.js?v=12';
+    import { t, oversett, liste, LOK, erEngelsk, erSpansk, oversettes, leggTilOrdbok, startOversetting, sprakknapp, SPRAK, sprak, settSprak } from './sprak.js?v=12';
+    import { MAT_EN } from './mat-en.js?v=12';
+    import { MAT_ES } from './mat-es.js?v=12';
     leggTilOrdbok({ en: MAT_EN, es: MAT_ES });
 
     // Telefoner som brukte budsjettet før oppstarten kom, beholder oppsettet sitt
     sikreTidligereOppsett();
-    import { tolkLonnsslipp } from './lonnsslipp.js?v=11';
-    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode, SQL_EDITOR } from './synk.js?v=11';
+    import { tolkLonnsslipp } from './lonnsslipp.js?v=12';
+    import { deling, erDelt, synk, startDeling, finnDelt, bliMed, settJeg, kobleFra, startAutoSynk, delingslenke, normaliserKode, SQL_EDITOR } from './synk.js?v=12';
 
     // Tekstgjenkjenning (lastes først når du laster opp et bilde)
     const OCR = {
@@ -1122,9 +1139,16 @@
           if (delt.vekt != null && pv.vekt == null) pv.vekt = delt.vekt;
           if ('malvekt' in delt && !('malvekt' in pv)) pv.malvekt = delt.malvekt;
           for (const m of S.mat.vekt?.[p.id] || []) if (!pv.vektlogg.some((x) => x.id === m.id)) pv.vektlogg.push(m);
+          // Har vekta, målet eller tempoet endret seg på denne enheten, får den et nytt tidsstempel
+          const grunnlag = JSON.stringify(privatProfil(pv));
+          if (pv.malGrunnlag !== grunnlag) { pv.malGrunnlag = grunnlag; pv.malEndret = Date.now(); }
           lagrePrivat();
           const mal = beregnMal({ ...offentlig(delt), ...privatProfil(pv) });
-          const ny = { ...offentlig(delt), ...(mal ? { malTall: rundMal(mal) } : {}), vektPrivat: true };
+          // Bruker du appen på flere enheter, er det enheten med de nyeste tallene som bestemmer det delte kalorimålet
+          // (ellers ville PC og mobil overskrive hverandre hele tiden)
+          const minTid = Number(pv.malEndret) || 0, deltTid = Number(delt.malTid) || 0;
+          const skriv = mal && (!delt.malTall || minTid > deltTid);
+          const ny = { ...offentlig(delt), ...(skriv ? { malTall: rundMal(mal), malTid: minTid } : {}), vektPrivat: true };
           if (JSON.stringify(ny) !== JSON.stringify(delt)) { S.mat.profiler[p.id] = ny; endret = true; }
           if (S.mat.vekt?.[p.id]) { delete S.mat.vekt[p.id]; endret = true; } // ligger nå på denne telefonen
         } else {
@@ -3394,6 +3418,10 @@
     $('delDialog').addEventListener('click', (e) => { if (e.target === $('delDialog')) $('delDialog').close(); });
 
     function tegnAlt() {
+      // Teller omtegninger, så feilsøkingen kan se om siden tegnes på nytt hele tiden
+      const spor = (window.__hjemTegninger ??= []);
+      spor.push({ t: Date.now(), av: String(new Error().stack || '').split('\n').slice(2, 4).map((x) => x.trim().replace(/^at /, '').replace(/\(?https?:\/\/[^ )]*\/([^/ )]+)\)?/g, '$1')).join(' ← ') });
+      if (spor.length > 60) spor.splice(0, spor.length - 60);
       trygt(oppdaterPrivat, tegnDeling, tegnKategorivalg, tegnOversikt, tegnLonn, tegnSlipper, tegnForslag, tegnBudsjett, tegnPlanRedigering, tegnHusstand, tegnMat);
     }
 
@@ -3642,6 +3670,7 @@
     }
     window.addEventListener('hashchange', sjekkInvitasjon);
     sjekkInvitasjon();
+    window.__hjemKlar = true;
   </script>
 </body>
 </html>

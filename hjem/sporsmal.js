@@ -1,5 +1,5 @@
 // Spørsmålene som tilpasser middager, porsjoner og makroer – ett spørsmål om gangen, store knapper.
-import { oversett as o, t } from './sprak.js?v=11';
+import { oversett as o, t } from './sprak.js?v=12';
 const V = (v, tekst, ikon = '', hjelp = '') => ({ v, tekst, ikon, hjelp });
 
 export const PERSONSPORSMAL = [
