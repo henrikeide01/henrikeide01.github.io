@@ -1,5 +1,5 @@
 {
- "oppdatert": "2026-11-10T08:15:18.513Z",
+ "oppdatert": "2026-11-10T08:54:26.715Z",
  "kilde": "Kassalapp (kassal.app)",
  "ferskDager": 21,
  "varer": {
@@ -58,7 +58,7 @@
      "pris": 169,
      "gram": 1120,
      "navn": "KYLLINGLÅR GRILLET 1120 g Prior",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -91,7 +91,7 @@
      "pris": 70,
      "gram": 400,
      "navn": "KARBONADEDEIG 400 g Billig middag",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -195,7 +195,7 @@
      "pris": 50,
      "gram": 150,
      "navn": "SCAMPI 150 g",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -254,7 +254,7 @@
      "pris": 69,
      "gram": 520,
      "navn": "WIENERPØLSER KYLLING/KALKUN 520 g Prior",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -287,7 +287,7 @@
      "pris": 37.9,
      "gram": 110,
      "navn": "GILDE EKTE KOKT SKINKE 110 g",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -365,7 +365,7 @@
      "pris": 9.9,
      "gram": 380,
      "navn": "KIDNEYBØNNER 380g first price",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -410,7 +410,7 @@
      "pris": 149,
      "gram": 1000,
      "navn": "GULOST ORIGINAL ca 1 kg Synnøve",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -429,7 +429,7 @@
      "pris": 45,
      "gram": 265,
      "navn": "MARINERT FETA Apetina 265 g",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     },
     "Eurospar": {
      "kg": 163.2,
@@ -469,7 +469,7 @@
      "pris": 32.9,
      "gram": 300,
      "navn": "TINE SETERRØMME 3 dl",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -502,7 +502,7 @@
      "pris": 27.9,
      "gram": 300,
      "navn": "TINE MATFLØTE 18% 3 dl",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -535,7 +535,7 @@
      "pris": 30.9,
      "gram": 300,
      "navn": "TINE KREMFLØTE 3 dl",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -568,7 +568,7 @@
      "pris": 33.9,
      "gram": 1750,
      "navn": "TINE LETTMELK 0.5% 1.75L",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -601,7 +601,7 @@
      "pris": 71.9,
      "gram": 500,
      "navn": "MEIERISMØR NORMALSALTET 500 g Tine",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -634,7 +634,7 @@
      "pris": 74.9,
      "gram": 4000,
      "navn": "JASMINRIS 4 kg first price",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -693,7 +693,7 @@
      "pris": 19.9,
      "gram": 250,
      "navn": "EGGNUDLER 250 g Eldorado",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -816,7 +816,7 @@
      "pris": 36.9,
      "gram": 480,
      "navn": "BURGERBRØD Grove 6stk 480g reale",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -849,7 +849,7 @@
      "pris": 66.9,
      "gram": 575,
      "navn": "GRANDIOSA PIZZA 575 g",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -932,7 +932,7 @@
      "pris": 28.9,
      "gram": 400,
      "navn": "MUTTI KNUSTE TOMATER 400 g",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     },
     "Eurospar": {
      "kg": 105.7,
@@ -998,7 +998,7 @@
      "pris": 28.9,
      "gram": 500,
      "navn": "BROKKOLIBLANDING 500 g First Price",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1057,7 +1057,7 @@
      "pris": 11.9,
      "gram": 340,
      "navn": "MAISKORN 340 g First Price",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1116,7 +1116,7 @@
      "pris": 36.9,
      "gram": 360,
      "navn": "AGURKMIX 360G ELDORADO",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1149,7 +1149,7 @@
      "pris": 18.9,
      "gram": 400,
      "navn": "CHAMPIGNON Hel 400g first price",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1182,7 +1182,7 @@
      "pris": 12.9,
      "gram": 250,
      "navn": "KOKOSMELK 250ml eldorado",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1215,7 +1215,7 @@
      "pris": 34.9,
      "gram": 110,
      "navn": "RED CURRY PASTE 110g st.maria",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1248,7 +1248,7 @@
      "pris": 24.9,
      "gram": 185,
      "navn": "PESTO ALLA GENOVESE 185G ELDORADO",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1274,7 +1274,7 @@
      "pris": 4.9,
      "gram": 28,
      "navn": "TACO KRYDDERMIX 28g first price",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     },
     "Eurospar": {
      "kg": 330,
@@ -1293,7 +1293,7 @@
      "pris": 24.9,
      "gram": 230,
      "navn": "TACOSAUS HOT 230 g Santa Maria",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     },
     "Eurospar": {
      "kg": 60,
@@ -1347,7 +1347,7 @@
      "pris": 29.9,
      "gram": 1200,
      "navn": "URKRAFT HAVREGRYN 1.2 kg lettkokt Møllerens",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1399,7 +1399,7 @@
      "pris": 19.9,
      "gram": 180,
      "navn": "RUNDSTYKKE KNEIPP 3stk 180g bakehuset",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1475,7 +1475,7 @@
      "pris": 24.9,
      "gram": 130,
      "navn": "SKYR LUFTIG 130 g bringebær",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1508,7 +1508,7 @@
      "pris": 31.9,
      "gram": 400,
      "navn": "COTTAGE CHEESE MAGER 400 g",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1605,7 +1605,7 @@
      "pris": 22.9,
      "gram": 275,
      "navn": "PEANØTTER 275 g Eldorado",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   },
@@ -1631,7 +1631,7 @@
      "pris": 71.9,
      "gram": 340,
      "navn": "PEANØTTSMØR CRUNCHY 340 G",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     },
     "Joker": {
      "kg": 173.2,
@@ -1671,7 +1671,7 @@
      "pris": 39.9,
      "gram": 55,
      "navn": "BANANA DREAM 55g barebells",
-     "dato": "2026-11-09"
+     "dato": "2026-11-10"
     }
    }
   }
