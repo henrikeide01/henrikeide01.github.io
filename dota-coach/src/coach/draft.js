@@ -2,6 +2,7 @@
 import { positionsFor } from '../../data/positions.js';
 import { synergiesWith } from '../../data/synergy.js';
 import { knownMatchups } from './counters.js';
+import { pairStats } from './matchups.js';
 
 export const BRACKETS = { 1: 'Herald', 2: 'Guardian', 3: 'Crusader', 4: 'Archon', 5: 'Legend', 6: 'Ancient', 7: 'Divine', 8: 'Immortal' };
 
@@ -61,11 +62,19 @@ export function tierList(heroes, stats, { bracket = 5, role = 0 } = {}) {
     .sort((a, b) => b.z - a.z);
 }
 
-// matchups: Map enemyName -> [{hero_id, games_played, wins}] (wins are the enemy's wins vs hero_id)
-// Returns the advantage (percentage points) `candidate` has against each enemy.
-export function counterAdvantages(candidate, enemies, matchups) {
+// The advantage (percentage points) `candidate` has against each enemy. Two sources:
+// - `pub` = { index, bracket }: public ranked matches in your bracket (src/coach/matchups.js). The advantage is
+//   measured against what the two heroes' overall win rates would predict, so it shows real counters.
+// - matchups: Map enemyName -> [{hero_id, games_played, wins}] from OpenDota pro matches (wins are the enemy's
+//   wins vs hero_id), used for an enemy the public data does not cover.
+export function counterAdvantages(candidate, enemies, matchups = new Map(), pub = null) {
   const out = [];
   for (const e of enemies) {
+    const s = pub?.index ? pairStats(pub.index, candidate.id, e.id, pub.bracket) : null;
+    if (s) {
+      out.push({ enemy: e, adv: s.adv, games: s.games, wr: s.wr, expected: s.expected, source: 'public' });
+      continue;
+    }
     const rows = matchups.get(e.name);
     if (!rows) continue;
     const row = rows.find((r) => r.hero_id === candidate.id);
@@ -74,7 +83,7 @@ export function counterAdvantages(candidate, enemies, matchups) {
     const candWins = g - row.wins;
     const k = 40;
     const adv = ((candWins + 0.5 * k) / (g + k) - 0.5) * 100;
-    out.push({ enemy: e, adv, games: g });
+    out.push({ enemy: e, adv, games: g, wr: candWins / g, source: 'pro' });
   }
   return out;
 }
@@ -147,6 +156,10 @@ export function needsText(needs = []) {
 const joinNames = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} og ${list[list.length - 1]}` : list[0] || '');
 const pct = (x) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 
+// How much one percentage point of matchup advantage counts in the score.
+const MATCHUP_WEIGHT_PUBLIC = 0.8;
+const MATCHUP_WEIGHT_PRO = 0.5;
+
 // Known counters (knowledge base) are worth this much per enemy, in the same percentage points as the rest.
 const KNOWN_GOOD = 2;
 const KNOWN_BAD = 2;
@@ -154,7 +167,7 @@ const KNOWN_BAD = 2;
 // Pick suggestions: meta in the bracket + counters against the enemies (pro matchups and known counters) + what
 // the team lacks + known combos with the allies. Banned and picked heroes are left out. Every row carries the
 // parts of its score (`parts`), so the page can show why it is there.
-export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(), allies = [], enemies = [], bans = [], role = 0, bracket = 5, limit = 12, kb }) {
+export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(), pub = null, allies = [], enemies = [], bans = [], role = 0, bracket = 5, limit = 12, kb }) {
   allies = allies.filter(Boolean);
   enemies = enemies.filter(Boolean);
   const taken = new Set([...allies, ...enemies, ...bans.filter(Boolean)].map((h) => h.name));
@@ -170,17 +183,19 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
     if (fit <= 0) continue;
     const t = tiers.get(h.name);
     const metaPP = t ? (t.winrate !== null ? t.z * 1.5 : 0) : 0;
-    const adv = counterAdvantages(h, enemies, matchups);
-    const counterPP = adv.reduce((s, a) => s + a.adv, 0);
+    const adv = counterAdvantages(h, enemies, matchups, pub);
+    // Public-match advantages are measured against expectation and need less damping than the small pro samples.
+    const counterPP = adv.reduce((s, a) => s + a.adv * (a.source === 'public' ? MATCHUP_WEIGHT_PUBLIC : MATCHUP_WEIGHT_PRO), 0);
     const known = knownMatchups(h, enemies, kb);
     const knownPP = Math.min(5, known.good.length * KNOWN_GOOD) - Math.min(5, known.bad.length * KNOWN_BAD);
     const comp = compositionScore(h, needs, allies.length);
     const syn = synergiesWith(h.name, allyNames).map((s) => ({ ...s, dname: allyDname.get(s.ally) || s.ally }));
     const synergyPP = Math.min(6, syn.reduce((s, x) => s + x.bonus, 0));
     const rolePP = (fit - 1) * 3;
-    const score = metaPP + counterPP * 0.5 + knownPP + rolePP + comp.score + synergyPP;
-    const good = adv.filter((a) => a.adv >= 1.5).sort((a, b) => b.adv - a.adv).slice(0, 3).map((a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv, games: a.games }));
-    const bad = adv.filter((a) => a.adv <= -1.5).sort((a, b) => a.adv - b.adv).slice(0, 2).map((a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv, games: a.games }));
+    const score = metaPP + counterPP + knownPP + rolePP + comp.score + synergyPP;
+    const brief = (a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv, games: a.games, wr: a.wr, source: a.source });
+    const good = adv.filter((a) => a.adv >= 1.5).sort((a, b) => b.adv - a.adv).slice(0, 3).map(brief);
+    const bad = adv.filter((a) => a.adv <= -1.5).sort((a, b) => a.adv - b.adv).slice(0, 2).map(brief);
 
     // Short reasons, the most important first (the overlay shows one line of them).
     const reasons = [];
@@ -204,6 +219,8 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
       meta: metaPP,
       counter: counterPP,
       known: knownPP,
+      // Every enemy, for the "Hvorfor?" view (advantage, games, win rate, source).
+      vs: adv.map(brief),
       comp: comp.score,
       synergy: syn.map((s) => ({ name: s.ally, dname: s.dname, why: s.why, bonus: s.bonus })),
       fills: comp.fills.map((n) => n.id),
@@ -215,7 +232,7 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
       // The score, part by part (percentage points), for the "Hvorfor?" view.
       parts: {
         meta: metaPP,
-        matchups: counterPP * 0.5,
+        matchups: counterPP,
         known: knownPP,
         team: comp.score,
         combo: synergyPP,
@@ -240,12 +257,12 @@ const LANE_OPPONENTS = { 1: [3, 4], 2: [2], 3: [1, 5], 4: [1, 5], 5: [3, 4] };
 // Heroes worth banning: strong in the bracket and good against our team so far (the allies' and your own
 // matchups, read the other way round). With nobody on our team yet: the strongest meta heroes you would
 // meet in your lane, weighted a little by how often they are picked.
-export function suggestBans({ heroes, stats = new Map(), matchups = new Map(), allies = [], ownHero = null, enemies = [], bans = [], role = 0, bracket = 5, limit = 5, kb }) {
+export function suggestBans({ heroes, stats = new Map(), matchups = new Map(), pub = null, allies = [], ownHero = null, enemies = [], bans = [], role = 0, bracket = 5, limit = 5, kb }) {
   const team = [...allies, ownHero].filter(Boolean);
   const taken = new Set([...team, ...enemies, ...bans].filter(Boolean).map((h) => h.name));
   const tiers = tierList(heroes, stats, { bracket, role: 0 });
   if (!tiers.length) return [];
-  const known = team.filter((h) => matchups.has(h.name));
+  const known = team.filter((h) => matchups.has(h.name) || pub?.index?.pos.has(h.id));
   const opp = LANE_OPPONENTS[Number(role)] || [];
   const byName = new Map(heroes.map((h) => [h.name, h]));
 
@@ -266,8 +283,8 @@ export function suggestBans({ heroes, stats = new Map(), matchups = new Map(), a
       reasons.push(`Counter mot ${joinNames(kv.slice(0, 2).map((k) => k.dname))}`);
     }
     if (known.length) {
-      const adv = counterAdvantages(h, known, matchups);
-      const data = adv.reduce((s, a) => s + a.adv, 0);
+      const adv = counterAdvantages(h, known, matchups, pub);
+      const data = adv.reduce((s, a) => s + a.adv * (a.source === 'public' ? MATCHUP_WEIGHT_PUBLIC : MATCHUP_WEIGHT_PRO), 0);
       threat += data;
       score += data * 0.6;
       const vs = adv.filter((a) => a.adv >= 1.5 && !kv.some((k) => k.name === a.enemy.name)).sort((a, b) => b.adv - a.adv).slice(0, 2);

@@ -10,6 +10,7 @@ export const TTL = {
   hero: 24 * HOUR,
   constants: 7 * 24 * HOUR,
   skills: 3 * 24 * HOUR,
+  publicMatchups: 3 * 24 * HOUR,
 };
 
 const safeName = (p) => p.replace(/^\//, '').replace(/[^a-z0-9]+/gi, '_');
@@ -121,6 +122,14 @@ export class OpenDota {
 
   items() {
     return this.get('/constants/items', TTL.constants);
+  }
+
+  // One hero's results against every other hero in public ranked matches of about the last week, per bracket
+  // (OpenDota SQL explorer). Rows: [bracket, opponentId (0 = totals), games, wins].
+  async publicMatchups(heroId, sql) {
+    const valid = (d) => Array.isArray(d?.rows) && d.rows.length > 0 && !d.err;
+    const r = await this.get(`/explorer?sql=${encodeURIComponent(sql)}`, TTL.publicMatchups, { key: `explorer_public_matchups_${Number(heroId)}`, valid, explorer: true });
+    return r.rows.map((x) => [Number(x.b), Number(x.hero_id), Number(x.games), Number(x.wins)]);
   }
 
   // Skill orders, talents and neutral items from recent pro games with this hero (OpenDota SQL explorer).

@@ -1279,9 +1279,15 @@ function whyPickHtml(r) {
   const rows = [];
   const row = (v, label, text) => rows.push(`<div class="wp-row"><b class="${v > 0.05 ? 'pos' : v < -0.05 ? 'neg' : ''}">${fmtPP(v)}</b><span><span class="wp-label">${label}</span> ${text}</span></div>`);
   row(p.meta || 0, 'Meta:', r.winrate != null ? `${fmtPct(r.winrate)} seier i ${BRACKET_NAME[settings.bracket]}${r.picks ? ` (${games(r.picks)})` : ''}, ${esc(r.tier)}-tier.` : 'ingen tall for din rank ennå.');
-  const mu = [...(r.good || []), ...(r.bad || [])];
-  if (mu.length) row(p.matchups || 0, 'Matchups:', `${mu.map((g) => `${esc(g.dname)} ${fmtAdv(g.adv)}${g.games ? ` (${games(g.games)})` : ''}`).join(', ')}.`);
-  else if (Math.abs(p.matchups || 0) >= 0.1) row(p.matchups, 'Matchups:', 'små forskjeller mot fiendene.');
+  const vs = r.vs || [];
+  if (vs.length) {
+    const pubSrc = vs.some((v) => v.source === 'public');
+    rows.push(`<div class="wp-row"><b class="${(p.matchups || 0) > 0.05 ? 'pos' : (p.matchups || 0) < -0.05 ? 'neg' : ''}">${fmtPP(p.matchups || 0)}</b><span><span class="wp-label">Matchups</span> <span class="faint">(${pubSrc ? `offentlige rankede kamper i ${BRACKET_NAME[settings.bracket]}, siste uke` : 'pro-kamper'})</span></span></div>`);
+    for (const v of [...vs].sort((a, b) => b.adv - a.adv)) {
+      const cls = v.adv >= 1 ? 'pos' : v.adv <= -1 ? 'neg' : '';
+      rows.push(`<div class="wp-row wp-sub"><span></span><span>${heroImg(v.name, v.dname, 'xs')} <b class="${cls}">${fmtAdv(v.adv)}</b> mot ${esc(v.dname)}: vinner ${fmtPct(v.wr)} av ${games(v.games)}</span></div>`);
+    }
+  } else if (Math.abs(p.matchups || 0) >= 0.1) row(p.matchups, 'Matchups:', 'små forskjeller mot fiendene.');
   for (const k of r.knownGood || []) row(2, 'Counter:', `mot ${esc(k.dname)}: ${esc(k.why)}`);
   for (const k of r.knownBad || []) row(-2, 'Blir countret:', `${esc(k.dname)} – ${esc(k.why)}`);
   const fills = (r.reasons || []).find((x) => x.text.startsWith('Gir laget'));
@@ -1295,7 +1301,7 @@ function whyPickHtml(r) {
 const howItWorks = () => `<details class="card how" ${keepOpen('how')}><summary><b>Slik regnes forslagene ut</b></summary>
   <ul>
     <li><b>Meta</b>: vinnerraten til helten i offentlige kamper i ranken din (OpenDota). Gir opptil ±3 poeng.</li>
-    <li><b>Matchups</b>: hvor ofte helten vinner mot hver fiende i pro-kamper det siste året (OpenDota). Med få kamper blir tallet trukket mot 0, så tilfeldigheter ikke gir store utslag. Antall kamper står ved tallet.</li>
+    <li><b>Matchups</b>: hvor ofte helten vinner mot hver fiende i offentlige rankede kamper i ranken din den siste uka (OpenDota, de samme kampene Dotabuff bruker), sammenlignet med hva heroenes vanlige vinnerrate tilsier. +3 betyr at helten vinner 3 prosentpoeng oftere mot den fienden enn forventet. Antall kamper står ved tallet. Med få kamper tas nabo-rankene med, og tallet trekkes mot 0.</li>
     <li><b>Counter</b>: kjente counters fra Dota Coach sin kunnskapsbase for patch 7.41, med evnen som gjør jobben. Hver påstand er sjekket mot evne- og item-beskrivelsene i 7.41. Gir +2 per fiende (maks +5), og −2 når en fiende countrer helten.</li>
     <li><b>Laget</b>: det laget ditt mangler (initiering, stuns, frontlinje, waveclear, magisk eller fysisk skade, lategame-carry).</li>
     <li><b>Kombo</b>: kjente kombinasjoner med lagkameratene dine.</li>
@@ -1381,13 +1387,14 @@ async function loadMeta(force) {
     const data = await api(`/api/meta?role=${role}&bracket=${settings.bracket}`);
     if (key !== metaKey) return;
     const rows = data.rows.slice(0, 80);
-    $('meta-table').innerHTML = `<div class="muted" style="margin-bottom:8px;font-size:12.5px">Vinnerrate og pick-rate i ${BRACKET_NAME[settings.bracket]} (offentlige kamper, OpenDota). Tier er relativ til de andre heroene i lista.</div>
-      <table><thead><tr><th>Tier</th><th>Hero</th><th>Vinnerrate</th><th>Pick-rate</th><th>Posisjoner</th></tr></thead><tbody>${rows
+    $('meta-table').innerHTML = `<div class="muted" style="margin-bottom:8px;font-size:12.5px">Vinnerrate og pick-rate i ${BRACKET_NAME[settings.bracket]} (offentlige rankede kamper, OpenDota, de samme kampene Dotabuff bruker). Tier er relativ til de andre heroene i lista. Klikk på en hero for builden og hvem den er sterk og svak mot.</div>
+      <table><thead><tr><th>Tier</th><th>Hero</th><th>Vinnerrate</th><th>Pick-rate</th><th>Kamper</th><th>Posisjoner</th></tr></thead><tbody>${rows
         .map(
           (r) => `<tr data-hero="${r.name}" class="${metaSelected === r.name ? 'sel' : ''}"><td><span class="tier ${r.tier}">${r.tier}</span></td>
             <td class="hero-cell">${heroImg(r.name, r.dname, 'xs')}${esc(r.dname)}</td>
             <td class="num">${r.winrate != null ? (r.winrate * 100).toFixed(1) + ' %' : '–'}</td>
             <td class="num">${(r.pickrate * 100).toFixed(1)} %</td>
+            <td class="num faint">${fmtNum(r.picks || 0)}</td>
             <td><div class="pos-badges">${r.positions.map((p, i) => `<span class="${i === 0 ? 'main' : ''}">${p}</span>`).join('')}</div></td></tr>`,
         )
         .join('')}</tbody></table>`;
@@ -1440,7 +1447,7 @@ async function loadHeroBuild(name) {
   const h = heroByName.get(name);
   $('meta-build').innerHTML = `<h3>Build</h3><span class="spinner"></span> Henter build for ${esc(h?.dname || name)} …`;
   try {
-    const data = await api(`/api/hero/${name}`);
+    const data = await api(`/api/hero/${name}?bracket=${settings.bracket}`);
     if (metaSelected !== name) return;
     const b = data.build;
     const med = (k) => data.benchmarks?.[k]?.find((x) => x.percentile === 0.5)?.value;
@@ -1451,10 +1458,19 @@ async function loadHeroBuild(name) {
           <div class="stat"><div class="k">LH/min median</div><div class="v">${(med('last_hits_per_min') || 0).toFixed(1)}<small> / ${(top('last_hits_per_min') || 0).toFixed(1)}</small></div></div>
         </div>`
       : '';
+    const mu = data.matchups;
+    const muRow = (x) => `<div class="mu-row">${heroImg(x.name, x.dname, 'xs')}<span>${esc(x.dname)}</span><b class="${x.adv >= 0 ? 'pos' : 'neg'}">${fmtAdv(x.adv)}</b><span class="faint num">${fmtPct(x.wr)} · ${fmtNum(x.games)}</span></div>`;
+    const muHtml = mu?.best?.length
+      ? `<div class="subhead">Matchups i ${BRACKET_NAME[mu.bracket] || ''} <span class="faint">(offentlige rankede kamper, siste uke${mu.totals ? ` · ${fmtNum(mu.totals.games)} kamper, ${fmtPct(mu.totals.wr)} seier` : ''})</span></div>
+         <div class="mu-cols"><div><span class="label-sm">Sterk mot (pick ${esc(h?.dname || name)} mot disse)</span>${mu.best.map(muRow).join('')}</div>
+         <div><span class="label-sm">Svak mot (unngå mot disse)</span>${mu.worst.map(muRow).join('')}</div></div>
+         <div class="faint" style="font-size:11.5px;margin-top:4px">Tallet er hvor mange prosentpoeng oftere (eller sjeldnere) helten vinner mot den fienden enn heroenes vanlige vinnerrate tilsier. Så kommer vinnerraten mot fienden og antall kamper.</div>`
+      : '';
     $('meta-build').innerHTML = `<h3>Build <span class="right faint">populært i pro-kamper</span></h3>
       <div style="display:flex;gap:12px;align-items:center">${heroImg(name, h?.dname, 'lg')}<div><div class="hero-name">${esc(h?.dname || name)}</div>
       <div class="pos-badges" style="margin-top:6px">${(h?.positions || []).map((p, i) => `<span class="${i === 0 ? 'main' : ''}">Pos ${p}</span>`).join('')}</div></div></div>
       ${bench}
+      ${muHtml}
       ${skillsHtml(data.skills, data.skillsError)}
       ${b ? popList('Startitems', b.start) + popList('Tidlig (0–10 min)', b.early) + popList('Midgame (10–25 min)', b.mid) + popList('Lategame (25+ min)', b.late) : `<div class="notice warn" style="margin-top:12px">Ingen build-data: ${esc(data.error || 'ukjent feil')}</div>`}`;
   } catch (err) {

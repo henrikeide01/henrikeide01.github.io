@@ -126,10 +126,14 @@ Hvert forslag sier hvorfor det står der. Under *Draft-hjelp* har hver pick en *
 | Del | Hva den betyr | Kilde |
 |---|---|---|
 | **Meta** | Vinnerraten til helten i ranken din, opptil ±3 poeng | Offentlige kamper (OpenDota) |
-| **Matchups** | Hvor ofte helten vinner mot hver fiende, med antall kamper ved tallet. Få kamper trekker tallet mot 0. | Pro-kamper det siste året (OpenDota) |
+| **Matchups** | Hvor mange prosentpoeng oftere helten vinner mot hver fiende enn heroenes vanlige vinnerrate tilsier, med vinnerrate og antall kamper ved tallet. Få kamper tar med nabo-rankene og trekker tallet mot 0. | Offentlige rankede kamper i ranken din den siste uka (OpenDota, de samme kampene Dotabuff viser tall fra) |
 | **Counter** | Kjente counters, med evnen som gjør jobben, f.eks. «Counter Helix treffer alle illusjonene». +2 per fiende, −2 når en fiende countrer helten. | Dota Coach sin kunnskapsbase for 7.41 |
 | **Laget** | Det laget mangler: initiering, stuns, frontlinje, waveclear og så videre | Draften |
 | **Kombo** | Kjente kombinasjoner med lagkameratene | Dota Coach |
+
+Under **Meta** ser du vinnerrate, pick-rate og antall kamper for hver hero i ranken din. Klikker du på en hero, ser du hvem den er sterkest og svakest mot, med tall.
+
+Matchup-tallene følger med appen (rundt 2,9 millioner kamper) og oppdateres av seg selv fra OpenDota for heroene i draften din, høyst hver tredje dag. Forslagene venter aldri på dette. Dotabuff har ingen åpen tilgang til dataene sine, men de bygger på de samme offentlige kampene.
 
 **Items mot fiendene** (*Mot fiendelaget*, *Kjøp nå* og *Draft-hjelp*) kommer fra den samme kunnskapsbasen. For alle 127 heroene står det hva som virker mot dem og hvorfor, og hver påstand er sjekket mot evne- og item-beskrivelsene i 7.41 (BKB bare mot ting som ikke går gjennom BKB, Linken's bare mot målrettede evner, og så videre). Listen tilpasses deg:
 

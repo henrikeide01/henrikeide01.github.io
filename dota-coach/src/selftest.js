@@ -58,6 +58,10 @@ try {
   const am = { name: 'antimage', dname: 'Anti-Mage', attr: 'agi', roles: ['Carry', 'Escape', 'Nuker'] };
   const vsPa = counterItems({ enemies: [{ name: 'phantom_assassin', dname: 'Phantom Assassin' }], hero: am, role: 1, db });
   if (Object.keys(HERO_COUNTERS).length < 100 || !vsPa.length) fail('kunnskapsbasen for counters mangler');
+  // Matchups from public matches: the snapshot loads and gives numbers for a common pair.
+  const { buildMatchupIndex, pairStats } = await import('./coach/matchups.js');
+  const mu = buildMatchupIndex(JSON.parse(fs.readFileSync(path.join(root, 'data/matchups.json'), 'utf8')));
+  if (!mu || mu.ids.length < 100 || !(pairStats(mu, 1, 44, 5)?.games > 0)) fail('matchup-dataene mangler');
   for (const page of ['/', '/overlay.html', '/js/dashboard.js', '/api/status']) {
     const res = await fetch(`http://127.0.0.1:${srv.port}${page}`);
     if (!res.ok) fail(`${page} svarte ${res.status}`);

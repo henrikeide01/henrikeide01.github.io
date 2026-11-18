@@ -14,6 +14,7 @@ import { ItemDb, buildFromPopularity } from './coach/items.js';
 import { tierList, suggestHeroes, suggestBans, parseGsiDraft, compactDraftSample, needsText, BRACKETS } from './coach/draft.js';
 import { situationalItems, enemyTips } from './coach/situational.js';
 import { enemyBreakdown } from './coach/counters.js';
+import { buildMatchupIndex, overlayHero, publicMatchupSql, bestAndWorst, heroTotals } from './coach/matchups.js';
 import { analyzeMatch, enrichFromOpenDota, trends } from './coach/analysis.js';
 import { computeHeroSkills } from './coach/skills.js';
 import { gsiConfig, install as installGsiConfig, findDota } from './setup.js';
@@ -148,8 +149,33 @@ export async function startServer(opts = {}) {
   const matchupCache = new Map();
   const matchupPending = new Map(); // name -> promise
   const matchupFailedAt = new Map(); // name -> time of the last failure (tried again after a minute)
+  // Public ranked matches (the main source): a snapshot shipped with the app, refreshed per hero from the
+  // OpenDota explorer in the background (cached three days). The suggestions never wait for the refresh.
+  let publicIndex = null;
+  try {
+    publicIndex = buildMatchupIndex(readJson('data/matchups.json'));
+  } catch (err) {
+    log(`Fant ingen matchup-data fra offentlige kamper: ${err.message}`);
+  }
+  const publicRefreshed = new Map(); // name -> time of the last refresh attempt
+  function refreshPublic(n) {
+    const h = heroes.get(n);
+    if (!h || opts.fixturesDir || Date.now() - (publicRefreshed.get(n) || 0) < 10 * 60000) return;
+    publicRefreshed.set(n, Date.now());
+    od.publicMatchups(h.id, publicMatchupSql(h.id))
+      .then((rows) => {
+        publicIndex = overlayHero(publicIndex, h.id, rows);
+        scheduleDraftHelp();
+      })
+      .catch((err) => log(`Klarte ikke å oppdatere matchups for ${n} (bruker de lagrede tallene): ${err.message}`));
+  }
+  const pub = (bracket) => (publicIndex ? { index: publicIndex, bracket: Number(bracket) || settings.bracket } : null);
   function preloadMatchups(names) {
     for (const n of names) {
+      if (n && publicIndex?.pos.has(heroes.get(n)?.id)) {
+        refreshPublic(n);
+        continue;
+      }
       if (!n || matchupCache.has(n) || matchupPending.has(n) || !heroes.has(n)) continue;
       if (Date.now() - (matchupFailedAt.get(n) || 0) < 60000) continue;
       const job = od
@@ -624,14 +650,15 @@ export async function startServer(opts = {}) {
     const allies = draft.allies.map(toHero).filter(Boolean);
     const bans = draft.bans.map(toHero).filter(Boolean);
     const all = [...heroes.values()];
-    const res = suggestHeroes({ heroes: all, stats, matchups: matchupCache, allies: own ? [...allies, own] : allies, enemies, bans, role: own ? 0 : role, bracket });
+    const res = suggestHeroes({ heroes: all, stats, matchups: matchupCache, pub: pub(bracket), allies: own ? [...allies, own] : allies, enemies, bans, role: own ? 0 : role, bracket });
     return {
       ...res,
-      bans: suggestBans({ heroes: all, stats, matchups: matchupCache, allies, ownHero: own, enemies, bans, role, bracket }),
+      bans: suggestBans({ heroes: all, stats, matchups: matchupCache, pub: pub(bracket), allies, ownHero: own, enemies, bans, role, bracket }),
+      matchupInfo: publicIndex ? { ...publicIndex.info, bracket: Number(bracket) || settings.bracket } : null,
       needsText: needsText(res.needs),
       forTeam: !!own,
       hasStats: stats.size > 0,
-      hasMatchups: draft.enemies.some((n) => matchupCache.has(n)),
+      hasMatchups: draft.enemies.some((n) => matchupCache.has(n) || publicIndex?.pos.has(heroes.get(n)?.id)),
       loading: draftHeroes().some((n) => matchupPending.has(n)) || !!statsJob,
       ...counterHelp(enemies, own, role),
       enemyTips: enemyTips(enemies),
@@ -772,8 +799,19 @@ export async function startServer(opts = {}) {
       // The meta tab waits a little for the pro skill builds (they come from a slow query).
       if (meta && !meta.skills) await Promise.race([loadHeroSkills(name, heroes.get(name), meta), new Promise((r) => setTimeout(r, 12000))]);
       const sk = meta?.skills;
+      const bracket = Number(url.searchParams.get('bracket')) || settings.bracket;
+      const hero = heroes.get(name);
+      let matchups = null;
+      if (publicIndex?.pos.has(hero.id)) {
+        refreshPublic(name);
+        const byId = new Map([...heroes.values()].map((h) => [h.id, h]));
+        const row = (x) => ({ name: byId.get(x.id)?.name, dname: byId.get(x.id)?.dname, adv: x.adv, wr: x.wr, games: x.games });
+        const bw = bestAndWorst(publicIndex, hero.id, bracket, { limit: 8 });
+        matchups = { bracket, totals: heroTotals(publicIndex, hero.id, bracket), best: bw.best.map(row).filter((x) => x.name), worst: bw.worst.map(row).filter((x) => x.name), info: publicIndex.info };
+      }
       return send(res, 200, {
-        hero: heroes.get(name),
+        matchups,
+        hero,
         build: meta?.build || null,
         benchmarks: meta?.benchmarks || null,
         skills: sk ? { games: sk.games, typical: sk.typical, talents: sk.talents, neutrals: sk.neutrals.slice(0, 15) } : null,

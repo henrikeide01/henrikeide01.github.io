@@ -666,3 +666,12 @@ td.hero-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; 
 .buy-top .buy-gold + .flag { margin-left: 0; }
 .next-src { font-size: 12px; margin-top: 8px; }
 .next-hint { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(231, 181, 74, 0.08); border: 1px solid rgba(231, 181, 74, 0.3); font-size: 12.5px; line-height: 1.4; }
+.wp-sub { margin-top: 1px; }
+.wp-sub .himg.xs { width: 26px; height: 15px; vertical-align: -3px; }
+.wp-sub b.pos { color: var(--green); }
+.wp-sub b.neg { color: var(--red); }
+.mu-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 6px; }
+.mu-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 3px 0; }
+.mu-row b { font-family: var(--mono); }
+.mu-row b.pos { color: var(--green); }
+.mu-row b.neg { color: var(--red); }

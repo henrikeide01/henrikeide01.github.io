@@ -54,6 +54,13 @@ Never edit files the updater treats as user data: `settings.json`, `matches/`, `
   `counterItems` filters to what the player's hero/position buys (or what its pro players buy) and drives
   «Mot fiendelaget», «Kjøp nå» (live-items rule 7), the draft's known counters (+2/−2 per enemy) and bans.
   When a patch changes heroes or items, re-check the affected entries against the new dotaconstants text.
+- `data/matchups.json` + `src/coach/matchups.js` – hero-vs-hero results from public ranked matches per bracket
+  (OpenDota `public_matches`, ~7 days, 1–7; OpenDota has no Immortal bracket there). The advantage is measured
+  against what both heroes' overall win rates predict (log-odds), shrunk with k = 300 games, neighbouring brackets
+  added below 300 games. Drives pick/ban/avoid scores (weight 0.8 per point) and the Meta tab's "sterk/svak mot".
+  The server refreshes enemies/allies from the explorer in the background (cached 3 days). Rebuild the snapshot
+  with `node tools/build-matchups.js --fetch <dir>` then `node tools/build-matchups.js <dir>` (Node needs
+  `NODE_USE_ENV_PROXY=1` behind a proxy).
 - 👎 on a suggestion posts to `/api/feedback` and is stored in `feedback.json`; `/api/diagnostics` includes the
   last 40 entries. Use them to fix wrong advice.
 - `src/coach/skills.js` – skill order / talent / neutral item stats from OpenDota explorer rows, and the live advice.
