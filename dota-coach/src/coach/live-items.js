@@ -7,13 +7,16 @@ import { HERO_COUNTERS } from '../../data/counters.js';
 import { counterItems, coveredByOwned } from './counters.js';
 
 // A threat tag from the knowledge base; heroes it does not know fall back to the old hero lists.
-const legacy = { invis: COUNTER_RULES.find((r) => r.id === 'invis')?.heroes || [], magic: MAGIC_NUKERS, spellspam: SPELL_SPAMMERS };
+const ruleHeroes = (id) => COUNTER_RULES.find((r) => r.id === id)?.heroes || [];
+const legacy = { invis: ruleHeroes('invis'), magic: MAGIC_NUKERS, spellspam: SPELL_SPAMMERS, physical: ruleHeroes('physical'), disable: ruleHeroes('lockdown'), heal: ruleHeroes('heal') };
 const threat = (tag, enemies) => enemies.filter((e) => (HERO_COUNTERS[e.name] ? (HERO_COUNTERS[e.name].threats || []).includes(tag) : (legacy[tag] || []).includes(e.name)));
 
 const HP_REGEN = ['tango', 'tango_single', 'flask', 'faerie_fire', 'famango', 'great_famango', 'bottle', 'royal_jelly'];
 const MANA_REGEN = ['clarity', 'enchanted_mango', 'bottle', 'soul_ring', 'arcane_boots', 'guardian_greaves', 'famango', 'great_famango', 'royal_jelly'];
 const DETECTION = ['ward_sentry', 'ward_dispenser', 'dust', 'gem'];
 const MAGIC_DEFENSE = ['black_king_bar', 'pipe', 'eternal_shroud', 'glimmer_cape', 'mage_slayer', 'cloak', 'sphere', 'lotus_orb'];
+const ARMOR_DEFENSE = ['blade_mail', 'crimson_guard', 'heavens_halberd', 'shivas_guard', 'assault', 'butterfly', 'ghost', 'solar_crest', 'force_staff', 'ethereal_blade', 'crellas_crozier'];
+const DISABLE_DEFENSE = ['black_king_bar', 'sphere', 'lotus_orb', 'glimmer_cape', 'force_staff', 'hurricane_pike', 'cyclone', 'wind_waker', 'manta'];
 // Items that keep you alive: they rank higher when you keep dying.
 const DEFENSIVE = new Set([
   'black_king_bar', 'pipe', 'eternal_shroud', 'glimmer_cape', 'mage_slayer', 'sphere', 'lotus_orb', 'ghost', 'force_staff', 'hurricane_pike',
@@ -105,6 +108,13 @@ export function liveItemCandidates(x) {
     add('infused_raindrop', p, `${join(nukers)} har mye magisk burst. Raindrops tar av magisk skade tidlig (bare verdt det før ca. 15 min).`, 'counter', `Magisk burst: ${short(nukers)}`, { until: 900, vs: nukers.map((e) => e.name) });
   }
 
+  // 3b. A lot of magic damage in the enemy team: the real magic defence for your position.
+  if (nukers.length >= 2 && clock >= 720 && clock < 2400 && !owns(MAGIC_DEFENSE.filter((n) => n !== 'cloak'))) {
+    const item = role >= 4 ? 'glimmer_cape' : role === 3 ? 'pipe' : 'black_king_bar';
+    const what = { glimmer_cape: 'Glimmer Cape gir magisk resistens og redder deg eller en kjerne', pipe: 'Pipe beskytter hele laget mot magisk skade', black_king_bar: 'BKB gjør deg immun mot magi i fights' }[item];
+    add(item, (nukers.length >= 3 ? 68 : 58) + (dying ? 15 : 0), `${join(nukers)} har mye magisk skade. ${what}.`, 'counter', `Magisk skade: ${short(nukers)}`, { until: 2400, vs: nukers.map((e) => e.name) });
+  }
+
   // 4. Spell spammers: Magic Stick early, Wand once the stick is there.
   const spam = threat('spellspam', enemies);
   if (spam.length && clock < 1200) {
@@ -118,6 +128,31 @@ export function liveItemCandidates(x) {
   if (invis.length && !holds(DETECTION)) {
     if (role >= 4) add('ward_sentry', 76, `${join(invis)} kan bli usynlig. Ha alltid sentry wards på deg.`, 'vision', `Usynlige: ${short(invis)}`, { vs: invis.map((e) => e.name) });
     else if (clock >= 240) add('dust', 58, `${join(invis)} kan bli usynlig. Dust i inventaret avslører dem i fights.`, 'counter', `Usynlige: ${short(invis)}`, { vs: invis.map((e) => e.name) });
+  }
+
+  // 5b. Heavy physical damage: armour and saves.
+  const phys = threat('physical', enemies);
+  if (phys.length >= 2 && clock >= 600 && !owns(ARMOR_DEFENSE)) {
+    let item = null;
+    if (role >= 4) item = clock < 1800 ? 'ghost' : 'force_staff';
+    else if (role === 3) item = clock < 1500 ? 'blade_mail' : 'crimson_guard';
+    else if (clock >= 1500) item = x.heroAttr === 'agi' ? 'butterfly' : 'assault';
+    else if (role === 2 && x.heroAttr === 'int') item = 'ghost';
+    const what = { ghost: 'Ghost Scepter stopper right-click i kritiske sekunder', force_staff: 'Force Staff tar deg ut av fights', blade_mail: 'Blade Mail straffer dem som slår deg', crimson_guard: 'Crimson Guard blokkerer skade for hele laget', butterfly: 'Butterfly gir evasion mot right-click', assault: 'Assault Cuirass gir mye armor' }[item];
+    if (item) add(item, 55 + (dying ? 15 : 0), `${join(phys.slice(0, 3))} gjør mye fysisk skade. ${what}.`, 'counter', `Fysisk skade: ${short(phys)}`, { vs: phys.map((e) => e.name) });
+  }
+
+  // 5c. A lot of disables: BKB / Lotus / Glimmer.
+  const lock = threat('disable', enemies);
+  if (lock.length >= 3 && clock >= 900 && clock < 2700 && !owns(DISABLE_DEFENSE)) {
+    const item = role >= 4 ? 'glimmer_cape' : role === 3 ? 'lotus_orb' : 'black_king_bar';
+    add(item, 60 + (dying ? 15 : 0), `${join(lock.slice(0, 3))} har mye disable. ${item === 'black_king_bar' ? 'BKB' : item === 'lotus_orb' ? 'Lotus Orb' : 'Glimmer Cape'} hjelper deg å overleve stunnene.`, 'counter', `Mye disable: ${short(lock)}`, { vs: lock.map((e) => e.name) });
+  }
+
+  // 5d. Healing enemies: anti-heal for supports and the offlaner.
+  const heal = threat('heal', enemies);
+  if (heal.length && role >= 3 && clock >= 600 && clock < 2400 && !inv.owned.has('spirit_vessel')) {
+    add('spirit_vessel', 50, `${join(heal.slice(0, 3))} healer mye. Spirit Vessel kutter healingen.`, 'counter', `Healing: ${short(heal)}`, { vs: heal.map((e) => e.name) });
   }
 
   // 6. Supports: vision and smoke.

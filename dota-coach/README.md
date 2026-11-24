@@ -107,15 +107,13 @@ Det regnes ut fra blant annet:
 
 Du ser alltid hvorfor, f.eks. «+25 Nytt powerspike: Battle Fury» og «−20 Ultimaten er på cooldown». Når meteret skifter, får du beskjed med tale.
 
-## Automatisk draft
+## Fiendene i draften
 
-Dota gir ikke andre apper beskjed om hvilke heroer fiendene picker. Desktop-appen (`Dota Coach.bat`) ser derfor på heroportrettene øverst på skjermen under draften, og tidlig i kampen til alle 10 er funnet:
+Dota sender ikke fiendens picks til andre apper mens du selv spiller (bare tilskuere får draften). Dota Coach får fiendene inn på tre måter:
 
-- Heroer den har kjent igjen, havner automatisk i draften (merket **AUTO** under *Draft-hjelp*).
-- Overlayet viser de 5 beste pickene for deg mens draften pågår, og oppdaterer dem for hver ny pick.
-- Feil hero? Klikk på den under *Draft-hjelp* for å fjerne den. Den kommer ikke tilbake i denne kampen.
-- Første gang laster appen ned bildene av heroene (lagres i `cache/heroimg`).
-- Bildene behandles bare på din PC. Ingenting lagres, med mindre du trykker **📸 Lagre skjermbilde** (for feilsøking). Da havner bildet i mappen `debug/`.
+1. **Skriv dem inn selv – raskest og sikrest.** Under *Draft-hjelp* skriver du navnet eller en forkortelse og trykker Enter: `pa`, `am`, `wr`, `qop`, `sf`, `wk`, `od`, `np`, `cm`, `es` … Fem fiender tar rundt ti sekunder på skjerm nummer to. Velg raden (Fiender, Ditt lag, Bans) ved å klikke på den.
+2. **Skjermlesing (desktop-appen).** `Dota Coach.bat` ser på heroportrettene øverst på skjermen under draften. Det den tror den ser, kommer opp med **✓** og **✗** i *Draft-hjelp*, og bare heroer du godtar, brukes i forslagene. Vil du heller at den legger dem inn selv, kryss av for **Legg inn uten å spørre**. Du kan også slå den helt av.
+3. **Fra Dota selv i kampen.** Sender Dota fiendeheroer i kartdataene (minimapet), legges de inn automatisk med en gang de er sett, merket **SPILL**. Det er Dotas egne data, så det blir aldri feil hero.
 
 Gjenkjenningen virker best når Dota står i *Borderless Window*. Bommer den, trykk **📸 Lagre skjermbilde** under draften, og send bildet og «Kopier diagnose» til Claude, så blir den justert i neste oppdatering.
 

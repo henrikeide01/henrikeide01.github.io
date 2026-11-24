@@ -226,7 +226,12 @@ test('coach: next item, afford tip and situational items from the draft', () => 
   assert.equal(s.next.name, 'bfury');
   assert.equal(s.next.remaining, db.cost('bfury') - db.cost('quelling_blade'));
   assert.ok(s.tips.some((t) => t.id === 'afford-bfury'));
-  assert.ok(s.situational.some((x) => x.item === 'monkey_king_bar'));
+  // Items against the enemies, for Anti-Mage as a carry, with the reason per enemy.
+  const mkb = s.counterItems.find((x) => x.item === 'monkey_king_bar');
+  assert.ok(mkb, 'MKB against Phantom Assassin');
+  assert.equal(mkb.vs[0].hero, 'phantom_assassin');
+  assert.ok(mkb.vs[0].why.length > 10);
+  assert.equal(s.enemyBreakdown[0].hero, 'phantom_assassin');
   assert.equal(s.perf.gpmPct, 0.5);
 });
 

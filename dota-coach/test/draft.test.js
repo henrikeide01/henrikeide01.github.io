@@ -169,7 +169,7 @@ test('ban suggestions: heroes good against our team, else the meta threats for y
   // Our carry is Anti-Mage; Axe beats him in this (made-up) data.
   const am = H('antimage');
   const matchups = new Map([['antimage', heroList.filter((h) => h.name !== 'antimage').map((h) => ({ hero_id: h.id, games_played: 500, wins: h.name === 'axe' ? 180 : 250 }))]]);
-  const bans = suggestBans({ heroes: heroList, stats: flatStats, matchups, allies: [am], role: 5, bracket: 5 });
+  const bans = suggestBans({ heroes: heroList, stats: flatStats, matchups, allies: [am], role: 5, bracket: 5, kb: {} });
   assert.equal(bans[0].name, 'axe');
   assert.match(bans[0].reasons.join(' '), /Sterk mot Anti-Mage/);
   assert.ok(!bans.some((b) => b.name === 'antimage'));
