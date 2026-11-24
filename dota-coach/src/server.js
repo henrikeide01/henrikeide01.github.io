@@ -238,6 +238,10 @@ export async function startServer(opts = {}) {
   let draftSample = null; // compact copy of the last raw GSI draft block, for /api/diagnostics
   let draftSampleWithHeroes = null; // … and of the last one that had heroes in it
   let blocked = new Set(); // recognised heroes the user removed by hand
+  let confirmed = new Set(); // heroes read from the screen that the user accepted (✓)
+  // Enemy heroes Dota itself showed on the minimap this match (GSI minimap block): exact, no screen reading.
+  let seenEnemies = new Set();
+  let seenMatch = null;
   let draft = { allies: [], enemies: [], bans: [], savedAt: 0, autoAllies: [], autoEnemies: [], autoBans: [], unassigned: [], team: null, ownHero: null, autoAt: 0, sources: {}, source: null };
   let draftHelp = null; // pick suggestions for the current draft, shown in the overlay
   let vision = {};
@@ -391,12 +395,16 @@ export async function startServer(opts = {}) {
       if (lastMatchId && Date.now() - auto.at > 3 * 60 * 1000) {
         auto = { radiant: [], dire: [], at: 0 };
         blocked = new Set();
+        confirmed = new Set();
       }
       // Dota's own draft data always belongs to the match it came with (this payload's block is read below).
       if (lastMatchId && String(lastMatchId) !== '0' && String(matchId) !== '0') gsiDraft = emptyGsiDraft();
+      seenEnemies = new Set();
+      seenMatch = matchId;
       lastMatchId = matchId;
     }
     if (payload && typeof payload === 'object' && 'draft' in payload) readGsiDraft(payload.draft, payload.map?.game_state);
+    if (payload && typeof payload === 'object' && payload.minimap) readMinimapHeroes(payload.minimap, matchId);
     if (updateDraft()) refreshDraftHelp({ silent: true });
     recompute();
     return true;
@@ -569,6 +577,29 @@ export async function startServer(opts = {}) {
     return null;
   };
 
+  // Enemy heroes on Dota's own minimap data (GSI "minimap" block, if Dota sends heroes there): once seen, an enemy
+  // is known for the rest of the match. Only entries with a hero unit name and the other team's number count.
+  function readMinimapHeroes(block, matchId) {
+    try {
+      if (matchId && matchId !== seenMatch) {
+        seenMatch = matchId;
+        seenEnemies = new Set();
+      }
+      const t = lastGsi?.player?.team_name;
+      if (t !== 'radiant' && t !== 'dire') return;
+      const enemyTeam = t === 'radiant' ? 3 : 2;
+      const own = ownHeroName();
+      for (const e of Object.values(block)) {
+        if (!e || typeof e !== 'object') continue;
+        const m = /^npc_dota_hero_([a-z0-9_]+)$/.exec(String(e.unitname || e.name || ''));
+        if (!m || !heroes.has(m[1]) || m[1] === own || Number(e.team) !== enemyTeam) continue;
+        if (seenEnemies.size < 5 || seenEnemies.has(m[1])) seenEnemies.add(m[1]);
+      }
+    } catch {
+      // garbage in the minimap block must never break the coach
+    }
+  }
+
   // The GSI "draft" block. Every block is kept (compact) for the diagnostics, so we can see what Dota really
   // sends; one with heroes replaces what we had from Dota before. An empty block never wipes a known draft
   // (Dota stops filling it once the game starts).
@@ -597,21 +628,30 @@ export async function startServer(opts = {}) {
     const own = ownHeroName();
     const team = myTeam();
     const other = team === 'radiant' ? 'dire' : 'radiant';
-    const autoAllies = team ? teamPicks(team) : [];
-    const autoEnemies = team ? teamPicks(other) : [];
+    // Heroes read from the screen count only once the user accepted them (unless he chose automatic mode);
+    // Dota's own data (draft block, enemies seen on the minimap) always counts.
+    const fromDota = (side) => gsiDraft[side].length > 0;
+    const screenOk = (n) => settings.visionAuto === true || confirmed.has(n);
+    const pick = (side) => (fromDota(side) ? gsiDraft[side] : auto[side].filter(screenOk));
+    const autoAllies = team ? pick(team) : [];
+    const autoEnemies = team ? [...pick(other), ...seenEnemies] : [...seenEnemies];
     const ok = (n) => heroes.has(n) && !blocked.has(n);
     // Your own hero is never an enemy (a misread portrait) and never one of the four allies.
     const enemies = [...new Set([...manual.enemies, ...autoEnemies.filter((n) => !manual.allies.includes(n))])].filter((n) => ok(n) && n !== own).slice(0, 5);
     const allies = [...new Set([...manual.allies, ...autoAllies])].filter((n) => ok(n) && n !== own && !enemies.includes(n)).slice(0, 4);
     const bans = [...new Set([...manual.bans, ...gsiDraft.bans])].filter((n) => ok(n) && n !== own && !allies.includes(n) && !enemies.includes(n)).slice(0, 16);
     // Where each hero came from: «fra spillet» (GSI), «fra skjermen» (screen reading) or entered by hand.
-    const fromGsi = new Set([...gsiDraft.radiant, ...gsiDraft.dire, ...gsiDraft.bans]);
+    const fromGsi = new Set([...gsiDraft.radiant, ...gsiDraft.dire, ...gsiDraft.bans, ...seenEnemies]);
     const sources = {};
     for (const n of [...allies, ...enemies, ...bans]) {
       const byHand = manual.allies.includes(n) || manual.enemies.includes(n) || manual.bans.includes(n);
       sources[n] = byHand ? 'manual' : fromGsi.has(n) ? 'gsi' : 'screen';
     }
     const unassigned = team ? [] : [...new Set([...teamPicks('radiant'), ...teamPicks('dire')])].filter(ok);
+    // Read from the screen but not accepted yet: shown with ✓ / ✗ in the dashboard.
+    const inDraft = new Set([...allies, ...enemies, ...bans, own]);
+    const waiting = (side) => (team && !fromDota(side) ? auto[side].filter((n) => ok(n) && !screenOk(n) && !inDraft.has(n)) : []);
+    const pending = { enemies: team ? waiting(other) : [], allies: team ? waiting(team) : [] };
     const used = [...Object.values(sources), ...unassigned.map((n) => (fromGsi.has(n) ? 'gsi' : 'screen'))];
     const next = {
       allies,
@@ -622,6 +662,8 @@ export async function startServer(opts = {}) {
       autoEnemies: enemies.filter((n) => !manual.enemies.includes(n)),
       autoBans: bans.filter((n) => !manual.bans.includes(n)),
       unassigned,
+      pending,
+      visionAuto: settings.visionAuto === true,
       team,
       ownHero: own,
       autoAt: Math.max(auto.at, gsiDraft.at),
@@ -737,6 +779,8 @@ export async function startServer(opts = {}) {
         enemyList: list(draft.enemies),
         allyList: list(draft.allies),
         banList: list(draft.bans),
+        // Read from the screen, waiting for ✓ in the dashboard.
+        pendingEnemies: (draft.pending?.enemies || []).map((n) => ({ name: n, dname: dname(n) })),
       };
       if (!silent) recompute();
     } catch (err) {
@@ -854,6 +898,7 @@ export async function startServer(opts = {}) {
         // «Nullstill» forgets what was recognised, and the desktop app starts over from the screen. Heroes the
         // user removed stay removed for this match (a wrong recognition would just come back).
         auto = { radiant: [], dire: [], at: 0 };
+        seenEnemies = new Set();
         visionCommand = { ...visionCommand, resetPicks: true };
       }
       // Heroes the user removed stay out even if the screen still shows them (wrong recognition).
@@ -875,6 +920,21 @@ export async function startServer(opts = {}) {
       refreshDraftHelp();
       const suggestions = await draftSuggestions(role, bracket);
       return send(res, 200, { draft, suggestions });
+    }
+    // ✓ / ✗ on heroes read from the screen: { accept: [...], reject: [...] }.
+    if (p === '/api/draft/confirm' && req.method === 'POST') {
+      const body = await readBody(req);
+      for (const n of cleanNames(body.accept, 10)) {
+        confirmed.add(n);
+        blocked.delete(n);
+      }
+      for (const n of cleanNames(body.reject, 10)) {
+        confirmed.delete(n);
+        blocked.add(n);
+      }
+      updateDraft(true);
+      refreshDraftHelp();
+      return send(res, 200, { ok: true, draft });
     }
     // Heroes the desktop app recognised on screen: { left: [...], right: [...] } (Radiant left, Dire right).
     if (p === '/api/draft/auto' && req.method === 'POST') {
@@ -1013,6 +1073,7 @@ export async function startServer(opts = {}) {
     if (p === '/api/settings' && req.method === 'POST') {
       settings = applyPublicSettings(settings, await readBody(req));
       persistSettings();
+      updateDraft(true);
       refreshDraftHelp();
       recompute();
       broadcast('status', status());

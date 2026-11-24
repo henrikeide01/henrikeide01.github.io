@@ -123,3 +123,5 @@ body.edit .ov-edit-hint { display: block; }
 body.map-page.edit .ovm { outline: 2px dashed var(--gold); -webkit-app-region: drag; cursor: move; }
 body.map-page.edit .ovm.hidden { display: grid; min-height: 120px; }
 body.map-page.edit .ov-edit-hint { display: block; }
+.ovd-pending .ovd-heads { opacity: 0.6; }
+.ovd-pending .ovd-src { color: #e7b54a; }

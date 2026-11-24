@@ -1035,9 +1035,10 @@ async function initDraft() {
   $('hero-search').addEventListener('input', renderHeroGrid);
   $('hero-search').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
-    const first = $('hero-grid').querySelector('.hero-btn:not(.taken):not(.hidden)');
-    if (first) {
-      addHero(first.dataset.hero);
+    const taken = new Set([...draft.enemies, ...draft.allies, ...draft.bans]);
+    const top = searchHeroes(e.target.value).find((h) => !taken.has(h.name));
+    if (top) {
+      addHero(top.name);
       e.target.value = '';
       renderHeroGrid();
     }
@@ -1056,8 +1057,27 @@ async function initDraft() {
   });
   $('vision-line').addEventListener('change', (e) => {
     if (e.target.matches('[data-vision-toggle]')) saveSettings({ vision: e.target.checked }).then(renderVisionLine);
+    if (e.target.matches('[data-vision-auto]')) saveSettings({ visionAuto: e.target.checked }).then(() => fetchSuggestions());
   });
   $('vision-line').addEventListener('click', async (e) => {
+    const ok = e.target.closest('[data-accept]');
+    const no = e.target.closest('[data-reject]');
+    const all = e.target.closest('[data-accept-all]');
+    if (ok || no || all) {
+      const p = draft.pending || {};
+      const body = all ? { accept: [...(p.enemies || []), ...(p.allies || [])] } : ok ? { accept: [ok.dataset.accept] } : { reject: [no.dataset.reject] };
+      try {
+        const r = await api('/api/draft/confirm', body);
+        applyServerDraft(r.draft);
+        renderSlots();
+        renderHeroGrid();
+        renderVisionLine();
+        fetchSuggestions();
+      } catch (err) {
+        toast(err.message);
+      }
+      return;
+    }
     if (!e.target.closest('[data-vision-debug]')) return;
     try {
       const r = await api('/api/vision/debug', {});
@@ -1078,6 +1098,7 @@ function applyServerDraft(d) {
   draft.rev = d.rev || 0;
   draft.auto = new Set([...(d.autoEnemies || []), ...(d.autoAllies || []), ...(d.autoBans || [])]);
   draft.unassigned = d.unassigned || [];
+  draft.pending = d.pending || { enemies: [], allies: [] };
   draft.team = d.team || null;
   draft.autoAt = d.autoAt || 0;
   // The state's copy of the draft has no sources: keep the last ones then.
@@ -1098,6 +1119,7 @@ async function syncDraft(d) {
   }
   pendingDraft = null;
   const same = ['enemies', 'allies', 'bans'].every((k) => JSON.stringify(d[k] || []) === JSON.stringify(draft[k] || []));
+  if (!d.pending && draft.pending) d = { ...d, pending: draft.pending }; // the state's copy has no pending list
   applyServerDraft(d);
   if (same) return renderVisionLine();
   renderSlots();
@@ -1139,7 +1161,18 @@ function renderVisionLine() {
     ? `<span class="muted">Gjenkjent: ${draft.unassigned.map((n) => esc(heroByName.get(n)?.dname || n)).join(', ')} – venter på å vite hvilket lag du er på.</span>`
     : '';
   const debugBtn = '<button class="btn" data-vision-debug>📸 Lagre skjermbilde</button>';
-  const toggle = v?.active ? `<label class="switch"><input type="checkbox" data-vision-toggle ${settings.vision !== false ? 'checked' : ''}> Les draften fra skjermen</label>` : '';
+  const toggle = v?.active
+    ? `<label class="switch"><input type="checkbox" data-vision-toggle ${settings.vision !== false ? 'checked' : ''}> Les draften fra skjermen</label>${settings.vision !== false ? `<label class="switch"><input type="checkbox" data-vision-auto ${settings.visionAuto ? 'checked' : ''}> Legg inn uten å spørre</label>` : ''}`
+    : '';
+  // Heroes read from the screen that wait for ✓ / ✗ (nothing goes into the suggestions before that).
+  const pend = draft.pending || { enemies: [], allies: [] };
+  const pendRow = (g, label) =>
+    pend[g]?.length
+      ? `<div class="pend-row"><span class="pend-lbl">${label}</span>${pend[g].map((n) => `<span class="pend">${heroImg(n, heroByName.get(n)?.dname, 'xs')}<b>${esc(heroByName.get(n)?.dname || n)}</b><button class="pend-ok" data-accept="${esc(n)}" title="Riktig – bruk den">✓</button><button class="pend-no" data-reject="${esc(n)}" title="Feil – fjern den">✗</button></span>`).join('')}</div>`
+      : '';
+  const pending = pend.enemies?.length || pend.allies?.length
+    ? `<div class="pend-box"><div class="pend-head">Skjermen tror den ser disse. Stemmer det? <button class="btn" data-accept-all>✓ Alle stemmer</button></div>${pendRow('enemies', 'Fiender')}${pendRow('allies', 'Laget')}</div>`
+    : '';
   let html;
   const fromGame =
     draft.source === 'gsi' ? '<span class="pill src-pill gsi">🎮 Fra spillet</span><span class="muted">Dota sender draften direkte. Heroene merket SPILL kommer derfra.</span>' : '';
@@ -1149,11 +1182,13 @@ function renderVisionLine() {
   else if (v.error || !v.ready) {
     html = `<span class="pill" style="background:rgba(230,160,40,.2)">⚠️ Gjenkjenning virker ikke ennå</span><span class="muted">${esc(v.error || 'Laster heltebildene …')} Legg inn heroene selv så lenge.</span>${debugBtn}`;
   } else {
-    html = `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Automatisk</span><span class="muted">Desktop-appen leser heroene fra skjermen (merket AUTO). Feil hero? Klikk på den for å fjerne den.</span>${debugBtn}`;
+    html = settings.visionAuto
+      ? `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Automatisk</span><span class="muted">Desktop-appen leser heroene fra skjermen og legger dem inn (merket AUTO). Feil hero? Klikk på den for å fjerne den.</span>${debugBtn}`
+      : `<span class="pill" style="background:rgba(60,140,255,.18)">🤖 Leser skjermen</span><span class="muted">Det den finner, dukker opp her med ✓ og ✗. Bare heroer du godtar, brukes i forslagene.</span>${debugBtn}`;
     if (v.hint) html += `<span class="muted" style="color:var(--gold)">${esc(v.hint)}</span>`;
   }
   if (fromGame && v?.active) html += debugBtn;
-  patch(el, html + toggle + unassigned);
+  patch(el, html + toggle + unassigned + pending);
 }
 
 // A hero in the draft, marked with where it came from: SPILL (Dota's own data), AUTO (the screen) or by hand.
@@ -1213,14 +1248,52 @@ function addHero(name) {
   pushDraft();
 }
 
+// Short names players use. Typing one and pressing Enter adds that hero.
+const ALIASES = {
+  aa: 'ancient_apparition', abba: 'abaddon', alch: 'alchemist', am: 'antimage', arc: 'arc_warden', aw: 'arc_warden', bat: 'batrider', bb: 'bristleback',
+  bh: 'bounty_hunter', bm: 'beastmaster', brew: 'brewmaster', brood: 'broodmother', bs: 'bloodseeker', cent: 'centaur', ck: 'chaos_knight',
+  clock: 'rattletrap', cw: 'rattletrap', cm: 'crystal_maiden', dk: 'dragon_knight', dp: 'death_prophet', ds: 'dark_seer', dw: 'dark_willow',
+  dawn: 'dawnbreaker', doom: 'doom_bringer', drow: 'drow_ranger', ember: 'ember_spirit', ench: 'enchantress', es: 'earthshaker', et: 'elder_titan',
+  fv: 'faceless_void', void: 'faceless_void', grim: 'grimstroke', gyro: 'gyrocopter', io: 'wisp', jugg: 'juggernaut', kotl: 'keeper_of_the_light',
+  lc: 'legion_commander', ld: 'lone_druid', lesh: 'leshrac', ls: 'life_stealer', lyc: 'lycan', magnus: 'magnataur', mk: 'monkey_king', morph: 'morphling',
+  necro: 'necrolyte', np: 'furion', ns: 'night_stalker', od: 'obsidian_destroyer', ogre: 'ogre_magi', omni: 'omniknight', pa: 'phantom_assassin',
+  pango: 'pangolier', pb: 'primal_beast', pl: 'phantom_lancer', potm: 'mirana', qop: 'queenofpain', sb: 'spirit_breaker', sd: 'shadow_demon',
+  sf: 'nevermore', sk: 'sand_king', sky: 'skywrath_mage', snap: 'snapfire', spec: 'spectre', ss: 'shadow_shaman', rhasta: 'shadow_shaman', storm: 'storm_spirit',
+  ta: 'templar_assassin', tb: 'terrorblade', thd: 'jakiro', tide: 'tidehunter', timber: 'shredder', troll: 'troll_warlord', ul: 'abyssal_underlord',
+  underlord: 'abyssal_underlord', veno: 'venomancer', vs: 'vengefulspirit', vsp: 'void_spirit', wd: 'witch_doctor', wk: 'skeleton_king', wr: 'windrunner',
+  ww: 'winter_wyvern', zeus: 'zuus', voker: 'invoker',
+};
+
+// Heroes matching what was typed, best first: a short name, then initials ("pa"), then the start of the name.
+function searchHeroes(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return heroes;
+  const rank = (h) => {
+    const d = h.dname.toLowerCase();
+    if (ALIASES[q] === h.name) return 0;
+    const initials = d.split(/[\s-]+/).map((w) => w[0]).join('');
+    if (initials === q) return 1;
+    if (d.startsWith(q)) return 2;
+    if (d.split(/[\s-]+/).some((w) => w.startsWith(q))) return 3;
+    if (d.includes(q) || h.name.includes(q)) return 4;
+    return 9;
+  };
+  return heroes.map((h) => [h, rank(h)]).filter(([, r]) => r < 9).sort((a, b) => a[1] - b[1] || a[0].dname.localeCompare(b[0].dname)).map(([h]) => h);
+}
+
 function renderHeroGrid() {
   const q = $('hero-search').value.trim().toLowerCase();
   const taken = new Set([...draft.enemies, ...draft.allies, ...draft.bans]);
+  const found = searchHeroes(q);
+  const top = found.find((h) => !taken.has(h.name));
+  const hint = $('hero-search-hint');
+  if (hint) hint.innerHTML = q ? (top ? `Enter legger til <b>${esc(top.dname)}</b> som ${GROUP_LABEL[draft.mode][0].toLowerCase()}` : 'Ingen hero passer') : 'Skriv navnet eller en forkortelse (pa, am, wr, qop, sf …) og trykk Enter.';
+  const match = new Set(found.map((h) => h.name));
   const groups = { str: [], agi: [], int: [], all: [] };
   for (const h of heroes) (groups[h.attr] || groups.all).push(h);
   $('hero-grid').innerHTML = Object.entries(groups)
     .map(([attr, list]) => {
-      const visible = list.filter((h) => !q || h.dname.toLowerCase().includes(q) || h.name.includes(q));
+      const visible = list.filter((h) => !q || match.has(h.name));
       if (!visible.length) return '';
       return `<div class="attr-group"><h4>${ATTR[attr]}</h4><div class="hero-grid">${visible
         .map((h) => `<button class="hero-btn ${taken.has(h.name) ? 'taken' : ''}" data-hero="${h.name}" title="${esc(h.dname)}">${heroImg(h.name, h.dname)}<span class="nm">${esc(h.dname)}</span></button>`)

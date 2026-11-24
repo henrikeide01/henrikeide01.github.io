@@ -199,11 +199,17 @@ test('heroes recognised on screen fill the draft; the user can remove a wrong on
   assert.deepEqual(res.draft.enemies, []);
   assert.deepEqual(res.draft.unassigned.sort(), ['axe', 'lion', 'phantom_assassin', 'zuus']);
 
-  // Dire: the heroes on the left are the enemies.
+  // Dire: the heroes on the left are the enemies. Read from the screen, they wait for ✓ before they count.
   await post('/gsi', draftPayload('dire'));
-  const d = await (await fetch(`${base}/api/draft`)).json();
+  let d = await (await fetch(`${base}/api/draft`)).json();
+  assert.deepEqual(d.enemies, []);
+  assert.deepEqual(d.pending.enemies.sort(), ['axe', 'lion']);
+  assert.deepEqual(d.pending.allies.sort(), ['phantom_assassin', 'zuus']);
+  // ✓ on all of them.
+  d = (await (await post('/api/draft/confirm', { accept: ['axe', 'lion', 'phantom_assassin', 'zuus'] })).json()).draft;
   assert.deepEqual(d.enemies.sort(), ['axe', 'lion']);
   assert.deepEqual(d.allies.sort(), ['phantom_assassin', 'zuus']);
+  assert.deepEqual(d.pending.enemies, []);
   assert.equal(d.team, 'dire');
 
   // Pick suggestions for the overlay show up in the state during the draft.
@@ -221,8 +227,18 @@ test('heroes recognised on screen fill the draft; the user can remove a wrong on
   res = await (await post('/api/draft', { enemies: ['axe', 'tinker'], allies: ['phantom_assassin', 'zuus'], removed: ['lion'] })).json();
   assert.deepEqual(res.draft.enemies.sort(), ['axe', 'tinker']);
   res = await (await post('/api/draft/auto', { left: ['axe', 'lion', 'riki'], right: ['phantom_assassin', 'zuus'] })).json();
-  assert.deepEqual(res.draft.enemies.sort(), ['axe', 'riki', 'tinker']);
-  assert.deepEqual(res.draft.autoEnemies.sort(), ['axe', 'riki']);
+  assert.deepEqual(res.draft.enemies.sort(), ['axe', 'tinker'], 'Riki waits for ✓');
+  assert.deepEqual(res.draft.pending.enemies, ['riki']);
+  // ✗ on Riki: gone, and not asked again.
+  res = await (await post('/api/draft/confirm', { reject: ['riki'] })).json();
+  assert.deepEqual(res.draft.pending.enemies, []);
+  assert.ok(!res.draft.enemies.includes('riki'));
+  // In automatic mode the screen fills the draft without asking.
+  await post('/api/settings', { visionAuto: true });
+  res = await (await post('/api/draft/auto', { left: ['axe', 'lion', 'bane'], right: ['phantom_assassin', 'zuus'] })).json();
+  assert.deepEqual(res.draft.enemies.sort(), ['axe', 'bane', 'tinker']);
+  assert.deepEqual(res.draft.autoEnemies.sort(), ['axe', 'bane']);
+  await post('/api/settings', { visionAuto: false });
 
   // The desktop app reports in; the status shows it.
   const v = await (await post('/api/vision/status', { found: 5, heroes: [] })).json();
@@ -230,6 +246,32 @@ test('heroes recognised on screen fill the draft; the user can remove a wrong on
   const st = await (await fetch(`${base}/api/status`)).json();
   assert.equal(st.vision.active, true);
   await post('/api/draft', { reset: true });
+});
+
+test('enemy heroes Dota shows on the minimap go into the draft (exact data, no screen reading)', async () => {
+  await post('/api/draft', { reset: true, enemies: [], allies: [] });
+  const g = (minimap) => ({
+    auth: { token },
+    map: { matchid: '990', game_state: 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS', clock_time: 30 },
+    player: { team_name: 'radiant' },
+    hero: { name: 'npc_dota_hero_juggernaut' },
+    minimap,
+  });
+  await post('/gsi', g({
+    o0: { xpos: 100, ypos: 200, image: 'minimap_enemyicon', team: 3, unitname: 'npc_dota_hero_phantom_assassin' },
+    o1: { xpos: 300, ypos: 200, team: 2, unitname: 'npc_dota_hero_crystal_maiden' }, // an ally
+    o2: { xpos: 500, ypos: 200, team: 3, unitname: 'npc_dota_creep_badguys_melee' },
+    o3: { xpos: 600, ypos: 200, team: 3, unitname: 'npc_dota_hero_juggernaut' }, // own hero (an illusion?): never an enemy
+    o4: 'garbage',
+  }));
+  let d = await (await fetch(`${base}/api/draft`)).json();
+  assert.deepEqual(d.enemies, ['phantom_assassin']);
+  assert.equal(d.sources.phantom_assassin, 'gsi');
+  // Seen once is enough: it stays when it is out of sight.
+  await post('/gsi', g({ o0: { xpos: 1, ypos: 1, team: 3, unitname: 'npc_dota_hero_lion' } }));
+  d = await (await fetch(`${base}/api/draft`)).json();
+  assert.deepEqual(d.enemies.sort(), ['lion', 'phantom_assassin']);
+  await post('/api/draft', { reset: true, enemies: [], allies: [] });
 });
 
 test('the live coach says which ability to skill and which neutral item to pick', async () => {
@@ -271,7 +313,7 @@ test('draft: own hero is never suggested, removals stick, and a new match clears
   assert.ok(!res.draft.enemies.includes('zuus'));
   await post('/api/draft', { reset: true, enemies: [], allies: [] });
   res = await (await post('/api/draft/auto', { left: [], right: ['axe', 'zuus', 'lion'] })).json();
-  assert.deepEqual(res.draft.enemies.sort(), ['axe', 'lion']);
+  assert.deepEqual(res.draft.pending.enemies.sort(), ['axe', 'lion'], 'Zeus stays removed; the others wait for ✓');
   const rev = res.draft.rev;
   assert.ok(rev > 0);
   // suggestOnly does not touch the draft.

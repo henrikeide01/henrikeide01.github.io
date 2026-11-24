@@ -103,7 +103,10 @@ function renderDraft(el, dh) {
   );
 
   const banned = dh.banList || [];
-  patch(part('teams'), [teamRow('Fiender', dh.enemyList), teamRow('Laget', dh.allyList), teamRow('Bannet', banned)].join(''));
+  const unsure = dh.pendingEnemies?.length
+    ? `<div class="ovd-team ovd-pending"><span class="ovd-lbl">Usikre</span><span class="ovd-heads">${dh.pendingEnemies.map((h) => heroImg(h.name, h.dname, 'xxs')).join('')}</span><span class="ovd-src">bekreft i appen</span></div>`
+    : '';
+  patch(part('teams'), [teamRow('Fiender', dh.enemyList), unsure, teamRow('Laget', dh.allyList), teamRow('Bannet', banned)].join(''));
 }
 
 // The route minimap on its own (the desktop app shows it in a separate small window, e.g. next to Dota's minimap).

@@ -675,3 +675,12 @@ td.hero-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; 
 .mu-row b { font-family: var(--mono); }
 .mu-row b.pos { color: var(--green); }
 .mu-row b.neg { color: var(--red); }
+.pend-box { margin-top: 8px; padding: 10px; border-radius: 10px; border: 1px solid rgba(231, 181, 74, 0.45); background: rgba(231, 181, 74, 0.08); display: grid; gap: 6px; width: 100%; }
+.pend-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; }
+.pend-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pend-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); min-width: 52px; }
+.pend { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 4px 3px 4px; font-size: 13px; }
+.pend .himg.xs { width: 36px; height: 20px; }
+.pend button { border: 1px solid var(--border); background: var(--panel-3); border-radius: 6px; width: 26px; height: 24px; cursor: pointer; font-weight: 800; }
+.pend .pend-ok { color: var(--green); }
+.pend .pend-no { color: var(--red); }
