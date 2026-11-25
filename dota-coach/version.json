@@ -1,7 +1,18 @@
 {
-  "version": "1.5.0",
-  "date": "2026-10-15",
+  "version": "1.6.0",
+  "date": "2026-11-25",
   "changes": [
+    {
+      "version": "1.6.0",
+      "date": "2026-11-25",
+      "notes": [
+        "Pick-forslagene mot fiendene bygger nå på 2,9 millioner rangerte kamper i din rank (samme kamper som Dotabuff viser tall fra). «Hvorfor?» viser vinnerrate og antall kamper mot hver fiende.",
+        "Items mot fiendene: en kunnskapsbase for alle 127 heroer, sjekket mot 7.41, sier hva som virker mot hver fiende og hvorfor – og bare items helten og rollen din faktisk kjøper.",
+        "Fiender fra skjermen må godkjennes med ✓ før de brukes, så feil gjenkjenning ikke ødelegger forslagene. Skriv fiender raskt med forkortelser (pa, am, wr, qop …).",
+        "I kampen legges fiender inn automatisk fra Dotas egne kartdata når de blir sett (hvis Dota sender dem).",
+        "Meta-fanen viser hvem hver hero er sterk og svak mot, med tall. Trykk 👎 på et forslag som er feil, så kommer det med i diagnosen."
+      ]
+    },
     {
       "version": "1.5.0",
       "date": "2026-10-15",
