@@ -272,7 +272,7 @@ export function mountOverlay(root, { inlineMap = true } = {}) {
     }
     // A new neutral tier just opened (and the game shows no choice): the best picks for this hero.
     const pn = sk?.proNeutrals;
-    const tierAt = { 1: 0, 2: 900, 3: 1500, 4: 2100, 5: 3600 }[pn?.tier];
+    const tierAt = { 1: 0, 2: 900, 3: 1800, 4: 3000 }[pn?.tier];
     if (!nu && pn && tierAt != null && state.clock - tierAt < 180 && state.clock >= tierAt) {
       const a = pn.items?.[0];
       const e = pn.enchantments?.[0];

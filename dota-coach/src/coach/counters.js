@@ -73,7 +73,7 @@ export function counterItems({ enemies = [], hero = null, role = 0, build = null
     const info = kb[e.name];
     if (!info) continue;
     info.items.forEach((it, i) => {
-      if (!db?.get(it.item)) return;
+      if (!db?.get(it.item) || db.isRemoved?.(it.item)) return;
       const who = it.who || ['any'];
       const kind = who.includes('any') ? 'any' : who.find((w) => kinds.has(w));
       const inBuild = buildItems.has(it.item);

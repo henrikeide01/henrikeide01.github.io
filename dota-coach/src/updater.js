@@ -21,9 +21,9 @@ export const DEFAULT_CHANNEL = {
 };
 
 // Never touched by an update: the user's own data, downloaded packages and the updater's own state.
-const PROTECTED = [/^settings\.json$/, /^overlay-window\.json$/, /^overlay-map-window\.json$/, /^\.installed\.json$/, /^feedback\.json$/, /^\.shortcut-created$/, /^\.needs-install$/, /^(matches|cache|backup|debug|node_modules|\.update)\//, /(^|\/)\.git\//];
-const TEXT_EXT = new Set(['.js', '.cjs', '.mjs', '.json', '.html', '.css', '.md', '.bat', '.cmd', '.txt', '.cfg', '.svg', '']);
-const CRLF_EXT = new Set(['.bat', '.cmd']);
+const PROTECTED = [/^settings\.json$/, /^overlay-window\.json$/, /^overlay-map-window\.json$/, /^main-window\.json$/, /^\.installed\.json$/, /^feedback\.json$/, /^\.shortcut-created$/, /^\.needs-install$/, /^(matches|cache|backup|debug|node_modules|\.update)\//, /(^|\/)\.git\//];
+const TEXT_EXT = new Set(['.js', '.cjs', '.mjs', '.json', '.html', '.css', '.md', '.bat', '.cmd', '.vbs', '.txt', '.cfg', '.svg', '']);
+const CRLF_EXT = new Set(['.bat', '.cmd', '.vbs']);
 const KEEP_BACKUPS = 3;
 
 export const isProtected = (rel) => PROTECTED.some((re) => re.test(rel));

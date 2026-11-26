@@ -50,9 +50,14 @@ export class ItemDb {
     return !!this.get(name)?.tier;
   }
 
+  // Taken out of the game in the current patch (the data still lists it).
+  isRemoved(name) {
+    return !!this.get(name)?.removed;
+  }
+
   isRecommendable(name) {
     const it = this.get(name);
-    if (!it || it.tier || it.cost <= 0 || this.isConsumable(name)) return false;
+    if (!it || it.removed || it.tier || it.cost <= 0 || this.isConsumable(name)) return false;
     return it.created || USEFUL_COMPONENTS.has(ItemDb.strip(name)) || it.qual !== 'component';
   }
 

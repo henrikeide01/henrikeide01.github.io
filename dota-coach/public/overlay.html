@@ -21,7 +21,7 @@
     const mapView = params.get('view') === 'map';
     if (mapView) document.body.classList.add('map-page');
     const update = mapView ? mountMapView(document.getElementById('root')) : mountOverlay(document.getElementById('root'), { inlineMap: !params.has('electron') });
-    const speaker = new Speaker('dotacoach.tts.overlay', true, { alwaysAllowed: params.has('electron') });
+    const speaker = new Speaker('dotacoach.tts.overlay.v2', false, { alwaysAllowed: params.has('electron') });
     let state = null;
     let status = null;
     let knownVersion = null;

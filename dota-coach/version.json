@@ -1,7 +1,17 @@
 {
-  "version": "1.6.2",
+  "version": "1.7.0",
   "date": "2026-11-26",
   "changes": [
+    {
+      "version": "1.7.0",
+      "date": "2026-11-26",
+      "notes": [
+        "Oppdatert til patch 7.42: nye matchup-tall fra 3 millioner rangerte kamper spilt på 7.42, nye hero- og item-data, fire tiers med nøytrale items (0, 15, 30 og 50 min) og nye fortryllelser. Items som er fjernet (Khanda, Javelin, Cloak m.fl.) foreslås ikke lenger.",
+        "Stemmen er slått av. Vil du ha den tilbake, trykk «Tale på» øverst eller Alt+Shift+S.",
+        "Snarveien på skrivebordet starter Dota Coach som en vanlig app, uten det svarte vinduet i bakgrunnen.",
+        "App-vinduet åpner der du sist hadde det, for eksempel på skjerm nummer to."
+      ]
+    },
     {
       "version": "1.6.2",
       "date": "2026-11-26",

@@ -23,7 +23,7 @@ Dota Coach er en coach for Dota 2 som kjører på din egen PC, litt som Blitz fo
 - **Kamphistorikk og trender:** snittscore, vinnerrate og feilene du gjør oftest over de siste kampene.
 - **Meta og builds:** tier-liste per posisjon og rank, og populære builds, skill-rekkefølge, talenter og nøytrale items for hver hero.
 
-Alt er laget for patch **7.41**. Meta og builds hentes fra OpenDota, så de oppdateres av seg selv.
+Alt er laget for patch **7.42**. Meta og builds hentes fra OpenDota, så de oppdateres av seg selv.
 
 ---
 

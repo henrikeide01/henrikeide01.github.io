@@ -18,7 +18,7 @@ let openReportId = null;
 let update = null;
 let knownVersion = null;
 let updateRequested = false;
-const speaker = new Speaker('dotacoach.tts.dashboard', true);
+const speaker = new Speaker('dotacoach.tts.dashboard.v2', false);
 
 function toast(msg, ms = 3500) {
   const el = document.createElement('div');

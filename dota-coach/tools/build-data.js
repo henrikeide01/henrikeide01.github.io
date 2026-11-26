@@ -34,7 +34,8 @@ for (const [name, it] of Object.entries(read('items.json'))) {
       ? { comp: it.components.filter(Boolean) }
       : {}),
     // Stats of neutral artifacts and enchantments, used to recommend them.
-    ...((it.tier || name.startsWith('enhancement_')) && Array.isArray(it.attrib)
+    // (kept for every item here; dropped again below for items that are not neutral after the patch notes)
+    ...(Array.isArray(it.attrib)
       ? { attrib: it.attrib.map((a) => ({ key: a.key, display: a.display, value: a.value })).filter((a) => a.key) }
       : {}),
   };
@@ -86,10 +87,47 @@ for (const [n, a] of Object.entries(abilityInfo).sort(([x], [y]) => x.localeComp
 const patches = read('patch.json');
 const patch = patches[patches.length - 1].name;
 
+// The patch notes of this patch fix what the item data lacks: neutral tiers (dotaconstants 10.9.0 dropped the
+// field), items removed or cycled out, and tier changes. Tiers missing in the data come from the previous
+// bundled data (--prev <items.json>, default the current data/items.json).
+const prevArg = process.argv.indexOf('--prev');
+const prevFile = prevArg > 0 ? process.argv[prevArg + 1] : path.join(root, 'data/items.json');
+let prevItems = {};
+try {
+  prevItems = JSON.parse(fs.readFileSync(prevFile, 'utf8')).items || {};
+} catch {}
+let notes = {};
+try {
+  notes = read('patchnotes.json')[patch.replace('.', '_')]?.items || {};
+} catch {}
+let removedCount = 0;
+const keepAttrib = (name, it) => it.tier || name.startsWith('enhancement_');
+for (const [name, it] of Object.entries(items)) {
+  if (!it.tier && prevItems[name]?.tier) it.tier = prevItems[name].tier;
+  const text = [].concat(notes[name] || []).join(' / ');
+  if (/Item removed from the game|Item Cycled Out/i.test(text)) {
+    it.removed = true;
+    delete it.tier;
+    removedCount++;
+    continue;
+  }
+  const changed = /Tier changed from \d to (\d)/i.exec(text);
+  const added = /(?:New|Returning|Reworked into) Tier (\d) Artifact/i.exec(text);
+  if (changed && !name.startsWith('enhancement_')) it.tier = Number(changed[1]);
+  else if (added) {
+    it.tier = Number(added[1]);
+    it.cost = 0;
+    delete it.comp;
+    delete it.created;
+  }
+}
+
+for (const [name, it] of Object.entries(items)) if (!keepAttrib(name, it)) delete it.attrib;
+
 fs.writeFileSync(path.join(root, 'data/heroes.json'), JSON.stringify({ patch, heroes }, null, 0));
 fs.writeFileSync(path.join(root, 'data/items.json'), JSON.stringify({ patch, items }, null, 0));
 fs.writeFileSync(path.join(root, 'data/abilities.json'), JSON.stringify({ patch, heroes: heroAbilities, ids }, null, 0));
 fs.writeFileSync(path.join(root, 'data/ability-info.json'), JSON.stringify({ patch, abilities: abilityMeta }, null, 0));
 console.log(
-  `Skrev ${heroes.length} helter, ${Object.keys(items).length} items, ${Object.keys(ids).length} evner/talenter og ${Object.keys(abilityMeta).length} skadekilder (patch ${patch}).`,
+  `Skrev ${heroes.length} helter, ${Object.keys(items).length} items (${Object.values(items).filter((i) => i.tier).length} nøytrale, ${removedCount} fjernet i patchen), ${Object.keys(ids).length} evner/talenter og ${Object.keys(abilityMeta).length} skadekilder (patch ${patch}).`,
 );

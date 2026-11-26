@@ -31,7 +31,7 @@ const ORIGINAL = {
       current_madstone: 12,
       tier1: {
         tier: 1,
-        trinket_choices: { choice0: { item_name: 'item_essence_ring', item_level: 2 }, choice1: { item_name: 'item_poor_mans_shield', item_level: 2 } },
+        trinket_choices: { choice0: { item_name: 'item_crippling_crossbow', item_level: 2 }, choice1: { item_name: 'item_defiant_shell', item_level: 2 } },
         enchantment_choices: { choice0: { item_name: 'item_enhancement_mystical', item_level: 2 }, choice1: { item_name: 'item_enhancement_tough', item_level: 2 } },
       },
     },
@@ -43,7 +43,7 @@ test('the original shape: tier, madstone, ranked choices', () => {
   assert.equal(n.tier, 2);
   assert.equal(n.madstone, 12);
   assert.equal(n.source, 'team2.player0');
-  assert.deepEqual(names(n.artifacts), ['essence_ring', 'poor_mans_shield']);
+  assert.deepEqual(names(n.artifacts), ['crippling_crossbow', 'defiant_shell']);
   assert.deepEqual(names(n.enchantments), ['enhancement_mystical', 'enhancement_tough']);
   assert.equal(n.pickEnchantment, 'enhancement_tough');
 });
@@ -54,7 +54,7 @@ test('alternative key names: radiant/player_3, tier_N, arrays, name/item fields,
       player_3: {
         madstone_count: '7',
         tier_2: {
-          artifact_options: [{ name: 'item_cloak_of_flames' }, 'item_psychic_headband', { item: 'stormcrafter', lvl: 3 }, { name: 'Unrelenting Eye' }, { name: 'Not An Item!' }],
+          artifact_options: [{ name: 'item_cloak_of_flames' }, 'item_dandelion_amulet', { item: 'stormcrafter', lvl: 3 }, { name: 'Serrated Shiv' }, { name: 'Not An Item!' }],
           enchant_list: { a: { item: 'item_enhancement_tough', level: 3 }, b: { item_id: items.enhancement_vast.id } },
         },
       },
@@ -65,12 +65,12 @@ test('alternative key names: radiant/player_3, tier_N, arrays, name/item fields,
   assert.equal(n.source, 'radiant.player_3');
   assert.equal(n.tier, 3); // from the artifacts' own tier, whatever the key says
   assert.equal(n.madstone, 7);
-  assert.deepEqual(names(n.artifacts), ['cloak_of_flames', 'psychic_headband', 'stormcrafter', 'unrelenting_eye']);
+  assert.deepEqual(names(n.artifacts), ['cloak_of_flames', 'dandelion_amulet', 'serrated_shiv', 'stormcrafter']);
   assert.deepEqual(names(n.enchantments), ['enhancement_tough', 'enhancement_vast']);
 });
 
 test('numeric tier keys, choices straight on the player, and the player object as the whole block', () => {
-  const numeric = { team2: { player0: { 1: { trinket_choices: ['item_essence_ring', 'item_seeds_of_serenity'] } } } };
+  const numeric = { team2: { player0: { 1: { trinket_choices: ['item_crippling_crossbow', 'item_seeds_of_serenity'] } } } };
   assert.equal(advice(numeric).tier, 2);
   const flat = { current_madstone: 3, crafting_tier: 0, trinket_choices: { choice0: { item_name: 'item_chipped_vest' } }, enchantment_choices: { choice0: { item_name: 'item_enhancement_brawny' } } };
   const n = advice(flat);
@@ -90,22 +90,22 @@ test('numeric tier keys, choices straight on the player, and the player object a
 test('finding our player: slot keys, identity fields, both teams, and never a teammate by guess', () => {
   const both = {
     team2: { player0: { trinket_choices: ['item_chipped_vest'] } },
-    team3: { player0: { trinket_choices: ['item_cloak_of_flames'] }, player1: { trinket_choices: ['item_essence_ring'] } },
+    team3: { player0: { trinket_choices: ['item_cloak_of_flames'] }, player1: { trinket_choices: ['item_crippling_crossbow'] } },
   };
-  assert.equal(names(advice(both, { team: 'dire', teamSlot: 1 }).artifacts)[0], 'essence_ring');
+  assert.equal(names(advice(both, { team: 'dire', teamSlot: 1 }).artifacts)[0], 'crippling_crossbow');
   assert.equal(names(advice(both, { team: 'radiant', teamSlot: 4 }).artifacts)[0], 'chipped_vest'); // the only one on our side
   // Global player slots (5-9 for Dire).
-  const global = { team3: { player5: { trinket_choices: ['item_essence_ring'] }, player6: { trinket_choices: ['item_chipped_vest'] } } };
-  assert.equal(advice(global, { team: 'dire', teamSlot: 0 }).artifacts[0].name, 'essence_ring');
+  const global = { team3: { player5: { trinket_choices: ['item_crippling_crossbow'] }, player6: { trinket_choices: ['item_chipped_vest'] } } };
+  assert.equal(advice(global, { team: 'dire', teamSlot: 0 }).artifacts[0].name, 'crippling_crossbow');
   // steamid / accountid / team_slot fields.
-  const ids = { team2: { a: { steamid: '111', trinket_choices: ['item_essence_ring'] }, b: { steamid: '222', trinket_choices: ['item_chipped_vest'] } } };
+  const ids = { team2: { a: { steamid: '111', trinket_choices: ['item_crippling_crossbow'] }, b: { steamid: '222', trinket_choices: ['item_chipped_vest'] } } };
   assert.equal(advice(ids, { teamSlot: undefined, who: { steamid: '222' } }).artifacts[0].name, 'chipped_vest');
-  const slots = { team2: { player0: { team_slot: 2, trinket_choices: ['item_essence_ring'] }, player1: { team_slot: 0, trinket_choices: ['item_chipped_vest'] } } };
+  const slots = { team2: { player0: { team_slot: 2, trinket_choices: ['item_crippling_crossbow'] }, player1: { team_slot: 0, trinket_choices: ['item_chipped_vest'] } } };
   assert.equal(advice(slots, { teamSlot: 0 }).artifacts[0].name, 'chipped_vest', 'a team_slot field beats the key');
   // Several players and nothing tells which one is us: nothing rather than a teammate's choice.
-  assert.equal(advice({ team2: { player0: { trinket_choices: ['item_essence_ring'] }, player1: { trinket_choices: ['item_chipped_vest'] } } }, { teamSlot: undefined }), null);
+  assert.equal(advice({ team2: { player0: { trinket_choices: ['item_crippling_crossbow'] }, player1: { trinket_choices: ['item_chipped_vest'] } } }, { teamSlot: undefined }), null);
   // Only the other team's block: only if it is clearly us.
-  assert.equal(findMyNeutral({ team2: { player0: { trinket_choices: ['item_essence_ring'] }, player1: {} } }, 'dire', 1), null);
+  assert.equal(findMyNeutral({ team2: { player0: { trinket_choices: ['item_crippling_crossbow'] }, player1: {} } }, 'dire', 1), null);
   assert.equal(locateNeutralPlayer({ team2: { player0: { accountid: 9, trinket_choices: [] } } }, 'dire', { accountid: 9 }).path, 'team2.player0');
 });
 
@@ -115,7 +115,7 @@ test('choices already made: selected flags, a chosen-item key, and finished craf
       player0: {
         tier0: { selected_trinket: 'item_chipped_vest', chosen_enchantment: { name: 'item_enhancement_brawny' } },
         tier1: {
-          trinket_choices: { choice0: { item_name: 'item_essence_ring', chosen: 1 }, choice1: { item_name: 'item_poor_mans_shield' } },
+          trinket_choices: { choice0: { item_name: 'item_crippling_crossbow', chosen: 1 }, choice1: { item_name: 'item_defiant_shell' } },
           enchantment_choices: { choice0: { item_name: 'item_enhancement_tough' } },
         },
       },
@@ -123,7 +123,7 @@ test('choices already made: selected flags, a chosen-item key, and finished craf
   };
   const n = advice(block);
   assert.equal(n.tier, 2, 'the newest tier with something left to choose');
-  assert.equal(n.artifacts.find((a) => a.name === 'essence_ring').selected, true);
+  assert.equal(n.artifacts.find((a) => a.name === 'crippling_crossbow').selected, true);
   assert.equal(n.enchantments.some((e) => e.selected), false);
   // Everything chosen for tier 1 while tier 2 is open by the clock: no stale craft card.
   const done = { team2: { player0: { tier0: { selected_trinket: 'item_chipped_vest', selected_enchantment: 'item_enhancement_brawny' } } } };
@@ -162,8 +162,8 @@ test('garbage never throws', () => {
 test('the equipped neutral: neutral0 / neutral1, a nested enchantment, and an empty slot', () => {
   let e = readEquippedNeutral({ slot0: { name: 'item_blink' }, neutral0: { name: 'item_chipped_vest' }, neutral1: { name: 'item_enhancement_brawny', item_level: 2 } }, db);
   assert.deepEqual([e.seen, e.artifact.name, e.artifact.tier, e.enchantment.name, e.enchantment.level], [true, 'chipped_vest', 1, 'enhancement_brawny', 2]);
-  e = readEquippedNeutral({ neutral0: { name: 'item_essence_ring', enhancement: 'item_enhancement_tough' } }, db);
-  assert.deepEqual([e.artifact.name, e.enchantment.name], ['essence_ring', 'enhancement_tough']);
+  e = readEquippedNeutral({ neutral0: { name: 'item_crippling_crossbow', enhancement: 'item_enhancement_tough' } }, db);
+  assert.deepEqual([e.artifact.name, e.enchantment.name], ['crippling_crossbow', 'enhancement_tough']);
   e = readEquippedNeutral({ neutral0: { name: 'empty' } }, db);
   assert.deepEqual([e.seen, e.artifact, e.enchantment], [true, null, null]);
   assert.equal(readEquippedNeutral({ slot0: { name: 'item_blink' } }, db).seen, false);
@@ -183,11 +183,11 @@ test('upgrade advice: old tier, empty slot, clearly worse picks', () => {
   assert.equal(gear({}, { clock: 500 }), null);
   assert.equal(neutralGearAdvice({ equipped: { seen: false }, tier: 2, rec: rec2, itemDb: db, role: 1 }), null, 'no slot data: no claims');
   // Pro data shows a clear favourite and the equipped one is (almost) never used.
-  const stats = { neutrals: [{ name: 'poor_mans_shield', pct: 45 }, { name: 'essence_ring', pct: 2 }] };
+  const stats = { neutrals: [{ name: 'defiant_shell', pct: 45 }, { name: 'crippling_crossbow', pct: 2 }] };
   const recPro = neutralByTier({ tier: 2, stats, itemDb: db, role: 1, attr: 'agi' });
-  const worse = gear({ artifact: { name: 'essence_ring', dname: 'Essence Ring', tier: 2 } }, { rec: recPro, stats });
+  const worse = gear({ artifact: { name: 'crippling_crossbow', dname: 'Crippling Crossbow', tier: 2 } }, { rec: recPro, stats });
   assert.equal(worse.kind, 'worse-artifact');
-  assert.match(worse.text, /Essence Ring passer dårlig.*45 % av pro-spillerne tar Poor Man's Shield/);
+  assert.match(worse.text, /Crippling Crossbow passer dårlig.*45 % av pro-spillerne tar Defiant Shell/);
   // An enchantment that gives a carry nothing.
   const ench = gear({ artifact: { name: rec2.items[0].name, dname: 'x', tier: 2 }, enchantment: { name: 'enhancement_wise', dname: 'Wise' } });
   assert.equal(ench?.kind, 'worse-enchantment');
@@ -253,7 +253,7 @@ test('a craft choice on screen: one spoken craft tip, no tier or upgrade tips on
       player0: {
         current_madstone: 20,
         tier1: {
-          trinket_choices: { choice0: { item_name: 'item_essence_ring' }, choice1: { item_name: 'item_poor_mans_shield' } },
+          trinket_choices: { choice0: { item_name: 'item_crippling_crossbow' }, choice1: { item_name: 'item_defiant_shell' } },
           enchantment_choices: { choice0: { item_name: 'item_enhancement_tough' }, choice1: { item_name: 'item_enhancement_mystical' } },
         },
       },
@@ -275,7 +275,7 @@ test('a craft choice on screen: one spoken craft tip, no tier or upgrade tips on
   const chosen = structuredClone(neutralitems);
   chosen.team2.player0.tier1.trinket_choices.choice0.selected = true;
   chosen.team2.player0.tier1.enchantment_choices.choice0.selected = true;
-  s = coach.update(payload(1010, { neutral0: 'item_essence_ring', neutralitems: chosen }));
+  s = coach.update(payload(1010, { neutral0: 'item_crippling_crossbow', neutralitems: chosen }));
   assert.ok(!s.tips.some((t) => t.id.startsWith('neutral-craft')));
 });
 

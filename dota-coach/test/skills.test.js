@@ -33,7 +33,7 @@ const idOf = Object.fromEntries(Object.entries(ids).map(([id, n]) => [n, Number(
 // Max Q first, then W, one point in E; ultimate at 6/12; talent at 10 and 15.
 const ORDER = ['q', 'w', 'q', 'e', 'q', 'r', 'q', 'w', 'w', 't1a', 'w', 'r', 'e', 'e', 't2a', 'e'];
 const cloak = items.cloak_of_flames.id;
-const shield = items.poor_mans_shield.id;
+const shield = items.defiant_shell.id;
 const rows = [];
 for (let i = 0; i < 40; i++) {
   const order = ORDER.map((n) => (n === 't1a' && i % 4 === 0 ? 't1b' : n));
@@ -63,7 +63,7 @@ test('pro builds give a typical order, talent and neutral item percentages', () 
   assert.equal(t1.options.find((o) => o.name === 't1a').pct, 75);
   assert.equal(t1.options.find((o) => o.name === 't1b').pct, 25);
   assert.equal(stats.talents[2].options[0].pct, null); // nobody reached level 20 here
-  assert.deepEqual(stats.neutrals.map((n) => [n.name, n.pct]).sort(), [['cloak_of_flames', 50], ['poor_mans_shield', 50]]);
+  assert.deepEqual(stats.neutrals.map((n) => [n.name, n.pct]).sort(), [['cloak_of_flames', 50], ['defiant_shell', 50]]);
 });
 
 test('next skill point follows the pros and is always legal', () => {
@@ -136,8 +136,8 @@ test('neutral item craft: pro pick rates, the enchantment for the role, and what
         tier1: {
           tier: 1,
           trinket_choices: {
-            choice0: { item_name: 'item_essence_ring', item_level: 2 },
-            choice1: { item_name: 'item_poor_mans_shield', item_level: 2 },
+            choice0: { item_name: 'item_crippling_crossbow', item_level: 2 },
+            choice1: { item_name: 'item_defiant_shell', item_level: 2 },
           },
           enchantment_choices: {
             choice0: { item_name: 'item_enhancement_mystical', item_level: 2, selected: true },
@@ -152,11 +152,11 @@ test('neutral item craft: pro pick rates, the enchantment for the role, and what
   const n = neutralAdvice({ gsiNeutral: gsi, team: 'radiant', teamSlot: 1, stats, itemDb: db, role: 1, attr: 'agi' });
   assert.equal(n.tier, 2);
   assert.equal(n.madstone, 12);
-  assert.equal(n.pickArtifact, 'poor_mans_shield'); // 50 % of the pros
+  assert.equal(n.pickArtifact, 'defiant_shell'); // 50 % of the pros
   assert.equal(n.artifacts[0].pct, 50);
   assert.equal(n.pickEnchantment, 'enhancement_tough'); // damage + armor for a carry
   assert.equal(n.enchantments.find((e) => e.name === 'enhancement_mystical').selected, true);
-  assert.match(n.enchantments.find((e) => e.name === 'enhancement_tough').stats, /\+10 Damage/);
+  assert.match(n.enchantments.find((e) => e.name === 'enhancement_tough').stats, /\+11 Damage/);
   assert.equal(neutralAdvice({ gsiNeutral: null, team: 'radiant', teamSlot: 0, stats, itemDb: db, role: 1 }), null);
 });
 

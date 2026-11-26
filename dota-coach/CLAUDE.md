@@ -31,7 +31,7 @@ does nothing for the user.
    on their next start, or within 3 hours if the app is already running.
 
 Never edit files the updater treats as user data: `settings.json`, `matches/`, `cache/`, `backup/`,
-`overlay-window.json`, `overlay-map-window.json`, `.installed.json`, `feedback.json`, `debug/`.
+`overlay-window.json`, `overlay-map-window.json`, `main-window.json`, `.installed.json`, `feedback.json`, `.shortcut-created`, `debug/`.
 
 ## Where things live
 

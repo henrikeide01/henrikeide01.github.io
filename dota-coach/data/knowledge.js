@@ -1,20 +1,20 @@
 // Spillkunnskap coachen bruker. Alt her er vanlig tekst/tall som du kan redigere selv.
 
-// Timinger for patch 7.41 (sekunder på spillklokka). Sjekk disse når det kommer en ny patch.
+// Timinger for patch 7.42 (sekunder på spillklokka). Sjekk disse når det kommer en ny patch.
 export const TIMINGS = {
-  patch: '7.41',
+  patch: '7.42',
   bountyRune: { first: 0, every: 240 },
   powerRune: { first: 360, every: 120 },
   waterRunes: [120, 240],
   wisdomShrine: { first: 420, every: 420 },
   lotus: { first: 180, every: 180 },
   stackSecond: 53, // trekk leiren rundt xx:53–xx:55, leirer spawner hvert minutt
+  // 7.42: four tiers (0:00, 15:00, 30:00, 50:00).
   neutralTiers: [
     { tier: 1, at: 0 },
     { tier: 2, at: 900 },
-    { tier: 3, at: 1500 },
-    { tier: 4, at: 2100 },
-    { tier: 5, at: 3600 },
+    { tier: 3, at: 1800 },
+    { tier: 4, at: 3000 },
   ],
   tormentor: { first: 1200, respawn: 600 },
   roshan: { min: 480, max: 660 },

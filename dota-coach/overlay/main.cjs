@@ -10,6 +10,7 @@ const { spawn } = require('node:child_process');
 const ROOT = path.join(__dirname, '..');
 const BOUNDS_FILE = path.join(ROOT, 'overlay-window.json');
 const MAP_BOUNDS_FILE = path.join(ROOT, 'overlay-map-window.json');
+const MAIN_BOUNDS_FILE = path.join(ROOT, 'main-window.json');
 const ICON_FILE = path.join(__dirname, 'icon.ico');
 const ICON = (() => {
   const img = nativeImage.createFromPath(path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png'));
@@ -27,14 +28,18 @@ function ensureDesktopShortcut() {
   if (process.platform !== 'win32') return;
   try {
     const link = path.join(app.getPath('desktop'), 'Dota Coach.lnk');
-    const target = path.join(ROOT, 'Dota Coach.bat');
-    const options = { target, cwd: ROOT, icon: ICON_FILE, iconIndex: 0, description: 'Dota Coach – live coach, draft-hjelp og overlay for Dota 2' };
+    // Through the .vbs launcher: the app starts without the black console window.
+    const launcher = path.join(ROOT, 'Dota Coach.vbs');
+    const viaVbs = fs.existsSync(launcher);
+    const target = viaVbs ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'wscript.exe') : path.join(ROOT, 'Dota Coach.bat');
+    const args = viaVbs ? `"${launcher}"` : '';
+    const options = { target, args, cwd: ROOT, icon: ICON_FILE, iconIndex: 0, description: 'Dota Coach – live coach, draft-hjelp og overlay for Dota 2' };
     if (fs.existsSync(link)) {
       let current = null;
       try {
         current = shell.readShortcutLink(link);
       } catch {}
-      if (current && (current.target !== target || current.icon !== ICON_FILE)) shell.writeShortcutLink(link, 'update', options);
+      if (current && (current.target.toLowerCase() !== target.toLowerCase() || (current.args || '') !== args || current.icon !== ICON_FILE)) shell.writeShortcutLink(link, 'replace', options);
       if (!fs.existsSync(SHORTCUT_MARK)) fs.writeFileSync(SHORTCUT_MARK, new Date().toISOString());
       return;
     }
@@ -276,10 +281,32 @@ function createOverlay() {
   overlay.on('resized', saveBounds);
 }
 
+// The app window opens where the player left it (for example on the second screen), if that screen is still there.
+function savedMainBounds() {
+  try {
+    const b = JSON.parse(fs.readFileSync(MAIN_BOUNDS_FILE, 'utf8'));
+    const visible = screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      return b.x < a.x + a.width - 100 && b.x + b.width > a.x + 100 && b.y >= a.y - 20 && b.y < a.y + a.height - 100;
+    });
+    return visible ? b : null;
+  } catch {
+    return null;
+  }
+}
+function saveMainBounds() {
+  if (!mainWin || mainWin.isDestroyed() || mainWin.isMinimized()) return;
+  try {
+    fs.writeFileSync(MAIN_BOUNDS_FILE, JSON.stringify({ ...mainWin.getNormalBounds(), maximized: mainWin.isMaximized() }));
+  } catch {}
+}
+
 function createMain() {
+  const saved = savedMainBounds();
   mainWin = new BrowserWindow({
-    width: 1360,
-    height: 880,
+    width: saved?.width || 1360,
+    height: saved?.height || 880,
+    ...(saved ? { x: saved.x, y: saved.y } : {}),
     minWidth: 900,
     minHeight: 600,
     title: 'Dota Coach',
@@ -290,7 +317,16 @@ function createMain() {
     webPreferences: { backgroundThrottling: false },
   });
   mainWin.loadURL(`${baseUrl}/`);
-  mainWin.once('ready-to-show', () => mainWin.show());
+  mainWin.once('ready-to-show', () => {
+    if (saved?.maximized) mainWin.maximize();
+    mainWin.show();
+  });
+  let saveTimer = null;
+  const saveSoon = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveMainBounds, 500);
+  };
+  for (const ev of ['moved', 'resized', 'maximize', 'unmaximize']) mainWin.on(ev, saveSoon);
   // Closing the window keeps the coach running in the tray, like Blitz.
   mainWin.on('close', (e) => {
     if (quitting) return;
