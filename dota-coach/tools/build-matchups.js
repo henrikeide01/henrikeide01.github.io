@@ -40,7 +40,7 @@ if (fetchMode) {
     if (fs.existsSync(f)) continue;
     for (let attempt = 1; attempt <= 4; attempt++) {
       try {
-        const rows = await explorer(publicMatchupSql(h.id, 9000000, range.maxId));
+        const rows = await explorer(publicMatchupSql(h.id, Number(range.span) || 9000000, range.maxId));
         fs.writeFileSync(f, JSON.stringify(rows.map((r) => [Number(r.b), Number(r.hero_id), Number(r.games), Number(r.wins)])));
         console.log(h.name, rows.length);
         break;
