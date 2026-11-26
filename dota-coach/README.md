@@ -68,6 +68,10 @@ Tipsene leses opp med Windows-stemmen. For norsk uttale: *Innstillinger → Tid 
 
 ---
 
+### Snarvei på skrivebordet
+
+Første gang desktop-appen starter, lager den snarveien **Dota Coach** med eget ikon på skrivebordet. Sletter du den, kommer den ikke tilbake. Flytter du mappen, oppdateres snarveien neste gang appen starter.
+
 ## Oppdateringer – du trenger aldri laste ned på nytt
 
 Dota Coach oppdaterer seg selv fra GitHub:

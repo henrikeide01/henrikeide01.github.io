@@ -2,7 +2,7 @@
 // stays on top of Dota 2 (use "Borderless Window" in Dota), and a tray icon.
 // Hotkeys:  Alt+Shift+C  overlay on/off  ·  Alt+Shift+M  move overlay  ·  Alt+Shift+S  speech on/off
 //           Alt+Shift+D  show/hide the app window
-const { app, BrowserWindow, globalShortcut, screen, Menu, Tray, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, globalShortcut, screen, Menu, Tray, nativeImage, dialog, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
@@ -10,9 +10,40 @@ const { spawn } = require('node:child_process');
 const ROOT = path.join(__dirname, '..');
 const BOUNDS_FILE = path.join(ROOT, 'overlay-window.json');
 const MAP_BOUNDS_FILE = path.join(ROOT, 'overlay-map-window.json');
-const ICON = nativeImage.createFromDataURL(
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAASklEQVR4nGN4FGzPQAkmpOA/FJNlwH80TJIB6JpxGkKKZqyG4NUMA/gMIaiZkCFEacZnCNUMoNgLVAlEqkQjVRISVZIyVTITURgADhoIh7/697sAAAAASUVORK5CYII=',
-);
+const ICON_FILE = path.join(__dirname, 'icon.ico');
+const ICON = (() => {
+  const img = nativeImage.createFromPath(path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png'));
+  return img.isEmpty() ? nativeImage.createFromPath(path.join(__dirname, 'icon-32.png')) : img;
+})();
+const TRAY_ICON = (() => {
+  const img = nativeImage.createFromPath(path.join(__dirname, 'icon-32.png'));
+  return img.isEmpty() ? ICON : img.resize({ width: 16, height: 16 });
+})();
+const SHORTCUT_MARK = path.join(ROOT, '.shortcut-created');
+
+// Windows: a "Dota Coach" shortcut with the app's icon on the desktop, made once (if the user deletes it, it stays
+// deleted), and pointed at the new place if the app folder was moved.
+function ensureDesktopShortcut() {
+  if (process.platform !== 'win32') return;
+  try {
+    const link = path.join(app.getPath('desktop'), 'Dota Coach.lnk');
+    const target = path.join(ROOT, 'Dota Coach.bat');
+    const options = { target, cwd: ROOT, icon: ICON_FILE, iconIndex: 0, description: 'Dota Coach – live coach, draft-hjelp og overlay for Dota 2' };
+    if (fs.existsSync(link)) {
+      let current = null;
+      try {
+        current = shell.readShortcutLink(link);
+      } catch {}
+      if (current && (current.target !== target || current.icon !== ICON_FILE)) shell.writeShortcutLink(link, 'update', options);
+      if (!fs.existsSync(SHORTCUT_MARK)) fs.writeFileSync(SHORTCUT_MARK, new Date().toISOString());
+      return;
+    }
+    if (fs.existsSync(SHORTCUT_MARK)) return;
+    if (shell.writeShortcutLink(link, 'create', options)) fs.writeFileSync(SHORTCUT_MARK, new Date().toISOString());
+  } catch (err) {
+    console.error('Klarte ikke å lage snarvei på skrivebordet:', err.message);
+  }
+}
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
@@ -270,6 +301,8 @@ function createMain() {
 
 app.on('second-instance', () => showMain());
 
+if (process.platform === 'win32') app.setAppUserModelId('no.dotacoach.app');
+
 app.whenReady().then(async () => {
   let port;
   try {
@@ -307,7 +340,8 @@ app.whenReady().then(async () => {
   globalShortcut.register('Alt+Shift+S', toggleSpeech);
   globalShortcut.register('Alt+Shift+D', toggleMain);
 
-  tray = new Tray(ICON);
+  tray = new Tray(TRAY_ICON);
+  ensureDesktopShortcut();
   tray.setToolTip('Dota Coach');
   tray.on('click', () => showMain());
   updateTray();

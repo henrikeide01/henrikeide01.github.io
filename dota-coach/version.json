@@ -1,7 +1,14 @@
 {
-  "version": "1.6.1",
+  "version": "1.6.2",
   "date": "2026-11-26",
   "changes": [
+    {
+      "version": "1.6.2",
+      "date": "2026-11-26",
+      "notes": [
+        "Nytt ikon, og en snarvei «Dota Coach» på skrivebordet som lages automatisk første gang desktop-appen starter."
+      ]
+    },
     {
       "version": "1.6.1",
       "date": "2026-11-26",
