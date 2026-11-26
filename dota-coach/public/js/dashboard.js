@@ -1366,6 +1366,10 @@ function whyPickHtml(r) {
   const fills = (r.reasons || []).find((x) => x.text.startsWith('Gir laget'));
   if (p.team) row(p.team, 'Laget:', `${esc(fills?.text || 'dekker det laget mangler')}.`);
   for (const x of r.synergy || []) row(x.bonus, 'Kombo:', `med ${esc(x.dname)}: ${esc(x.why)}`);
+  if (Math.abs(p.blind || 0) >= 0.05) {
+    const hc = (r.hardCounters || []).map((w) => `${esc(w.dname)} ${fmtAdv(w.adv)}`).join(', ');
+    row(p.blind, 'Kan den countres?', p.blind > 0 ? `få harde counters blant heroene folk picker i ${BRACKET_NAME[settings.bracket]} – trygg å picke før fiendene har valgt.` : `${hc ? `${hc} slår den, og ` : ''}fiendene kan fortsatt velge dem. Vent med å picke den hvis du kan.`);
+  }
   if ((p.role || 0) < -0.05) row(p.role, 'Rolle:', `spilles sjeldnere i rollen din (vanligvis pos ${(r.positions || []).join('/')}).`);
   return `<details class="wp" ${keepOpen(`why-${r.name}`)}><summary>Hvorfor? Score ${fmtPP(r.score)}</summary>${rows.join('')}</details>`;
 }
@@ -1376,6 +1380,7 @@ const howItWorks = () => `<details class="card how" ${keepOpen('how')}><summary>
     <li><b>Meta</b>: vinnerraten til helten i offentlige kamper i ranken din (OpenDota). Gir opptil ±3 poeng.</li>
     <li><b>Matchups</b>: hvor ofte helten vinner mot hver fiende i offentlige rankede kamper i ranken din den siste uka (OpenDota, de samme kampene Dotabuff bruker), sammenlignet med hva heroenes vanlige vinnerrate tilsier. +3 betyr at helten vinner 3 prosentpoeng oftere mot den fienden enn forventet. Antall kamper står ved tallet. Med få kamper tas nabo-rankene med, og tallet trekkes mot 0.</li>
     <li><b>Counter</b>: kjente counters fra Dota Coach sin kunnskapsbase for patch 7.41, med evnen som gjør jobben. Hver påstand er sjekket mot evne- og item-beskrivelsene i 7.41. Gir +2 per fiende (maks +5), og −2 når en fiende countrer helten.</li>
+    <li><b>Kan den countres?</b> Så lenge fiendene ikke har valgt alle, teller det om helten har harde counters blant heroene folk picker mye i ranken din. En hero med få harde counters er tryggere å picke tidlig.</li>
     <li><b>Laget</b>: det laget ditt mangler (initiering, stuns, frontlinje, waveclear, magisk eller fysisk skade, lategame-carry).</li>
     <li><b>Kombo</b>: kjente kombinasjoner med lagkameratene dine.</li>
     <li><b>Items mot fiendene</b>: fra den samme kunnskapsbasen, filtrert til det helten og rollen din faktisk kjøper. Står helten din i pro-statistikken for itemet, står det «Pro-spillere på … kjøper den».</li>

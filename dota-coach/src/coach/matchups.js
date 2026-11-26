@@ -141,3 +141,31 @@ export function publicMatchupSql(heroId, span = 9000000, maxId = null) {
   const top = maxId != null && /^\d+$/.test(String(maxId)) ? String(maxId) : null;
   return `WITH r AS (SELECT ${top ? `${top}::bigint` : 'max(match_id)'} AS mx FROM public_matches${top ? ' LIMIT 1' : ''}), m AS (SELECT floor(avg_rank_tier/10)::int AS b, (radiant_win = (${id} = ANY(radiant_team))) AS win, CASE WHEN ${id} = ANY(radiant_team) THEN dire_team ELSE radiant_team END AS opp FROM public_matches, r WHERE match_id > r.mx - ${Number(span)} AND match_id <= r.mx AND (${id} = ANY(radiant_team) OR ${id} = ANY(dire_team)) AND avg_rank_tier IS NOT NULL AND lobby_type = 7) SELECT b, o AS hero_id, count(*) AS games, sum(win::int) AS wins FROM m, unnest(opp) o WHERE o > 0 GROUP BY b, o UNION ALL SELECT b, 0 AS hero_id, count(*) AS games, sum(win::int) AS wins FROM m GROUP BY b`;
 }
+
+// How easy a hero is to counter: its worst matchups among the heroes people actually pick in the bracket (pick
+// share >= minShare). Returns { mean, worst: [{ id, adv, games }] } (mean of the `k` worst advantages, <= 0 is bad).
+// Cached per index and bracket.
+const riskCache = new WeakMap();
+export function counterRisk(index, heroId, bracket, { minShare = 0.02, k = 3 } = {}) {
+  if (!index) return null;
+  let byBracket = riskCache.get(index);
+  if (!byBracket) riskCache.set(index, (byBracket = new Map()));
+  const key = `${bracket}:${heroId}`;
+  if (byBracket.has(key)) return byBracket.get(key);
+  const d = index.brackets.get(Number(bracket)) || index.brackets.get(7);
+  let out = null;
+  if (d) {
+    const total = d.t.reduce((s, x) => s + x[0], 0) / 10 || 1;
+    const rows = [];
+    index.ids.forEach((id, j) => {
+      if (id === Number(heroId) || d.t[j][0] / total < minShare) return;
+      const s = pairStats(index, heroId, id, bracket);
+      if (s && s.games >= 300) rows.push({ id, adv: s.adv, games: s.games });
+    });
+    rows.sort((a, b) => a.adv - b.adv);
+    const worst = rows.slice(0, k);
+    out = worst.length ? { mean: worst.reduce((s, x) => s + x.adv, 0) / worst.length, worst } : null;
+  }
+  byBracket.set(key, out);
+  return out;
+}

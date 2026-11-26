@@ -1,7 +1,15 @@
 {
-  "version": "1.6.0",
-  "date": "2026-11-25",
+  "version": "1.6.1",
+  "date": "2026-11-26",
   "changes": [
+    {
+      "version": "1.6.1",
+      "date": "2026-11-26",
+      "notes": [
+        "Skjermlesingen tar aldri skjermbilde mens du beveger musa eller klikker, og tar ingen skjermbilder i kampen. Den kan ikke lenger forstyrre klikkene dine.",
+        "Bedre hjelp tidlig i draften: forslagene teller med om en hero er lett eller vanskelig å countre mot heroene folk picker i ranken din, og «Hvorfor?» viser hvem som slår den."
+      ]
+    },
     {
       "version": "1.6.0",
       "date": "2026-11-25",

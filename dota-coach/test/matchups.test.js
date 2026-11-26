@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from '../src/settings.js';
-import { buildMatchupIndex, overlayHero, pairStats, heroTotals, bestAndWorst, expectedWinrate, publicMatchupSql } from '../src/coach/matchups.js';
+import { buildMatchupIndex, overlayHero, pairStats, heroTotals, bestAndWorst, expectedWinrate, publicMatchupSql, counterRisk } from '../src/coach/matchups.js';
 import { suggestHeroes, counterAdvantages } from '../src/coach/draft.js';
 
 const heroList = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/heroes.json'), 'utf8')).heroes;
@@ -142,4 +142,20 @@ test('the shipped snapshot covers every hero and every bracket', () => {
   // Both sides come from separate queries over the same matches; OpenDota may add a few late matches in between.
   assert.ok(Math.abs(a.games - b.games) <= a.games * 0.01);
   assert.ok(Math.abs(a.wins - (b.games - b.wins)) <= a.games * 0.01);
+});
+
+test('counter risk: worst matchups among popular heroes, and it only counts while enemies are unknown', () => {
+  const file = path.join(ROOT, 'data/matchups.json');
+  if (!fs.existsSync(file)) return;
+  const idx = buildMatchupIndex(JSON.parse(fs.readFileSync(file, 'utf8')));
+  const r = counterRisk(idx, H('phantom_assassin').id, 5);
+  assert.ok(r && r.worst.length === 3);
+  assert.ok(r.worst[0].adv <= r.worst[2].adv, 'worst first');
+  assert.ok(r.mean < 0);
+  const flat = new Map(heroList.map((h) => [h.name, { '5_pick': 1000, '5_win': 500 }]));
+  const pub = { index: idx, bracket: 5 };
+  const blind = suggestHeroes({ heroes: heroList, stats: flat, enemies: [], role: 1, bracket: 5, pub, kb: {} });
+  assert.ok(blind.picks.some((p) => p.parts.blind !== 0));
+  const full = suggestHeroes({ heroes: heroList, stats: flat, enemies: ['axe', 'lion', 'zuus', 'riki', 'sniper'].map(H), role: 1, bracket: 5, pub, kb: {} });
+  assert.ok(full.picks.every((p) => p.parts.blind === 0), 'all five enemies known: nothing left to fear');
 });

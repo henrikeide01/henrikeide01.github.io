@@ -2,7 +2,7 @@
 import { positionsFor } from '../../data/positions.js';
 import { synergiesWith } from '../../data/synergy.js';
 import { knownMatchups } from './counters.js';
-import { pairStats } from './matchups.js';
+import { pairStats, counterRisk } from './matchups.js';
 
 export const BRACKETS = { 1: 'Herald', 2: 'Guardian', 3: 'Crusader', 4: 'Archon', 5: 'Legend', 6: 'Ancient', 7: 'Divine', 8: 'Immortal' };
 
@@ -176,6 +176,20 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
   const allyNames = allies.map((h) => h.name);
   const allyDname = new Map(allies.map((h) => [h.name, h.dname]));
 
+  // While enemies are still to come, a hero that is hard to counter is worth more: the enemy can answer your pick.
+  // Compared with the median hero, scaled by how many enemies are still unknown.
+  const open = Math.max(0, 5 - enemies.length);
+  const risks = new Map();
+  if (pub?.index && open) {
+    for (const h of heroes) {
+      const r = counterRisk(pub.index, h.id, pub.bracket);
+      if (r) risks.set(h.name, r);
+    }
+  }
+  const sortedRisk = [...risks.values()].map((r) => r.mean).sort((a, b) => a - b);
+  const medianRisk = sortedRisk.length ? sortedRisk[Math.floor(sortedRisk.length / 2)] : 0;
+  const byId = new Map(heroes.map((h) => [h.id, h]));
+
   const rows = [];
   for (const h of heroes) {
     if (taken.has(h.name)) continue;
@@ -192,7 +206,10 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
     const syn = synergiesWith(h.name, allyNames).map((s) => ({ ...s, dname: allyDname.get(s.ally) || s.ally }));
     const synergyPP = Math.min(6, syn.reduce((s, x) => s + x.bonus, 0));
     const rolePP = (fit - 1) * 3;
-    const score = metaPP + counterPP + knownPP + rolePP + comp.score + synergyPP;
+    const risk = risks.get(h.name);
+    const blindPP = risk ? Math.max(-3, Math.min(3, (risk.mean - medianRisk) * 0.6 * (open / 5))) : 0;
+    const hardCounters = risk ? risk.worst.filter((w) => w.adv <= -2).map((w) => ({ name: byId.get(w.id)?.name, dname: byId.get(w.id)?.dname, adv: w.adv, games: w.games })).filter((w) => w.name) : [];
+    const score = metaPP + counterPP + knownPP + rolePP + comp.score + synergyPP + blindPP;
     const brief = (a) => ({ name: a.enemy.name, dname: a.enemy.dname, adv: a.adv, games: a.games, wr: a.wr, source: a.source });
     const good = adv.filter((a) => a.adv >= 1.5).sort((a, b) => b.adv - a.adv).slice(0, 3).map(brief);
     const bad = adv.filter((a) => a.adv <= -1.5).sort((a, b) => a.adv - b.adv).slice(0, 2).map(brief);
@@ -206,6 +223,8 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
     if (comp.fills.length) reasons.push({ text: `Gir laget ${joinNames(comp.fills.map((n) => n.label))}`, kind: 'pos' });
     const weak = [...known.bad.map((b) => b.dname), ...bad.map((b) => b.dname)].filter((n, i, a) => a.indexOf(n) === i);
     if (weak.length) reasons.push({ text: `Svak mot ${joinNames(weak.slice(0, 2))}`, kind: 'neg' });
+    if (blindPP >= 0.6 && open >= 3) reasons.push({ text: 'Vanskelig å countre', kind: 'pos' });
+    else if (blindPP <= -0.6 && hardCounters.length) reasons.push({ text: `Lett å countre (${joinNames(hardCounters.slice(0, 2).map((w) => w.dname))})`, kind: 'neg' });
     if (t && ['S', 'A'].includes(t.tier) && reasons.length < 2) reasons.push({ text: `${t.tier}-tier i meta`, kind: 'info' });
 
     rows.push({
@@ -237,7 +256,10 @@ export function suggestHeroes({ heroes, stats = new Map(), matchups = new Map(),
         team: comp.score,
         combo: synergyPP,
         role: rolePP,
+        blind: blindPP,
       },
+      hardCounters,
+      open,
       positions: positionsFor(h),
     });
   }

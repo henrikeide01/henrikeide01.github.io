@@ -1,6 +1,6 @@
 // Reads the hero picks from the screen and sends them to the coach. Dota's Game State Integration never tells a
 // third-party app what the enemies picked, so the desktop app looks at the hero portraits in the top bar instead
-// (during the draft, and early in the game until all 10 heroes are known). Nothing is stored or sent anywhere
+// (during the draft only, and only while the mouse is still). Nothing is stored or sent anywhere
 // except to the local coach server; a screenshot is only saved when the user asks for one (for troubleshooting).
 const { desktopCapturer, screen, nativeImage, net } = require('electron');
 const { Worker } = require('node:worker_threads');
@@ -11,10 +11,12 @@ const { pathToFileURL } = require('node:url');
 const CDN = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes';
 const DRAFT_PHASES = ['draft', 'strategy'];
 const GAME_PHASES = ['pregame', 'laning', 'mid', 'late'];
-const MAX_GAME_SCANS = 8; // in game: only the first minute and a half (until all heroes are found), so the game stays smooth
+const MAX_GAME_SCANS = 0; // in game: no screenshots at all (enemies come from Dota's minimap data or the draft)
 const GAME_SCAN_UNTIL = 90; // game clock seconds
 const MAX_CAPTURE_WIDTH = 1280; // portraits are still big enough at 1280 px wide; larger captures only cost time
 const KEEP_DEBUG = 6;
+// A screenshot is only taken while the mouse has been still this long, so it never lands while the player clicks.
+const MOUSE_STILL_MS = 1200;
 
 const readJson = (file) => {
   try {
@@ -276,6 +278,17 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
 
   let lastError = null;
   let enabled = true;
+  // Mouse activity: cheap to poll, and a capture waits until the player has stopped moving and clicking.
+  let lastCursor = null;
+  let lastMoveAt = 0;
+  const cursorTimer = setInterval(() => {
+    try {
+      const p = screen.getCursorScreenPoint();
+      if (!lastCursor || p.x !== lastCursor.x || p.y !== lastCursor.y) lastMoveAt = Date.now();
+      lastCursor = p;
+    } catch {}
+  }, 200);
+  cursorTimer.unref?.();
   async function tick() {
     if (stopped) return;
     let delay = 4000;
@@ -305,6 +318,12 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
       const inDraft = DRAFT_PHASES.includes(st.phase);
       const inGame =
         GAME_PHASES.includes(st.phase) && (st.clock ?? 0) <= GAME_SCAN_UNTIL && (st.draft?.enemies?.length || 0) < 5 && gameScans < MAX_GAME_SCANS;
+      if ((inDraft || inGame) && !saveDebug && Date.now() - lastMoveAt < MOUSE_STILL_MS) {
+        // The player is moving the mouse or clicking: look again shortly, never in the middle of it.
+        status.waitingForMouse = true;
+        throw Object.assign(new Error('venter på at musa står stille'), { quiet: true, retry: 400 });
+      }
+      status.waitingForMouse = false;
       if (inDraft || inGame || saveDebug) {
         if (inGame) gameScans++;
         await scan(inDraft ? 'draft' : 'game');
@@ -315,7 +334,7 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
     } catch (err) {
       if (err?.quiet) {
         status.error = null;
-        delay = 5000;
+        delay = err.retry || 5000;
       } else {
         // desktopCapturer rejects with a plain string.
         status.error = err?.message || String(err);
@@ -344,6 +363,7 @@ function startVision({ root, baseUrl, log = (...a) => console.log(...a), exclude
     stop() {
       stopped = true;
       clearTimeout(timer);
+      clearInterval(cursorTimer);
       worker?.terminate();
     },
   };
