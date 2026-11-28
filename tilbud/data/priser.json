@@ -1,5 +1,5 @@
 {
- "oppdatert": "2026-11-27T13:58:54.858Z",
+ "oppdatert": "2026-11-28T13:07:28.967Z",
  "kilde": "Kassalapp (kassal.app)",
  "ferskDager": 21,
  "varer": {
@@ -11,21 +11,21 @@
      "pris": 96.9,
      "gram": 400,
      "navn": "Kyllingfilet Strimler 400g Favorittkylling",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 224.8,
      "pris": 89.9,
      "gram": 400,
      "navn": "Kyllingfilet Strimler 400g Favorittkylling",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 412.5,
      "pris": 99,
      "gram": 240,
      "navn": "Kyllingbryst Pepper&chili 240g Lerstang",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -37,28 +37,28 @@
      "pris": 129,
      "gram": 850,
      "navn": "Kyllinglår Krydret 850g Folkets",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 99.3,
      "pris": 139,
      "gram": 1400,
      "navn": "Kyllinglår Grillet 1,4kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 143.8,
      "pris": 161,
      "gram": 1120,
      "navn": "Kyllinglår Grillet 1,12kg Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 150.9,
      "pris": 169,
      "gram": 1120,
      "navn": "KYLLINGLÅR GRILLET 1120 g Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Kiwi": {
      "kg": 224.5,
@@ -77,28 +77,28 @@
      "pris": 87.9,
      "gram": 400,
      "navn": "Kjøttdeig Storfe 14% u/salt&vann 400g Folkets",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 162.3,
      "pris": 64.9,
      "gram": 400,
      "navn": "Kjøttdeig 14% Fett 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 162.3,
      "pris": 64.9,
      "gram": 400,
      "navn": "Kjøttdeig 14% Fett 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 175,
      "pris": 70,
      "gram": 400,
      "navn": "KARBONADEDEIG 400 g Billig middag",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -110,7 +110,7 @@
      "pris": 32.9,
      "gram": 76,
      "navn": "Svinekjøttkrydder 76g glass Hindu",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -122,21 +122,21 @@
      "pris": 99,
      "gram": 300,
      "navn": "Storfe Biffstrimler 300g Folkets",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 313,
      "pris": 93.9,
      "gram": 300,
      "navn": "Storfe Biffstrimler 300g Spar",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 333.3,
      "pris": 100,
      "gram": 300,
      "navn": "Storfe Angus Biffstrimler 300g Meny",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -148,14 +148,14 @@
      "pris": 99.9,
      "gram": 500,
      "navn": "Laksefilet Naturell 4x125g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 149.8,
      "pris": 74.9,
      "gram": 500,
      "navn": "Laksefilet Naturell 4x125g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -167,21 +167,21 @@
      "pris": 69.9,
      "gram": 400,
      "navn": "Torskefilet Blokk u/skinn&ben 400g Msc First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 144.8,
      "pris": 57.9,
      "gram": 400,
      "navn": "Torskefilet Blokk u/skinn&ben 400g Msc First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 144.8,
      "pris": 57.9,
      "gram": 400,
      "navn": "Torskefilet Blokk u/skinn&ben 400g Msc First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -193,28 +193,28 @@
      "pris": 159,
      "gram": 1000,
      "navn": "Reker Frosne 80/100 1kg Fiskemannen",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 258,
      "pris": 129,
      "gram": 500,
      "navn": "Scampi Asc Rå u/ Skall 16/20 400g Fm",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 99.5,
      "pris": 199,
      "gram": 2000,
      "navn": "Reker m/skall Msc Kokte 90/130 2kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 333.3,
      "pris": 50,
      "gram": 150,
      "navn": "SCAMPI 150 g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -226,21 +226,21 @@
      "pris": 69.9,
      "gram": 400,
      "navn": "Bacon m/svor skivet 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 154.8,
      "pris": 61.9,
      "gram": 400,
      "navn": "Bacon m/svor skivet 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 154.8,
      "pris": 61.9,
      "gram": 400,
      "navn": "Bacon m/svor skivet 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -259,21 +259,21 @@
      "pris": 86.9,
      "gram": 520,
      "navn": "Wienerpølser Kylling/kalkun 520g Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 171.2,
      "pris": 89,
      "gram": 520,
      "navn": "Wienerpølser Kylling/kalkun 520g Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 167.1,
      "pris": 86.9,
      "gram": 520,
      "navn": "WIENERPØLSER KYLLING/KALKUN 520 g Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -285,28 +285,28 @@
      "pris": 39.9,
      "gram": 110,
      "navn": "Kokt Skinke Ekte 110g Gilde",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 344.5,
      "pris": 37.9,
      "gram": 110,
      "navn": "Kokt Skinke Ekte 110g Gilde",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 350,
      "pris": 38.5,
      "gram": 110,
      "navn": "Kokt Skinke Ekte 110g Gilde",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 344.5,
      "pris": 37.9,
      "gram": 110,
      "navn": "GILDE EKTE KOKT SKINKE 110 g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -318,14 +318,14 @@
      "pris": 12.4,
      "gram": 170,
      "navn": "Tunfisk i Vann Msc 170g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 72.9,
      "pris": 12.4,
      "gram": 170,
      "navn": "Tunfisk i Vann Msc 170g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -337,21 +337,21 @@
      "pris": 20,
      "gram": 360,
      "navn": "Egg Frittgående m/L 6pk Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 97.1,
      "pris": 69.9,
      "gram": 720,
      "navn": "Frokostegg Frittgående L 12stk Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
-     "kg": 98.5,
-     "pris": 70.9,
+     "kg": 99.6,
+     "pris": 71.7,
      "gram": 720,
      "navn": "Frokostegg Frittgående L 12stk Prior",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -363,28 +363,28 @@
      "pris": 9.9,
      "gram": 380,
      "navn": "Kidneybønner 380g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 20.8,
      "pris": 7.9,
      "gram": 380,
      "navn": "Kidneybønner 380g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 20.8,
      "pris": 7.9,
      "gram": 380,
      "navn": "Kidneybønner 380g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 26.1,
      "pris": 9.9,
      "gram": 380,
      "navn": "KIDNEYBØNNER 380g first price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -396,7 +396,7 @@
      "pris": 23.9,
      "gram": 380,
      "navn": "Linser Grønne 380g Gogreen",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -408,28 +408,28 @@
      "pris": 119,
      "gram": 800,
      "navn": "Gulost Original Bit 800g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 136.3,
      "pris": 109,
      "gram": 800,
      "navn": "Gulost Original Bit 800g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 172.7,
      "pris": 25.9,
      "gram": 150,
      "navn": "Norvegia Lett 16% skivet 150g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 149,
      "pris": 149,
      "gram": 1000,
      "navn": "GULOST ORIGINAL ca 1 kg Synnøve",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -441,21 +441,21 @@
      "pris": 32.9,
      "gram": 230,
      "navn": "Salatost Naturell 220g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 172.3,
      "pris": 37.9,
      "gram": 220,
      "navn": "SALATOST Urter&hvitløk 220g tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 167.7,
      "pris": 36.9,
      "gram": 220,
      "navn": "Salatost Urter&hvitløk 220g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -467,28 +467,28 @@
      "pris": 25.9,
      "gram": 300,
      "navn": "Lettrømme 17% 300g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 86.3,
      "pris": 25.9,
      "gram": 300,
      "navn": "Lettrømme 17% 300g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 86.3,
      "pris": 25.9,
      "gram": 300,
      "navn": "Lettrømme 17% 300g Q",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 109.7,
      "pris": 32.9,
      "gram": 300,
      "navn": "TINE SETERRØMME 3 dl",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -500,28 +500,28 @@
      "pris": 26.9,
      "gram": 300,
      "navn": "Matfløte 18% 3dl Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 86.3,
      "pris": 25.9,
      "gram": 300,
      "navn": "Matfløte 18% 3dl Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 85,
      "pris": 25.5,
      "gram": 300,
      "navn": "Matfløte 18% 3dl Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 93,
      "pris": 27.9,
      "gram": 300,
      "navn": "TINE MATFLØTE 18% 3 dl",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -533,28 +533,28 @@
      "pris": 67.9,
      "gram": 750,
      "navn": "Kremfløte 37% 7,5dl Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 87.9,
      "pris": 65.9,
      "gram": 750,
      "navn": "Kremfløte 37% 7,5dl Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 66.5,
      "pris": 49.9,
      "gram": 750,
      "navn": "Kremfløte 37% 7,5dl Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 103,
      "pris": 30.9,
      "gram": 300,
      "navn": "TINE KREMFLØTE 3 dl",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -566,35 +566,35 @@
      "pris": 22.9,
      "gram": 1000,
      "navn": "Lettmelk 0,5% 1l Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 19.4,
      "pris": 33.9,
      "gram": 1750,
      "navn": "Lettmelk 0,5% 1,75l Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 18.8,
      "pris": 32.9,
      "gram": 1750,
      "navn": "Lettmelk 0,5% 1,75l Q",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 19.4,
      "pris": 33.9,
      "gram": 1750,
      "navn": "TINE LETTMELK 0.5% 1.75L",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Kiwi": {
      "kg": 17.9,
      "pris": 31.4,
      "gram": 1750,
      "navn": "Lettmelk 1% 1,75l Q",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -606,28 +606,28 @@
      "pris": 69.9,
      "gram": 500,
      "navn": "Meierismør 500g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 139.8,
      "pris": 69.9,
      "gram": 500,
      "navn": "Meierismør 500g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 119.8,
      "pris": 59.9,
      "gram": 500,
      "navn": "Meierismør 500g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 143.8,
      "pris": 71.9,
      "gram": 500,
      "navn": "MEIERISMØR NORMALSALTET 500 g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -639,28 +639,28 @@
      "pris": 54.9,
      "gram": 2000,
      "navn": "Jasminris 2kg Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 18.7,
      "pris": 74.9,
      "gram": 4000,
      "navn": "Jasminris 4kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 18.7,
      "pris": 74.9,
      "gram": 4000,
      "navn": "Jasminris 4kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 18.7,
      "pris": 74.9,
      "gram": 4000,
      "navn": "JASMINRIS 4 kg first price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -672,21 +672,21 @@
      "pris": 24.9,
      "gram": 1000,
      "navn": "Spaghetti 1kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 19.9,
      "pris": 19.9,
      "gram": 1000,
      "navn": "Spaghetti 1kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 19.9,
      "pris": 19.9,
      "gram": 1000,
      "navn": "Spaghetti 1kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -698,28 +698,28 @@
      "pris": 19.9,
      "gram": 250,
      "navn": "Eggnudler 250g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 71.6,
      "pris": 17.9,
      "gram": 250,
      "navn": "Eggnudler 250g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 71.6,
      "pris": 17.9,
      "gram": 250,
      "navn": "Eggnudler 250g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 79.6,
      "pris": 19.9,
      "gram": 250,
      "navn": "EGGNUDLER 250 g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -731,14 +731,14 @@
      "pris": 64.9,
      "gram": 2000,
      "navn": "Potet Mandel 2kg",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 20,
      "pris": 49.9,
      "gram": 2500,
      "navn": "Potet 2,5kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -750,21 +750,21 @@
      "pris": 14.9,
      "gram": 320,
      "navn": "Tortilla 8pk 320g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 88.7,
      "pris": 28.9,
      "gram": 326,
      "navn": "Tortillas Medium Super Soft 8stk 326g Old El Paso",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 27.8,
      "pris": 8.9,
      "gram": 320,
      "navn": "Tortilla 8pk 320g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -776,14 +776,14 @@
      "pris": 33.9,
      "gram": 500,
      "navn": "Lasagneplater 500g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 67.8,
      "pris": 33.9,
      "gram": 500,
      "navn": "Lasagneplater 500g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -795,21 +795,21 @@
      "pris": 99,
      "gram": 8000,
      "navn": "Siktet Hvetemel 4x2kg",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 16.5,
      "pris": 32.9,
      "gram": 2000,
      "navn": "Hvetemel Siktet 2kg Regal",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 17,
      "pris": 135.6,
      "gram": 8000,
      "navn": "Siktet Hvetemel 4x2kg",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -821,28 +821,28 @@
      "pris": 36.9,
      "gram": 480,
      "navn": "Burgerbrød Grove 6stk 480g Reale",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 79.4,
      "pris": 42.9,
      "gram": 540,
      "navn": "Burgerbrød Store m/sesam 6stk 540g Reale",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 70.6,
      "pris": 33.9,
      "gram": 480,
      "navn": "Burgerbrød Grove 6stk 480g Reale",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 76.9,
      "pris": 36.9,
      "gram": 480,
      "navn": "BURGERBRØD Grove 6stk 480g reale",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -854,28 +854,28 @@
      "pris": 69.9,
      "gram": 575,
      "navn": "Grandiosa Pizza 575g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 114.6,
      "pris": 65.9,
      "gram": 575,
      "navn": "Grandiosa Pizza 575g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 112.9,
      "pris": 64.9,
      "gram": 575,
      "navn": "Grandiosa Pizza 575g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 116.3,
      "pris": 66.9,
      "gram": 575,
      "navn": "GRANDIOSA PIZZA 575 g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -887,21 +887,21 @@
      "pris": 4.46,
      "gram": 160,
      "navn": "Løk Gul pr Kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 76.3,
      "pris": 22.9,
      "gram": 300,
      "navn": "Rødløk 2stk i Strømpe",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 83,
      "pris": 24.9,
      "gram": 300,
      "navn": "Rødløk 2stk i Strømpe",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -913,14 +913,14 @@
      "pris": 15.64,
      "gram": 180,
      "navn": "Paprika Rød",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 198.3,
      "pris": 57.5,
      "gram": 290,
      "navn": "Paprika Rød m/hvitløk 290g La Cestita",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -932,14 +932,14 @@
      "pris": 38.9,
      "gram": 400,
      "navn": "Cherrytomater 400g Mutti",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 99.7,
      "pris": 39.9,
      "gram": 400,
      "navn": "Cherrytomater 400g Mutti",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -951,21 +951,21 @@
      "pris": 71.5,
      "gram": 690,
      "navn": "Tomater Knuste Polpapezzi 690g Mutti",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 72.3,
      "pris": 28.9,
      "gram": 400,
      "navn": "MUTTI KNUSTE TOMATER 400 g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 105.7,
      "pris": 72.9,
      "gram": 690,
      "navn": "Tomater Knuste Polpapezzi 690g Mutti",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -977,21 +977,21 @@
      "pris": 39.9,
      "gram": 750,
      "navn": "Gulrot 750g Beger",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 39.9,
      "pris": 29.9,
      "gram": 750,
      "navn": "Gulrot 750g Beger",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 46.5,
      "pris": 34.9,
      "gram": 750,
      "navn": "Gulrot 750g Beger",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1003,28 +1003,28 @@
      "pris": 29.9,
      "gram": 500,
      "navn": "Brokkoliblanding 500g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 53.8,
      "pris": 26.9,
      "gram": 500,
      "navn": "Brokkoliblanding 500g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 53.8,
      "pris": 26.9,
      "gram": 500,
      "navn": "Brokkoliblanding 500g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 57.8,
      "pris": 28.9,
      "gram": 500,
      "navn": "BROKKOLIBLANDING 500 g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1036,21 +1036,21 @@
      "pris": 20,
      "gram": 390,
      "navn": "Erter Husholdning 410g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 42.6,
      "pris": 14.9,
      "gram": 350,
      "navn": "Erter 350g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 42.6,
      "pris": 14.9,
      "gram": 350,
      "navn": "Erter 350g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1062,28 +1062,28 @@
      "pris": 41.9,
      "gram": 594,
      "navn": "Maiskorn 3x198g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 29.1,
      "pris": 9.9,
      "gram": 340,
      "navn": "Maiskorn 340g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 29.1,
      "pris": 9.9,
      "gram": 340,
      "navn": "Maiskorn 340g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 35,
      "pris": 11.9,
      "gram": 340,
      "navn": "MAISKORN 340 g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Kiwi": {
      "kg": 41.9,
@@ -1102,21 +1102,21 @@
      "pris": 36.9,
      "gram": 250,
      "navn": "Isberg Mix 250g Grønn&frisk",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 147.6,
      "pris": 36.9,
      "gram": 250,
      "navn": "Isberg Mix 250g Grønn&frisk",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 134,
      "pris": 46.9,
      "gram": 350,
      "navn": "Isbergsalat Økologisk stykk Vilje",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1128,28 +1128,28 @@
      "pris": 29.9,
      "gram": 375,
      "navn": "Agurk stykk Import",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 72.3,
      "pris": 28.9,
      "gram": 400,
      "navn": "Agurk stykk Import",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 99.7,
      "pris": 36.9,
      "gram": 370,
      "navn": "Agurkmix 370g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 102.5,
      "pris": 36.9,
      "gram": 360,
      "navn": "AGURKMIX 360G ELDORADO",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1161,28 +1161,28 @@
      "pris": 19.9,
      "gram": 400,
      "navn": "Champignon hel 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 39.8,
      "pris": 15.9,
      "gram": 400,
      "navn": "Champignon hel 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 39.8,
      "pris": 15.9,
      "gram": 400,
      "navn": "Champignon hel 400g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 47.2,
      "pris": 18.9,
      "gram": 400,
      "navn": "CHAMPIGNON Hel 400g first price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1194,28 +1194,28 @@
      "pris": 11.9,
      "gram": 250,
      "navn": "Kokosmelk Lett 250ml Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 39.6,
      "pris": 9.9,
      "gram": 250,
      "navn": "Kokosmelk Lett 250ml Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 39.6,
      "pris": 9.9,
      "gram": 250,
      "navn": "Kokosmelk Lett 250ml Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 51.6,
      "pris": 12.9,
      "gram": 250,
      "navn": "KOKOSMELK 250ml eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1227,28 +1227,28 @@
      "pris": 35.9,
      "gram": 110,
      "navn": "Red Curry Paste 110g St.maria",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 299.1,
      "pris": 32.9,
      "gram": 110,
      "navn": "Green Curry Paste 110g St.maria",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 217.3,
      "pris": 23.9,
      "gram": 110,
      "navn": "Green Curry Paste 110g St.maria",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 317.3,
      "pris": 34.9,
      "gram": 110,
      "navn": "RED CURRY PASTE 110g st.maria",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1260,28 +1260,28 @@
      "pris": 26.9,
      "gram": 185,
      "navn": "Pesto Rød m/chili 185g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 129.2,
      "pris": 23.9,
      "gram": 185,
      "navn": "Pesto Alla Genovese 185g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 129.2,
      "pris": 23.9,
      "gram": 185,
      "navn": "Pesto Alla Genovese 185g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 107.1,
      "pris": 20.34,
      "gram": 190,
      "navn": "PESTO GENOVESE 190 g Barilla",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1293,14 +1293,14 @@
      "pris": 39.9,
      "gram": 150,
      "navn": "Tacokrydder Økologisk 150g Superbra",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 330,
      "pris": 9.9,
      "gram": 30,
      "navn": "Taco Kryddermix 30g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 175,
@@ -1314,7 +1314,7 @@
      "pris": 4.9,
      "gram": 28,
      "navn": "TACO KRYDDERMIX 28g first price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1326,28 +1326,28 @@
      "pris": 24.9,
      "gram": 230,
      "navn": "TACOSAUS HOT 230 g Santa Maria",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 60,
      "pris": 18.9,
      "gram": 315,
      "navn": "Salsadip Mexican Medium 315g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 123.5,
      "pris": 27.9,
      "gram": 226,
      "navn": "Taco Salsa Medium 226g Old El Paso",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 60,
      "pris": 18.9,
      "gram": 315,
      "navn": "Salsadip Mexican Medium 315g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1359,28 +1359,28 @@
      "pris": 20,
      "gram": 1100,
      "navn": "Havregryn Lettkokte 1,1kg Bjørn",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 24.1,
      "pris": 28.9,
      "gram": 1200,
      "navn": "Havregryn Lettkokte 1,2kg Urkraft",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 24.1,
      "pris": 28.9,
      "gram": 1200,
      "navn": "Havregryn Lettkokte 1,2kg Urkraft",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 17.3,
      "pris": 19,
      "gram": 1100,
      "navn": "AXA HAVREGRYN LETTKOKT 1.1 kg",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1392,14 +1392,14 @@
      "pris": 44.9,
      "gram": 375,
      "navn": "Granola Eple&bær 375g Jacobs Utvalgte",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 45.9,
      "pris": 45.9,
      "gram": 1000,
      "navn": "Frukt Müsli 1kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1411,28 +1411,28 @@
      "pris": 46.9,
      "gram": 750,
      "navn": "Kneippbrød 750g Gol Bakeri",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 60.5,
      "pris": 39.9,
      "gram": 660,
      "navn": "Toast Kneipp skivet 660g Bakehuset",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 21.2,
      "pris": 15.9,
      "gram": 750,
      "navn": "Kneippbrød 750g First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 110.6,
      "pris": 19.9,
      "gram": 180,
      "navn": "RUNDSTYKKE KNEIPP 3stk 180g bakehuset",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1444,7 +1444,7 @@
      "pris": 79.9,
      "gram": 1000,
      "navn": "Brødmix glutenfri 1kg Schar",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1456,21 +1456,21 @@
      "pris": 19.9,
      "gram": 260,
      "navn": "Husman Knekkebrød 260g Wasa",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 76.5,
      "pris": 19.9,
      "gram": 260,
      "navn": "Husman Knekkebrød 260g Wasa",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
-     "kg": 64.4,
-     "pris": 33.5,
+     "kg": 65.2,
+     "pris": 33.9,
      "gram": 520,
      "navn": "Husman Knekkebrød 520g Wasa",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1482,7 +1482,7 @@
      "pris": 20,
      "gram": 500,
      "navn": "Yoghurt Skogsbær 500g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1494,28 +1494,28 @@
      "pris": 20,
      "gram": 160,
      "navn": "Skyr Bringebær Panna Cotta 160g Q",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 168.1,
      "pris": 26.9,
      "gram": 160,
      "navn": "Skyr Bringebær Panna Cotta 160g Q",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 174.4,
      "pris": 27.9,
      "gram": 160,
      "navn": "Skyr Bringebær Panna Cotta 160g Q",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 191.5,
      "pris": 24.9,
      "gram": 130,
      "navn": "SKYR LUFTIG 130 g bringebær",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1527,28 +1527,28 @@
      "pris": 29.9,
      "gram": 420,
      "navn": "Kesam Mager Naturell 420g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 71.2,
      "pris": 29.9,
      "gram": 420,
      "navn": "Kesam Mager Naturell 420g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 65.5,
      "pris": 27.5,
      "gram": 420,
      "navn": "Kesam Mager Naturell 420g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 79.8,
      "pris": 31.9,
      "gram": 400,
      "navn": "COTTAGE CHEESE MAGER 400 g",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1560,7 +1560,7 @@
      "pris": 5.98,
      "gram": 200,
      "navn": "Bananer pr kg",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1572,21 +1572,21 @@
      "pris": 34.9,
      "gram": 1000,
      "navn": "Epler 1kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 32.9,
      "pris": 32.9,
      "gram": 1000,
      "navn": "Epler 1kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 28.9,
      "pris": 28.9,
      "gram": 1000,
      "navn": "Epler 1kg First Price",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1598,21 +1598,21 @@
      "pris": 39.9,
      "gram": 1000,
      "navn": "Biola Syrnet Melk Blåbær 1000g Tine",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 59.8,
      "pris": 29.9,
      "gram": 500,
      "navn": "Bringebærsaus 0,5l Piano",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 49.9,
      "pris": 39.9,
      "gram": 800,
      "navn": "Fun Light Bringebær 0,8l",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1624,28 +1624,28 @@
      "pris": 24.9,
      "gram": 275,
      "navn": "Peanøtter 275g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Eurospar": {
      "kg": 79.6,
      "pris": 21.9,
      "gram": 275,
      "navn": "Peanøtter 275g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 81.8,
      "pris": 22.5,
      "gram": 275,
      "navn": "Peanøtter 275g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 83.3,
      "pris": 22.9,
      "gram": 275,
      "navn": "PEANØTTER 275 g Eldorado",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1657,28 +1657,28 @@
      "pris": 53.9,
      "gram": 350,
      "navn": "Peanøttsmør Crunchy Økol.350g Vilje",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Meny": {
      "kg": 159.7,
      "pris": 55.9,
      "gram": 350,
      "navn": "Peanøttsmør Creamy Økol.350g Vilje",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 211.5,
      "pris": 71.9,
      "gram": 340,
      "navn": "PEANØTTSMØR CRUNCHY 340 G",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 173.2,
      "pris": 58.9,
      "gram": 340,
      "navn": "Peanøttsmør Creamy 340g Skippy",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   },
@@ -1690,7 +1690,7 @@
      "pris": 39.9,
      "gram": 55,
      "navn": "Proteinbar Banana Dream 55g Barebells",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Joker": {
      "kg": 725.5,
@@ -1704,14 +1704,14 @@
      "pris": 39.9,
      "gram": 55,
      "navn": "Proteinbar Marshmallow 55g Barebells",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     },
     "Bunnpris": {
      "kg": 725.5,
      "pris": 39.9,
      "gram": 55,
      "navn": "BANANA DREAM 55g barebells",
-     "dato": "2026-11-27"
+     "dato": "2026-11-28"
     }
    }
   }
